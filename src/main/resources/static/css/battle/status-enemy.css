@@ -1,0 +1,66 @@
+.status-enemy {
+    position: absolute;
+    width: 80%;
+    top: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.status-enemy .value-hp {
+    color: white;
+    font-size: 0.8rem;
+    line-height: 0.8rem;
+    font-weight: bold;
+    text-indent: 0.5rem;
+}
+
+.status-enemy .hp-bar {
+    border: solid 2px black;
+    position: relative;
+    background-color: transparent;
+    height: 1.2rem;
+}
+
+.status-enemy .progress .hp-trigger {
+    position: absolute;
+    background-color: yellow;
+    left: 25%;
+    height: 10px;
+    width: 0.7vw;
+    min-width: 3px;
+
+}
+
+.status-enemy .status-wrapper {
+}
+
+.status-wrapper .charge-turn-gauge {
+    padding: 0.25rem;
+}
+
+.status-enemy .status-wrapper .charge-turn {
+    border-radius: 100%;
+    width: 0.7rem;
+    height: 0.7rem;
+    border: 2px solid black;
+    float: left;
+    margin-right: 0.2rem;
+}
+
+.omen-text {
+    background-color: rgba(255, 243, 205, 0.7);
+    color: black;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 0.2rem;
+    margin-top: 0.2rem;
+    border-radius: 5px;
+}
+
+.charge-turn.active {
+    background-color: red;
+}
+
+.charge-turn.inactive {
+    background-color: white;
+}

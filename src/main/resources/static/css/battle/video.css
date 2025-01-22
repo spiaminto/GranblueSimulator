@@ -1,0 +1,55 @@
+.enemy {
+    position: absolute;
+    z-index: -10;
+}
+
+.motion-enemy-attack, .motion-enemy-charge-attack {
+    z-index: 0;
+}
+
+.motion-ability {
+    z-index: 0;
+}
+
+.party {
+    position: absolute;
+    width:100%;
+}
+
+.party-1 {
+    right: -8%;
+    top: 0;
+    z-index: -3;
+}
+
+.party-2 {
+    top: 15%;
+    right: 0;
+    z-index: -2;
+}
+
+.party-3 {
+    top: 30%;
+    right: -8%;
+    z-index: -1;
+}
+
+.party-global {
+    width: 110%;
+    height: 120%;
+    top: 0;
+    right: -10%;
+    z-index: 0;
+}
+
+.hidden {
+    visibility: hidden;
+}
+
+.enemy:not(.hidden) {
+    visibility: visible;
+}
+
+.motion-attack:not(.hidden), .motion-ability:not(.hidden) {
+    right: 0;
+}

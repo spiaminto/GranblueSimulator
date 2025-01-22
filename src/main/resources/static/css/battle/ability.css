@@ -1,0 +1,67 @@
+#battleMemberContainer {
+    margin: 0 auto;
+}
+
+#abilitySlider .ability-panel {
+    display: flex;
+    width: 100%;
+    /*padding: 1rem;*/
+}
+
+.charge-attack-wrapper {
+    height: 25%;
+    padding: 0.25rem;
+    border: 2px solid black;
+}
+
+#abilitySlider .ability-wrapper {
+    display: flex;
+    width: 100%;
+    height: 50%;
+    justify-content: space-evenly;
+}
+
+#abilitySlider .battle-portrait {
+    width: 20%;
+}
+
+#abilitySlider .battle-portrait img{
+    width: 100%;
+}
+
+#abilitySlider .ability-icon {
+    align-content: center;
+    width: 15%;
+}
+
+#abilitySlider .ability-icon img {
+    margin: auto 0;
+    width: 100%;
+}
+
+#abilitySlider .ability-cooldown-text {
+    text-align: center;
+    font-size: 1rem;
+}
+
+@media (min-width: 600px) {
+    #abilitySlider .ability-cooldown-text {
+        font-size: 1.3rem;
+    }
+}
+
+#abilitySlider .panel-wrapper {
+    width: 80%; /* battle-portriat 합쳐 100 */
+}
+
+.buff-wrapper {
+    padding: 0 1rem;
+    border: solid 2px black;
+    height: 25%; /* .ability-wrapper, .charge-attack-wrapper 합쳐 100 */
+    align-content: center;
+}
+
+.buff-wrapper img {
+    display: inline-block;
+    width: 10%;
+}

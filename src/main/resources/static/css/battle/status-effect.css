@@ -1,0 +1,72 @@
+/* 공통 */
+.status-effect {
+    display: none;
+}
+
+/* 적 */
+#enemyStatusEffectContainer {
+    position: absolute;
+    width: 50%;
+    height: 60%;
+    top: 25%;
+    left: 10%;
+    align-content: center;
+}
+
+.status-effect-wrapper {
+    text-wrap: nowrap;
+}
+
+.status-effect {
+    margin-top: -5%;
+}
+
+.status-effect img {
+    display: inline-block;
+    vertical-align: bottom;
+    width: 15%;
+}
+
+.status-effect-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+}
+
+/* 아군 */
+.status-effect-container {
+    text-align: right;
+    position: absolute;
+    width: 50%;
+    height: 60%;
+}
+
+.status-effect-container .status-effect img {
+    display: inline-block;
+    vertical-align: bottom;
+    width: 12%;
+}
+
+.status-effect-container .status-effect-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+}
+
+
+.status-effect-container-1 {
+    top: 38%;
+    right: 3%;
+}
+
+.status-effect-container-2 {
+    top: 53%;
+    right: 8%;
+}
+
+.status-effect-container-3 {
+    top: 68%;
+    right: 3%;
+}

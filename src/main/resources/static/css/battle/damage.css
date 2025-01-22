@@ -1,0 +1,74 @@
+.damage-wrapper {
+    position: absolute;
+}
+
+.damage-first {
+    top: 75%;
+    left: 17%;
+}
+
+.damage-second {
+    top: 60%;
+    left: 3%;
+}
+
+.damage-third {
+    top: 45%;
+    left: 23%;
+}
+
+.damage {
+    display: none;
+    color: gainsboro;
+    font-weight: bold;
+    font-size: 3rem;
+    /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
+    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+}
+
+.origin-damage {
+    position: relative;
+}
+
+.after-damage {
+    position: absolute;
+    top: -35%;
+    left: 20%;
+}
+
+.taken-damage-container {
+    position: absolute;
+}
+
+.taken-damage {
+    display: none;
+    color: gainsboro;
+    font-weight: bold;
+    font-size: 1.5rem;
+    /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
+    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+}
+
+.taken-damage-container.first-character {
+    top: 38%;
+    right: 8%;
+}
+
+.taken-damage-container.second-character {
+    top: 53%;
+    right: 13%;
+}
+
+.taken-damage-container.third-character {
+    top: 68%;
+    right: 8%;
+}
+
+@media(min-width: 768px) {
+    .damage {
+        font-size: 4rem;
+    }
+    .taken-damage {
+        font-size: 2rem;
+    }
+}

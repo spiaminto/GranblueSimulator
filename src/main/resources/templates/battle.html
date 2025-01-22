@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Title</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+<!--  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>-->
+  <link rel="stylesheet" type="text/css" href="/static/slick/slick.css">
+  <link rel="stylesheet" type="text/css" href="/static/slick/slick-theme.css">
+  <link href="/static/css/battle/common.css" rel="stylesheet">
+  <link href="/static/css/battle/status-enemy.css" rel="stylesheet">
+  <link href="/static/css/battle/video.css" rel="stylesheet">
+  <link href="/static/css/battle/damage.css" rel="stylesheet">
+  <link href="/static/css/battle/ability.css" rel="stylesheet">
+  <link href="/static/css/battle/status-effect.css" rel="stylesheet">
+  <style>
+
+      .container-bg {
+          z-index: -100;
+      }
+
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+<!--  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>-->
+  <script type="text/javascript" src="/static/slick/slick.js"></script>
+  <script src="/static/js/battle/process-turn.js"></script>
+  <script src="/static/js/battle/process-character-attack.js"></script>
+  <script src="/static/js/battle/process-enemy-attack.js"></script>
+  <script src="/static/js/battle/enemy.js"></script>
+  <script src="/static/js/battle/ability.js"></script>
+  <script src="/static/js/battle/audio-player.js"></script>
+  <script>
+      $(function () {
+
+          // 평타 모션 속도조정
+          $('.motion-attack').each(function (index, item) {
+              $(item).prop('playbackRate', '0.9');
+          })
+
+          // 오디오 뮤트 해제
+          $('audio').each(function (index, item) {
+              item.muted = !item.muted;
+          })
+
+
+          $('#audioPlayButton').on('click', function () {
+              document.getElementById('audioPlaying').currentTime = 0;
+              document.getElementById('audioPlaying').play();
+          })
+
+          $('#attackButton').on('click', function () {
+              processTurn();
+          })
+
+          $('#abilitySlider').slick({arrows : false});
+
+          // 어빌리티 duratinon 로드를 위해 미리 재생 및 data-duration 추가
+          $('.motion-ability').each(function (index, item) {
+              let abilityVideo = $(this).get(0);
+              abilityVideo.play();
+              abilityVideo.addEventListener('durationchange', function () {
+                  let duration = abilityVideo.duration;
+                  this.dataset.duration = duration;
+              })
+          })
+
+          $('#abilitySlider .ability-icon').on('click', function () {
+              let charOrder = $(this).closest('.ability-panel').data('characterOrder');
+              let abilityOrder = $(this).data('abilityOrder');
+              console.log('char = {}, ability = {}', charOrder, abilityOrder);
+              processAbility(charOrder, abilityOrder);
+          });
+
+      });
+  </script>
+</head>
+<body>
+<div id="container" class="battle-canvas">
+
+  <div class="status-enemy">
+    <div class="value-hp">100%</div>
+    <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100" aria-valuemin="0"
+         aria-valuemax="100" style="height: 10px">
+      <div class="progress-bar hp-bar-realtime bg-danger" style="width: 26%"></div>
+      <div class="hp-trigger hp-trigger-1"></div>
+    </div>
+    <div class="status-wrapper clearfix">
+      <div class="charge-turn-gauge float-left">
+        <div class="charge-turn active"></div>
+        <div class="charge-turn inactive"></div>
+        <div class="charge-turn inactive"></div>
+      </div>
+      <div class="omen-wrapper float-right">
+        <div class="omen-text">
+          <span class="omen-header">[전조 : 영창기]</span>
+          <span class="omen-type">강화효과 제거</span>
+          <span class="omen-value">1</span>
+          <span class="omen-suffix">회 발동</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-bg battle-canvas">
+    <img src="/static/assets/img/bg-diaspora.jpg" width="100%">
+  </div>
+
+  <div id="videoContainer" class="battle-canvas">
+    <div class="enemy-video">
+      <audio class='enemy-audio-attack se' src="/static/assets/audio/se/enemy/en-diaspora-attack.mp3"
+             muted="muted"></audio>
+      <audio class='enemy-audio-charge-attack-c-1 se'
+             src="/static/assets/audio/se/enemy/en-diaspora-charge-attack-c-1.mp3" muted="muted"></audio>
+      <audio class='enemy-audio-charge-attack-c-2 se'
+             src="/static/assets/audio/se/enemy/en-diaspora-charge-attack-c-2.mp3" muted="muted"></audio>
+
+      <video autoplay muted loop playsinline class="enemy motion-enemy-idle"
+             src="/static/assets/mov/enemy/diaspora/en-diaspora-idle.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="enemy motion-enemy-damaged hidden motion-none-idle"
+             src="/static/assets/mov/enemy/diaspora/en-diaspora-damaged.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="enemy motion-enemy-attack hidden motion-none-idle"
+             src="/static/assets/mov/enemy/diaspora/en-diaspora-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline
+             class="enemy motion-enemy-charge-attack motion-enemy-charge-attack-c hidden motion-none-idle"
+             src="/static/assets/mov/enemy/diaspora/en-diaspora-charge-attack-c.webm"
+             th:src="@{/assets/mov/charge.webm}"
+             width="100%">
+      </video>
+    </div>
+    <div class="party-1-video">
+
+      <audio class='party-1-audio se' src="/static/assets/audio/se/mc/paladin/mc-paladin-attack.mp3"
+             muted="muted"></audio>
+      <audio class='party-1-audio ability ability-1' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
+             muted="muted"></audio>
+      <audio class='party-1-audio ability ability-2' src="/static/assets/audio/se/gl/ability/gl-buff-motion-1.mp3"
+             muted="muted"></audio>
+      <audio class='party-1-audio ability ability-3' src="/static/assets/audio/se/gl/ability/gl-buff-motion-3.mp3"
+             muted="muted"></audio>
+
+      <video autoplay muted loop playsinline class="party party-1 motion-idle"
+             src="/static/assets/mov/mc/paladin/mc-paladin-idle.webm"
+             width="100%">
+      </video>
+      <video muted playsinline
+             class="party party-1 hidden motion-none-idle motion-attack motion-attack-1"
+             src="/static/assets/mov/mc/paladin/mc-paladin-single-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-1 hidden motion-none-idle motion-attack motion-attack-2"
+             src="/static/assets/mov/mc/paladin/mc-paladin-double-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-1 hidden motion-none-idle motion-attack motion-attack-3"
+             src="/static/assets/mov/mc/paladin/mc-paladin-triple-attack.webm"
+             width="100%">
+      </video>
+
+      <video muted playsinline class="party party-1 hidden motion-none-idle motion-ability-1 motion-ability"
+             src="/static/assets/mov/mc/paladin/mc-paladin-ability-1.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-1 hidden motion-none-idle motion-ability-2 motion-ability"
+             src="/static/assets/mov/gl/gl-buff-motion-1.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-1 hidden motion-none-idle motion-ability-3 motion-ability"
+             src="/static/assets/mov/gl/gl-buff-motion-2.webm"
+             width="100%">
+      </video>
+
+    </div>
+    <div class="party-2-video">
+
+      <audio class='party-2-audio se' src="/static/assets/audio/se/ch/yachima/ch-yachima-attack.mp3"
+             muted="muted"></audio>
+      <audio class='party-2-audio ability ability-1'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-ability-1.mp3" muted="muted"></audio>
+      <audio class='party-2-audio ability ability-1'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-ability-2.mp3" muted="muted"></audio>
+
+      <video autoplay muted loop playsinline class="party party-2 motion-idle"
+             src="/static/assets/mov/ch/yachima/ch-yachima-idle.webm"
+             width="100%">
+      </video>
+      <video muted playsinline
+             class="party party-2 hidden motion-none-idle motion-attack motion-attack-1"
+             src="/static/assets/mov/ch/yachima/ch-yachima-single-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-2 hidden motion-none-idle motion-attack motion-attack-2"
+             src="/static/assets/mov/ch/yachima/ch-yachima-double-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-2 hidden motion-none-idle motion-attack motion-attack-3"
+             src="/static/assets/mov/ch/yachima/ch-yachima-triple-attack.webm"
+             width="100%" height="100%">
+      </video>
+
+      <video muted playsinline class="party party-2 hidden motion-none-idle motion-ability-1 motion-ability"
+             src="/static/assets/mov/ch/yachima/ch-yachima-ability-1.webm"
+             width="100%">
+      </video>
+
+    </div>
+    <div class="party-3-video">
+
+      <audio class='party-3-audio se' src="/static/assets/audio/se/ch/indara/ch-indara-attack.mp3"
+             muted="muted"></audio>
+
+      <video autoplay muted loop playsinline class="party party-3 motion-idle"
+             src="/static/assets/mov/ch/indara/ch-indara-idle.webm"
+             width="100%">
+      </video>
+      <video muted playsinline
+             class="party party-3 hidden motion-none-idle motion-attack motion-attack-1"
+             src="/static/assets/mov/ch/indara/ch-indara-single-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-3 hidden motion-none-idle motion-attack motion-attack-2"
+             src="/static/assets/mov/ch/indara/ch-indara-double-attack.webm"
+             width="100%">
+      </video>
+      <video muted playsinline class="party party-3 hidden motion-none-idle motion-attack motion-attack-3"
+             src="/static/assets/mov/ch/indara/ch-indara-triple-attack.webm"
+             width="100%">
+      </video>
+    </div>
+
+    <div class="party-global-video">
+      <audio class='party-global-audio ability-start-se' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
+             muted="muted"></audio>
+      <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
+             muted="muted"></audio>
+      <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
+             muted="muted"></audio>
+      <video muted playsinline
+             class="party party-global hidden motion-none-idle motion-buff"
+             src="/static/assets/mov/gl/gl-buff-motion-0.webm"
+             width="100%">
+      </video>
+
+    </div>
+
+  </div>
+
+  <!-- 적군쪽 -->
+  <!-- 데미지 -->
+  <div id="damageContainer" class="battle-canvas">
+    <div class="damage-first damage-wrapper damage-attack-1">
+      <div class="damage origin-damage damage-1">
+        10000
+        <div class="damage after-damage damage-2">
+          5000
+          <div class="damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="damage-second damage-wrapper damage-attack-2">
+      <div class="damage origin-damage damage-1">
+        10000
+        <div class="damage after-damage damage-2">
+          5000
+          <div class="damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="damage-third damage-wrapper damage-attack-3">
+      <div class="damage origin-damage damage-1">
+        10000
+        <div class="damage after-damage damage-2">
+          5000
+          <div class="damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--버프 디버프-->
+  <div id="enemyStatusEffectContainer">
+    <div class="status-effect-wrapper">
+      <div class="enemy-status status-effect status-effect-1">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가 특수공격력증가</span>
+      </div>
+      <div class="enemy-status status-effect status-effect-2">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+      <div class="enemy-status status-effect status-effect-3">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 아군쪽 -->
+  <!-- 데미지 -->
+  <div class="taken-damage-container first-character">
+    <div class="taken-damage-wrapper">
+      <div class="taken-damage origin-damage damage-1">
+        10000
+        <div class="taken-damage after-damage damage-2">
+          5000
+          <div class="taken-damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="taken-damage-container second-character">
+    <div class="taken-damage-wrapper">
+      <div class="taken-damage origin-damage damage-1">
+        10000
+        <div class="taken-damage after-damage damage-2">
+          5000
+          <div class="taken-damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="taken-damage-container third-character">
+    <div class="taken-damage-wrapper">
+      <div class="taken-damage origin-damage damage-1">
+        10000
+        <div class="taken-damage after-damage damage-2">
+          5000
+          <div class="taken-damage after-damage damage-3">
+            2000
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 버프 디버프 -->
+  <div class="status-effect-container status-effect-container-1">
+    <div class="status-effect-wrapper">
+      <div class="status-effect status-effect-1">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가 특수공격력증가</span>
+      </div>
+      <div class="status-effect status-effect-2">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+      <div class="status-effect status-effect-3">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-effect-container status-effect-container-2">
+    <div class="status-effect-wrapper">
+      <div class="status-effect status-effect-1">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가 특수공격력증가</span>
+      </div>
+      <div class="status-effect status-effect-2">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+      <div class="status-effect status-effect-3">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-effect-container status-effect-container-3">
+    <div class="status-effect-wrapper">
+      <div class="status-effect status-effect-1">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가 특수공격력증가</span>
+      </div>
+      <div class="status-effect status-effect-2">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+      <div class="status-effect status-effect-3">
+        <img src="/static/assets/img/status/buff/status-defence-up.png">
+        <span class="status-effect-text">방어력 증가</span>
+      </div>
+    </div>
+  </div>
+
+</div> <!-- container battleCanvas -->
+
+<div id="battleMemberContainer">
+    <div id="abilitySlider">
+      <div class="slick-slider-item">
+        <div class="ability-panel first-character" data-character-order="1">
+          <div class="battle-portrait">
+            <img src="/static/assets/img/mc/paladin/ability/mc-paladin-battle-portrait.jpg">
+          </div>
+          <div class="panel-wrapper">
+            <div class="charge-attack-wrapper">
+              <div>
+                오의 어쩌고 저쩌고
+              </div>
+            </div>
+            <div class="ability-wrapper">
+              <div class="first-ability ability-icon" data-ability-order="1">
+                <img src="/static/assets/img/mc/paladin/ability/mc-paladin-first-ability.png">
+                <div class="ability-cooldown-text"> 가능</div>
+              </div>
+              <div class="second-ability ability-icon" data-ability-order="2">
+                <img src="/static/assets/img/mc/paladin/ability/mc-paladin-second-ability.png">
+                <div class="ability-cooldown-text"> 1턴</div>
+              </div>
+              <div class="third-ability ability-icon" data-ability-order="3">
+                <img src="/static/assets/img/mc/paladin/ability/mc-paladin-third-ability.png">
+                <div class="ability-cooldown-text"> 15턴</div>
+              </div>
+            </div>
+            <div class="buff-wrapper">
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slick-slider-item">
+        <div class="ability-panel second-character" data-character-order="2">
+          <div class="battle-portrait">
+            <img src="/static/assets/img/ch/yachima/ability/ch-yachima-battle-portrait.jpg">
+          </div>
+          <div class="panel-wrapper">
+            <div class="charge-attack-wrapper">
+              <div>
+                오의 어쩌고 저쩌고
+              </div>
+            </div>
+            <div class="ability-wrapper">
+              <div class="first-ability ability-icon" data-ability-order="1">
+                <img src="/static/assets/img/ch/yachima/ability/ch-yachima-ability-1.png">
+                <div class="ability-cooldown-text"> 가능</div>
+              </div>
+              <div class="second-ability ability-icon" data-ability-order="2">
+                <img src="/static/assets/img/ch/yachima/ability/ch-yachima-ability-2.png">
+                <div class="ability-cooldown-text"> 1턴</div>
+              </div>
+              <div class="third-ability ability-icon" data-ability-order="3">
+                <img src="/static/assets/img/ch/yachima/ability/ch-yachima-ability-3.png">
+                <div class="ability-cooldown-text"> 15턴</div>
+              </div>
+            </div>
+            <div class="buff-wrapper">
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slick-slider-item">
+        <div class="ability-panel third-character" data-character-order="3">
+          <div class="battle-portrait">
+            <img src="/static/assets/img/ch/indara/ability/ch-indara-battle-portrait.jpg">
+          </div>
+          <div class="panel-wrapper">
+            <div class="charge-attack-wrapper">
+              <div>
+                오의 어쩌고 저쩌고
+              </div>
+            </div>
+            <div class="ability-wrapper">
+              <div class="first-ability ability-icon" data-ability-order="1">
+                <img src="/static/assets/img/ch/indara/ability/ch-indara-ability-1.png">
+                <div class="ability-cooldown-text"> 가능</div>
+              </div>
+              <div class="second-ability ability-icon" data-ability-order="2">
+                <img src="/static/assets/img/ch/indara/ability/ch-indara-ability-2.png">
+                <div class="ability-cooldown-text"> 1턴</div>
+              </div>
+              <div class="third-ability ability-icon" data-ability-order="3">
+                <img src="/static/assets/img/ch/indara/ability/ch-indara-ability-3.png">
+                <div class="ability-cooldown-text"> 15턴</div>
+              </div>
+            </div>
+            <div class="buff-wrapper">
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+              <img src="/static/assets/img/status/buff/status-defence-up.png"></img>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<div class="container position-relative">
+  <button id="attackButton">attack</button>
+  <button id="audioButton">audio</button>
+  <button id="audioPlayButton">play</button>
+</div>
+<div class="audio-container">
+  <audio id="audioPlaying" src="" muted="muted"></audio>
+</div>
+
+
+<div id="processingTask">
+  <input type="radio" id="firstCharacterAttack" name="processingTask" value="firstCharacterAttack">
+  <label for="firstCharacterAttack">첫번째 캐릭터 공격행동</label>
+  <br>
+  <input type="radio" id="firstCharacterAttackPost" name="processingTask" value="firstCharacterAttackPost">
+  <label for="firstCharacterAttackPost">첫번째 캐릭터 공격행동 후처리</label>
+  <br>
+  <input type="radio" id="secondCharacterAttack" name="processingTask" value="secondCharacterAttack">
+  <label for="secondCharacterAttack">두번째 캐릭터 공격행동</label>
+  <br>
+  <input type="radio" id="secondCharacterAttackPost" name="processingTask" value="secondCharacterAttackPost">
+  <label for="secondCharacterAttackPost">두번째 캐릭터 공격행동 후처리</label>
+  <br>
+  <input type="radio" id="thirdCharacterAttack" name="processingTask" value="thirdCharacterAttack">
+  <label for="thirdCharacterAttack">세번째 캐릭터 공격행동</label>
+  <br>
+  <input type="radio" id="thirdCharacterAttackPost" name="processingTask" value="thirdCharacterAttackPost">
+  <label for="thirdCharacterAttackPost">세번째 캐릭터 공격행동 후처리</label>
+  <br>
+  <input type="radio" id="enemyAttack" name="processingTask" value="enemyAttack">
+  <label for="enemyAttack">적 공격행동</label>
+  <br>
+  <input type="radio" id="enemyAttackPost" name="processingTask" value="enemyAttackPost">
+  <label for="enemyAttackPost">적 공격행동 후처리</label>
+  <br>
+  <input type="radio" id="turnPost" name="processingTask" value="turnPost">
+  <label for="turnPost">턴 종료 전처리</label>
+  <br>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+
+</body>
+
+</html>
