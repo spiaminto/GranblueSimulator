@@ -1,9 +1,10 @@
 .status-enemy {
     position: absolute;
     width: 80%;
-    top: 5%;
+    top: 7%;
     left: 50%;
     transform: translateX(-50%);
+    z-index: 20;
 }
 
 .status-enemy .value-hp {
@@ -15,7 +16,7 @@
 }
 
 .status-enemy .hp-bar {
-    border: solid 2px black;
+    border: solid 1px grey;
     position: relative;
     background-color: transparent;
     height: 1.2rem;

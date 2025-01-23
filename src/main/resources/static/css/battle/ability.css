@@ -2,7 +2,7 @@
     margin: 0 auto;
 }
 
-#abilitySlider .ability-panel {
+.ability-panel {
     display: flex;
     width: 100%;
     /*padding: 1rem;*/
@@ -14,43 +14,44 @@
     border: 2px solid black;
 }
 
-#abilitySlider .ability-wrapper {
+.ability-wrapper {
     display: flex;
     width: 100%;
     height: 50%;
     justify-content: space-evenly;
+    border: 1px solid black;
 }
 
-#abilitySlider .battle-portrait {
+.battle-portrait {
     width: 20%;
 }
 
-#abilitySlider .battle-portrait img{
+.battle-portrait img {
     width: 100%;
 }
 
-#abilitySlider .ability-icon {
+.ability-icon {
     align-content: center;
     width: 15%;
 }
 
-#abilitySlider .ability-icon img {
+.ability-icon img {
     margin: auto 0;
     width: 100%;
 }
 
-#abilitySlider .ability-cooldown-text {
+.ability-cooldown-text {
     text-align: center;
     font-size: 1rem;
 }
 
 @media (min-width: 600px) {
-    #abilitySlider .ability-cooldown-text {
+    .ability-cooldown-text {
         font-size: 1.3rem;
     }
 }
 
-#abilitySlider .panel-wrapper {
+.panel-wrapper {
     width: 80%; /* battle-portriat 합쳐 100 */
 }
 

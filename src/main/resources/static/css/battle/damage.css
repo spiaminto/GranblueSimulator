@@ -1,5 +1,6 @@
 .damage-wrapper {
     position: absolute;
+    opacity: 0.8;
 }
 
 .damage-first {
@@ -19,11 +20,11 @@
 
 .damage {
     display: none;
-    color: gainsboro;
+    color: white;
     font-weight: bold;
     font-size: 3rem;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
-    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
 .origin-damage {
@@ -38,15 +39,16 @@
 
 .taken-damage-container {
     position: absolute;
+    opacity: 0.8;
 }
 
 .taken-damage {
     display: none;
-    color: gainsboro;
+    color: white;
     font-weight: bold;
     font-size: 1.5rem;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
-    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
 .taken-damage-container.first-character {
@@ -64,11 +66,34 @@
     right: 8%;
 }
 
-@media(min-width: 768px) {
+.ability-damage-wrapper {
+    position: absolute;
+    width: 120px;
+    top: 20%;
+    left: 10%;
+    height: 70%;
+    align-content: center;
+}
+
+.ability-damage {
+    opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
+    color: white;
+    font-weight: bold;
+    font-size: 2.5rem;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    margin-bottom: -27%; /* 부모 120px, 마진타겟 약 30px*/
+}
+
+
+@media(min-width: 600px) {
     .damage {
-        font-size: 4rem;
+        font-size: 6rem;
     }
     .taken-damage {
         font-size: 2rem;
+    }
+    .ability-damage {
+        font-size: 4rem;
+        margin-bottom: -50%;
     }
 }

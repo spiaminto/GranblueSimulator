@@ -1,0 +1,47 @@
+#battleCanvasTopMenu {
+    position: absolute;
+    width: 100%;
+    height: 7%;
+}
+
+#battleCanvasTopMenu::after {
+    content: '';
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 200%;
+    background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 1) 0%,
+            rgba(0, 0, 0, 1) 55%,
+            rgba(0, 0, 0, 0.8) 65%,
+            rgba(0, 0, 0, 0.5) 75%,
+            rgba(0, 0, 0, 0.3) 90%,
+            rgba(0, 0, 0, 0) 100%
+    );
+}
+
+.top-menu-container {
+    position: relative;
+    z-index: 100;
+    height: 90%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    background-color: black;
+    border-bottom: 2px lightgrey solid;
+    color: lightgrey;
+}
+
+
+.top-menu-button-wrapper {
+    height: 100%;
+}
+
+.top-menu-container .btn {
+    height: 100%;
+    line-height: 100%;
+    border-radius: 0;
+}

@@ -8,13 +8,12 @@
  */
 function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayers) {
 
-    console.log('turn start ' + order)
+    console.log('[processCharacterAttack] attack start ' + order)
 
     // 다음 캐릭터 공격 오디오 미리로드 async
     let nextOrder = order + 1;
     let nextCharacterAttackAudioSrc = $('.party-' + nextOrder + '-audio').attr('src');
-    console.log(''+nextCharacterAttackAudioSrc)
-    if (nextCharacterAttackAudioSrc != null) {
+    if (nextCharacterAttackAudioSrc != null && audioPlayers.get(nextOrder) != null) {
         audioPlayers.get(nextOrder).loadSound(nextCharacterAttackAudioSrc).then(() => {
             console.log('nextCharacterAudioLoaded');
         })
@@ -32,10 +31,10 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
     let $attackMotionVideo = $(partySelector + '.motion-attack-' + hitCount);
     setTimeout(function () {
         $(partySelector + '.motion-idle').addClass('hidden').get(0).pause();
-        $attackMotionVideo.removeClass('hidden').get(0).play();
+        $attackMotionVideo.removeClass('hidden').addClass('motion-attack-active').get(0).play();
     }, 300);
     $attackMotionVideo.one('ended', function () {
-        $(this).addClass('hidden');
+        $(this).addClass('hidden').removeClass('motion-attack-active');
         $(partySelector + '.motion-idle').removeClass('hidden').get(0).play();
 
         $("#processingTask input[name = 'processingTask']:checked").next().next().next().click(); // 라벨, br 건너뛰기위해 3번
@@ -73,11 +72,11 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
 
     function showDamage(damageOrder) {
         // 데미지 표시
-        $('.damage-attack-' + damageOrder + ' .damage-1').fadeIn('fast').delay(300).fadeOut();
+        $('.damage-attack-' + damageOrder + ' .damage-1').fadeIn(50).delay(500).fadeOut();
         if (additionalHitCount > 0) {
-            $('.damage-attack-' + damageOrder + ' .damage-2').fadeIn('fast').delay(300).fadeOut();
+            $('.damage-attack-' + damageOrder + ' .damage-2').fadeIn(50).delay(500).fadeOut();
             if (additionalHitCount > 1) {
-                $('.damage-attack-' + damageOrder + ' .damage-3').fadeIn('fast').delay(300).fadeOut();
+                $('.damage-attack-' + damageOrder + ' .damage-3').fadeIn(50).delay(500).fadeOut();
             }
         }
         return true;
@@ -86,6 +85,32 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
 
     //종료
 }// processParty
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* 레거시 */
@@ -100,7 +125,7 @@ function processCharacterAttackLegacy(order, hitCount, additionalHitCount) {
     // 데미지 계산 및 채우기 선행
 
     let partySelector = '.party-' + order
-    let firstAttackDamageDisplayDelay = hitCount === 1 ? 300 : 400
+    let firstAttackDamageDisplayDelay = hitCount === 1 ? 400 : 500
 
     // 1타
     // 아군 공격 모션 재생
@@ -113,25 +138,25 @@ function processCharacterAttackLegacy(order, hitCount, additionalHitCount) {
         $(partySelector + '.motion-single-attack-short').removeClass('hidden').get(0).play();
     }
 
-    // 적 피격모션
-    $('.motion-enemy-idle').addClass('hidden');
-    let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
-    motionDamagedElement.currentTime = 0;
-    motionDamagedElement.play();
+    // 데미지 표시
+    $('.damage-first .origin-damage').fadeIn(10).delay(firstAttackDamageDisplayDelay).fadeOut();
+    if (additionalHitCount > 0) {
+        $('.damage-first .damage-2').fadeIn(10).delay(firstAttackDamageDisplayDelay).fadeOut();
+        if (additionalHitCount > 1) {
+            $('.damage-first .damage-3').fadeIn(10).delay(firstAttackDamageDisplayDelay).fadeOut();
+        }
+    }
 
     // 효과음 재생
     let audioElement = $(partySelector + '-audio').get(0);
     audioElement.currentTime = 0;
     audioElement.play();
 
-    // 데미지 표시
-    $('.damage-first .origin-damage').fadeIn().delay(firstAttackDamageDisplayDelay).fadeOut();
-    if (additionalHitCount > 0) {
-        $('.damage-first .damage-2').fadeIn().delay(firstAttackDamageDisplayDelay).fadeOut();
-        if (additionalHitCount > 1) {
-            $('.damage-first .damage-3').fadeIn().delay(firstAttackDamageDisplayDelay).fadeOut();
-        }
-    }
+    // 적 피격모션
+    $('.motion-enemy-idle').addClass('hidden');
+    let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
+    motionDamagedElement.currentTime = 0;
+    motionDamagedElement.play();
 
     // 2타
     $(partySelector + '.motion-single-attack').one('ended', function () {
@@ -142,25 +167,25 @@ function processCharacterAttackLegacy(order, hitCount, additionalHitCount) {
             $(partySelector + '.motion-single-attack').addClass('hidden');
             $(partySelector + '.motion-double-attack').removeClass('hidden').get(0).play();
 
-            // 적 피격모션
-            $('.motion-enemy-idle').addClass('hidden');
-            let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
-            motionDamagedElement.currentTime = 0;
-            motionDamagedElement.play();
+            // 데미지 표시
+            $('.damage-second .origin-damage').fadeIn(10).delay(500).fadeOut();
+            if (additionalHitCount > 0) {
+                $('.damage-second .damage-2').fadeIn(10).delay(500).fadeOut();
+                if (additionalHitCount > 1) {
+                    $('.damage-second .damage-3').fadeIn(10).delay(500).fadeOut();
+                }
+            }
 
             // 효과음 재생
             let audioElement = $(partySelector + '-audio').get(0);
             audioElement.currentTime = 0;
             audioElement.play();
 
-            // 데미지 표시
-            $('.damage-second .origin-damage').fadeIn().delay('400').fadeOut();
-            if (additionalHitCount > 0) {
-                $('.damage-second .damage-2').fadeIn().delay('400').fadeOut();
-                if (additionalHitCount > 1) {
-                    $('.damage-second .damage-3').fadeIn().delay('400').fadeOut();
-                }
-            }
+            // 적 피격모션
+            $('.motion-enemy-idle').addClass('hidden');
+            let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
+            motionDamagedElement.currentTime = 0;
+            motionDamagedElement.play();
 
         } else {
             // idle 로 돌아감
@@ -180,25 +205,25 @@ function processCharacterAttackLegacy(order, hitCount, additionalHitCount) {
                 $(partySelector + '.motion-double-attack').addClass('hidden');
                 $(partySelector + '.motion-triple-attack').removeClass('hidden').get(0).play();
 
-                // 적 피격모션
-                $('.motion-enemy-idle').addClass('hidden');
-                let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
-                motionDamagedElement.currentTime = 0;
-                motionDamagedElement.play();
+                // 데미지 표시
+                $('.damage-third .origin-damage').fadeIn(10).delay(500).fadeOut();
+                if (additionalHitCount > 0) {
+                    $('.damage-third .damage-2').fadeIn(10).delay(500).fadeOut();
+                    if (additionalHitCount > 1) {
+                        $('.damage-third .damage-3').fadeIn(10).delay(500).fadeOut();
+                    }
+                }
 
                 // 효과음 재생
                 let audioElement = $(partySelector + '-audio').get(0);
                 audioElement.currentTime = 0;
                 audioElement.play();
 
-                // 데미지 표시
-                $('.damage-third .origin-damage').fadeIn().delay('400').fadeOut();
-                if (additionalHitCount > 0) {
-                    $('.damage-third .damage-2').fadeIn().delay('400').fadeOut();
-                    if (additionalHitCount > 1) {
-                        $('.damage-third .damage-3').fadeIn().delay('400').fadeOut();
-                    }
-                }
+                // 적 피격모션
+                $('.motion-enemy-idle').addClass('hidden');
+                let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
+                motionDamagedElement.currentTime = 0;
+                motionDamagedElement.play();
 
             } else {
                 $(partySelector + '.motion-double-attack').addClass('hidden');

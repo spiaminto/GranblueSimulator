@@ -61,11 +61,11 @@ function processEnemyNormalAttack(hitCount, additionalHitCount) {
                 audioElement.play();
 
                 // 데미지 표시
-                $('.taken-damage-wrapper .origin-damage').fadeIn().delay(225).fadeOut();
+                $('.taken-damage-wrapper .origin-damage').fadeIn(10).delay(500).fadeOut();
                 if (additionalHitCount > 0) {
-                    $('.taken-damage-wrapper .damage-2').fadeIn().delay(225).fadeOut();
+                    $('.taken-damage-wrapper .damage-2').fadeIn(10).delay(500).fadeOut();
                     if (additionalHitCount > 1) {
-                        $('.taken-damage-wrapper .damage-3').fadeIn().delay(225).fadeOut();
+                        $('.taken-damage-wrapper .damage-3').fadeIn(10).delay(500).fadeOut();
                     }
                 }
 
@@ -108,7 +108,7 @@ function processEnemyChargeAttack(damageDelay) {
     });
 
     // 데미지 표시
-    $('.taken-damage-wrapper .origin-damage').fadeOut().delay(damageDelay).fadeIn().delay(225).fadeOut();
+    $('.taken-damage-wrapper .origin-damage').fadeOut().delay(damageDelay).fadeIn(10).delay(500).fadeOut();
 
     $('.motion-enemy-charge-attack-c').one('ended', function () {
         // idle 로 돌아감

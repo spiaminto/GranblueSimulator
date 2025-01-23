@@ -1,6 +1,6 @@
 /* 공통 */
 .status-effect {
-    display: none;
+    opacity: 0; /* display: none 으로 하면 역순으로 fadeIn() 할때 레이아웃 드득거림 */
 }
 
 /* 적 */
@@ -9,7 +9,7 @@
     width: 50%;
     height: 60%;
     top: 25%;
-    left: 10%;
+    left: 5%;
     align-content: center;
 }
 
@@ -18,20 +18,30 @@
 }
 
 .status-effect {
-    margin-top: -5%;
+    margin-top: -3%;
 }
 
 .status-effect img {
     display: inline-block;
     vertical-align: bottom;
     width: 15%;
+    max-width: 40px;
 }
 
 .status-effect-text {
-    font-size: 1.8rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+    text-indent: -1rem;
+
+    @media (min-width: 600px) {
+        font-size: 1.5rem;
+    }
+}
+
+.status-effect-text.none-icon {
+    color: var(--bs-highlight-bg) !important;
 }
 
 /* 아군 */
@@ -45,14 +55,19 @@
 .status-effect-container .status-effect img {
     display: inline-block;
     vertical-align: bottom;
-    width: 12%;
+    width: 15%;
+    max-width: 35px;
 }
 
 .status-effect-container .status-effect-text {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     font-weight: bold;
     color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
+
+    @media (min-width: 600px) {
+        font-size: 1.4rem;
+    }
 }
 
 
