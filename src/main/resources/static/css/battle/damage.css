@@ -51,19 +51,24 @@
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
-.taken-damage-container.first-character {
-    top: 38%;
-    right: 8%;
-}
-
-.taken-damage-container.second-character {
-    top: 53%;
+.taken-damage-container.character-1 {
+    top: 34%;
     right: 13%;
 }
 
-.taken-damage-container.third-character {
-    top: 68%;
-    right: 8%;
+.taken-damage-container.character-2 {
+    top: 47%;
+    right: 4%;
+}
+
+.taken-damage-container.character-3 {
+    top: 60%;
+    right: 13%;
+}
+
+.taken-damage-container.character-4 {
+    top: 73%;
+    right: 4%;
 }
 
 .ability-damage-wrapper {
@@ -96,4 +101,21 @@
         font-size: 4rem;
         margin-bottom: -50%;
     }
+}
+
+/* 적 오의데미지 */
+
+.enemy-charge-attack-damage-wrapper {
+    top: 52%;
+    left: 7%;
+    position: absolute;
+}
+
+.enemy-charge-attack-damage {
+    opacity: 0;
+    color: white;
+    font-weight: bold;
+    font-size: 3.5rem;
+    /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }

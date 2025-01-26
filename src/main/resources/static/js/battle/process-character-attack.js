@@ -4,7 +4,7 @@
  * @param order 캐릭터의 순서
  * @param hitCount 캐릭터의 평타 타수
  * @param additionalHitCount 캐릭터의 추격갯수
- * @param audioPlayers 오디오 플레이어 맵, keys = 1, 2, 3, enemy, global
+ * @param audioPlayers 오디오 플레이어 맵, keys = 1, 2, 3, 4, enemy, global
  */
 function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayers) {
 

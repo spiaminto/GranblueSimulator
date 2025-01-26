@@ -3,9 +3,12 @@ function processAbility(charOrder, abilityOrder) {
     // let globalAbilityAudioPlayer = new Audio();
     // let abilityAudioPlayers = [new Audio(), new Audio()]; // 최대 두개
 
+    console.log('[processAbility] start process charOrder = ' + charOrder + 'abilityOrder = ' + abilityOrder);
+
     // 어빌리티 누름
     let partySelector = '.party-' + charOrder;
     let motionAbilityVideo = $(partySelector + '.motion-ability-' + abilityOrder);
+    let idleMotionVideo = $(partySelector + '.motion-idle');
 
     // 오디오 생성
     // 이거 캐싱하도록 했는데 나중에 통신이랑 맞춰서 다시 테스트하고 최종결정.
@@ -34,11 +37,13 @@ function processAbility(charOrder, abilityOrder) {
         let abilityEffectCount = responseAbilityData.abilityEffectCount; // 어빌리티 이펙트수 (SE 재생 관련)
         let abilityDamages = responseAbilityData.damages;
         let abilityPlaybackSpeed = responseAbilityData.abilityPlaybackSpeed;
-        let buffTargets = responseAbilityData.buffTargets;
         let buffs = responseAbilityData.buffs;
         let debuffs = responseAbilityData.deBuffs;
         let hasBuff = buffs.length > 0;
         let hasDebuff = debuffs.length > 0;
+        let hasMotion = responseAbilityData.hasMotion; // 캐릭터 모션 유무
+        let isMotionFullSize = responseAbilityData.isMotionFullSize; // 캐릭터 모션이 풀사이즈로 출력되야하는지 여부
+
         // 어빌리티 후 행동
         let postAction = null;
         $.each(buffs, function (index, buff) {
@@ -46,6 +51,7 @@ function processAbility(charOrder, abilityOrder) {
             if (postAction) return false; // postAction 찾으면 바로중지
         });
 
+// 종료처리 이벤트 추가
         let abilityEndValue = null;
         if (postAction) {
             abilityEndValue = 'postAction';
@@ -58,18 +64,22 @@ function processAbility(charOrder, abilityOrder) {
         }
         $("input[name='abilityProcessingTask']").one('change', function () {
             if ($("input[name='abilityProcessingTask']:checked").val() === abilityEndValue) {
-                console.log('[processingAbility] ENDED')
+                console.log('[processingAbility] ENDED, ablityEndValue = ' + abilityEndValue);
+
+                $('.ability-rail-wrapper .rail-ability').get(0).remove();
+                let $processedAbility = $('.ability-panel.character-' + charOrder + ' .ability-' + abilityOrder);
+                $processedAbility.find('.ability-overlay').show();
             }
         })
 
 
-        // 데미지 채우기
+// 데미지 채우기
         abilityDamages.forEach(function (item, index) {
             let $abilityDamageElement = $('<div class="ability-damage' + ' ability-damage-' + index + '"' + '>' + item + '</div>')
             $('.ability-damage-wrapper').prepend($abilityDamageElement);
         })
 
-        // 어빌리티 모션 길이로 이펙트 길이 및 타수당 길이 구하기
+// 어빌리티 모션 길이로 이펙트 길이 및 타수당 길이 구하기
         let abilityDuration = motionAbilityVideo.data('duration'); // 어빌리티 모션 재생 길이
         // console.log('abilityDuration = ' + abilityDuration);
         abilityDuration = abilityPlaybackSpeed > 0 ? abilityDuration / abilityPlaybackSpeed : abilityDuration; // 배속 걸려있을경우 적용
@@ -78,7 +88,7 @@ function processAbility(charOrder, abilityOrder) {
         let abilityHitDuration = abilityHitCount === 1 ? 0 : abilityDuration / abilityHitCount; // 어빌리티 히트 당 재생길이
         abilityHitDuration = responseAbilityData.abilityHitDuration > 0 ? responseAbilityData.abilityHitDuration / abilityHitCount : abilityHitDuration; // 서버에서 보낸 값이 있으면 대체 (히트 속도가 이펙트와 다르거나 딜레이가 있는 캐릭터용)
 
-        // abilityEffect 이펙트 반복작업 : 사운드 재생
+// abilityEffect 이펙트 반복작업 : 사운드 재생
         let abilitySePlayCount = 0;
         let abilitySePlayInterval = setInterval(function () {
 
@@ -91,11 +101,11 @@ function processAbility(charOrder, abilityOrder) {
             }
         }, abilityEffectDuration);
 
-        // abilityHit 히트수 반복작업 : 데미지 표시, 적 피격모션
+// abilityHit 히트수 반복작업 : 데미지 표시, 적 피격모션
         let abilityHitPlayCount = 0;
         if (abilityHitCount > 0) {
             let abilityHitProcessInterval = setInterval(function () {
-                // 적 피격모션 재생
+                // 적 모션 재생
                 playEnemyDamagedMotion();
 
                 // 데미지 표시
@@ -113,10 +123,13 @@ function processAbility(charOrder, abilityOrder) {
             }, abilityHitDuration);
         }
 
-        // 아군 공격 모션 재생 (오디오 속도가 느리므로, 딜레이 걸고 재생
+// 아군 어빌리티 모션 재생 (오디오 속도가 느리므로, 딜레이 걸고 재생
         setTimeout(function () {
             if (abilityPlaybackSpeed > 0) {
                 motionAbilityVideo.get(0).playbackRate = 1.5;
+            }
+            if (hasMotion) {
+                idleMotionVideo.addClass('hidden'); // 캐릭터 모션 있으면 idle 모션 숨김
             }
             motionAbilityVideo.removeClass('hidden').get(0).play();
 
@@ -124,15 +137,18 @@ function processAbility(charOrder, abilityOrder) {
             $(motionAbilityVideo).one('ended', function () {
                 $(this).addClass('hidden');
                 $('#abilityProcessingTask #playingMotion').click();
+                if (hasMotion) {
+                    idleMotionVideo.removeClass('hidden');
+                }
             })
 
-            // 버프 이펙트 처리
+// 버프 이펙트 처리
             if (buffs && buffs.length > 0) {
                 // 버프 요소 내용 채우기
                 buffs.forEach(function (buff, index) {
-                    let targets = buff.targets;
-                    targets.forEach(function (target, index) {
-                        let $effectContainer = $('.status-effect-container-' + target + ' .status-effect-wrapper');
+                    let buffTargets = buff.targets;
+                    buffTargets.forEach(function (buffTarget, index) {
+                        let $effectContainer = $('.status-effect-container-' + buffTarget + ' .status-effect-wrapper');
                         let $statusEffect = $('' +
                             '<div class="status-effect status-effect-' + index + '">\n' +
                             '  <img src="' + buff.iconSrc + '">\n' +
@@ -146,22 +162,28 @@ function processAbility(charOrder, abilityOrder) {
                 });
                 // 버프 이펙트 등록 (딜레이를 거꾸로 줌)
                 $(motionAbilityVideo).one('ended', function () {
-                    $.each(buffTargets, function (index, buffTarget) {
-                        $($('.status-effect-container-' + buffTarget + ' .status-effect').get().reverse()).each(function (index, item) {
+                    [1, 2, 3, 4].forEach(function (charOrder, index) {
+                        $($('.status-effect-container-' + charOrder + ' .status-effect')).each(function (index, item) {
+                            // 페이드 길이 1100 + index * 50 , 3번째 길이 1250
+                            let additionalStartDelay = index / 3 >= 1 ? 1250 + 100 : 0; // 3개 이상일경우 딜레이 추가 (3번째가 사라지는 시간 + 안전마진)
+                            let removeDelay = (1100 * (Math.floor(index / 3) + 1)) + (50 * index) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
                             setTimeout(() => {
-                                $(this).fadeTo(100, 0.8).delay(600).fadeTo(400, 0);
-                            }, index * 50)
-                            setTimeout(() => {
-                                $(this).remove();
-                                $('#abilityProcessingTask #playingBuffs').click();
-                            }, 1500);
+                                $(this).fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                                setTimeout(() => {
+                                    $(this).remove();
+                                }, removeDelay);
+                            }, additionalStartDelay + (index * 50))
                         })
                     })
-
+                    let buffEffectEndTimeout = (1100 * (Math.floor(buffs.length / 3) + 1)) + (50 * buffs.length) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
+                    setTimeout(() => {
+                        $('#abilityProcessingTask #playingBuffs').click();
+                    }, buffEffectEndTimeout);
                 })
             }// 버프 이펙트 처리 끝
 
-            // 디버프 이펙트 처리
+// 디버프 이펙트 처리
+            let buffEffectEndTimeout = (1100 * (Math.floor(buffs.length / 3) + 1)) + (50 * buffs.length) - 300 // buffEffectEndTimeout 과 동일하나 빠른진행을 위해 -300
             let debuffStartDelay = buffs.length > 0 ? 1000 : 0; // 버프 없으면 즉시시작
             if (debuffs && debuffs.length > 0) {
                 // 디버프 채우기
@@ -182,12 +204,12 @@ function processAbility(charOrder, abilityOrder) {
                         setTimeout(() => {
                             $(this).remove();
                             $('#abilityProcessingTask #playingDebuffs').click();
-                        }, 2500);
+                        }, debuffStartDelay + 1500);
                     })
                 })
             } // 디버프 이펙트 처리 끝
 
-            // 어빌리티 후 행동 실행
+// 어빌리티 후 행동 실행
             if (postAction) {
                 let postActionDelay = 0;
                 postActionDelay += buffs.length > 0 ? 1250 : 0;
@@ -211,7 +233,7 @@ function processAbility(charOrder, abilityOrder) {
                             audioPlayers.set(charOrder, thisCharAudioPlayer);
                             processCharacterAttack(charOrder, hitCount, 1, audioPlayers);
                             let $attackMotionVideo = $(partySelector + '.motion-attack-' + hitCount);
-                            
+
                             //TODO 공격 후행동 끝나고로 변경해야함
                             $attackMotionVideo.one('ended', function () {
                                 $('#abilityProcessingTask #playingPostAction').click();
@@ -231,6 +253,7 @@ function processAbility(charOrder, abilityOrder) {
     function playEnemyDamagedMotion() {
         $('.motion-enemy-idle').addClass('hidden');
         let motionDamagedElement = $('.motion-enemy-damaged').removeClass('hidden').get(0);
+        motionDamagedElement.currentTime = 0; // 빼면 부자연스러워짐
         motionDamagedElement.play();
         $(motionDamagedElement).one('ended', function () {
             $(this).addClass('hidden')
@@ -244,15 +267,15 @@ function processAbility(charOrder, abilityOrder) {
     let responseData = {
         chara: [
             {
+                // 주인공
                 ability: [
                     {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/mc/paladin/status/status-paladin-ability-1.png',
                                 effectText: '데미지 컷(80%)',
                                 infoText: '피격 데미지를 80% 컷 하는 상태'
@@ -264,10 +287,9 @@ function processAbility(charOrder, abilityOrder) {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/mc/paladin/status/status-paladin-ability-2.png',
                                 effectText: '피격 데미지 감소',
                                 infoText: '피격 데미지가 감소한 상태'
@@ -280,7 +302,6 @@ function processAbility(charOrder, abilityOrder) {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1],
                         buffs: [
                             {
                                 targets: [1],
@@ -299,6 +320,7 @@ function processAbility(charOrder, abilityOrder) {
                     },
                 ]
             },
+            // 야치마
             {
                 ability: [
                     {
@@ -306,10 +328,9 @@ function processAbility(charOrder, abilityOrder) {
                         abilityPlaybackSpeed: 1.5,
                         abilityEffectCount: 6,
                         damages: [1000, 2000, 3000, 4000, 5000, 6000],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/yachima/status/status-yachima-ability-1.png',
                                 effectText: '추가데미지 A',
                                 infoText: '일반 공격시 추가데미지가 발생하는 상태 (A)'
@@ -327,22 +348,21 @@ function processAbility(charOrder, abilityOrder) {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/yachima/status/status-yachima-ability-2-1.png',
-                                effectText: '블로킹',
+                                effectText: '데미지 경감',
                                 infoText: '피격 데미지가 30% 감소한 상태'
                             },
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/yachima/status/status-yachima-ability-2-2.png',
                                 effectText: '디스펠 가드',
                                 infoText: '강화효과 무효화(디스펠) 을 1회 무시하는 상태'
                             },
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/yachima/status/status-yachima-ability-2-3.png',
                                 effectText: '방어력 증가',
                                 infoText: '방어력이 증가한 상태'
@@ -355,7 +375,6 @@ function processAbility(charOrder, abilityOrder) {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
                                 targets: [2],
@@ -375,13 +394,13 @@ function processAbility(charOrder, abilityOrder) {
                     },
                 ]
             },
+            // 인다라
             {
                 ability: [
                     {
                         abilityHitCount: 3,
                         abilityEffectCount: 3,
                         damages: [1000, 2000, 3000],
-                        buffTargets: [],
                         buffs: [],
                         deBuffs: [
                             {
@@ -411,10 +430,9 @@ function processAbility(charOrder, abilityOrder) {
                         abilityEffectCount: 1,
                         abilityHitDuration: 500,
                         damages: [1000, 2000, 3000, 4000],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '',
                                 effectText: '오의 게이지 상승',
                                 infoText: ''
@@ -426,22 +444,21 @@ function processAbility(charOrder, abilityOrder) {
                         abilityHitCount: 0,
                         abilityEffectCount: 1,
                         damages: [],
-                        buffTargets: [1, 2, 3],
                         buffs: [
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/indara/status/status-indara-ability-3.png',
                                 effectText: '어빌리티 가하는 데미지 상승',
                                 infoText: '어빌리티가 가하는 데미지가 상승한 상태'
                             },
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/indara/status/status-indara-ability-3.png',
                                 effectText: '어빌리티 데미지 상한 상승',
                                 infoText: '어빌리티의 데미지 상한이 상승한 상태'
                             },
                             {
-                                targets: [1, 2, 3],
+                                targets: [1, 2, 3, 4],
                                 iconSrc: '/static/assets/img/ch/indara/status/status-indara-ability-3.png',
                                 effectText: '어빌리티 데미지 상승',
                                 infoText: '어빌리티의 데미지가 상승한 상태'
@@ -452,6 +469,87 @@ function processAbility(charOrder, abilityOrder) {
                                 effectText: '오의 즉시 사용 가능',
                                 infoText: ''
                             }
+                        ],
+                        deBuffs: []
+                    },
+                ]
+            },
+            // 하이라
+            {
+                ability: [
+                    {
+                        hasMotion: true,
+                        isMotionFullSize: true,
+                        abilityHitCount: 10,
+                        abilityEffectCount: 1,
+                        damages: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
+                        buffs: [
+                            {
+                                targets: [4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-1.png',
+                                effectText: '재공격',
+                                infoText: '턴 진행시 공격행동을 2회 진행하는 상태'
+                            }
+                        ],
+                        deBuffs: []
+                    },
+                    {
+                        abilityHitCount: 0,
+                        abilityEffectCount: 1,
+                        damages: [],
+                        buffs: [
+                            {
+                                targets: [1, 2, 3, 4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-2.png',
+                                effectText: '일반공격 주는 데미지 상승',
+                                infoText: '일반공격이 주는 데미지가 상승한 상태'
+                            },
+                            {
+                                targets: [1, 2, 3, 4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-2.png',
+                                effectText: '흡수',
+                                infoText: '일반공격이 주는 데미지의 일부로 자신의 체력을 회복하는 상태'
+                            },
+                            {
+                                targets: [1, 2, 3, 4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-2.png',
+                                effectText: '받는 데미지 경감',
+                                infoText: '받는 데미지가 경감되는 상태'
+                            },
+                            {
+                                targets: [1, 2, 3, 4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-2.png',
+                                effectText: '디스펠 가드',
+                                infoText: '강화효과 무효화(디스펠) 을 1회 무시하는 상태'
+                            }
+                        ],
+                        deBuffs: []
+                    },
+                    {
+                        hasMotion: true,
+                        isMotionFullSize: false,
+                        abilityHitCount: 0,
+                        abilityEffectCount: 1,
+                        damages: [],
+                        buffs: [
+                            {
+                                targets: [1, 2, 3],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-1.png',
+                                effectText: '재공격',
+                                infoText: '턴 진행시 공격행동을 2회 진행하는 상태'
+                            },
+                            {
+                                targets: [4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-2.png',
+                                effectText: '감싸기',
+                                infoText: '적의 공격을 아군 대신 받는 상태'
+                            },
+                            {
+                                targets: [4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-3.png',
+                                effectText: '피해 무시',
+                                infoText: '적의 공격 데미지와 약체효과를 무시하는 상태'
+                            },
                         ],
                         deBuffs: []
                     },

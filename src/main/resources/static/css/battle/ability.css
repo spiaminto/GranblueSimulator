@@ -2,6 +2,15 @@
     margin: 0 auto;
 }
 
+#abilitySlider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    background-color: white;
+    width: 100%;
+}
+
 .ability-panel {
     display: flex;
     width: 100%;
@@ -16,23 +25,41 @@
 
 .ability-wrapper {
     display: flex;
+    padding: 0.25rem 0;
     width: 100%;
     height: 50%;
     justify-content: space-evenly;
     border: 1px solid black;
 }
 
-.battle-portrait {
-    width: 20%;
+.ability-battle-portrait {
+    width: 21%;
+    position: relative;
 }
 
-.battle-portrait img {
-    width: 100%;
+.ability-battle-portrait img {
+    width: 88%;
 }
 
 .ability-icon {
+    position: relative;
     align-content: center;
     width: 15%;
+}
+
+.ability-icon .ability-overlay {
+    position: absolute;
+    width: 100%;
+    height: 60%;
+    z-index: 1;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    top: 7%;
+    left: 0;
+}
+
+.ability-icon .ability-overlay.not-ready {
+    display: block;
 }
 
 .ability-icon img {
@@ -45,6 +72,10 @@
     font-size: 1rem;
 }
 
+.ability-wrapper .ability-info-text {
+    display: none;
+}
+
 @media (min-width: 600px) {
     .ability-cooldown-text {
         font-size: 1.3rem;
@@ -52,17 +83,102 @@
 }
 
 .panel-wrapper {
-    width: 80%; /* battle-portriat 합쳐 100 */
+    width: 79%; /* battle-portriat 합쳐 100 */
 }
 
-.buff-wrapper {
-    padding: 0 1rem;
+.status-wrapper {
+    padding: 0 0.25rem;
     border: solid 2px black;
     height: 25%; /* .ability-wrapper, .charge-attack-wrapper 합쳐 100 */
     align-content: center;
+    display: flex;
 }
 
-.buff-wrapper img {
-    display: inline-block;
-    width: 10%;
+.status-wrapper .show-status-info-button-wrapper {
+    display: flex;
+    width: 17%;
+    align-items: center;
 }
+
+.status-wrapper button {
+    width: 100%;
+}
+
+.status-wrapper .status {
+    width: 10%;
+    display: flex;
+    align-items: center;
+}
+
+.status .status-icon {
+    display: inline-block;
+    width: 100%;
+}
+
+.status-wrapper .status-info-text {
+    display: none;
+}
+
+/* 어빌리티 백버튼 - 배틀 캔버스 */
+/*.ability-back-button {*/
+/*    position: absolute;*/
+/*    bottom: 3%;*/
+/*    left: 3%;*/
+/*}*/
+
+/* 어빌리티 백버튼 - 하단메뉴 */
+.ability-back-button {
+
+}
+
+/* 어빌리티 모달 */
+.ability-info-modal-button {
+    display: none;
+}
+
+#abilityInfoModal .modal-dialog {
+    transition: transform 100ms ease-out;
+}
+
+#abilityInfoModal {
+}
+
+.ability-info-wrapper {
+    display: flex;
+}
+
+.ability-info-icon-wrapper {
+    width: 12%;
+    margin-right: 5%;
+}
+
+.ability-info-icon {
+    width: 100%;
+}
+
+.ability-info-text {
+    width: 80%;
+}
+
+/* 스테이터스 모달 */
+.status-modal-button {
+    display: none;
+}
+
+.status-info {
+    display: flex;
+}
+
+.status-info-icon-wrapper {
+    width: 7%;
+    margin-right: 3%;
+}
+
+.status-info-icon {
+    width: 100%;
+}
+
+.status-info .status-info-text {
+    width: 85%;
+}
+

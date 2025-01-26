@@ -25,7 +25,7 @@ class AudioPlayer {
 
     /**
      * 여러개 동시할당 (객체리터럴)
-     * @param audioInfos = [{ url: urlValue, delay: delayValue }, ...] or ['url1', 'url2', ...]
+     * @param audioInfos = [{ url: urlValue, delay: delayValue(ms) }, ...] or ['url1', 'url2', ...]
      * @returns {Promise<void>}
      */
     async loadSounds(audioInfos) {

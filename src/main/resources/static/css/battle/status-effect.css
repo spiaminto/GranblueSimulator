@@ -1,6 +1,7 @@
 /* 공통 */
 .status-effect {
     opacity: 0; /* display: none 으로 하면 역순으로 fadeIn() 할때 레이아웃 드득거림 */
+    text-wrap: nowrap;
 }
 
 /* 적 */
@@ -13,22 +14,18 @@
     align-content: center;
 }
 
-.status-effect-wrapper {
-    text-wrap: nowrap;
+#enemyStatusEffectContainer .status-effect {
+    margin-top: -2%;
 }
 
-.status-effect {
-    margin-top: -3%;
-}
-
-.status-effect img {
+#enemyStatusEffectContainer .status-effect img {
     display: inline-block;
     vertical-align: bottom;
-    width: 15%;
+    width: 16%;
     max-width: 40px;
 }
 
-.status-effect-text {
+#enemyStatusEffectContainer .status-effect-text {
     font-size: 1.2rem;
     font-weight: bold;
     color: white;
@@ -36,7 +33,7 @@
     text-indent: -1rem;
 
     @media (min-width: 600px) {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
     }
 }
 
@@ -52,36 +49,45 @@
     height: 60%;
 }
 
+.status-effect-container .status-effect {
+    margin-top: -4%;
+}
+
 .status-effect-container .status-effect img {
     display: inline-block;
     vertical-align: bottom;
-    width: 15%;
+    width: 13%;
     max-width: 35px;
 }
 
 .status-effect-container .status-effect-text {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: bold;
     color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
 
     @media (min-width: 600px) {
-        font-size: 1.4rem;
+        font-size: 1.3rem;
     }
 }
 
 
 .status-effect-container-1 {
-    top: 38%;
-    right: 3%;
-}
-
-.status-effect-container-2 {
-    top: 53%;
+    top: 35%;
     right: 8%;
 }
 
+.status-effect-container-2 {
+    top: 49%;
+    right: 3%;
+}
+
 .status-effect-container-3 {
-    top: 68%;
+    top: 65%;
+    right: 8%;
+}
+
+.status-effect-container-4 {
+    top: 81%;
     right: 3%;
 }

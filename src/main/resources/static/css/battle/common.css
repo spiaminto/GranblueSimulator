@@ -53,3 +53,34 @@ body, html {
 .float-right {
     float: right;
 }
+
+body .button-xsm {
+    /* button 적용 후에 적용할것 */
+    padding: 0.25rem 0.25rem;
+    font-size: 0.7rem;
+
+    @media (min-width: 600px) {
+        font-size: 0.9rem;
+    }
+}
+
+body .font-sm {
+    font-size: 0.8rem;
+    @media (min-width: 600px) {
+        font-size: 0.9rem;
+    }
+}
+
+body .font-xsm {
+    font-size: 0.7rem ;
+    @media (min-width: 600px) {
+        font-size: 0.8rem ;
+    }
+}
+
+body .font-xxsm {
+    font-size: 0.5rem;
+    @media (min-width: 600px) {
+        font-size: 0.7rem ;
+    }
+}

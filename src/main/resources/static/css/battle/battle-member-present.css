@@ -1,0 +1,113 @@
+#battleMemberContainer {
+    background-color: white;
+}
+
+#battleMemberPresentContainer {
+    width: 100%;
+    position: relative;
+}
+
+.present-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 1.5em;
+
+    @media (min-width: 600px) {
+        padding: 0.5rem 2em;
+    }
+}
+
+.battle-member-wrapper {
+    display: flex;
+    width: 80%;
+}
+
+.battle-portrait {
+    position: relative;
+    width: 23%;
+    margin-right: 1%;
+}
+
+.battle-portrait img {
+    width: 100%;
+}
+
+.charge-gauge-wrapper {
+    position: absolute;
+    width: 95%;
+    padding: 0.25rem;
+    bottom: 3%;
+    left: 0;
+}
+
+/* TODO 이거 나중에 ability.css 랑 합쳐서 수정해야함 */
+.ability-battle-portrait .charge-gauge-wrapper {
+    bottom: 5%;
+    width: 85%;
+
+    @media(min-width: 600px) {
+        bottom: 3%;
+    }
+}
+
+.charge-gauge-value {
+    font-weight: bold;
+    color: white;
+}
+
+
+.charge-gauge .progress{
+    height: 5px;
+
+    @media (min-width: 600px) {
+        height: 6px;
+    }
+}
+
+.summon-wrapper {
+    width: 19%;
+}
+
+.summon-portrait {
+    width: 97%;
+}
+
+.summon-portrait img{
+    width: 100%;
+}
+
+/* 버튼 */
+
+.button-container {
+    margin-top: 0.25rem;
+    display: flex;
+    padding: 0.25rem 1.25rem;
+
+    @media (min-width: 600px) {
+        padding: 0.5rem 1.75rem;
+    }
+}
+
+.button-container .form-switch {
+    display: flex;
+    align-items: center;
+}
+
+.button-container .form-switch input {
+    margin-top: 0;
+    height: 1.2rem;
+}
+
+.show-ability-info-check-wrapper {
+    margin-left: 2%;
+}
+
+.charge-attack-check-wrapper {
+    margin-left: 2%;
+}
+
+
+.ability-back-button-wrapper {
+    margin-left: auto;
+}

@@ -83,10 +83,10 @@
     min-height: 1px;
 
     /*custom*/
-    padding: 0.5rem 1.5rem;
+    padding: 0.5rem 1.5rem 0;
 
     @media (min-width: 600px) {
-        padding: 0.5rem 2rem;
+        padding: 0.5rem 2rem 0;
     }
 }
 [dir='rtl'] .slick-slide
