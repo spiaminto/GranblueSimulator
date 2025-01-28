@@ -4,6 +4,9 @@
 
 #battleMemberPresentContainer {
     width: 100%;
+    height: 35vw;
+    min-height: 160px;
+    max-height: 225px; /* #abilitySlider 와 연동 */
     position: relative;
 }
 
@@ -43,7 +46,7 @@
 
 /* TODO 이거 나중에 ability.css 랑 합쳐서 수정해야함 */
 .ability-battle-portrait .charge-gauge-wrapper {
-    bottom: 5%;
+    bottom: 7%;
     width: 85%;
 
     @media(min-width: 600px) {
@@ -53,6 +56,7 @@
 
 .charge-gauge-value {
     font-weight: bold;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     color: white;
 }
 
@@ -70,7 +74,7 @@
 }
 
 .summon-portrait {
-    width: 97%;
+    width: 96%;
 }
 
 .summon-portrait img{
@@ -80,13 +84,8 @@
 /* 버튼 */
 
 .button-container {
-    margin-top: 0.25rem;
     display: flex;
-    padding: 0.25rem 1.25rem;
-
-    @media (min-width: 600px) {
-        padding: 0.5rem 1.75rem;
-    }
+    padding: 0.25rem 1.5rem;
 }
 
 .button-container .form-switch {
@@ -106,7 +105,6 @@
 .charge-attack-check-wrapper {
     margin-left: 2%;
 }
-
 
 .ability-back-button-wrapper {
     margin-left: auto;

@@ -9,6 +9,9 @@
     z-index: -1;
     background-color: white;
     width: 100%;
+    height: 35vw;
+    min-height: 160px;
+    max-height: 225px; /* #battleMemberPresentContainer 와 연동 */
 }
 
 .ability-panel {
@@ -20,7 +23,20 @@
 .charge-attack-wrapper {
     height: 25%;
     padding: 0.25rem;
-    border: 2px solid black;
+    border: 2px solid goldenrod;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.charge-attack-info {
+    font-size: 0.6rem;
+
+    @media (min-width: 600px) {
+        font-size: 0.7rem;
+    }
+}
+
+.charge-attack-info .charge-attack-text {
 }
 
 .ability-wrapper {
@@ -29,7 +45,8 @@
     width: 100%;
     height: 50%;
     justify-content: space-evenly;
-    border: 1px solid black;
+    border: 2px solid deepskyblue;
+    border-radius: 10px;
 }
 
 .ability-battle-portrait {
@@ -88,7 +105,8 @@
 
 .status-wrapper {
     padding: 0 0.25rem;
-    border: solid 2px black;
+    border: solid 2px darkgrey;
+    border-radius: 10px;
     height: 25%; /* .ability-wrapper, .charge-attack-wrapper 합쳐 100 */
     align-content: center;
     display: flex;
@@ -181,4 +199,35 @@
 .status-info .status-info-text {
     width: 85%;
 }
+
+/* 슬라이드 버튼 (주의 #battleMemberPresentContainer 의 자식임) */
+.ability-slider-slide-button-wrapper {
+    display: none;
+    position: absolute;
+    z-index: 10;
+}
+
+.ability-slider-slide-button-wrapper button {
+    font-size: 1.25rem;  /* btn-sm 0.875rem */
+
+    @media (min-width: 600px) {
+        font-size: 1.5rem;
+    }
+
+}
+
+.ability-slider-slide-button-wrapper.to-right {
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0;
+}
+
+.ability-slider-slide-button-wrapper.to-left {
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+}
+
+
+
 

@@ -1,4 +1,3 @@
-
 /**
  *  아군 캐릭터 하나의 공격행동 실행
  * @param order 캐릭터의 순서
@@ -9,16 +8,6 @@
 function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayers) {
 
     console.log('[processCharacterAttack] attack start ' + order)
-
-    // 다음 캐릭터 공격 오디오 미리로드 async
-    let nextOrder = order + 1;
-    let nextCharacterAttackAudioSrc = $('.party-' + nextOrder + '-audio').attr('src');
-    if (nextCharacterAttackAudioSrc != null && audioPlayers.get(nextOrder) != null) {
-        audioPlayers.get(nextOrder).loadSound(nextCharacterAttackAudioSrc).then(() => {
-            console.log('nextCharacterAudioLoaded');
-        })
-    }
-
     // 데미지 계산 및 채우기 선행
     // ...
 
@@ -29,10 +18,9 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
 
     // 아군 공격모션
     let $attackMotionVideo = $(partySelector + '.motion-attack-' + hitCount);
-    setTimeout(function () {
-        $(partySelector + '.motion-idle').addClass('hidden').get(0).pause();
-        $attackMotionVideo.removeClass('hidden').addClass('motion-attack-active').get(0).play();
-    }, 300);
+    $(partySelector + '.motion-idle').addClass('hidden').get(0).pause();
+    $attackMotionVideo.removeClass('hidden').addClass('motion-attack-active').get(0).play();
+
     $attackMotionVideo.one('ended', function () {
         $(this).addClass('hidden').removeClass('motion-attack-active');
         $(partySelector + '.motion-idle').removeClass('hidden').get(0).play();
@@ -42,17 +30,23 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
 
     // 반복 플레이
     let attackSePlayIntervalIndex = 0;
-    let attackSePlayInterval = setInterval(async function () {
+    let audioSrc = $('.party-' + order + '-audio.normal-attack').attr('src');
+    // 반복플레이 - 오디오 로드 완료 후 진행
+    audioPlayers.get(order).loadSound(audioSrc).then(() => {
+        let attackSePlayInterval = setInterval(function () {
 
-        playAttackSe(attackSePlayIntervalIndex);
-        playEnemyDamagedMotion();
-        showDamage(attackSePlayIntervalIndex + 1); // selecter 1부터
+            playAttackSe(attackSePlayIntervalIndex);
+            playEnemyDamagedMotion();
+            showDamage(attackSePlayIntervalIndex + 1); // selecter 1부터
 
-        // 인터벌 끝
-        if (++attackSePlayIntervalIndex >= hitCount) {
-            clearInterval(attackSePlayInterval);
-        }
-    }, attackMotionDelays[hitCount] / (hitCount));
+            // 인터벌 끝
+            if (++attackSePlayIntervalIndex >= hitCount) {
+                clearInterval(attackSePlayInterval);
+            }
+
+            console.log('timeout = ', attackMotionDelays[hitCount] / (hitCount))
+        }, attackMotionDelays[hitCount - 1] / (hitCount));
+    })
 
     function playAttackSe() {
         audioPlayers.get(order).playAllSounds();
@@ -85,32 +79,6 @@ function processCharacterAttack(order, hitCount, additionalHitCount, audioPlayer
 
     //종료
 }// processParty
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* 레거시 */

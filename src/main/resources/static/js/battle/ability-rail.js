@@ -60,6 +60,7 @@ $(function () {
         $railAbilityElement.append($abilityIconElement)
         // 클릭 이벤트 연결
         $railAbilityElement.on('click', function () {
+            if ($(this).index() === 1) return; // 자신이 두번째면 클릭 불가 (더미 빼고 첫번째 레일어빌리티)
             // 어빌리티 슬라이더에서 오버레이 not-ready 해제
             let charOrder = $(this).data('character-order');
             let abilityOrder = $(this).data('ability-order');

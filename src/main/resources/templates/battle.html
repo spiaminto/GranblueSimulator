@@ -39,6 +39,7 @@
   <script src="/static/js/battle/ability.js"></script>
   <script src="/static/js/battle/audio-player.js"></script>
   <script src="/static/js/battle/ability-rail.js"></script>
+  <script src="/static/js/battle/charge-attack.js"></script>
   <script>
       $(function () {
 
@@ -82,6 +83,11 @@
 
           $('#abilitySlider').slick({speed: 100, arrows: false});
 
+          // 어빌리티 슬라이더 버튼 클릭
+          $('.ability-slider-slide-button-wrapper').on('click', function () {
+              $(this).hasClass('to-right') ? $('#abilitySlider').slick('slickNext') : $('#abilitySlider').slick('slickPrev');
+          })
+
           // 어빌리티 duratinon 로드를 위해 미리 재생 및 data-duration 추가
           $('.motion-ability').each(function (index, item) {
               let abilityVideo = $(this).get(0);
@@ -92,6 +98,7 @@
               })
           })
 
+          // 배틀 초상화 클릭 -> 어빌리티 슬라이더 오픈
           $('.battle-portrait').on('click', function () {
               let abilitySliderWidth = $('#abilitySlider .slick-track').width();
               console.log(abilitySliderWidth)
@@ -100,11 +107,13 @@
               $('#abilitySlider').slick('slickGoTo', battlePortraitIndex, true, {speed: 0})
               $('#abilitySlider').css('z-index', '1');
 
+              $('.ability-slider-slide-button-wrapper').show();
               $('.ability-back-button').show();
           })
 
           $('.ability-back-button').on('click', function () {
               $('#abilitySlider').css('z-index', '-1');
+              $('.ability-slider-slide-button-wrapper').hide();
           });
 
           // $('.status-wrapper').each(function (index, statusWrapper) {
@@ -159,25 +168,49 @@
   </div>
 
   <div class="status-enemy">
-    <div class="value-hp">100%</div>
+    <div class="status-enemy-top-wrapper">
+      <div class="value-hp">100%</div>
+      <div class="status-effect-enemy-wrapper">
+        <div class="status-effect-enemy status-effect-enemy-1">
+          <img src="/static/assets/img/status/buff/status-defence-up.png">
+          <span class="status-effect-enemy-text">방어력 증가 특수공격력증가</span>
+        </div>
+        <div class="status-effect-enemy status-effect-enemy-1">
+          <img src="/static/assets/img/status/buff/status-defence-up.png">
+          <span class="status-effect-enemy-text">방어력 증가 특수공격력증가</span>
+        </div>
+        <div class="status-effect-enemy status-effect-enemy-1">
+          <img src="/static/assets/img/status/buff/status-defence-up.png">
+          <span class="status-effect-enemy-text">방어력 증가 특수공격력증가</span>
+        </div>
+      </div>
+    </div>
     <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100" aria-valuemin="0"
          aria-valuemax="100" style="height: 10px">
       <div class="progress-bar hp-bar-realtime bg-danger" style="width: 100%"></div>
       <div class="hp-trigger hp-trigger-1"></div>
     </div>
-    <div class="status-wrapper clearfix">
-      <div class="charge-turn-gauge float-left">
-        <div class="charge-turn active"></div>
-        <div class="charge-turn inactive"></div>
-        <div class="charge-turn inactive"></div>
+    <div class="status-enemy-bottom-wrapper">
+      <div class="charge-turn-gauge-wrapper">
+        <div class="charge-turn-gauge active"></div>
+        <div class="charge-turn-gauge inactive"></div>
+        <div class="charge-turn-gauge inactive"></div>
       </div>
-      <div class="omen-wrapper float-right">
-        <div class="omen-text">
-          <span class="omen-header">[전조 : 영창기]</span>
+      <div class="omen-wrapper">
+        <div class="omen-text incant-attack">
           <span class="omen-type">강화효과 제거</span>
           <span class="omen-value">1</span>
           <span class="omen-suffix">회 발동</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-omen-wrapper">
+    <div class="omen-wrapper">
+      <div class="omen-text blinking-element incant-attack">
+        <span class="omen-header">[ 영창기 ]</span>
+        <span class="omen-name">섬멸지시 : 경성반사</span>
       </div>
     </div>
   </div>
@@ -216,13 +249,27 @@
     </div>
     <div class="party-1-video">
 
-      <audio class='party-1-audio se' src="/static/assets/audio/se/mc/paladin/mc-paladin-attack.mp3"
+      <audio class='party-1-audio normal-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-attack.mp3"
              muted="muted"></audio>
       <audio class='party-1-audio ability ability-1' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
              muted="muted"></audio>
       <audio class='party-1-audio ability ability-2' src="/static/assets/audio/se/gl/ability/gl-buff-motion-1.mp3"
              muted="muted"></audio>
       <audio class='party-1-audio ability ability-3' src="/static/assets/audio/se/gl/ability/gl-buff-motion-3.mp3"
+             muted="muted"></audio>
+      <audio class='party-1-audio charge-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-charge-attack-0.mp3"
+             muted="muted"></audio>
+      <audio class='party-1-audio charge-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-charge-attack-1.mp3"
+             data-delay="400"
+             muted="muted"></audio>
+      <audio class='party-1-audio charge-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-charge-attack-2.mp3"
+             data-delay="700"
+             muted="muted"></audio>
+      <audio class='party-1-audio charge-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-charge-attack-3.mp3"
+             data-delay="1000"
+             muted="muted"></audio>
+      <audio class='party-1-audio charge-attack' src="/static/assets/audio/se/mc/paladin/mc-paladin-charge-attack-4.mp3"
+             data-delay="1500"
              muted="muted"></audio>
 
       <video autoplay muted loop playsinline class="party party-1 motion-idle"
@@ -243,6 +290,11 @@
              width="100%">
       </video>
 
+      <video muted playsinline class="party party-1 hidden motion-charge-attack"
+             src="/static/assets/mov/mc/paladin/mc-paladin-charge-attack.webm"
+             width="100%">
+      </video>
+
       <video muted playsinline class="party party-1 hidden motion-none-idle motion-ability-1 full-size motion-ability"
              src="/static/assets/mov/mc/paladin/mc-paladin-ability-1.webm"
              width="100%">
@@ -259,7 +311,7 @@
     </div>
     <div class="party-2-video">
 
-      <audio class='party-2-audio se' src="/static/assets/audio/se/ch/yachima/ch-yachima-attack.mp3"
+      <audio class='party-2-audio normal-attack' src="/static/assets/audio/se/ch/yachima/ch-yachima-attack.mp3"
              muted="muted"></audio>
       <audio class='party-2-audio ability ability-1'
              src="/static/assets/audio/se/ch/yachima/ch-yachima-ability-1-1.mp3" muted="muted"></audio>
@@ -271,6 +323,30 @@
              src="/static/assets/audio/se/ch/yachima/ch-yachima-ability-3-1.mp3" muted="muted"></audio>
       <audio class='party-2-audio ability ability-3'
              src="/static/assets/audio/se/ch/yachima/ch-yachima-ability-3-2.mp3" muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-0.mp3" data-delay="0"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-1.mp3" data-delay="500"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-2.mp3" data-delay="500"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-3.mp3" data-delay="1000"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-4.mp3" data-delay="1000"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-5.mp3" data-delay="2500"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-6.mp3" data-delay="2500"
+             muted="muted"></audio>
+      <audio class='party-2-audio charge-attack'
+             src="/static/assets/audio/se/ch/yachima/ch-yachima-charge-attack-7.mp3" data-delay="3500"
+             muted="muted"></audio>
 
 
       <video autoplay muted loop playsinline class="party party-2 motion-idle"
@@ -315,7 +391,7 @@
     </div>
     <div class="party-3-video">
 
-      <audio class='party-3-audio se' src="/static/assets/audio/se/ch/indara/ch-indara-attack.mp3"
+      <audio class='party-3-audio normal-attack' src="/static/assets/audio/se/ch/indara/ch-indara-attack.mp3"
              muted="muted"></audio>
       <audio class='party-3-audio ability ability-1' src="/static/assets/audio/se/ch/indara/ch-indara-ability-1.mp3"
              muted="muted"></audio>
@@ -325,6 +401,27 @@
              src="/static/assets/audio/se/ch/indara/ch-indara-ability-2-2-d1000.mp3"
              muted="muted" data-delay="1000"></audio>
       <audio class='party-3-audio ability ability-3' src="/static/assets/audio/se/gl/ability/gl-buff-motion-0.mp3"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-0.mp3"
+             data-delay="0"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-1.mp3"
+             data-delay="250"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-2.mp3"
+             data-delay="750"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-3.mp3"
+             data-delay="1500"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-4.mp3"
+             data-delay="2000"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-5.mp3"
+             data-delay="2250"
+             muted="muted"></audio>
+      <audio class='party-3-audio charge-attack' src="/static/assets/audio/se/ch/indara/ch-indara-charge-attack-6.mp3"
+             data-delay="2500"
              muted="muted"></audio>
 
       <video autoplay muted loop playsinline class="party party-3 motion-idle"
@@ -346,7 +443,7 @@
       </video>
 
 
-      <video muted playsinline class="party party-3 hidden motion-attack otion-none-idle motion-charge-attack full-size"
+      <video muted playsinline class="party party-3 hidden motion-charge-attack"
              src="/static/assets/mov/ch/indara/ch-indara-charge-attack.webm"
              width="100%">
       </video>
@@ -369,7 +466,7 @@
     </div>
     <div class="party-4-video">
 
-      <audio class='party-4-audio se' src="/static/assets/audio/se/ch/haira/ch-haira-attack.mp3"
+      <audio class='party-4-audio normal-attack' src="/static/assets/audio/se/ch/haira/ch-haira-attack.mp3"
              muted="muted"></audio>
       <audio class='party-4-audio ability ability-1' src="/static/assets/audio/se/ch/haira/ch-haira-ability-1.mp3"
              muted="muted"></audio>
@@ -377,13 +474,23 @@
              muted="muted"></audio>
       <audio class='party-4-audio ability ability-3' src="/static/assets/audio/se/ch/haira/ch-haira-ability-3.mp3"
              muted="muted"></audio>
-      <audio class="party-4-audio charge-attack voice" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-0.mp3"
+      <audio class="party-4-audio charge-attack voice"
+             src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-0.mp3"
              muted="muted"></audio>
-      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-1.mp3" data-delay="1000"
+      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-1.mp3"
+             data-delay="750"
              muted="muted"></audio>
-      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-2.mp3" data-delay="3250"
+      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-2.mp3"
+             data-delay="2250"
              muted="muted"></audio>
-      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-3.mp3" data-delay="3250"
+      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-3.mp3"
+             data-delay="2750"
+             muted="muted"></audio>
+      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-4.mp3"
+             data-delay="3250"
+             muted="muted"></audio>
+      <audio class="party-4-audio charge-attack" src="/static/assets/audio/se/ch/haira/ch-haira-charge-attack-5.mp3"
+             data-delay="3250"
              muted="muted"></audio>
 
 
@@ -607,6 +714,7 @@
 
   <div id="battleMemberPresentContainer">
     <div class="present-container">
+
       <div class="battle-member-wrapper">
         <div class="portrait-1 battle-portrait">
           <img src="/static/assets/img/mc/paladin/ability/mc-paladin-battle-portrait.jpg">
@@ -653,27 +761,19 @@
           </div>
         </div>
       </div>
+
       <div class="summon-wrapper">
         <div class="summon-portrait">
-          <img src="/static/assets/img/mc/paladin/ability/mc-paladin-battle-portrait.jpg">
+          <img src="/static/assets/img/ui/ui-summon-active.png">
         </div>
       </div>
     </div>
-    <div class="button-container">
-      <button type="button" class="btn btn-success">회복</button>
-      <div class="form-check form-switch show-ability-info-check-wrapper">
-        <input class="form-check-input" type="checkbox" role="switch" id="showAbilityInfoCheck">
-        <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
-      </div>
-      <div class="form-check form-switch charge-attack-check-wrapper">
-        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck">
-        <label class="form-check-label" for="chargeAttackActiveCheck">오의 발동</label>
-      </div>
-      <div class="ability-back-button-wrapper">
-        <button class="ability-back-button btn btn-primary">
-          뒤로
-        </button>
-      </div>
+
+    <div class="ability-slider-slide-button-wrapper to-right">
+      <button class="btn btn-sm"><i class="bi bi-caret-right"></i></button>
+    </div>
+    <div class="ability-slider-slide-button-wrapper to-left">
+      <button class="btn btn-sm"><i class="bi bi-caret-left"></i></button>
     </div>
 
     <div id="abilitySlider">
@@ -692,8 +792,14 @@
           </div>
           <div class="panel-wrapper">
             <div class="charge-attack-wrapper">
-              <div>
-                오의 어쩌고 저쩌고
+              <div class="charge-attack-info">
+                <span class="charge-attack-name">
+                  오의 이름
+                </span>
+                <span> : </span>
+                <span class="charge-attack-text">
+                  오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두
+                </span>
               </div>
             </div>
             <div class="ability-wrapper">
@@ -718,7 +824,7 @@
             </div>
             <div class="status-wrapper">
               <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-primary button-xsm">자세히</button>
+                <button class="btn btn-outline-secondary button-xsm">상세</button>
               </div>
               <div class="status status-1">
                 <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png">
@@ -751,8 +857,14 @@
           </div>
           <div class="panel-wrapper">
             <div class="charge-attack-wrapper">
-              <div>
-                오의 어쩌고 저쩌고
+              <div class="charge-attack-info">
+                <span class="charge-attack-name">
+                  오의 이름
+                </span>
+                <span> : </span>
+                <span class="charge-attack-text">
+                  오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두
+                </span>
               </div>
             </div>
             <div class="ability-wrapper">
@@ -777,7 +889,7 @@
             </div>
             <div class="status-wrapper">
               <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-primary button-xsm">자세히</button>
+                <button class="btn btn-outline-secondary button-xsm">상세</button>
               </div>
               <div class="status status-1">
                 <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png">
@@ -810,8 +922,14 @@
           </div>
           <div class="panel-wrapper">
             <div class="charge-attack-wrapper">
-              <div>
-                오의 어쩌고 저쩌고
+              <div class="charge-attack-info">
+                <span class="charge-attack-name">
+                  오의 이름
+                </span>
+                <span> : </span>
+                <span class="charge-attack-text">
+                  오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두
+                </span>
               </div>
             </div>
             <div class="ability-wrapper">
@@ -836,7 +954,7 @@
             </div>
             <div class="status-wrapper">
               <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-primary button-xsm">자세히</button>
+                <button class="btn btn-outline-secondary button-xsm">상세</button>
               </div>
               <div class="status status-1">
                 <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png">
@@ -869,8 +987,14 @@
           </div>
           <div class="panel-wrapper">
             <div class="charge-attack-wrapper">
-              <div>
-                오의 어쩌고 저쩌고
+              <div class="charge-attack-info">
+                <span class="charge-attack-name">
+                  오의 이름
+                </span>
+                <span> : </span>
+                <span class="charge-attack-text">
+                  오의 설명 어쩌고 저쩌고 다다다두두두 오의 설명 어쩌고 저쩌고 다다다두두두
+                </span>
               </div>
             </div>
             <div class="ability-wrapper">
@@ -895,7 +1019,7 @@
             </div>
             <div class="status-wrapper">
               <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-primary button-xsm">자세히</button>
+                <button class="btn btn-outline-secondary button-xsm">상세</button>
               </div>
               <div class="status status-1">
                 <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png">
@@ -913,6 +1037,23 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="button-container">
+    <button type="button" class="btn btn-success">회복</button>
+    <div class="form-check form-switch show-ability-info-check-wrapper">
+      <input class="form-check-input" type="checkbox" role="switch" id="showAbilityInfoCheck">
+      <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
+    </div>
+    <div class="form-check form-switch charge-attack-check-wrapper">
+      <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck">
+      <label class="form-check-label" for="chargeAttackActiveCheck">오의 발동</label>
+    </div>
+    <div class="ability-back-button-wrapper">
+      <button class="ability-back-button btn btn-primary">
+        뒤로
+      </button>
     </div>
   </div>
 </div>
@@ -979,8 +1120,6 @@
     </div>
   </div>
 </div>
-
-
 
 
 <div class="container position-relative">

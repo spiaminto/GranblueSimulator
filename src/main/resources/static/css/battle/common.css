@@ -56,7 +56,7 @@ body, html {
 
 body .button-xsm {
     /* button 적용 후에 적용할것 */
-    padding: 0.25rem 0.25rem;
+    padding: 0.25rem 0.15rem;
     font-size: 0.7rem;
 
     @media (min-width: 600px) {
@@ -83,4 +83,20 @@ body .font-xxsm {
     @media (min-width: 600px) {
         font-size: 0.7rem ;
     }
+}
+
+/* 깜빡이기 */
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.75;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+.blinking-element {
+    animation: blink 1.5s infinite;
 }
