@@ -1,0 +1,28 @@
+package com.gbf.granblue_simulator.domain.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.List;
+
+@Entity
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+@EqualsAndHashCode @ToString
+public class Party {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name; // 파티 이름
+    private String infoText; // 파티 설명
+
+    // 여기는 character 가 의존하도록 하면 파티마다 전부 character 를 가지게 되므로 그냥 의존관계 없이 id 만 저장하고 불러오기
+    // 딱히 파티를 자주 불러올것 같지도않고, 전투중에도 파티가 아니라 userId 에 의존하는 BattleCharacter 를 사용하므로
+    private Long firstCharacterId; // 첫번째 캐릭터
+    private Long secondCharacterId; // 두번째 캐릭터
+    private Long thirdCharacterId; // 세번째 캐릭터
+    private Long fourthCharacterId; // 네번째 캐릭터
+}
