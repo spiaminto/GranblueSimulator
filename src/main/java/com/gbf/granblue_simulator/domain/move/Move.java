@@ -1,57 +1,62 @@
 package com.gbf.granblue_simulator.domain.move;
 
-import com.gbf.granblue_simulator.domain.entity.Character;
-import com.gbf.granblue_simulator.domain.entity.Enemy;
-import com.gbf.granblue_simulator.domain.move.prop.Asset;
-import com.gbf.granblue_simulator.domain.move.prop.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.Status;
+import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.actor.Character;
+import com.gbf.granblue_simulator.domain.actor.Enemy;
+import com.gbf.granblue_simulator.domain.move.prop.asset.Asset;
+import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
+@EqualsAndHashCode @ToString(exclude = {"actor", "statuses", "asset", "omen"})
 public class Move {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne @JoinColumn(name = "character_id")
-    private Character character;
-
-    @ManyToOne @JoinColumn(name = "enemy_id")
-    private Enemy enemy;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "actor_id")
+    private Actor actor;
 
     @Enumerated(EnumType.STRING)
-    private MoveType moveType;
+    private MoveType type;
 
-    @OneToOne
+    @OneToOne(mappedBy = "move")
     private Asset asset;
 
-    @OneToOne
-    private Status status;
+    @OneToMany(mappedBy = "move")
+    private List<Status> statuses;
 
-    @OneToOne
+    @OneToOne(mappedBy = "move")
     private Omen omen;
-    
-    // 기타속성
-    
-    // 데미지 있을시
-    private Double damageRate; // 어빌리티 및 오의 데미지 배율
-    // 데미지는 배틀상태에서 결정
+
+    private String name;
+    private String info;
+
+    private Double damageRate;
 
     // 통상공격
     // 히트수는 배틀상태에서 결정
 
     // 어빌리티
     private Integer coolDown; // 쿨타임
-    private Integer duration; // 지속시간 -> 가지고 있는 status 중 가장 긴녀석을 따라감
+    private String duration; // 지속시간 -> 표현만을 위한 지속시간. 쉼표로 여러개 구분
+    private Integer hitCount; // 데미지 횟수
     
     // 오의
     //...
+
+    // set character
+    public void setCharacter(Actor actor) {
+        this.actor = actor;
+    }
 }
 
 /*

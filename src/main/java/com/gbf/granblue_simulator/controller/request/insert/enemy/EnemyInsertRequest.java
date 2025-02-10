@@ -1,0 +1,22 @@
+package com.gbf.granblue_simulator.controller.request.insert.enemy;
+
+import lombok.Data;
+
+@Data
+public class EnemyInsertRequest {
+
+    private String name;
+    private String backgroundImageSrc;
+    private String hpTriggers; // "100, 90, 80 ... "
+    private String bgmTriggers; // "100, 90, 80 ... "
+    private String bgmSrcs; // \n 으로 구분
+
+    // move dead
+    private String deadEffectVideoSrc;
+    private String deadSeAudioSrc;
+
+    // phase-change
+    private String phaseChangeEffectVideoSrc;
+    private String phaseChangeSeAudioSrc;
+
+}

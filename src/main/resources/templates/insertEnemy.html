@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>적 삽입</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/static/js/lib/form-to-json.js"></script>
+  <style>
+      h2 {
+          font-weight: bold;
+          margin-top: 1.5rem;
+      }
+
+      h3 {
+          font-weight: bold;
+          margin-top: 1rem;
+      }
+
+      .form-control {
+          width: 95%;
+          margin-left: 1rem;
+      }
+
+      .form-check {
+          margin-left: 1rem;
+      }
+
+      .btn {
+          margin: 1rem 1.5rem;
+      }
+
+      .status-input-wrapper {
+          display: none;
+      }
+
+      .enemy-input-wrapper {
+          background-color: rgba(255, 0, 0, 0.1);
+      }
+
+      .attack-input-wrapper {
+          background-color: rgba(0, 255, 0, 0.1);
+      }
+
+      .idle-input-wrapper {
+          background-color: rgba(0, 255, 255, 0.1);
+      }
+
+      .break-input-wrapper {
+          background-color: rgba(255, 0, 255, 0.1);
+      }
+
+      .charge-attack-input-wrapper {
+          background-color: rgba(0, 0, 255, 0.1);
+      }
+
+  </style>
+  <script>
+      $(function () {
+          // 상태 =================
+          let characterId = null;
+          // 상태 =================
+
+// placeholder
+          $('input, textarea').each(function (index, element) {
+              if (element.name.includes('ideo')) {
+                  element.value = '/static/assets/video/enemy/';
+              } else if (element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes("Image")) { // mage 하면 damage 랑겹침
+                  element.value = '/static/assets/img/enemy/'
+              } else if (element.name.includes('udio')) {
+                  element.value = '/static/assets/audio/enemy/'
+              }
+          })
+// 스테이터스 체크
+          $('.status-input-check').change(function () {
+              $(this).is(':checked') ? $(this).parent().next().show() : $(this).parent().next().find('input').val('').end().hide();
+          })
+// 통신
+          $('.enemy-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#enemyInputForm').get(0));
+              ajaxRequest("/insert/enemy", requestData);
+          })
+          $('.attack-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#attackInputForm').get(0));
+              ajaxRequest("/insert/enemy-attack", requestData);
+          })
+          $('.idle-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#idleInputForm').get(0));
+              ajaxRequest("/insert/enemy-idle", requestData);
+          })
+          $('.damaged-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#damagedInputForm').get(0));
+              ajaxRequest("/insert/enemy-damaged", requestData);
+          })
+          $('.break-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#breakInputForm').get(0));
+              ajaxRequest("/insert/enemy-break", requestData);
+          })
+          $('.standby-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#standbyInputForm').get(0));
+              ajaxRequest("/insert/enemy-standby", requestData);
+          })
+          $('.charge-attack-submit-button').on('click', function (e) {
+              e.preventDefault();
+              let requestData = serializeJson($('#chargeAttackForm').get(0));
+              ajaxRequest("/insert/enemy-charge-attack", requestData);
+          })
+
+          // requestData 는 JSON string
+          function ajaxRequest(url, requestData) {
+              console.log(requestData);
+              requestData = JSON.stringify(requestData);
+              $.ajax({
+                  type: "POST",
+                  url: url,
+                  contentType: "application/json",
+                  headers: {
+                      // 'X-CSRF-TOKEN': $('#csrfToken').val()
+                  },
+                  data: requestData,
+                  success: function (data) {
+                      console.log(data)
+                      alert(data.message)
+                      let enemyId = data.enemyId;
+                      $("input[name='enemyId']").each(input => $(input).val(enemyId));
+                  },
+                  error: function (xhr) {
+                      console.log(xhr);
+                  }
+              })
+          }
+
+          // ready
+      })
+  </script>
+</head>
+<body>
+
+<h1>적 삽입</h1>
+
+<h2>enemy</h2>
+<div class="enemy-input-wrapper">
+  <form id="enemyInputForm">
+    <div>enemy.name</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>enemy.backgroundImageSrc</div>
+    <input class="form-control mb-2" type="text" name="backgroundImageSrc" placeholder="">
+    <div>enemy.hpTriggers {100, 90, 80, ...}</div>
+    <input class="form-control mb-2" type="text" name="hpTriggers" placeholder="">
+    <div>enemy.bgmTriggers {100, 90, 80, ...}</div>
+    <input class="form-control mb-2" type="text" name="bgmTriggers" placeholder="">
+    <div>enemy.bgmSrcs {src \n}</div>
+    <textarea rows="7" class="form-control mb-2" type="text" name="bgmSrcs" placeholder=""></textarea>
+
+    <h3>dead</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="deadEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="deadSeAudioSrc" placeholder="">
+
+    <h3>phase-change</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="phaseChangeEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="phaseChangeSeAudioSrc" placeholder="">
+
+    <button type="button" class="enemy-submit-button btn btn-primary">적 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>attack</h2>
+<div class="attack-input-wrapper">
+  <form id="attackInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="attackEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="attackSeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary attack-submit-button">어택 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>idle</h2>
+<div class="idle-input-wrapper">
+  <form id="idleInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type ENEMY_IDLE_A, B, ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary idle-submit-button">아이들 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>damaged</h2>
+<div class="damaged-input-wrapper">
+  <form id="damagedInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type ENEMY_DAMAGED_A, B, ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="damagedEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary damaged-submit-button">피격 저장</button>
+  </form>
+</div>
+</div>
+
+<hr>
+
+<h2>break</h2>
+<div class="break-input-wrapper">
+  <form id="breakInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type ENEMY_BREAK_A, B, ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="breakEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="breakSeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary break-submit-button">　브레이크 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>standby</h2>
+<div class="standby-input-wrapper">
+  <form id="standbyInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type move.type ENEMY_STANDBY_A ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+
+    <div>omen.name 전조이름 (차지어택과 동일하게 지정할것)</div>
+    <input class="form-control mb-2" type="text" name="omen.name" placeholder="">
+
+    <div>omen.type 타입 INCANT_ATTACK, CHARGE_ATTACK, HP_TRIGGER</div>
+    <input class="form-control mb-2" type="text" name="omen.type" placeholder="">
+
+    <div>omen.info 전조설명</div>
+    <input class="form-control mb-2" type="text" name="omen.info" placeholder="">
+
+    <div>해제 조건 {type, presentInfo, initValue \n} 로 입력</div>
+    <div>type: HIT_COUNT, ... / presentInfo: value 를 @ 로 대체한 적 체력 밑에 보여줄 문구</div>
+    <textarea rows="3" class="form-control mb-2" type="text" name="omen.cancelConditions" placeholder=""></textarea>
+
+    <div>omen.triggerHp HP 트리거용 HP 비율</div>
+    <input class="form-control mb-2" type="number" name="omen.triggerHp" placeholder="">
+
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="standbyEffectVideoSrc" placeholder="">
+    <div>asset.seAudio.src</div>
+    <input class="form-control mb-2" type="text" name="standbySeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary standby-submit-button">스탠바이 저장</button>
+
+  </form>
+</div>
+
+<hr>
+
+<h2>charge attack</h2>
+<div class="charge-attack-input-wrapper">
+  <form id="chargeAttackForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>name 오의 이름</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>name 오의 타입 ENEMY_CHARGE_ATTACK_A ....</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>info 오의 설명 텍스트</div>
+    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>damageRate 오의 1타당 데미지 배율 (정수)</div>
+    <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>effectVideoSrc 이펙트 비디오</div>
+    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
+    <div>seAudioSrc SE 오디오</div>
+    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
+
+    <h3>status1</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status2</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[1].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[1].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[1].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[1].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[1].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[1].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[1].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[1].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status3</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[2].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[2].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[2].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[2].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[2].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[2].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[2].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[2].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status4</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[3].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[3].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[3].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[3].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[3].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[3].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[3].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[3].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status5</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[4].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[4].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[4].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[4].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[4].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[4].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[4].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[4].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status6</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[5].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[5].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[5].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[5].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[5].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[5].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[5].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[5].iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <h3>status7</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+      <div>type 타입</div>
+      <input class="form-control mb-2" type="text" name="statuses[6].type" placeholder="">
+      <div>effectText 이펙트 텍스트 (name 동일값)</div>
+      <input class="form-control mb-2" type="text" name="statuses[6].effectText" placeholder="">
+      <div>maxLevel 최대레벨, 없으면 0</div>
+      <input class="form-control mb-2" type="number" name="statuses[6].maxLevel" placeholder="">
+      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+      <input class="form-control mb-2" type="text" name="statuses[6].targetType" placeholder="">
+      <div>statusText 스테이터스 텍스트</div>
+      <input class="form-control mb-2" type="text" name="statuses[6].statusText" placeholder="">
+      <div>duration 효과시간</div>
+      <input class="form-control mb-2" type="number" name="statuses[6].duration" placeholder="">
+
+      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+      <textarea class="form-control mb-2" type="text" name="statuses[6].statusEffects" placeholder=""></textarea>
+
+      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[6iconSrcs" placeholder=""></textarea>
+    </div>
+
+    <button type="button" class="btn btn-primary charge-attack-submit-button">오의</button>
+  </form>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

@@ -3,27 +3,58 @@ package com.gbf.granblue_simulator.domain.move;
 // 기본적으로 모션 여부를 기준으로 정의함
 public enum MoveType {
     // 아군
+    IDLE,
+
     SINGLE_ATTACK,
     DOUBLE_ATTACK,
     TRIPLE_ATTACK,
 
     CHARGE_ATTACK,
-    CHARGE_ATTACK_CHANGED, // 조건으로 인해 변화한 오의
 
     FIRST_ABILITY,
     SECOND_ABILITY,
     THIRD_ABILITY,
 
-    FIRST_ABILITY_CHANGED, // 조건으로 인해 변화한 어빌리티들
-    SECOND_ABILITY_CHANGED,
-    THIRD_ABILITY_CHANGED,
+    FIRST_SUPPORT_ABILITY,
+    SECOND_SUPPORT_ABILITY,
+    THIRD_SUPPORT_ABILITY,
+
+    DEAD,
     
     // 적
-    ENEMY_ATTACK,
-    ENEMY_STANDBY, // 차지어택 대기상태 -> OMEN 을 가짐, 차지어택마다 무조건 하나씩 세트로 존재해야함.
-    ENEMY_CHARGE_ATTACK,
-    ENEMY_DAMAGED, // 적은 피격모션이 존재해야함
+    ENEMY_IDLE,
+    ENEMY_IDLE_A,
+    ENEMY_IDLE_B,
+    ENEMY_IDLE_C,
+    ENEMY_IDLE_D,
 
+    ENEMY_DAMAGED,
+    ENEMY_DAMAGED_A,
+    ENEMY_DAMAGED_B,
+    ENEMY_DAMAGED_C,
+    ENEMY_DAMAGED_D,
+
+    ENEMY_BREAK_A,
+    ENEMY_BREAK_B,
+    ENEMY_BREAK_C,
+    ENEMY_BREAK_D,
+
+    ENEMY_STANDBY_A,
+    ENEMY_STANDBY_B,
+    ENEMY_STANDBY_C,
+    ENEMY_STANDBY_D,
+
+    ENEMY_CHARGE_ATTACK_A,
+    ENEMY_CHARGE_ATTACK_B,
+    ENEMY_CHARGE_ATTACK_C,
+    ENEMY_CHARGE_ATTACK_D,
+    ENEMY_CHARGE_ATTACK_E,
+    ENEMY_CHARGE_ATTACK_F,
+    ENEMY_CHARGE_ATTACK_G,
+
+    ENEMY_ATTACK,
+    ENEMY_DEAD,
+    ENEMY_PHASE_CHANGE,
 
     // 기타사항 (되도록 사용하지 말고 임시구현후 타입으로 추가할것)
     ETC,

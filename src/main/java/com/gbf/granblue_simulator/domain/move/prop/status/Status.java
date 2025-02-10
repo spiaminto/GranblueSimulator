@@ -1,0 +1,56 @@
+package com.gbf.granblue_simulator.domain.move.prop.status;
+
+import com.gbf.granblue_simulator.domain.move.Move;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.Type;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+@EqualsAndHashCode @ToString(exclude = {"move"})
+/**
+ * 온전히 표현을 위해사용
+ * 값과 계산은 캐릭터 로직에서 담당
+ */
+public class Status {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne @JoinColumn(name = "move_id")
+    private Move move;
+
+    private String name; // 일단 effectText 와 동일하게 사용
+
+    @Builder.Default
+    private Integer maxLevel = 0; // 최고 레벨
+
+    @Enumerated(EnumType.STRING)
+    private StatusType type;
+
+    @Enumerated(EnumType.STRING)
+    private StatusTargetType target;
+
+    @OneToMany(mappedBy = "status")
+    List<StatusEffect> statusEffects = new ArrayList<>();
+
+    @Type(ListArrayType.class)
+    @Column(name = "iconSrcs", columnDefinition = "text[]")
+    private List<String> iconSrcs;
+
+    private String effectText; // 이펙트에 띄울 텍스트
+    private String statusText; // 스테이터스 창에 띄울 텍스트
+    private Integer duration; // 효과시간
+
+    public void setMove(Move move) {
+        this.move = move;
+        move.getStatuses().add(this);
+    }
+
+}

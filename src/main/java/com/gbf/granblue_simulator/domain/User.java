@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,7 +16,7 @@ public class User {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name; // 유저 이름
+    private String username; // 유저 이름
     private String password; // 유저 비밀번호
 
     @OneToMany(mappedBy = "user")

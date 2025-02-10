@@ -22,12 +22,38 @@ function processAbility(charOrder, abilityOrder) {
     audioPlayers.set('global', new AudioPlayer());
     let charAudioPlayer = audioPlayers.get('char');
 
+    $.ajax()
+
     // 오디오 플레이어에 SE src 로드 (속도를 위해 통신전에 미리 로드)
 
     charAudioPlayer.loadSounds(audioInfos).then(() => {
-
+        let characterId = $('#character-info-2').data('character-id');
+        let memberId = $('#memberInfo').data('member-id');
+        let roomId = $('#roomInfo').data('room-id');
+        let abilityId = $('#abilityInfo').data('ability-id');
         // TODO 통신
-        //...
+        $.ajax({
+            url: '/api/ability',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                memberId: memberId,
+                characterId: characterId,
+                abilityId: abilityId,
+                charOrder: charOrder,
+                abilityOrder: abilityOrder,
+                roomId: roomId
+            }),
+            async: false,
+            success: function (response) {
+                let data = response;
+                console.log(response);
+            },
+            error: function (response) {
+                console.log(response);
+            }
+        });
+
         let data = null; // 받아온 데이터
         let hasDamage = true;
         let charIndex = charOrder - 1; // order 와 달리 서버에서 받은거 접근할 index
@@ -39,8 +65,10 @@ function processAbility(charOrder, abilityOrder) {
         let abilityPlaybackSpeed = responseAbilityData.abilityPlaybackSpeed;
         let buffs = responseAbilityData.buffs;
         let debuffs = responseAbilityData.deBuffs;
-        let hasBuff = buffs.length > 0;
-        let hasDebuff = debuffs.length > 0;
+        // let hasBuff = buffs.length > 0;
+        let hasBuff = true;
+        // let hasDebuff = debuffs.length > 0;
+        let hasDebuff = true;
         let hasMotion = responseAbilityData.hasMotion; // 캐릭터 모션 유무
         let isMotionFullSize = responseAbilityData.isMotionFullSize; // 캐릭터 모션이 풀사이즈로 출력되야하는지 여부
 
@@ -289,21 +317,6 @@ function processAbility(charOrder, abilityOrder) {
                         damages: [],
                         buffs: [
                             {
-                                targets: [1, 2, 3, 4],
-                                iconSrc: '/static/assets/img/mc/paladin/status/status-paladin-ability-2.png',
-                                effectText: '피격 데미지 감소',
-                                infoText: '피격 데미지가 감소한 상태'
-                            },
-
-                        ],
-                        deBuffs: []
-                    },
-                    {
-                        abilityHitCount: 0,
-                        abilityEffectCount: 1,
-                        damages: [],
-                        buffs: [
-                            {
                                 targets: [1],
                                 iconSrc: '/static/assets/img/mc/paladin/status/status-paladin-ability-3-1.png',
                                 effectText: '감싸기',
@@ -315,6 +328,20 @@ function processAbility(charOrder, abilityOrder) {
                                 effectText: '베리어',
                                 infoText: '피격 데미지를 베리어 수치만큼 무시하는 상태'
                             }
+                        ],
+                    },
+                    {
+                        abilityHitCount: 0,
+                        abilityEffectCount: 1,
+                        damages: [],
+                        buffs: [
+                            {
+                                targets: [1, 2, 3, 4],
+                                iconSrc: '/static/assets/img/mc/paladin/status/status-paladin-ability-2.png',
+                                effectText: '피격 데미지 감소',
+                                infoText: '피격 데미지가 감소한 상태'
+                            },
+
                         ],
                         deBuffs: []
                     },
