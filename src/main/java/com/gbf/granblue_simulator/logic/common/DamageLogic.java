@@ -1,10 +1,11 @@
-package com.gbf.granblue_simulator.logic;
+package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
+import com.gbf.granblue_simulator.logic.common.dto.GetDamageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -38,32 +39,36 @@ public class DamageLogic {
     // 어빌리티에 적용되는 대 데미지 제한 (연타 합산, 1타도 적용)
     private final Double abilityExDamageCapApplyRate = 0.01;
     private final Integer abilityExDamageCap = 1300000; // 어빌리티 최종데미지 하드캡
-    private final CommonLogic commonLogic;
+    private final StatusUtil statusUtil;
 
 
     public DamageLogicResult processAttack(BattleActor character, BattleActor enemy) {
-        Map<String, List<Integer>> attackDamageMap = getAttackDamage(character, enemy);
-        List<Integer> damages = attackDamageMap.get("damages");
-        List<Integer> additionalDamages = attackDamageMap.get("additionalDamages");
+        GetDamageResult attackDamage = getAttackDamage(character, enemy);
+        List<Integer> damages = attackDamage.getDamages();
+        List<List<Integer>> additionalDamages = attackDamage.getAdditionalDamages();
         Integer enemyHp = enemy.getHp();
         for (Integer damage : damages) {
             enemyHp -= damage;
         }
-        for (Integer additionalDamage : additionalDamages) {
-            enemyHp -= additionalDamage;
+        for (List<Integer> additionalDamage : additionalDamages) {
+            for (Integer damage : additionalDamage) {
+                enemyHp -= damage;
+            }
         }
         enemy.setHp(Math.max(enemyHp, 0));
+        boolean isEnemyHpZero = enemy.getHp() == 0;
 
         // 필요한 값 리턴
-        return DamageLogicResult.builder().damages(damages).additionalDamages(additionalDamages).build();
+        return DamageLogicResult.builder().damages(damages).additionalDamages(additionalDamages).isEnemyHpZero(isEnemyHpZero).build();
     }
 
-    protected Map<String, List<Integer>> getAttackDamage(BattleActor character, BattleActor enemy) {
+    protected GetDamageResult getAttackDamage(BattleActor character, BattleActor enemy) {
         double charAtk = character.getAtk();
-        List<StatusEffect> additionalDamageEffects = commonLogic.getAdditionalDamageEffects(character);
+        List<StatusEffect> additionalDamageEffects = statusUtil.getAdditionalDamageEffects(character);
 
         double enemyDef = enemy.getDef();
         double enemyDamageCut = enemy.getTakenDamageCut();
+        double enemyTakenDamageRate = Math.min(enemy.getTakenDamageUpRate() - enemy.getTakenDamageDownRate(), 0.3); // 받뎀증 상한 30%
         double takenDamageFixedDown = enemy.getTakenDamageFixedDown();
 
         double resultDamage = 0;
@@ -92,7 +97,7 @@ public class DamageLogic {
         if (enemyDamageCut >= 1.0) {
             resultDamage = 0;
         } else {
-            resultDamage = (charAtk * (1 - enemyDamageCut) / enemyDef) - takenDamageFixedDown;
+            resultDamage = (charAtk / enemyDef) * (1 - enemyDamageCut);
         }
 
         log.info("resultDamage 1 = {}", resultDamage);
@@ -123,6 +128,13 @@ public class DamageLogic {
             additionalDamage = additionalDamage * (1 + amplifyDamageRate) + supplementalDamage;
         }
 
+        // 데미지 연산 3.1 : 요다메 적측 연산
+        resultDamage = resultDamage * (1 + enemyTakenDamageRate) - takenDamageFixedDown;
+        for (Double additionalDamage : resultAdditionalDamages) {
+            additionalDamage = additionalDamage * (1 + enemyTakenDamageRate) - takenDamageFixedDown;
+        }
+
+
         log.info("resultDamage 3 = {}", resultDamage);
 
         // 데미지 연산 4 : 타격 횟수
@@ -144,11 +156,12 @@ public class DamageLogic {
         // hitCount 만큼의 size 를 가지는 List 를 생성하며 이 List 의 모든 원소의 값은 resultDamage
         int damage = (int) Math.round(resultDamage);
         List<Integer> damages = new ArrayList<>(Collections.nCopies(hitCount, damage));
-        List<Integer> additionalDamages = resultAdditionalDamages.stream().map(d -> (int) Math.round(d)).toList();
+        List<Integer> roundedAdditionalDamages = resultAdditionalDamages.stream().map(d -> (int) Math.round(d)).toList();
+        List<List<Integer>> additionalDamages = new ArrayList<>(Collections.nCopies(hitCount, roundedAdditionalDamages));
 
         log.info("=========damage calc finished");
         damages.forEach(d -> log.info("damage = {}", d));
-        return Map.of("damages", damages, "additionalDamages", additionalDamages);
+        return GetDamageResult.builder().damages(damages).additionalDamages(additionalDamages).build();
     }
     
 // 오의
@@ -161,20 +174,26 @@ public class DamageLogic {
      * @return
      */
     public DamageLogicResult processChargeAttack(BattleActor character, BattleActor enemy, double damageRate) {
-        Integer damage = getChargeAttackDamage(character, enemy, damageRate);
+        GetDamageResult chargeAttackDamage = getChargeAttackDamage(character, enemy, damageRate);
+        List<Integer> damages = chargeAttackDamage.getDamages();
         Integer enemyHp = enemy.getHp();
-        enemy.setHp(Math.max(enemyHp - damage, 0));
+        for (Integer damage : damages) {
+            enemyHp -= damage;
+        }
+        enemy.setHp(Math.max(enemyHp, 0));
+        boolean isEnemyHpZero = enemy.getHp() == 0;
 
         // 필요한 값 리턴
-        return DamageLogicResult.builder().damages(List.of(damage)).build();
+        return DamageLogicResult.builder().damages(damages).isEnemyHpZero(isEnemyHpZero).build();
     }
 
-    protected Integer getChargeAttackDamage(BattleActor character, BattleActor enemy, double damageRate) {
+    protected GetDamageResult getChargeAttackDamage(BattleActor character, BattleActor enemy, double damageRate) {
         double charAtk = character.getAtk();
         Move chargeAttack = character.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
 
         double enemyDef = enemy.getDef();
         double enemyDamageCut = enemy.getTakenDamageCut();
+        double enemyTakenDamageRate = Math.min(enemy.getTakenDamageUpRate() - enemy.getTakenDamageDownRate(), 0.3); // 받뎀증 상한 30%
         double takenDamageFixedDown = enemy.getTakenDamageFixedDown();
 
         double resultDamage = 0;
@@ -203,7 +222,7 @@ public class DamageLogic {
         if (enemyDamageCut >= 1.0) {
             resultDamage = 0;
         } else {
-            resultDamage = (charAtk * (1 - enemyDamageCut) / enemyDef) - takenDamageFixedDown;
+            resultDamage = (charAtk / enemyDef) * (1 - enemyDamageCut);
         }
 
         log.info("resultDamage 1 = {}", resultDamage);
@@ -226,6 +245,9 @@ public class DamageLogic {
         Integer supplementalDamage = character.getSupplementalDamage();
         resultDamage = resultDamage * (1 + amplifyDamageRate) + supplementalDamage;
 
+        // 데미지연산 3.1 : 요다메 연산 적측
+        resultDamage = resultDamage * (1 + enemyTakenDamageRate) - takenDamageFixedDown;
+
         log.info("resultDamage 3 = {}", resultDamage);
 
         // 대 데미지 감쇠
@@ -237,7 +259,7 @@ public class DamageLogic {
         int damage = (int) Math.round(resultDamage);
 
         log.info("=========damage calc finished");
-        return damage;
+        return GetDamageResult.builder().damages(List.of(damage)).build();
     }
     
 // 어빌리티
@@ -251,22 +273,25 @@ public class DamageLogic {
      * @return
      */
     public DamageLogicResult processAbilityAttack(BattleActor character, BattleActor enemy, double damageRate, int hitCount) {
-        List<Integer> damages = getAbilityDamage(character, enemy, damageRate, hitCount);
+        GetDamageResult abilityDamage = getAbilityDamage(character, enemy, damageRate, hitCount);
+        List<Integer> damages = abilityDamage.getDamages();
         Integer enemyHp = enemy.getHp();
         for (Integer damage : damages) {
             enemyHp -= damage;
         }
         enemy.setHp(Math.max(enemyHp, 0));
+        boolean isEnemyHpZero =  enemy.getHp() == 0;
 
         // 필요한 값 리턴
-        return DamageLogicResult.builder().damages(damages).build();
+        return DamageLogicResult.builder().damages(damages).isEnemyHpZero(isEnemyHpZero).build();
     }
 
-    protected List<Integer> getAbilityDamage(BattleActor character, BattleActor enemy, double damageRate, int hitCount) {
+    protected GetDamageResult getAbilityDamage(BattleActor character, BattleActor enemy, double damageRate, int hitCount) {
         double charAtk = character.getAtk();
 
         double enemyDef = enemy.getDef();
         double enemyDamageCut = enemy.getTakenDamageCut();
+        double enemyTakenDamageRate = Math.min(enemy.getTakenDamageUpRate() - enemy.getTakenDamageDownRate(), 0.3); // 받뎀증 상한 30%
         double takenDamageFixedDown = enemy.getTakenDamageFixedDown();
 
         double resultDamage = 0;
@@ -294,10 +319,10 @@ public class DamageLogic {
         if (enemyDamageCut >= 1.0) {
             resultDamage = 0;
         } else {
-            resultDamage = (charAtk * (1 - enemyDamageCut) / enemyDef) - takenDamageFixedDown;
+            resultDamage = (charAtk / enemyDef) * (1 - enemyDamageCut);
         }
 
-        log.info("resultDamage 1 = {}", resultDamage);
+        log.info("ability resultDamage 1 = {}", resultDamage);
 
         // 데미지 연산 2 : 데미지 상한 감쇠
         Double damageCapRate = character.getDamageCapRate() > 0 ? character.getDamageCapRate() / 100 : 0;
@@ -310,26 +335,29 @@ public class DamageLogic {
             }
         }
 
-        log.info("resultDamage 2 = {}", resultDamage);
+        log.info("ability resultDamage 2 = {}", resultDamage);
 
         // 데미지 연산 3 : 요다메 연산
         Double amplifyDamageRate = character.getAmplifyDamageRate();
         Integer supplementalDamage = character.getSupplementalDamage();
         resultDamage = resultDamage * (1 + amplifyDamageRate) + supplementalDamage;
 
-        log.info("resultDamage 3 = {}", resultDamage);
+        // 데미지연산 3.1 : 요다메 연산 적측
+        resultDamage = resultDamage * (1 + enemyTakenDamageRate) - takenDamageFixedDown;
+
+        log.info("ability resultDamage 3 = {}", resultDamage);
 
         // 데미지 연산 4 : 타수로 합산치 계산 후 대데미지 감쇠 (합산하여 조건연산후 다시 1타 데미지를 나누어 구함)
         if (resultDamage * hitCount > abilityExDamageCap) {
-            resultDamage = abilityExDamageCap + (resultDamage * hitCount - abilityExDamageCap) * exDamageCapApplyRate / hitCount;
+            resultDamage = (abilityExDamageCap + (resultDamage * hitCount - abilityExDamageCap) * abilityExDamageCapApplyRate) / hitCount;
         }
 
-        log.info("resultDamage4 = {}, hitCount = {}", resultDamage, hitCount);
+        log.info("ability resultDamage 4 = {} hitCount = {}", resultDamage, hitCount);
         int damage = (int) Math.round(resultDamage);
         List<Integer> damages = new ArrayList<>(Collections.nCopies(hitCount, damage));
 
-        log.info("=========damage calc finished");
-        return damages;
+        log.info("========= ability damage calc finished");
+        return GetDamageResult.builder().damages(damages).build();
     }
 
 

@@ -1,19 +1,20 @@
-package com.gbf.granblue_simulator.logic;
+package com.gbf.granblue_simulator.logic.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.logic.character.dto.CharacterLogicResult;
 
 import java.util.List;
 
 
 public interface CharacterLogic {
 
-    void attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+    CharacterLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
-    void firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+    CharacterLogicResult firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
-    void secondAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+    CharacterLogicResult secondAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
-    void thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+    CharacterLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
     void chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 

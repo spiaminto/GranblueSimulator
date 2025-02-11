@@ -9,7 +9,7 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 //@AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Getter @EqualsAndHashCode(callSuper = false) @ToString(callSuper = true)
+@Getter @EqualsAndHashCode(callSuper = true) @ToString(callSuper = true)
 public class BattleEnemy extends BattleActor {
 
     private Integer phase;

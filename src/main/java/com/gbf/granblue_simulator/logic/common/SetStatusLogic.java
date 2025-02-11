@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.logic;
+package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
@@ -20,7 +20,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-public class CommonStatusLogic {
+public class SetStatusLogic {
 
     private final BattleStatusRepository battleStatusRepository;
 
@@ -34,7 +34,10 @@ public class CommonStatusLogic {
      * @param partyMembers mainActor 를 포함한 전체 파티원
      * @param move
      */
-    public void setStatusToActors(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
+    public void setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
+        mainActor.getActor().getMoves();
+        enemy.getActor().getMoves();
+        partyMembers.forEach(partyMember -> partyMember.getActor().getMoves());
         move.getStatuses().forEach(status -> {
             switch (status.getTarget()) {
                 case SELF -> applyStatusToActor(mainActor, status);
@@ -52,6 +55,7 @@ public class CommonStatusLogic {
     /**
      * Status 의 target 과 관계없이 Move.Status 를 파라미터로 넘어온 BattleActor 에게 부여
      * 효과 전체화 등에서 사용
+     *
      * @param battleActors
      * @param move
      */
@@ -61,11 +65,14 @@ public class CommonStatusLogic {
         });
     }
 
+
     /**
      * BattleActor 에 Status 를 BattleStatus 로 적용
+     *
      * @param
      */
     protected void applyStatusToActor(BattleActor battleActor, Status status) {
+//        log.info("barrier = {}", battleActor);
         if (battleActor == null) {
             log.error("BattleActor is null, status = {}", status);
             return;
@@ -75,6 +82,7 @@ public class CommonStatusLogic {
             List<BattleStatus> battleStatuses = new ArrayList<>();
             battleStatuses.add(BattleStatus.builder()
                     .battleActor(battleActor)
+                    .duration(status.getDuration())
                     .status(status)
                     .level(status.getMaxLevel() > 0 ? 1 : 0) // maxLevel 이 존재하는 레벨제의 경우 시작레벨 1
                     .iconSrc(status.getIconSrcs().isEmpty() ? "" : status.getIconSrcs().getFirst())
@@ -94,7 +102,7 @@ public class CommonStatusLogic {
      * @param battleCharacter
      * @return
      */
-    public boolean statusValidFilter(Status status, BattleActor battleCharacter) {
+    protected boolean statusValidFilter(Status status, BattleActor battleCharacter) {
         boolean isStatusValid = true;
 
         // 레벨제 스테이터스가 미리 붙어있으면, 해당 스테이터스의 레벨을 올리고 입력된 스테이터스는 버린다.

@@ -5,6 +5,7 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ public class Actor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+    private String nameEn; // 영어명 TODO 인서트
 
     @Builder.Default
     private Integer baseAttackPoint = 1000; // 공력력

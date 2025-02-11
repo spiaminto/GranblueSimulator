@@ -5,6 +5,7 @@ public enum MoveType {
     // 아군
     IDLE,
 
+    NORMAL_ATTACK, // 조건연산 전용 타입
     SINGLE_ATTACK,
     DOUBLE_ATTACK,
     TRIPLE_ATTACK,
