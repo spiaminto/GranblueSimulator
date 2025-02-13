@@ -69,7 +69,7 @@ public class ChargeGaugeLogic {
     protected void increaseChargeGauge(BattleActor actor, double value) {
         if (value < 0) throw new IllegalArgumentException("increaseChargeGauge() value 가 음수임. value = " + value);
         Integer maxGauge = actor.getMaxChargeGauge();
-        double gaugeIncreaseRate = Math.max(actor.getChargeGaugeIncreaseUpRate() + actor.getChargeGaugeIncreaseDownRate(), 0); // 최소 0
+        double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // 최소 0
         actor.setChargeGauge(
                 Math.min(
                         (int) Math.ceil(actor.getChargeGauge() + value * (1 + gaugeIncreaseRate)),

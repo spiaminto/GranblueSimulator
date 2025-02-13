@@ -1,22 +1,14 @@
 package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.*;
 
 @Component
 @RequiredArgsConstructor
@@ -27,11 +19,12 @@ public class CalcStatusLogic {
 
     public void initStatus(BattleActor battleActor) {
         Map<StatusEffectType, List<StatusEffect>> statusEffects = statusUtil.getStatusEffectMap(battleActor);
+        setHp(battleActor, statusEffects); // 혼신, 배수 설정을 위해 atk 보다 우선 설정
         setAtk(battleActor, statusEffects);
         setDef(battleActor, statusEffects);
-        setHp(battleActor, statusEffects);
 
         setCriticalRate(battleActor, statusEffects);
+        setCriticalDamageRate(battleActor, statusEffects);
 
         setDoubleAttackRate(battleActor, statusEffects);
         setTripleAttackRate(battleActor, statusEffects);
@@ -39,7 +32,7 @@ public class CalcStatusLogic {
         setDeBuffResistRate(battleActor, statusEffects);
         setDeBuffSuccessRate(battleActor, statusEffects);
 
-        setHitAccuracy(battleActor, statusEffects);
+        setAccuracy(battleActor, statusEffects);
         setDodgeRate(battleActor, statusEffects);
 
         setChargeGaugeIncreaseRate(battleActor, statusEffects);
@@ -54,11 +47,12 @@ public class CalcStatusLogic {
      */
     public void syncStatus(BattleActor battleActor) {
         Map<StatusEffectType, List<StatusEffect>> statusEffects = statusUtil.getStatusEffectMap(battleActor);
+        setHp(battleActor, statusEffects); // 혼신, 배수 설정을 위해 atk 보다 우선 설정
         setAtk(battleActor, statusEffects);
         setDef(battleActor, statusEffects);
-        setHp(battleActor, statusEffects);
 
         setCriticalRate(battleActor, statusEffects);
+        setCriticalDamageRate(battleActor, statusEffects);
 
         setDoubleAttackRate(battleActor, statusEffects);
         setTripleAttackRate(battleActor, statusEffects);
@@ -66,35 +60,44 @@ public class CalcStatusLogic {
         setDeBuffResistRate(battleActor, statusEffects);
         setDeBuffSuccessRate(battleActor, statusEffects);
 
-        setHitAccuracy(battleActor, statusEffects);
+        setAccuracy(battleActor, statusEffects);
         setDodgeRate(battleActor, statusEffects);
 
         setChargeGaugeIncreaseRate(battleActor, statusEffects);
     }
 
     /**
-     * 공인, 혼신, 배수, 별항
-     *
+     * 공인, 장비, 혼신, 배수, 별항
+     *  공격 데미지 계열은 데미지 로직에서 연산
      * @param battleActor
      * @param statusEffects
      * @return
      */
     protected Integer setAtk(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double atk = 0;
+        double currentHpRate = (double) battleActor.getHp() / battleActor.getMaxHp(); // 혼신, 배수용 현재 체력 비율
         // 공인항
         double atkUpRate = getSum(statusEffects.get(StatusEffectType.ATK_UP));
         double atkDownRate = getSum(statusEffects.get(StatusEffectType.ATK_DOWN));
-        double atkRate = Math.max(atkUpRate - atkDownRate, -0.99); // 공격력 감소는 99% 까지 적용
         // 장비항
-        double weaponAtkUpRate = battleActor.getWeaponAtkUpRate();
-        // 혼신항
-        double strengthRate = getSum(statusEffects.get(StatusEffectType.STRENGTH));
+        double weaponAtkUpRate = battleActor.getAtkWeaponRate();
+        // 혼신항 
+        double maxStrengthRate = getSum(statusEffects.get(StatusEffectType.STRENGTH));
+        double strengthRate = currentHpRate > 0.5 ? maxStrengthRate * currentHpRate : maxStrengthRate * 0.5; // 아군의 체력이 50% 미만이면 최소배율 (50%) 적용
         // 배수항
-        double jammedRate = getSum(statusEffects.get(StatusEffectType.JAMMED));
+        double maxJammedRate = getSum(statusEffects.get(StatusEffectType.JAMMED));
+        double jammedRate = currentHpRate < 0.5 ? maxJammedRate * (1 - currentHpRate) : maxJammedRate * 0.5; // 아군의 체력이 50% 초과면 최소배율 (50%) 적용
         // 별항
-        double uniqueRate = getSum(statusEffects.get(StatusEffectType.ATK_UP_UNIQUE));
+        double uniqueRate = getSum(statusEffects.get(StatusEffectType.ATK_UNIQUE_UP));
 
-        atk = (double) battleActor.getActor().getBaseAttackPoint() // 1000
+        // 상한 하한처리
+        double atkRate = Math.max(atkUpRate - atkDownRate, -0.99); // 공격력 상승 X 공격력 감소 99%
+        // 장비항 상승 x 하한 x
+        // 혼신항 상승 x 하한 x
+        // 배수항 상승 x 하한 x
+        // 별항 상승 x 하한 x
+
+        atk = (double) battleActor.getActor().getBaseAttackPoint()
                 * (1 + weaponAtkUpRate)
                 * (1 + atkRate)
                 * (1 + strengthRate)
@@ -102,18 +105,17 @@ public class CalcStatusLogic {
                 * (1 + uniqueRate)
         ;
 
-        battleActor.setAtkUpRate(atkUpRate);
-        battleActor.setAtkDownRate(atkDownRate);
+        battleActor.setAtkRate(atkRate);
         battleActor.setStrengthRate(strengthRate);
         battleActor.setJammedRate(jammedRate);
-        battleActor.setAtkUpUniqueRate(uniqueRate);
+        battleActor.setAtkUniqueRate(uniqueRate);
         battleActor.setAtk((int) atk);
         return 0;
     }
 
     /**
-     * 방어업, 방어다운, 데미지컷, 피격데미지감소, 베리어, 감싸기
-     *
+     * 방어업, 베리어, 감싸기
+     * 피격데미지 계열은 데미지 로직에서 연산
      * @param battleActor
      * @param statusEffects
      * @return
@@ -123,31 +125,20 @@ public class CalcStatusLogic {
         // 방어인항
         double defUpRate = getSum(statusEffects.get(StatusEffectType.DEF_UP));
         double defDownRate = getSum(statusEffects.get(StatusEffectType.DEF_DOWN));
-        double defRate = Math.max(defUpRate - defDownRate, 0);
-        // 데미지컷 (상한 1.0 (100%))
-        double takenDamageCut = getSum(statusEffects.get(StatusEffectType.TAKEN_DAMAGE_CUT));
-        takenDamageCut = Math.min(takenDamageCut, 1.0);
-        // 피격 데미지 고정 감소
-        int takenDamageFixedDown = (int) getSum(statusEffects.get(StatusEffectType.TAKEN_DAMAGE_FIXED_DOWN));
-        // 피격 데미지 감소
-        double takenDamageDownRate = getSum(statusEffects.get(StatusEffectType.TAKEN_DAMAGE_DOWN));
-        // 피격 데미지 증가
-        double takenDamageUpRate = getSum(statusEffects.get(StatusEffectType.TAKEN_DAMAGE_UP));
         // 베리어
         int barrier = (int) getSum(statusEffects.get(StatusEffectType.BARRIER));
         // 감싸기 (1, 2 가 들어오며 2가 우선순위 더 높음)
         double substitute = getValue(statusEffects.get(StatusEffectType.SUBSTITUTE));
+        
+        // 상한 하한 처리
+        double defRate = Math.max(defUpRate - defDownRate, -0.5); // 방어령 상승 X, 하한 -50%
+        // 베리어 X
+        // 감싸기 X
 
-        def = (double) battleActor.getActor().getBaseDefencePoint() // 10
+        def = (double) battleActor.getActor().getBaseDefencePoint()
                 * (1 + defRate)
         ;
 
-        battleActor.setDefUpRate(defUpRate);
-        battleActor.setDefDownRate(defDownRate);
-        battleActor.setTakenDamageCut(takenDamageCut);
-        battleActor.setTakenDamageFixedDown(takenDamageFixedDown);
-        battleActor.setTakenDamageDownRate(takenDamageDownRate);
-        battleActor.setTakenDamageUpRate(takenDamageUpRate);
         battleActor.setBarrier(barrier);
         battleActor.setDef((int) def);
         return 0;
@@ -155,18 +146,22 @@ public class CalcStatusLogic {
 
     protected Integer setHp(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double hp = 0;
-        // 수호항 (고정값)
-        double hpAmplifier = battleActor.getHpUpRate();
+        // 수호항
+        double hpAmplifier = battleActor.getHpWeaponRate();
         // 최대 체력 감소
         double maxHpDownRate = getSum(statusEffects.get(StatusEffectType.MAX_HP_DOWN));
 
-        hp = (double) battleActor.getActor().getBaseHitPoint() // 1000
+        //상한 하한처리
+        maxHpDownRate = Math.max(maxHpDownRate, -0.99); // 상한 x 하한 -99%
+
+        hp = (double) battleActor.getActor().getBaseHitPoint()
                 * (1 + hpAmplifier)
                 * (1 + maxHpDownRate)
         ;
 
-        battleActor.setMaxHpDownRate(maxHpDownRate);
+        battleActor.setMaxHpRate(maxHpDownRate);
         battleActor.setHp((int) hp);
+        if (battleActor.getMaxHp() == null) battleActor.setMaxHp(battleActor.getHp());
         return 0;
     }
 
@@ -174,8 +169,10 @@ public class CalcStatusLogic {
         double doubleAttackUpRate = getSum(statusEffects.get(StatusEffectType.DOUBLE_ATTACK_RATE_UP));
         double doubleAttackDownRate = getSum(statusEffects.get(StatusEffectType.DOUBLE_ATTACK_RATE_DOWN));
 
-        battleActor.setDoubleAttackUpRate(doubleAttackUpRate);
-        battleActor.setDoubleAttackDownRate(doubleAttackDownRate);
+        // 상한 하한 처리
+        double doubleAttackRate = Math.max(doubleAttackUpRate - doubleAttackDownRate, -0.99); // 상한 x 하한 -99%
+
+        battleActor.setDoubleAttackRate(doubleAttackRate);
         return 0;
     }
 
@@ -183,17 +180,21 @@ public class CalcStatusLogic {
         double tripleAttackUpRate = getSum(statusEffects.get(StatusEffectType.TRIPLE_ATTACK_RATE_UP));
         double tripleAttackDownRate = getSum(statusEffects.get(StatusEffectType.TRIPLE_ATTACK_RATE_DOWN));
 
-        battleActor.setTripleAttackUpRate(tripleAttackUpRate);
-        battleActor.setTripleAttackDownRate(tripleAttackDownRate);
+        // 상한 하한 처리
+        double tripleAttackRate = Math.max(tripleAttackUpRate - tripleAttackDownRate, -0.99); // 상한 x 하한 -99%
+
+        battleActor.setTripleAttackRate(tripleAttackRate);
         return 0;
     }
 
     protected Integer setDeBuffResistRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double deBuffResistUpRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_RESIST_UP));
         double deBuffResistDownRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_RESIST_DOWN));
-
-        battleActor.setDeBuffResistUpRate(deBuffResistUpRate);
-        battleActor.setDeBuffResistDownRate(deBuffResistDownRate);
+        
+        // 상한 하한 처리
+        double deBuffResistRate = Math.max(deBuffResistUpRate - deBuffResistDownRate, -0.99); // 상한 X 하한 -99%
+        
+        battleActor.setDeBuffResistRate(deBuffResistRate);
         return 0;
     }
 
@@ -201,42 +202,56 @@ public class CalcStatusLogic {
         double deBuffSuccessUpRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_SUCCESS_UP));
         double deBuffSuccessDownRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_SUCCESS_DOWN));
 
-        battleActor.setDeBuffSuccessUpRate(deBuffSuccessUpRate);
-        battleActor.setDeBuffSuccessDownRate(deBuffSuccessDownRate);
+        // 상한 하한 처리
+        double deBuffSuccessRate = Math.max(deBuffSuccessUpRate - deBuffSuccessDownRate, -0.99); // 상한 x 하한 -99%
+
+        battleActor.setDeBuffSuccessRate(deBuffSuccessRate);
         return 0;
     }
 
     protected Integer setCriticalRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double criticalUpRate = getSum(statusEffects.get(StatusEffectType.CRITICAL_RATE_UP));
-        // 크리티컬은 down 없음
-        battleActor.setCriticalRate(criticalUpRate);
+        double criticalRate = Math.min(criticalUpRate, 1.0); // 상한 100%, 하한 X
+
+        battleActor.setCriticalRate(criticalRate);
         return 0;
     }
-    // 크리티컬 데미지증가율은 고정값 (50%)
 
-    // 오의게이지는 일단 초기화 없이. 초기화값은 0
+    protected Integer setCriticalDamageRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
+        double criticalDamageUpRate = getSum(statusEffects.get(StatusEffectType.CRITICAL_DAMAGE_UP));
+        double criticalDamageRate = Math.min(criticalDamageUpRate, 1.0); // 상한 100%, 하한 X
+
+        battleActor.setCriticalDamageRate(criticalDamageRate);
+        return 0;
+    }
+
     protected Integer setChargeGaugeIncreaseRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double chargeGaugeIncreaseUpRate = getSum(statusEffects.get(StatusEffectType.CHARGE_GAUGE_INCREASE_UP));
         double chargeGaugeIncreaseDownRate = getSum(statusEffects.get(StatusEffectType.CHARGE_GAUGE_INCREASE_DOWN));
 
-        battleActor.setChargeGaugeIncreaseUpRate(chargeGaugeIncreaseUpRate);
-        battleActor.setChargeGaugeIncreaseDownRate(chargeGaugeIncreaseDownRate);
+        // 상한 하한처리
+        double chargeGaugeIncreaseRate = Math.max(chargeGaugeIncreaseUpRate - chargeGaugeIncreaseDownRate, -0.99); // 상한 X 하한 -99%
+
+        battleActor.setChargeGaugeIncreaseRate(chargeGaugeIncreaseRate);
         return 0;
     }
 
-    protected Integer setHitAccuracy(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
+    protected Integer setAccuracy(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double hitAccuracyUpRate = getSum(statusEffects.get(StatusEffectType.HIT_ACCURACY_UP));
         double hitAccuracyDownRate = getSum(statusEffects.get(StatusEffectType.HIT_ACCURACY_DOWN));
+        
+        // 상한 하한 처리
+        double accuracyRate = Math.max(hitAccuracyUpRate - hitAccuracyDownRate, -0.99); // 상한 X 하한 -99%
 
-        battleActor.setAccuracyUpRate(hitAccuracyUpRate);
-        battleActor.setAccuracyDownRate(hitAccuracyDownRate);
+        battleActor.setAccuracyRate(accuracyRate);
         return 0;
     }
 
     protected Integer setDodgeRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double dodgeUpRate = getSum(statusEffects.get(StatusEffectType.DODGE_RATE_UP));
-        // 회피는 down 없음
-        battleActor.setDodgeUpRate(dodgeUpRate);
+        double dodgeRate = Math.min(dodgeUpRate, 1.0); // 상한 100%, 하한 x
+
+        battleActor.setDodgeRate(dodgeUpRate);
         return 0;
     }
 
@@ -268,8 +283,16 @@ public class CalcStatusLogic {
                 statusEffects.getFirst().getValue();
     }
 
+    /**
+     * 모든 스테이터스를 초기화 하고 마지막에 초기화, 첫 초기화 1회만 실행후 sync 때는 사용하지 않음
+     * @param battleActor
+     * @return
+     */
     protected Integer initEtc(BattleActor battleActor) {
         battleActor.setMaxChargeGauge(battleActor.getActor().getMaxChargeGauge());
+        battleActor.setChargeGauge(0);
+        battleActor.setMaxHp(battleActor.getHp());
+        battleActor.setDamageCapRate(0.0);
 
         battleActor.setFirstAbilityCoolDown(0);
         battleActor.setSecondAbilityCoolDown(0);

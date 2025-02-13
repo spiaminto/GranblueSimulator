@@ -66,7 +66,7 @@ public class StatusUtil {
                 .filter(statusEffect ->
                         statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_A ||
                                 statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_C ||
-                                statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_E ||
+                                statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_U ||
                                 statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_W ||
                                 statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_S
                 ).toList();

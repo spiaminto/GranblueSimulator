@@ -37,7 +37,7 @@ public class Status {
     @Enumerated(EnumType.STRING)
     private StatusTargetType target;
 
-    @OneToMany(mappedBy = "status")
+    @OneToMany(mappedBy = "status") @Builder.Default
     List<StatusEffect> statusEffects = new ArrayList<>();
 
     @Type(ListArrayType.class)

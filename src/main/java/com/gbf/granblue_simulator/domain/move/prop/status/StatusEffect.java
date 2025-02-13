@@ -25,6 +25,11 @@ public class StatusEffect {
     @Transient
     private Integer currentLevel; // DB 에 저장되지 않고, CommonLogic.getStatusEffectMap 에서 초기화 되고 사용됨. 사용후엔 휘발됨.
 
+    public void setStatus(Status status) {
+        this.status = status;
+        status.getStatusEffects().add(this);
+    }
+
     public StatusEffect setCurrentLevel(Integer level) {
         this.currentLevel = level;
         return this;

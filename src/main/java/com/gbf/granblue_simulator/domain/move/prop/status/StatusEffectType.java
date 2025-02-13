@@ -1,95 +1,132 @@
 package com.gbf.granblue_simulator.domain.move.prop.status;
 
+/**
+ * StatusEffect.StatusEffectType. StatusEffect.value 가 가지는 값의 의미를 [] 안에 써넣을것
+ */
 public enum StatusEffectType {
 
-    // 공격력
-    ATK_UP, // 일반공격력
-    ATK_DOWN, // 일반공격력 다운
-    ATK_UP_UNIQUE, // 별항
-    STRENGTH, // 현재 체력이 많을수록 공격력 증가
-    JAMMED, // 배수
+// 공격력
+    // 공인항
+    ATK_UP,     // [상승배율]
+    ATK_DOWN,   // [감소배율]
+    // 혼신항
+    STRENGTH, // [최대상승배율] - 감소없음
+    // 배수항
+    JAMMED, // [최대상승배율] - 감소없음
+    // 별항
+    ATK_UNIQUE_UP, //[상승배율]
+    ATK_UNIQUE_DOWN, // [감소배율]
+    // 공격 데미지 상승
+    SUPPLEMENTAL_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
+    SUPPLEMENTAL_ATTACK_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
+    SUPPLEMENTAL_ABILITY_DAMAGE_UP, // 어빌리티 데미지 상승 [상승(가산)수치]
+    SUPPLEMENTAL_CHARGE_ATTACK_DAMAGE_UP, // [상승(가산)수치]
+    // 공격 데미지 업
+    AMPLIFY_DAMAGE_UP, // 공격 데미지 N% 업 [상승(승산)배율]
+    AMPLIFY_ATTACK_DAMAGE_UP, // 공격 데미지 N% 업 [상승(승산)배율]
+    AMPLIFY_ABILITY_DAMAGE_UP, // 어빌리티 데미지 N% 업 [상승(승산)배율]
+    AMPLIFY_CHARGE_ATTACK_DAMAGE_UP, // [상승(승산)배율]
+    // 데미지 상한
+    DAMAGE_CAP_UP, // [상승배율] - 감소없음
+    ATTACK_DAMAGE_CAP_UP, // [상승배율]
+    ABILITY_DAMAGE_CAP_UP, // [상승배율]
+    CHARGE_ATTACK_DAMAGE_CAP_UP, // [상승배율]
+
+// 방어력
+    DEF_UP, // [상승배율]
+    DEF_DOWN, // [감소배율]
+    TAKEN_DAMAGE_CUT, // [데미지컷 배율]
+    // 피격 데미지 상승
+    TAKEN_SUPPLEMENTAL_DAMAGE_DOWN, // 피격데미지 감소 [상승수치]
+    TAKEN_SUPPLEMENTAL_DAMAGE_UP, // 피격 데미지 증가 [감소수치]
+    // 피격 데미지 업
+    TAKEN_AMPLIFY_DAMAGE_UP, // 피격 데미지 업 [상승배율]
+    TAKEN_AMPLIFY_DAMAGE_DOWN, // 피격 데미지 다운 [감소배율]
+    TAKEN_ATTACK_AMPLIFY_DAMAGE_UP, // 피격 일반공격 데미지 업 [상승배율]
+    TAKEN_ATTACK_AMPLIFY_DAMAGE_DOWN, // 피격 일반공격 데미지 다운 [감소배율]
+    TAKEN_ABILITY_AMPLIFY_DAMAGE_UP, // 피격 어빌리티 데미지 업 [상승배율]
+    TAKEN_ABILITY_AMPLIFY_DAMAGE_DOWN, // 피격 어빌리티 데미지 다운 [감소배율]
+    TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP, // 피격 오의(특수기) 데미지 업 [상승배율]
+    TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_DOWN, // 피격 오의(특수기) 데미지 다운 [감소배율]
+
+    TAKEN_DAMAGE_FIX, // 피격 최대 데미지 고정 [고정수치]
+
+    BARRIER, // [베리어 수치]
+    
 
     // 더블어택 / 트리플 어택
-    DOUBLE_ATTACK_RATE_UP,
-    DOUBLE_ATTACK_RATE_DOWN,
-    TRIPLE_ATTACK_RATE_UP,
-    TRIPLE_ATTACK_RATE_DOWN,
+    // 반드시~ -> 10.0 (1000%)
+    DOUBLE_ATTACK_RATE_UP, // [상승배율]
+    DOUBLE_ATTACK_RATE_DOWN, // [감소배율]
+    TRIPLE_ATTACK_RATE_UP, // [상승배율]
+    TRIPLE_ATTACK_RATE_DOWN, // [감소배율]
+
+    // 재공격
+    DOUBLE_STRIKE, // [2]
+    TRIPLE_STRIKE, // [3]
 
     // 크리티컬
-    CRITICAL_RATE_UP,
+    CRITICAL_RATE_UP, // [상승배율]
+    CRITICAL_DAMAGE_UP, // [상승배율]
 
-    // 추격
+    // 추격 [추격배율]
     ADDITIONAL_DAMAGE_A, // 추격 Ability 항
     ADDITIONAL_DAMAGE_C, // 추격 ChargeAttack 항
     ADDITIONAL_DAMAGE_S, // 추격 SupportAbility 항
-    ADDITIONAL_DAMAGE_E, // 추격 Extra(별)항
+    ADDITIONAL_DAMAGE_U, // 추격 Unique(별)항
     ADDITIONAL_DAMAGE_W, // 추격 Weapon 항
 
-    // 요다메
-    SUPPLEMENTAL_DAMAGE, // 요다메 상승(가산)
-    AMPLIFY_DAMAGE, // 요다메 UP(증산)
-
-    // 데미지 상한
-    DAMAGE_CAP_UP, // 데미지 상한
-
-    // 방어
-    DEF_UP, // 방어력 증가
-    DEF_DOWN,
-    TAKEN_DAMAGE_CUT, // 데미지컷
-    TAKEN_DAMAGE_FIXED_DOWN, // 피격데미지 감소
-    TAKEN_DAMAGE_FIXED_UP, // 피격 데미지 증가
-    TAKEN_DAMAGE_DOWN, // 피격 데미지 감소 %
-    TAKEN_DAMAGE_UP, // 피격 데미지 증가 %
-    TAKEN_DAMAGE_FIX, // 받는 데미지 고정
-
-    BARRIER, // 배리어
-
-    // 명중률
+    // 명중률 [가산배율]
     HIT_ACCURACY_UP,
     HIT_ACCURACY_DOWN,
-
-    // 회피율
+    // 회피율 [가산배율]
     DODGE_RATE_UP,
     DODGE_RATE_DOWN,
 
-    // 디버프성공률
+    // 디버프성공률 [가산배율]
     DEBUFF_SUCCESS_UP,
     DEBUFF_SUCCESS_DOWN,
-
-    // 디버프저항
+    // 디버프저항 [가산배율]
     DEBUFF_RESIST_DOWN,
     DEBUFF_RESIST_UP,
 
     // 오의게이지
-    CHARGE_GAUGE_INCREASE_UP,
-    CHARGE_GAUGE_INCREASE_DOWN,
-    PETRIFIED, // 공포
+    CHARGE_GAUGE_INCREASE_UP, // [증가배율]
+    CHARGE_GAUGE_INCREASE_DOWN, // [감소배율]
+    CHARGE_TURN_INCREASE_UP, // [증가수치]
+    CHARGE_TURN_INCREASE_DOWN, // [감소수치]
+    CHARGE_TURN_FIX, // 공포, 장악 효과 [0]
+    PETRIFIED, // 공포 [1]
 
     // 도트데미지 류
-    BURNED, // 작열
+    BURNED, // 작열 [턴당 받을 데미지]
 
     // 디스펠가드
-    DISPEL_GUARD,
+    DISPEL_GUARD, // [횟수, 1로고정]
 
 
     // 방어 특수
-    IMMORTAL, // 불사신 효과 (체력0 됬을때 1로 버팀)
-    SUBSTITUTE, // 감싸기
+    IMMORTAL, // 불사신 효과 [버틸 횟수 1]
+    SUBSTITUTE, // 감싸기 [우선순위 1 or 2]
 
     // 체력
-    MAX_HP_DOWN, // 최대 체력 감소
+    MAX_HP_DOWN, // 최대 체력 감소 [감소배율]
 
     // 힐
-    ACT_HEAL, // 힐 사용
-    HEAL_UP, // 회복 성능 업
-    HEAL_DOWN, // 회복 성능 다운
+    ACT_HEAL, // 힐 사용 [힐 수치]
+    HEAL_UP, // 회복 성능 업 [상승배율]
+    HEAL_DOWN, // 회복 성능 다운 [감소배율]
 
     // 없음
-    NONE, // 버프가 표시이외에 효과를 가지지 않을떄 사용 (ex 보스의 고유기 등)
+    NONE, // 표시 이외의 효과 없음 [0]
+    
+    // 트리거
+    TRIGGER, // 다른 스테이터스의 트리거가 될경우 사용 [TRIGGERED 와 동일한 값]
+    TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
 
     // 즉시변경류
-    ACT_DISPEL, // 디스펠
-    ACT_CHARGE_GAUGE_UP, // value 만큼 오의게이지 상승
+    ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~]
+    ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
 
     // 후 행동류 (재행동류 제외)
     ACT_FIRST_ABILITY, // 1어빌 자동발동
@@ -120,7 +157,7 @@ public enum StatusEffectType {
         return this == ADDITIONAL_DAMAGE_A ||
                 this == ADDITIONAL_DAMAGE_C ||
                 this == ADDITIONAL_DAMAGE_S ||
-                this == ADDITIONAL_DAMAGE_E ||
+                this == ADDITIONAL_DAMAGE_U ||
                 this == ADDITIONAL_DAMAGE_W ||
                 this == BARRIER
                 ;
@@ -134,7 +171,7 @@ public enum StatusEffectType {
         return this == ADDITIONAL_DAMAGE_A ||
                 this == ADDITIONAL_DAMAGE_C ||
                 this == ADDITIONAL_DAMAGE_S ||
-                this == ADDITIONAL_DAMAGE_E ||
+                this == ADDITIONAL_DAMAGE_U ||
                 this == ADDITIONAL_DAMAGE_W;
     }
 
