@@ -16,7 +16,7 @@ public interface CharacterLogic {
 
     CharacterLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
-    void chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+    CharacterLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
     void firstSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 

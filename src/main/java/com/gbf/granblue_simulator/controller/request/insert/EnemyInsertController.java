@@ -1,7 +1,9 @@
 package com.gbf.granblue_simulator.controller.request.insert;
 
+import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
 import com.gbf.granblue_simulator.controller.request.insert.enemy.*;
 import com.gbf.granblue_simulator.controller.response.EnemyInsertResponse;
+import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -13,9 +15,9 @@ import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.*;
 import com.gbf.granblue_simulator.repository.actor.EnemyRepository;
 import com.gbf.granblue_simulator.repository.move.*;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -260,6 +262,69 @@ public class EnemyInsertController {
         });
 
         return EnemyInsertResponse.ok(enemy.getId());
+    }
+
+    @PostMapping("/insert/enemy-ability")
+    public ResponseEntity<InsertResponse> insertAbility(@RequestBody EnemyAbilityRequest request) {
+        log.info("request: {}", request);
+
+        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        Move ability = Move.builder()
+                .type(MoveType.valueOf(request.getType()))
+                .name(request.getName())
+                .info(request.getInfo())
+                .damageRate(request.getDamageRate())
+                .hitCount(request.getHitCount())
+                .coolDown(request.getCoolDown())
+                .duration(request.getDuration())
+                .damageRate(null)
+                .actor(enemy)
+                .build();
+        ability = moveRepository.save(ability);
+        log.info("ability = {}", ability);
+
+        Asset abilityAsset = Asset.builder()
+                .move(ability)
+                .effectVideoSrc(request.getEffectVideoSrc())
+                .motionVideoSrc(request.getMotionVideoSrc())
+                .seAudioSrc(request.getSeAudioSrc())
+                .voiceAudioSrc(request.getVoiceAudioSrc())
+                .build();
+        abilityAsset = assetRepository.save(abilityAsset);
+
+        // Status 저장
+        final Move abilityFinal = ability;
+        request.getStatuses().forEach(status -> {
+            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            Status statusEntity = Status.builder()
+                    .type(StatusType.valueOf(status.getType()))
+                    .name(status.getEffectText())
+                    .target(StatusTargetType.valueOf(status.getTargetType()))
+                    .maxLevel(status.getMaxLevel())
+                    .effectText(status.getEffectText())
+                    .statusText(status.getStatusText())
+                    .duration(status.getDuration())
+                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .move(abilityFinal)
+                    .build();
+            log.info("statusEntity = {}", statusEntity);
+            statusRepository.save(statusEntity);
+
+            // 스테이터스 효과 ("type, value \n ...")
+            status.getStatusEffects().lines().forEach(statusEffect -> {
+                String[] splitStatusEffect = statusEffect.split(",");
+                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
+                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                StatusEffect statusEffectEntity = StatusEffect.builder()
+                        .status(statusEntity)
+                        .type(statusEffectType)
+                        .value(statusEffectValue)
+                        .build();
+                statusEffectRepository.save(statusEffectEntity);
+            });
+        });
+
+        return ResponseEntity.ok(InsertResponse.ok(1L));
     }
 
 }

@@ -2,6 +2,8 @@ package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,23 @@ import static java.util.stream.Collectors.*;
 @Transactional
 @Component
 public class StatusUtil {
+
+    /**
+     * Move.Statuses 의 각각의 statusEffect 를 Map<StatusEffectType, List<StatusEffect>> 로 변환 (플랫화)
+     *
+     * @param move
+     * @return
+     */
+    public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(Move move) {
+        return move.getStatuses().stream()
+                .flatMap(status -> status.getStatusEffects().stream())
+                .collect(Collectors.groupingBy(
+                        StatusEffect::getType,
+                        mapping(Function.identity(), collectingAndThen(
+                                toList(), list -> list != null ? list : new ArrayList<>()
+                        ))
+                ));
+    }
 
     /**
      * BattleActor.BattleStatuses 의 각각의 statusEffect 를 Map<StatusEffectType, List<StatusEffect>> 로 변환 (플랫화)
@@ -70,6 +89,49 @@ public class StatusUtil {
     public boolean hasUniqueStatus(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .anyMatch(battleStatus -> name.equals(battleStatus.getStatus().getName()));
+    }
+
+    /**
+     * BattleActor.battleStatuses 에서 동일한 id의 status 찾아 Optional 로 반환
+     * 주의) id 가 아닌 status.name 으로 동일여부를 판단함. 따라서 status.statusEffect 는 다를수 있음.
+     *
+     * @param battleActor
+     * @param status
+     * @return Optional<BattleStatus>
+     */
+    public Optional<BattleStatus> getSameIdBattleStatus(BattleActor battleActor, Status status) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getId().equals(status.getId()))
+                .findFirst();
+    }
+
+    /**
+     * BattleActor.battleStatuses 에서 동일한 statusEffect.type 의 status 찾아 Optional 로 반환
+     * 하나의 StatusEffect 로 구성된 Status 가 아닐경우 일단 반환하나, warn 로그 찍음 (정상상황 아님)
+     *
+     * @param battleActor
+     * @param status
+     * @return Optional<BattleStatus>
+     */
+    public Optional<BattleStatus> getSameEffectTypeStatus(BattleActor battleActor, Status status) {
+        if (status.getStatusEffects().size() > 1) log.warn("Status 가 두개이상의 StatusEffect 로 구성됨, Status = {}", status);
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().getFirst().getType() == status.getStatusEffects().getFirst().getType())
+                .findFirst();
+    }
+
+    /**
+     * Status 의 StatusEffect 의 값 반환.
+     * 단일 StatusEffect 로 이루어지지 않은경우 첫번째 StatusEffect 의 value 를 리턴하지만, 경고 로그를 띄움 (정상상황 아님)
+     *
+     * @param status
+     * @return
+     */
+    public Double getStatusEffectValue(Status status) {
+        if (status.getStatusEffects().size() > 1) {
+            log.warn("statusEffect 가 두개 이상입니다. status = {}", status);
+        }
+        return status.getStatusEffects().getFirst().getValue();
     }
 
     /**

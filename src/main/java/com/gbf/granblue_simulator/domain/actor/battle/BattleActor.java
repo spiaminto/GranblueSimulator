@@ -28,6 +28,7 @@ public class BattleActor {
     private String name;
     @Column(insertable = false, updatable = false)
     private String dtype;
+    private Integer currentOrder; // 자신의 자리 순서 Party 로 부터받아 처리할 예정
 
     private Integer atk; // 공력력
     @Builder.Default

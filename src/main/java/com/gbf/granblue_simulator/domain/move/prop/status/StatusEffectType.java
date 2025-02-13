@@ -8,7 +8,7 @@ public enum StatusEffectType {
     ATK_UP_UNIQUE, // 별항
     STRENGTH, // 현재 체력이 많을수록 공격력 증가
     JAMMED, // 배수
-    
+
     // 더블어택 / 트리플 어택
     DOUBLE_ATTACK_RATE_UP,
     DOUBLE_ATTACK_RATE_DOWN,
@@ -28,7 +28,7 @@ public enum StatusEffectType {
     // 요다메
     SUPPLEMENTAL_DAMAGE, // 요다메 상승(가산)
     AMPLIFY_DAMAGE, // 요다메 UP(증산)
-    
+
     // 데미지 상한
     DAMAGE_CAP_UP, // 데미지 상한
 
@@ -43,7 +43,7 @@ public enum StatusEffectType {
     TAKEN_DAMAGE_FIX, // 받는 데미지 고정
 
     BARRIER, // 배리어
-    
+
     // 명중률
     HIT_ACCURACY_UP,
     HIT_ACCURACY_DOWN,
@@ -64,16 +64,14 @@ public enum StatusEffectType {
     CHARGE_GAUGE_INCREASE_UP,
     CHARGE_GAUGE_INCREASE_DOWN,
     PETRIFIED, // 공포
-    
+
     // 도트데미지 류
     BURNED, // 작열
 
     // 디스펠가드
     DISPEL_GUARD,
-    
 
 
-    
     // 방어 특수
     IMMORTAL, // 불사신 효과 (체력0 됬을때 1로 버팀)
     SUBSTITUTE, // 감싸기
@@ -85,10 +83,14 @@ public enum StatusEffectType {
     ACT_HEAL, // 힐 사용
     HEAL_UP, // 회복 성능 업
     HEAL_DOWN, // 회복 성능 다운
-    
+
+    // 없음
+    NONE, // 버프가 표시이외에 효과를 가지지 않을떄 사용 (ex 보스의 고유기 등)
+
     // 즉시변경류
     ACT_DISPEL, // 디스펠
-    
+    ACT_CHARGE_GAUGE_UP, // value 만큼 오의게이지 상승
+
     // 후 행동류 (재행동류 제외)
     ACT_FIRST_ABILITY, // 1어빌 자동발동
     ACT_SECOND_ABILITY, // 2어빌 자동발동
@@ -104,5 +106,36 @@ public enum StatusEffectType {
 
     // 고유버프 (UNIQUE_[캐릭터명]_[ABILITY or CHARGE or SUPPORT]_[해당순서]
     UNIQUE_PALADIN_SUPPORT_1 // 방패의 수호
+
+    ;
+
+    // 메서드 많아지면 확장
+
+    /**
+     * 효과를 합산하지 않고 덮어씌우는 이펙트의 경우 true 로 반환
+     * 추격
+     * @return 효과를 덮어씌우는 경우 true
+     */
+    public boolean isCoveringEffect() {
+        return this == ADDITIONAL_DAMAGE_A ||
+                this == ADDITIONAL_DAMAGE_C ||
+                this == ADDITIONAL_DAMAGE_S ||
+                this == ADDITIONAL_DAMAGE_E ||
+                this == ADDITIONAL_DAMAGE_W ||
+                this == BARRIER
+                ;
+    }
+
+    /**
+     * 추격인경우 true 반환
+     * @return
+     */
+    public boolean isAdditionalDamage() {
+        return this == ADDITIONAL_DAMAGE_A ||
+                this == ADDITIONAL_DAMAGE_C ||
+                this == ADDITIONAL_DAMAGE_S ||
+                this == ADDITIONAL_DAMAGE_E ||
+                this == ADDITIONAL_DAMAGE_W;
+    }
 
 }

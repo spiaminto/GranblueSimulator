@@ -42,4 +42,11 @@ public class BattleStatus {
         this.level = Math.min(this.status.getMaxLevel(), this.level + level);
         this.iconSrc = this.status.getIconSrcs().get(level - 1);
     }
+
+    /**
+     * 같은 버프가 다시걸렷을때 효과시간 초기화
+     */
+    public void resetDuration() {
+        this.duration = this.status.getDuration();
+    }
 }

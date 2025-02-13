@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.controller.request.insert.character.AbilityReq
 import com.gbf.granblue_simulator.controller.request.insert.character.CharacterInsertRequest;
 import com.gbf.granblue_simulator.controller.request.insert.character.ChargeAttackRequest;
 import com.gbf.granblue_simulator.controller.request.insert.character.IdleAndAttackRequest;
+import com.gbf.granblue_simulator.controller.request.insert.enemy.EnemyAbilityRequest;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;

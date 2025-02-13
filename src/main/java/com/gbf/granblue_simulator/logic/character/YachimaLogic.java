@@ -5,10 +5,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.character.dto.CharacterLogicResult;
-import com.gbf.granblue_simulator.logic.common.CalcStatusLogic;
-import com.gbf.granblue_simulator.logic.common.DamageLogic;
-import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
-import com.gbf.granblue_simulator.logic.common.StatusUtil;
+import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +25,7 @@ public class YachimaLogic implements CharacterLogic {
     private final SetStatusLogic setStatusLogic;
     private final StatusUtil statusUtil;
     private final CalcStatusLogic calcStatusLogic;
+    private final ChargeGaugeLogic chargeGaugeLogic;
 
 
     @Override
@@ -41,14 +39,18 @@ public class YachimaLogic implements CharacterLogic {
             case 3 -> moveType = MoveType.TRIPLE_ATTACK;
         }
 
+        // 공격 행동 발생시 서포어비 1 발동
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstSupportAbility);
 
+        // 오의게이지
+        chargeGaugeLogic.afterAttack(mainActor, partyMembers, moveType);
+
         return CharacterLogicResult.builder()
-                .statusList(List.of())
-                .damages(damageLogicResult.getDamages())
-                .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .moveType(moveType)
+                .damages(damageLogicResult.getDamages())
+                .statusList(List.of())
+                .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .build();
     }
 
@@ -69,9 +71,9 @@ public class YachimaLogic implements CharacterLogic {
         mainActor.setFirstAbilityCoolDown(firstAbility.getCoolDown());
 
         return CharacterLogicResult.builder()
+                .moveType(MoveType.FIRST_ABILITY)
                 .damages(damageLogicResult.getDamages())
                 .statusList(firstAbility.getStatuses())
-                .moveType(MoveType.FIRST_ABILITY)
                 .build();
     }
 
@@ -87,8 +89,8 @@ public class YachimaLogic implements CharacterLogic {
         mainActor.setSecondAbilityCoolDown(secondAbility.getCoolDown());
 
         return CharacterLogicResult.builder()
-                .statusList(secondAbility.getStatuses())
                 .moveType(MoveType.SECOND_ABILITY)
+                .statusList(secondAbility.getStatuses())
                 .build();
     }
 
@@ -111,23 +113,34 @@ public class YachimaLogic implements CharacterLogic {
         // TODO 통상공격 해야된다고 리턴해줘야됨.
         StatusTargetType afterMoveTarget = hasUniqueStatus ? StatusTargetType.PARTY_MEMBERS : StatusTargetType.SELF;
         return CharacterLogicResult.builder()
-                .statusList(thirdAbility.getStatuses())
                 .moveType(MoveType.THIRD_ABILITY)
+                .statusList(thirdAbility.getStatuses())
                 .hasNextMove(true)
                 .nextMoveType(MoveType.NORMAL_ATTACK)
                 .nextMoveTarget(afterMoveTarget)
                 .build();
     }
 
-    @Override // 데미지, 자신이 레코데이션 싱크중 배율 증가
-    public void chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    @Override // 데미지, 1어빌발동, 레코데이션 싱크시 오의배율 극대로 변화
+    public CharacterLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
+        DamageLogicResult damageLogicResult = null;
         if (statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크")) {
             // 레코데이션 싱크중 배율 극대
-            damageLogic.processChargeAttack(mainActor, enemy, 12.5);
+            damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, 12.5);
         } else {
-            damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
+            damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
         }
+
+        chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
+
+        return CharacterLogicResult.builder()
+                .moveType(MoveType.CHARGE_ATTACK)
+                .damages(damageLogicResult.getDamages())
+                .hasNextMove(true)
+                .nextMoveType(MoveType.FIRST_ABILITY)
+                .nextMoveTarget(StatusTargetType.SELF)
+                .build();
 
         // TODO 1어빌 발동
     }
@@ -192,7 +205,7 @@ public class YachimaLogic implements CharacterLogic {
             others.forEach(other -> log.info("other = {}", other));
             statusUtil.addUniqueStatusLevelAll(others, 3, "알파", "델타");
             partyMembers.forEach(calcStatusLogic::syncStatus);
-            
+
             // 자신의 3어빌 쿨타임 0으로 감소
             mainActor.setFirstAbilityCoolDown(0);
 

@@ -14,15 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
+//TODO 디스펠처리, 오의게이지처리, 힐처리, 버프/디버프 명중률 처리
 public class SetStatusLogic {
 
     private final BattleStatusRepository battleStatusRepository;
+    private final StatusUtil statusUtil;
+    private final ChargeGaugeLogic chargeGaugeLogic;
 
     /**
      * BattleActor 들을 받아 행동에 따른 스테이터스를 설정
@@ -99,47 +102,86 @@ public class SetStatusLogic {
      * 스테이터스를 배틀스테이터스로 추가하지 않아도 되면 false 반환
      *
      * @param status
-     * @param battleCharacter
+     * @param battleActor
      * @return
      */
-    protected boolean statusValidFilter(Status status, BattleActor battleCharacter) {
+    protected boolean statusValidFilter(Status status, BattleActor battleActor) {
         boolean isStatusValid = true;
+        StatusEffect firstStatusEffect = status.getStatusEffects().getFirst();
+        
+        // 오의 게이지 업 -> 반드시 하나의 StatusEffect 로 구성됨
+        if (firstStatusEffect.getType() == StatusEffectType.ACT_CHARGE_GAUGE_UP) {
+            chargeGaugeLogic.processChargeGaugeFromSetStatus(battleActor, firstStatusEffect);
+            return false;
+        }
 
-        // 레벨제 스테이터스가 미리 붙어있으면, 해당 스테이터스의 레벨을 올리고 입력된 스테이터스는 버린다.
+        // 레벨제 스테이터스
         if (status.getMaxLevel() > 0) {
-            for (BattleStatus battleStatus : battleCharacter.getBattleStatuses()) {
-                if (battleStatus.getStatus().getId().equals(status.getId())) {
+            // 레벨제 스테이터스의 경우
+            isStatusValid = statusUtil.getSameIdBattleStatus(battleActor, status).map(battleStatus -> {
+                // status.id 가 동일한 battleStatus 가 이미 존재하는 경우
+                if (battleStatus.getLevel() < status.getMaxLevel()) {
+                    // 최고레벨이 아니면 레벨 증가
                     battleStatus.increaseLevel();
-                    isStatusValid = false;
-                    break;
-                }
-            }
-        }
-
-        // 베리어 (연산을 줄이기 위해 조건 깊이를 늘림)
-        // 캐릭터가 베리어를 수치를 가지고 있음
-        if (battleCharacter.getBarrier() > 0) {
-            Optional<StatusEffect> inputBarrierEffect = status.getStatusEffects().stream().filter(effect -> effect.getType() == StatusEffectType.BARRIER).findFirst();
-            // 적용할 스테이터스 이펙트가 배리어임
-            if (inputBarrierEffect.isPresent()) {
-                // 적용할 베리어 이펙트의 값이 현재 캐릭터의 배리어 수치보다 낮을경우 버림
-                if (battleCharacter.getBarrier() > inputBarrierEffect.get().getValue()) {
-                    isStatusValid = false;
                 } else {
-                    // 적용할 베리어 이펙트의 값이 현재 캐릭터의 배리어 수치보다 높을경우 현재 캐릭터의 배리어 삭제 (valid = true)
-                    StatusEffect existingBarrierEffect = battleCharacter.getBattleStatuses().stream()
-                            .map(BattleStatus::getStatus)
-                            .map(Status::getStatusEffects)
-                            .flatMap(List::stream)
-                            .filter(effect -> effect.getType() == StatusEffectType.BARRIER)
-                            .findFirst().orElse(null);
-
-                    // 배리어는 반드시 Status 한칸을 차지하도록 설계되기 때문에 베리어가 포함된 BattleStatus 전체를 삭제
-                    battleCharacter.setBarrier(0);
-                    battleStatusRepository.deleteById(existingBarrierEffect.getStatus().getId());
+                    // 최고레벨과 같거나 크면 효과시간 초기화
+                    battleStatus.resetDuration();
                 }
-            }
+                return false; // 들어온 status 버림
+            }).orElseGet(() -> true); // 동일한 battleStatus 없음
         }
+
+        // 덮어쓰는 효과 (공존불가 이펙트)
+        if (firstStatusEffect.getType().isCoveringEffect()) { // -> 반드시 하나의 Status 를 차지하는 버프여야 제대로 적용됨. StatusEffect 두개이상인 경우 로직문제발생
+            // 덮어쓰는 효과인 경우
+            isStatusValid = statusUtil.getSameEffectTypeStatus(battleActor, status).map(battleStatus -> {
+                boolean isValid = true;
+                double inputStatusEffectValue = statusUtil.getStatusEffectValue(status);
+                double currentStatusEffectValue = statusUtil.getStatusEffectValue(battleStatus.getStatus());
+                if (inputStatusEffectValue == currentStatusEffectValue) {
+                    // 들어온 status 와 적용된 battleStatus 의 효과량이 같은경우 들어온 status 의 효과시간이 같거나 긴경우 valid true
+                    isValid = status.getDuration() >= battleStatus.getDuration();
+                } else {
+                    // 들어온 status 의 효과량이 큰경우 valid true
+                    isValid = inputStatusEffectValue > currentStatusEffectValue;
+                }
+
+                if (isValid) {
+                    // 들어온 Status 가 valid 인경우 기존 battleStatus 삭제
+                    battleStatus.getBattleActor().getBattleStatuses().remove(battleStatus);
+                    battleStatusRepository.delete(battleStatus); // TODO 나중에 DELETE 쿼리 날아가는지 여부 확인할것
+                }
+
+                return isValid;
+            }).orElseGet(() -> true);
+
+        }
+
+//        덮어쓰는 효과로 대체됨. 테스트 후 삭제 예정
+        // 베리어 (연산을 줄이기 위해 조건 깊이를 늘림) 
+//        if (battleActor.getBarrier() > 0) {
+//            // 캐릭터가 베리어를 수치를 가지고 있음
+//            Optional<StatusEffect> inputBarrierEffect = status.getStatusEffects().stream().filter(effect -> effect.getType() == StatusEffectType.BARRIER).findFirst();
+//            if (inputBarrierEffect.isPresent()) {
+//                // 적용할 스테이터스 이펙트가 배리어임
+//                if (battleActor.getBarrier() > inputBarrierEffect.get().getValue()) {
+//                    // 적용할 베리어 이펙트의 값이 현재 캐릭터의 배리어 수치보다 낮을경우 버림
+//                    isStatusValid = false;
+//                } else {
+//                    // 적용할 베리어 이펙트의 값이 현재 캐릭터의 배리어 수치보다 높을경우 현재 캐릭터의 배리어 삭제 (valid = true)
+//                    StatusEffect existingBarrierEffect = battleActor.getBattleStatuses().stream()
+//                            .map(BattleStatus::getStatus)
+//                            .map(Status::getStatusEffects)
+//                            .flatMap(List::stream)
+//                            .filter(effect -> effect.getType() == StatusEffectType.BARRIER)
+//                            .findFirst().orElse(null);
+//
+//                    // 배리어는 반드시 Status 한칸을 차지하도록 설계되기 때문에 베리어가 포함된 BattleStatus 전체를 삭제
+//                    battleActor.setBarrier(0);
+//                    battleStatusRepository.deleteById(existingBarrierEffect.getStatus().getId());
+//                }
+//            }
+//        }
 
 
         return isStatusValid;

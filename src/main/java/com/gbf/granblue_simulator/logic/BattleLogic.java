@@ -48,6 +48,32 @@ public class BattleLogic {
 
     }
 
+    public List<CharacterLogicResult> processAttack(BattleActor enemy, List<BattleActor> partyMembers) {
+        List<BattleActor> moveActors = partyMembers;
+
+        List<CharacterLogicResult> results = new ArrayList<>();
+        CharacterLogicResult result = null;
+
+        // moveActor 마다 NORMAL_ATTACK 또는 CHARGE_ATTACK 실행. 그에따른 재행동역시 실행함.
+        for (BattleActor moveActor : moveActors) {
+            MoveType moveType = moveActor.getChargeGauge() >= 100 ? MoveType.CHARGE_ATTACK : MoveType.NORMAL_ATTACK;
+            CharacterLogic nextActorLogic = characterLogicMap.get(moveActor.getActor().getNameEn() + "Logic");
+            CharacterLogicResult moveResult = CharacterLogicResult.builder().build();
+            do {
+                switch (moveType) {
+                    case NORMAL_ATTACK -> moveResult = nextActorLogic.attack(moveActor, enemy, partyMembers);
+                    case FIRST_ABILITY -> moveResult = nextActorLogic.firstAbility(moveActor, enemy, partyMembers);
+                    case SECOND_ABILITY -> moveResult = nextActorLogic.secondAbility(moveActor, enemy, partyMembers);
+                    case THIRD_ABILITY -> moveResult = nextActorLogic.thirdAbility(moveActor, enemy, partyMembers);
+                    case CHARGE_ATTACK -> moveResult = nextActorLogic.chargeAttack(moveActor, enemy, partyMembers); // 재행동류, 오의재발동 버프가 있을시 후행동으로 오의가 발동할 수 있다.
+                }
+                results.add(moveResult);
+                moveType = moveResult.getNextMoveType(); // 내부에서 공격 이후 후행동이 발생할 경우 후행동의 moveType 으로 변경
+            } while (moveResult.hasNextMove());
+        }
+        return results;
+    }
+
     public List<CharacterLogicResult> processAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
         CharacterLogic mainActorLogic = characterLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
         Move move = moveRepository.findById(moveId).orElseThrow();
@@ -78,14 +104,10 @@ public class BattleLogic {
                 CharacterLogicResult nextMoveResult = CharacterLogicResult.builder().build(); // 후행동 결과저장
                 do { // 후행동의 후행동 처리를 위해 반복 
                     switch (nextMoveType) {
-                        case NORMAL_ATTACK ->
-                                nextMoveResult = nextActorLogic.attack(nextMoveActor, enemy, partyMembers);
-                        case FIRST_ABILITY ->
-                                nextMoveResult = nextActorLogic.firstAbility(nextMoveActor, enemy, partyMembers);
-                        case SECOND_ABILITY ->
-                                nextMoveResult = nextActorLogic.secondAbility(nextMoveActor, enemy, partyMembers);
-                        case THIRD_ABILITY ->
-                                nextMoveResult = nextActorLogic.thirdAbility(nextMoveActor, enemy, partyMembers);
+                        case NORMAL_ATTACK -> nextMoveResult = nextActorLogic.attack(nextMoveActor, enemy, partyMembers);
+                        case FIRST_ABILITY -> nextMoveResult = nextActorLogic.firstAbility(nextMoveActor, enemy, partyMembers);
+                        case SECOND_ABILITY -> nextMoveResult = nextActorLogic.secondAbility(nextMoveActor, enemy, partyMembers);
+                        case THIRD_ABILITY -> nextMoveResult = nextActorLogic.thirdAbility(nextMoveActor, enemy, partyMembers);
                         // 어빌리티 후행동에 오의는 없다.
                     }
                     results.add(nextMoveResult);
@@ -97,11 +119,6 @@ public class BattleLogic {
             }
         }
         return results;
-    }
-
-
-    private void processAttack(BattleActor enemy, List<BattleActor> partyMembers) {
-
     }
 
 
@@ -117,7 +134,8 @@ public class BattleLogic {
     }
 
     enum RequestType {
-        ABILITY, ATTACK
+        ABILITY, ATTACK, SUMMON // 소환
+        , PORTION // 포션
     }
 
 }

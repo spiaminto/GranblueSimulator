@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.logic.character.dto.CharacterLogicResult;
 import com.gbf.granblue_simulator.logic.common.CalcStatusLogic;
+import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.logic.common.DamageLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
@@ -29,6 +30,7 @@ public class PaladinLogic implements CharacterLogic {
     private final SetStatusLogic setStatusLogic;
     private final DamageLogic damageLogic;
     private final Long id = 1L;
+    private final ChargeGaugeLogic chargeGaugeLogic;
 
     @Override
     public CharacterLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
@@ -41,78 +43,88 @@ public class PaladinLogic implements CharacterLogic {
             case 3 -> moveType = MoveType.TRIPLE_ATTACK;
         }
 
+        chargeGaugeLogic.afterAttack(mainActor, partyMembers, moveType);
+
         return CharacterLogicResult.builder()
+                .moveType(moveType)
                 .statusList(List.of())
                 .damages(damageLogicResult.getDamages())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
-                .moveType(moveType)
                 .build();
     }
 
     @Override // 아군전체 데미지 컷
-    public CharacterLogicResult firstAbility(BattleActor paladin, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move ability = paladin.getActor().getMoves().get(MoveType.FIRST_ABILITY);
+    public CharacterLogicResult firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        Move ability = mainActor.getActor().getMoves().get(MoveType.FIRST_ABILITY);
         // 스테이터스 적용
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, ability);
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability);
         // 스테이터스 계산값 적용
         partyMembers.forEach(calcStatusLogic::syncStatus);
 
-        
+
         // TODO 참전자 스테이터스 적용
 
         // 쿨타임 적용
-        paladin.setFirstAbilityCoolDown(ability.getCoolDown());
+        mainActor.setFirstAbilityCoolDown(ability.getCoolDown());
 
         return CharacterLogicResult.builder()
+                .moveType(MoveType.FIRST_ABILITY)
                 .statusList(ability.getStatuses())
                 .build();
     }
 
     @Override // 자기자신 감싸기, 베리어
-    public CharacterLogicResult secondAbility(BattleActor paladin, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move ability = paladin.getActor().getMoves().get(MoveType.SECOND_ABILITY);
+    public CharacterLogicResult secondAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        Move ability = mainActor.getActor().getMoves().get(MoveType.SECOND_ABILITY);
         // 스테이터스 적용
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, ability);
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability);
         // 스테이터스 계산값 적용
-        calcStatusLogic.syncStatus(paladin);
+        calcStatusLogic.syncStatus(mainActor);
         // 쿨타임 적용
-        paladin.setSecondAbilityCoolDown(ability.getCoolDown());
+        mainActor.setSecondAbilityCoolDown(ability.getCoolDown());
 
         return CharacterLogicResult.builder()
+                .moveType(MoveType.SECOND_ABILITY)
                 .statusList(ability.getStatuses())
                 .build();
     }
 
     @Override // 아군전체 피데미지 감소
-    public CharacterLogicResult thirdAbility(BattleActor paladin, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move ability = paladin.getActor().getMoves().get(MoveType.THIRD_ABILITY);
+    public CharacterLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        Move ability = mainActor.getActor().getMoves().get(MoveType.THIRD_ABILITY);
         // 스테이터스 적용
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, ability);
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability);
         // 스테이터스 계산값 적용
         partyMembers.forEach(calcStatusLogic::syncStatus);
         // 쿨타임 적용
-        paladin.setThirdAbilityCoolDown(ability.getCoolDown());
+        mainActor.setThirdAbilityCoolDown(ability.getCoolDown());
 
         return CharacterLogicResult.builder()
+                .moveType(MoveType.THIRD_ABILITY)
                 .statusList(ability.getStatuses())
                 .build();
     }
 
     @Override // 아군 전체 스트렝스, 베리어
-    public void chargeAttack(BattleActor paladin, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move chargeAttack = paladin.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
+    public CharacterLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
         // 데미지 계싼
-        DamageLogicResult damageLogicResult = damageLogic.processChargeAttack(paladin, enemy, chargeAttack.getDamageRate());
+        DamageLogicResult damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
 
         // 스테이터스 적용
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, chargeAttack);
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, chargeAttack);
         // 스테이터스 계산값 적용 - 스트렝스, 베리어
         partyMembers.forEach(battleActor -> calcStatusLogic.syncStatus(battleActor));
 
-        //        return CharacterLogicResult.builder()
-//                .statusList(chargeAttack.getStatuses())
-//                .damages(damageLogicResult.getDamages())
-//                .build();
+        // 오의게이지
+        chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
+
+
+        return CharacterLogicResult.builder()
+                .moveType(MoveType.CHARGE_ATTACK)
+                .damages(damageLogicResult.getDamages())
+                .statusList(chargeAttack.getStatuses())
+                .build();
     }
 
     @Override
@@ -141,15 +153,15 @@ public class PaladinLogic implements CharacterLogic {
     }
 
     @Override
-    public void onBattleStart(BattleActor paladin, BattleActor enemy, List<BattleActor> partyMembers) {
-        calcStatusLogic.initStatus(paladin);
+    public void onBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        calcStatusLogic.initStatus(mainActor);
 
-        Map<MoveType, Move> moves = paladin.getActor().getMoves();
+        Map<MoveType, Move> moves = mainActor.getActor().getMoves();
         List<Status> supportStatuses = new ArrayList<>();
         supportStatuses.addAll(moves.get(MoveType.FIRST_SUPPORT_ABILITY).getStatuses());
         supportStatuses.addAll(moves.get(MoveType.SECOND_SUPPORT_ABILITY).getStatuses());
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, moves.get(MoveType.FIRST_SUPPORT_ABILITY));
-        setStatusLogic.setStatus(paladin, enemy, partyMembers, moves.get(MoveType.SECOND_SUPPORT_ABILITY));
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, moves.get(MoveType.FIRST_SUPPORT_ABILITY));
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, moves.get(MoveType.SECOND_SUPPORT_ABILITY));
 
         //TODO 테스트를 위해 현재 디아스포라는 로직없이 여기서 init 함
         calcStatusLogic.initStatus(enemy);
