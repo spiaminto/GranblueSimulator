@@ -22,4 +22,6 @@ public class Room {
 
     @OneToMany(mappedBy = "room")
     private List<Member> members; // 방에 있는 유저들
+
+    private Long enemyActorId; // 편의용 적 id
 }

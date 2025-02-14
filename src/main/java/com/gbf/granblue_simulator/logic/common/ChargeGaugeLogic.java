@@ -1,11 +1,9 @@
 package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -66,16 +64,16 @@ public class ChargeGaugeLogic {
      * @param value 올릴 양
      * @throws IllegalArgumentException value 가 음수면 던짐
      */
-    protected void increaseChargeGauge(BattleActor actor, double value) {
+    protected int increaseChargeGauge(BattleActor actor, double value) {
         if (value < 0) throw new IllegalArgumentException("increaseChargeGauge() value 가 음수임. value = " + value);
         Integer maxGauge = actor.getMaxChargeGauge();
         double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // 최소 0
-        actor.setChargeGauge(
-                Math.min(
-                        (int) Math.ceil(actor.getChargeGauge() + value * (1 + gaugeIncreaseRate)),
-                        maxGauge
-                )
+        int increasedChargeGauge = Math.min(
+                (int) Math.ceil(actor.getChargeGauge() + value * (1 + gaugeIncreaseRate)),
+                maxGauge
         );
+        actor.setChargeGauge(increasedChargeGauge);
+        return increasedChargeGauge;
     }
 
 }

@@ -26,11 +26,30 @@ public class SetStatusLogic {
     private final BattleStatusRepository battleStatusRepository;
     private final StatusUtil statusUtil;
     private final ChargeGaugeLogic chargeGaugeLogic;
+    private final CalcStatusLogic calcStatusLogic;
+
+    /**
+     * 첫 init
+     * @param battleActor
+     */
+    public void initStatus(BattleActor battleActor) {
+        calcStatusLogic.initStatus(battleActor);
+    }
+
+    /**
+     * 외부에서 스테이터스값을 동기화 할때 사용
+     * TODO 나중에 정리하고 없애기
+     * @param battleActor
+     */
+    public void syncStatus(BattleActor battleActor) {
+        calcStatusLogic.syncStatus(battleActor);
+    }
 
     /**
      * BattleActor 들을 받아 행동에 따른 스테이터스를 설정
      * 편의를 위해 파라미터로 mainActor, enemy, partyMembers 각각 분리해서 받기로.
      * Target 에 따른 분류 후 applyStatusEffectToActor 호출하여 처리
+     * BattleStatus 등록 후 calcStatusLogic.syncStatus() 호출
      *
      * @param mainActor    move 사용자
      * @param enemy
@@ -53,11 +72,16 @@ public class SetStatusLogic {
                 default -> throw new IllegalArgumentException("Invalid target type: " + status.getTarget());
             }
         });
+        
+        // 스텟 재계산
+        partyMembers.forEach(calcStatusLogic::syncStatus);
+        calcStatusLogic.syncStatus(enemy);
     }
 
     /**
      * Status 의 target 과 관계없이 Move.Status 를 파라미터로 넘어온 BattleActor 에게 부여
      * 효과 전체화 등에서 사용
+     * 등록후 calcStatusLogic.syncStatus() 호출
      *
      * @param battleActors
      * @param move
@@ -66,6 +90,9 @@ public class SetStatusLogic {
         move.getStatuses().forEach(status -> {
             battleActors.forEach(battleActor -> applyStatusToActor(battleActor, status));
         });
+
+        // 스텟 재계산
+        battleActors.forEach(calcStatusLogic::syncStatus);
     }
 
 

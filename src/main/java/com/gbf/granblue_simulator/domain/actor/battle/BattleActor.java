@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.logic.character.CharacterLogic;
+import com.gbf.granblue_simulator.logic.actor.ActorLogic;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -96,7 +96,7 @@ public class BattleActor {
     private Integer thirdAbilityUseCount;
 
     @Transient
-    private CharacterLogic characterLogic;
+    private ActorLogic actorLogic;
 
     @OneToMany(mappedBy = "battleActor") @MapKey(name = "type")
     private List<BattleStatus> battleStatuses = new ArrayList<>();

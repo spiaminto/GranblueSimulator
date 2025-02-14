@@ -9,6 +9,7 @@ import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -31,8 +32,8 @@ public class Move {
     @OneToOne(mappedBy = "move")
     private Asset asset;
 
-    @OneToMany(mappedBy = "move")
-    private List<Status> statuses;
+    @OneToMany(mappedBy = "move") @Builder.Default
+    private List<Status> statuses = new ArrayList<>();
 
     @OneToOne(mappedBy = "move")
     private Omen omen;

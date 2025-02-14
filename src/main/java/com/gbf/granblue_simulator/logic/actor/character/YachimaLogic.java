@@ -1,10 +1,13 @@
-package com.gbf.granblue_simulator.logic.character;
+package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
-import com.gbf.granblue_simulator.logic.character.dto.CharacterLogicResult;
+import com.gbf.granblue_simulator.logic.actor.ActorLogic;
+import com.gbf.granblue_simulator.logic.actor.ActorLogicResultMapper;
+import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import lombok.RequiredArgsConstructor;
@@ -19,83 +22,56 @@ import java.util.List;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-public class YachimaLogic implements CharacterLogic {
-    private final Integer baseFirstAbilityHitCount = 6;
+public class YachimaLogic implements ActorLogic {
     private final DamageLogic damageLogic;
     private final SetStatusLogic setStatusLogic;
     private final StatusUtil statusUtil;
-    private final CalcStatusLogic calcStatusLogic;
     private final ChargeGaugeLogic chargeGaugeLogic;
+    private final ActorLogicResultMapper resultMapper;
 
 
     @Override
-    public CharacterLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processAttack(mainActor, enemy);
-        int hitCount = damageLogicResult.getDamages().size();
-        MoveType moveType = MoveType.NORMAL_ATTACK;
-        switch (hitCount) {
-            case 1 -> moveType = MoveType.SINGLE_ATTACK;
-            case 2 -> moveType = MoveType.DOUBLE_ATTACK;
-            case 3 -> moveType = MoveType.TRIPLE_ATTACK;
-        }
-
-        // 공격 행동 발생시 서포어비 1 발동
-        Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-        setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstSupportAbility);
-
+        Move attackMove = mainActor.getActor().getMoves().get(damageLogicResult.getNormalAttackType());
         // 오의게이지
-        chargeGaugeLogic.afterAttack(mainActor, partyMembers, moveType);
+        chargeGaugeLogic.afterAttack(mainActor, partyMembers, attackMove.getType());
 
-        return CharacterLogicResult.builder()
-                .moveType(moveType)
-                .damages(damageLogicResult.getDamages())
-                .statusList(List.of())
-                .additionalDamages(damageLogicResult.getAdditionalDamages())
-                .build();
+        // 공격행동 발생시 서포어비 1 발동
+        return resultMapper.toResult(mainActor, enemy, partyMembers, attackMove, damageLogicResult,
+                NextMoveRequest.of(true, MoveType.FIRST_SUPPORT_ABILITY, StatusTargetType.SELF));
     }
 
     @Override // 적에게 데미지, 자신에게 추격, 적에게 디그레이드스피넬
-    public CharacterLogicResult firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move firstAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_ABILITY);
-
+        // 데미지 
         int alphaLevel = statusUtil.getUniqueStatusLevel(mainActor, "알파");
-        int hitCount = baseFirstAbilityHitCount + alphaLevel;
+        int hitCount = firstAbility.getHitCount() + alphaLevel;
         DamageLogicResult damageLogicResult = damageLogic.processAbilityAttack(mainActor, enemy, firstAbility.getDamageRate(), hitCount);
-
         // 스테이터스 적용
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstAbility);
-
-        // 스테이터스 계산값 적용
-        List.of(mainActor, enemy).forEach(calcStatusLogic::syncStatus);
-
+        // 쿨타임 적용
         mainActor.setFirstAbilityCoolDown(firstAbility.getCoolDown());
 
-        return CharacterLogicResult.builder()
-                .moveType(MoveType.FIRST_ABILITY)
-                .damages(damageLogicResult.getDamages())
-                .statusList(firstAbility.getStatuses())
-                .build();
+        return resultMapper.toResult(mainActor, enemy, partyMembers, firstAbility, damageLogicResult);
     }
 
 
     @Override // 아군 전체 방어, 뎀컷, 디스펠가드
-    public CharacterLogicResult secondAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult secondAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move secondAbility = mainActor.getActor().getMoves().get(MoveType.SECOND_ABILITY);
         // 스테이터스 적용
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, secondAbility);
-        // 스테이터스 계산값 적용
-        partyMembers.forEach(calcStatusLogic::syncStatus);
-
+        // 쿨타임
         mainActor.setSecondAbilityCoolDown(secondAbility.getCoolDown());
 
-        return CharacterLogicResult.builder()
-                .moveType(MoveType.SECOND_ABILITY)
-                .statusList(secondAbility.getStatuses())
-                .build();
+        return resultMapper.toResult(mainActor, enemy, partyMembers, secondAbility);
     }
 
     @Override // 자신 요다메상승, 통상공격실행 (레코데이션 효과중 전체화)
-    public CharacterLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move thirdAbility = mainActor.getActor().getMoves().get(MoveType.THIRD_ABILITY);
         // 스테이터스 적용
         boolean hasUniqueStatus = statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크");
@@ -105,25 +81,19 @@ public class YachimaLogic implements CharacterLogic {
         } else {
             setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility);
         }
-        // 스테이터스 계산값 적용
-        partyMembers.forEach(calcStatusLogic::syncStatus);
-
+        // 쿨타임
         mainActor.setThirdAbilityCoolDown(thirdAbility.getCoolDown());
 
         // TODO 통상공격 해야된다고 리턴해줘야됨.
         StatusTargetType afterMoveTarget = hasUniqueStatus ? StatusTargetType.PARTY_MEMBERS : StatusTargetType.SELF;
-        return CharacterLogicResult.builder()
-                .moveType(MoveType.THIRD_ABILITY)
-                .statusList(thirdAbility.getStatuses())
-                .hasNextMove(true)
-                .nextMoveType(MoveType.NORMAL_ATTACK)
-                .nextMoveTarget(afterMoveTarget)
-                .build();
+        return resultMapper.toResult(mainActor, enemy, partyMembers, thirdAbility, null,
+                NextMoveRequest.of(true, MoveType.NORMAL_ATTACK, afterMoveTarget));
     }
 
     @Override // 데미지, 1어빌발동, 레코데이션 싱크시 오의배율 극대로 변화
-    public CharacterLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
+        // 데미지
         DamageLogicResult damageLogicResult = null;
         if (statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크")) {
             // 레코데이션 싱크중 배율 극대
@@ -131,56 +101,55 @@ public class YachimaLogic implements CharacterLogic {
         } else {
             damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
         }
-
+        // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
 
-        return CharacterLogicResult.builder()
-                .moveType(MoveType.CHARGE_ATTACK)
-                .damages(damageLogicResult.getDamages())
-                .hasNextMove(true)
-                .nextMoveType(MoveType.FIRST_ABILITY)
-                .nextMoveTarget(StatusTargetType.SELF)
-                .build();
+        // 1어빌 자동발동
+        return resultMapper.toResult(mainActor, enemy, partyMembers, chargeAttack, damageLogicResult,
+                NextMoveRequest.of(true, MoveType.FIRST_ABILITY, StatusTargetType.SELF));
+    }
 
-        // TODO 1어빌 발동
+    @Override // 자신이 공격행동시 사포아비1 적용 (알파레벨 증가)
+    public ActorLogicResult firstSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
+        setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstSupportAbility);
+
+        return resultMapper.toResult(mainActor, enemy, partyMembers, firstSupportAbility);
     }
 
     @Override
-    public void firstSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-
+    public ActorLogicResult secondSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return null;
     }
 
     @Override
-    public void secondSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-
+    public ActorLogicResult thirdSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return null;
     }
 
     @Override
-    public void thirdSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-
+    public ActorLogicResult postProcessOtherMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return null;
     }
 
     @Override
-    public void postProcessOtherMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-
-    }
-
-    @Override
-    public void postProcessEnemyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult postProcessEnemyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         // TODO 적의 무브 결과를 받아와서 해야될듯.
         // 델타레벨 증가확인
         Move secondSupportAbility = mainActor.getActor().getMoves().get(MoveType.SECOND_SUPPORT_ABILITY);
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, secondSupportAbility);
-        calcStatusLogic.syncStatus(mainActor);
+        return resultMapper.toResult(mainActor, enemy, partyMembers, secondSupportAbility);
+
     }
 
     @Override
-    public void onBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        calcStatusLogic.initStatus(mainActor);
+    public ActorLogicResult onBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        setStatusLogic.initStatus(mainActor);
+        return null;
     }
 
     @Override
-    public void onTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult onTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         log.info("mainActor = {}", mainActor);
         boolean isAlphaLevelMax = statusUtil.isUniqueStatusReachedLevel(mainActor, "알파", 4);
         boolean isDeltaLevelMax = statusUtil.isUniqueStatusReachedLevel(mainActor, "델타", 4);
@@ -188,7 +157,6 @@ public class YachimaLogic implements CharacterLogic {
             // 알파와 델타레벨이 모두 최고레벨일때 자신에게 서폿3 레코데이션 싱크 적용
             Move thirdSupportAbility = mainActor.getActor().getMoves().get(MoveType.THIRD_SUPPORT_ABILITY);
             setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdSupportAbility);
-            calcStatusLogic.syncStatus(mainActor);
 
             // 자신을 제외한 아군 전체에게 서폿 1, 2 알파와 델타 레벨 적용
             Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
@@ -204,12 +172,11 @@ public class YachimaLogic implements CharacterLogic {
             log.info("others = {}", others);
             others.forEach(other -> log.info("other = {}", other));
             statusUtil.addUniqueStatusLevelAll(others, 3, "알파", "델타");
-            partyMembers.forEach(calcStatusLogic::syncStatus);
+            partyMembers.forEach(setStatusLogic::syncStatus);
 
             // 자신의 3어빌 쿨타임 0으로 감소
             mainActor.setFirstAbilityCoolDown(0);
-
-
         }
+        return null;
     }
 }

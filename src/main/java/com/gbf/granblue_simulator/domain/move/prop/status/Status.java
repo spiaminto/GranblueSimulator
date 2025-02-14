@@ -41,8 +41,8 @@ public class Status {
     List<StatusEffect> statusEffects = new ArrayList<>();
 
     @Type(ListArrayType.class)
-    @Column(name = "iconSrcs", columnDefinition = "text[]")
-    private List<String> iconSrcs;
+    @Column(name = "iconSrcs", columnDefinition = "text[]") @Builder.Default
+    private List<String> iconSrcs = new ArrayList<>();
 
     private String effectText; // 이펙트에 띄울 텍스트
     private String statusText; // 스테이터스 창에 띄울 텍스트

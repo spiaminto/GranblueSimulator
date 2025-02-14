@@ -1,15 +1,12 @@
 package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.GetDamageResult;
 import jakarta.annotation.PostConstruct;
-import jakarta.validation.constraints.Max;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -46,10 +43,18 @@ public class DamageLogic {
         enemy.setHp(Math.max(enemyHp, 0));
         boolean isEnemyHpZero = enemy.getHp() == 0;
 
+        // 통상공격은 무브타입 반환
+        MoveType normalAttackType = switch (damages.size()) {
+            case 1 -> MoveType.SINGLE_ATTACK;
+            case 2 -> MoveType.DOUBLE_ATTACK;
+            case 3 -> MoveType.TRIPLE_ATTACK;
+            default -> throw new RuntimeException("[damageLogic.getAttackDamage()] hitCount is not valid hitCount = " + damages.size());
+        };
+
         // 필요한 값 리턴
-        return DamageLogicResult.builder().damages(damages).additionalDamages(additionalDamages).isEnemyHpZero(isEnemyHpZero).build();
+        return DamageLogicResult.builder().normalAttackType(normalAttackType).damages(damages).additionalDamages(additionalDamages).isEnemyHpZero(isEnemyHpZero).build();
     }
-    
+
     protected GetDamageResult getAttackDamage(BattleActor mainActor, BattleActor target) {
         double damageRate = 1.0; // 통상공격 배율 1.0
         Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
@@ -66,7 +71,7 @@ public class DamageLogic {
         damage = applyDamageFix(targetStatusMap, damage);
         List<Double> additionalDamages = applyAdditionalDamage(mainActorStatusMap, damage);
 
-        // 타수
+        // 통상공격 특수 - 타수
         Double doubleAttackRate = mainActor.getDoubleAttackRate();
         Double tripleAttackRate = mainActor.getTripleAttackRate();
         int hitCount = Math.random() < doubleAttackRate ? 2 : 1;
@@ -286,6 +291,7 @@ public class DamageLogic {
     /**
      * 본처리 - 받는 데미지 고정 적용
      * 공격력 상승, 공격력 업 보다 이전에 처리.
+     *
      * @param statusEffects
      * @param damage
      * @return
@@ -383,6 +389,7 @@ public class DamageLogic {
     /**
      * 후처리 - 대 데미지 감쇠 적용
      * 제일 마지막에 적용
+     *
      * @return
      */
     protected DamageDto applyExDamageCap(ProcessType type, DamageDto damageDto) {
@@ -424,6 +431,7 @@ public class DamageLogic {
 
     /**
      * 최종처리 - 공격 횟수에 따라 데미지 갯수를 늘리고, 난수를 곱해 최종 resultDamage 완성
+     *
      * @param damageDto
      * @return
      */
@@ -541,7 +549,8 @@ public class DamageLogic {
     }
 
     @Getter
-    @Builder @ToString
+    @Builder
+    @ToString
     protected static class DamageDto {
         private double damage;
         @Builder.Default
