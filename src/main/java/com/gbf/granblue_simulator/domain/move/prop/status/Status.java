@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.Type;
 
 import java.util.ArrayList;
@@ -37,16 +38,18 @@ public class Status {
     @Enumerated(EnumType.STRING)
     private StatusTargetType target;
 
+    private String effectText; // 이펙트에 띄울 텍스트
+    private String statusText; // 스테이터스 창에 띄울 텍스트
+    private Integer duration; // 효과시간
+    @Accessors(fluent = true)
+    private boolean canDispel; // 소거불가 여부
+
     @OneToMany(mappedBy = "status") @Builder.Default
     List<StatusEffect> statusEffects = new ArrayList<>();
 
     @Type(ListArrayType.class)
     @Column(name = "iconSrcs", columnDefinition = "text[]") @Builder.Default
     private List<String> iconSrcs = new ArrayList<>();
-
-    private String effectText; // 이펙트에 띄울 텍스트
-    private String statusText; // 스테이터스 창에 띄울 텍스트
-    private Integer duration; // 효과시간
 
     public void setMove(Move move) {
         this.move = move;

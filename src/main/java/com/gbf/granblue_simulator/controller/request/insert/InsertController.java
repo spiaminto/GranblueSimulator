@@ -42,6 +42,7 @@ public class InsertController {
         log.info("characterInsertRequest: {}", characterInsertRequest);
         Character character = Character.builder()
                 .name(characterInsertRequest.getName())
+                .nameEn(characterInsertRequest.getNameEn())
                 .battlePortraitSrc(characterInsertRequest.getBattlePortraitSrc())
                 .build();
         character = characterRepository.save(character);
@@ -165,6 +166,7 @@ public class InsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
+                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -228,6 +230,7 @@ public class InsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
+                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();

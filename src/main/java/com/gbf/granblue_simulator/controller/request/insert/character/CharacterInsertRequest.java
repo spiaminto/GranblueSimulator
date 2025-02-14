@@ -5,5 +5,6 @@ import lombok.Data;
 @Data
 public class CharacterInsertRequest {
     private String name;
+    private String nameEn;
     private String battlePortraitSrc;
 }

@@ -23,7 +23,7 @@ public class Actor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
-    private String nameEn; // 영어명 TODO 인서트
+    private String nameEn; // 영어명
 
     @Builder.Default
     private Integer baseAttackPoint = 1000; // 공력력

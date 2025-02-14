@@ -36,6 +36,10 @@
           display: none;
       }
 
+      .status-input-wrapper-origin {
+          display: none;
+      }
+
       .enemy-input-wrapper {
           background-color: rgba(255, 0, 0, 0.1);
       }
@@ -62,6 +66,37 @@
           // 상태 =================
           let characterId = null;
           // 상태 =================
+
+// 스테이터스 복사 및 추가
+          $('.status-input-wrapper-origin')
+          $('.charge-attack-input-wrapper .status-input-wrapper').each(function (index, element) {
+              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
+              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
+              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']')); // name = statues[0].type 의 '[0]' 을 '[index]' 로 수정
+              $(this).append($('.status-input-wrapper-origin').clone()
+                  .find('input, textarea').each(function (index, element) {
+                  $(element).attr('name', changedAttrs[index]);
+              }).end().html())
+          })
+          $('.ability-input-wrapper .status-input-wrapper').each(function (index, element) {
+              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
+              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
+              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']'));
+              $(this).append($('.status-input-wrapper-origin').clone()
+                  .find('input, textarea').each(function (index, element) {
+                      $(element).attr('name', changedAttrs[index]);
+                  }).end().html())
+          })
+
+// src 에 이름적용
+          $('.apply-name-button').on('click', function () {
+              let nameEnVal = $("input[name='nameEn']").val();
+              $('input, textareat').each(function (index, element) {
+                  if (element.name.includes('ideo') || element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes('udio')) {
+                      element.value = element.value + nameEnVal + '/';
+                  }
+              })
+          })
 
 // placeholder
           $('input, textarea').each(function (index, element) {
@@ -149,6 +184,10 @@
   <form id="enemyInputForm">
     <div>enemy.name</div>
     <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>영문명 Actor.nameEn</div>
+    <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
+    <button type="button" class="apply-name-button btn btn-primary">이름 적용</button>
+
     <div>enemy.backgroundImageSrc</div>
     <input class="form-control mb-2" type="text" name="backgroundImageSrc" placeholder="">
     <div>enemy.hpTriggers {100, 90, 80, ...}</div>
@@ -309,24 +348,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status2</h3>
@@ -335,24 +356,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[1].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[1].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[1].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[1].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[1].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[1].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[1].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[1].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status3</h3>
@@ -361,24 +364,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[2].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[2].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[2].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[2].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[2].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[2].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[2].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[2].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status4</h3>
@@ -387,24 +372,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[3].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[3].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[3].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[3].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[3].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[3].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[3].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[3].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status5</h3>
@@ -413,24 +380,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[4].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[4].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[4].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[4].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[4].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[4].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[4].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[4].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status6</h3>
@@ -439,24 +388,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[5].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[5].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[5].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[5].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[5].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[5].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[5].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[5].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status7</h3>
@@ -465,24 +396,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[6].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값)</div>
-      <input class="form-control mb-2" type="text" name="statuses[6].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[6].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[6].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[6].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[6].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[6].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[6iconSrcs" placeholder=""></textarea>
     </div>
 
     <button type="button" class="btn btn-primary charge-attack-submit-button">오의</button>
@@ -493,7 +406,7 @@
 <p> 적의 서포트 어빌리티는 고유버프 및 기믹을 구현하기 위한 Move 이기 때문에 필요한 부분만 작성하면됨</p>
 <p> 현재 구현목적 : 배틀 시작시 스테이터스 부여 (스테이터스가 Move 에 종속되있어서 어쩔수 없이 Move  에 저장하고 발동시켜야됨) </p>
 
-<div class="ability-input-wrapper-1">
+<div class="ability-input-wrapper">
   <form id="abilityForm">
     <div>적 id</div>
     <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
@@ -533,24 +446,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status2</h3>
@@ -559,24 +454,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[1].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[1].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[1].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[1].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[1].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[1].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[1].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[1].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status3</h3>
@@ -585,24 +462,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[2].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[2].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[2].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[2].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[2].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[2].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[2].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[2].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status4</h3>
@@ -611,24 +470,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[3].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[3].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[3].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[3].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[3].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[3].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[3].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[3].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status5</h3>
@@ -637,24 +478,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[4].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[4].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[4].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[4].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[4].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[4].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[4].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[4].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status6</h3>
@@ -663,24 +486,6 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[5].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[5].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[5].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[5].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[5].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[5].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[5].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[5].iconSrcs" placeholder=""></textarea>
     </div>
 
     <h3>status7</h3>
@@ -689,28 +494,35 @@
       <input class="form-check-input status-input-check" type="checkbox" value="">
     </div>
     <div class="status-input-wrapper">
-      <div>type 타입</div>
-      <input class="form-control mb-2" type="text" name="statuses[6].type" placeholder="">
-      <div>effectText 이펙트 텍스트 (name 동일값) </div>
-      <input class="form-control mb-2" type="text" name="statuses[6].effectText" placeholder="">
-      <div>maxLevel 최대레벨, 없으면 0</div>
-      <input class="form-control mb-2" type="number" name="statuses[6].maxLevel" placeholder="">
-      <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
-      <input class="form-control mb-2" type="text" name="statuses[6].targetType" placeholder="">
-      <div>statusText 스테이터스 텍스트</div>
-      <input class="form-control mb-2" type="text" name="statuses[6].statusText" placeholder="">
-      <div>duration 효과시간</div>
-      <input class="form-control mb-2" type="number" name="statuses[6].duration" placeholder="">
-
-      <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-      <textarea rows="3" class="form-control mb-2" type="text" name="statuses[6].statusEffects" placeholder=""></textarea>
-
-      <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분 </div>
-      <textarea rows="10" class="form-control mb-2" type="text" name="statuses[6].iconSrcs" placeholder=""></textarea>
     </div>
 
     <button type="button" class="btn btn-primary ability-submit-button">어빌리티</button>
   </form>
+
+  <!-- 스테이터스 추가 원본 -->
+  <div class="status-input-wrapper-origin">
+    <div>type 타입</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
+    <div>effectText 이펙트 텍스트 (name 동일값)</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
+    <div>maxLevel 최대레벨, 없으면 0</div>
+    <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
+    <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+    <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
+    <div>statusText 스테이터스 텍스트</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
+    <div>duration 효과시간</div>
+    <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
+    <div>canDispel 디스펠 가능여부, true or false</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].canDispel" placeholder="">
+
+
+    <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+    <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
+
+    <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+    <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
+  </div>
 </div>
 
 

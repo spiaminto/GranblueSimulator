@@ -25,6 +25,7 @@ public class ChargeAttackRequest {
         private String effectText;
         private String statusText;
         private Integer duration;
+        private String canDispel;
         private String iconSrcs; // 엔터로 구분되는 src 들
 
         private String statusEffects; // type, value \n

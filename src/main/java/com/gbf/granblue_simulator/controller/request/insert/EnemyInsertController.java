@@ -46,6 +46,7 @@ public class EnemyInsertController {
 
         Enemy enemy = Enemy.builder()
                 .name(request.getName())
+                .nameEn(request.getNameEn())
                 .backgroundImageSrc(request.getBackgroundImageSrc())
                 .hpTriggers(Arrays.stream(request.getHpTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
                 .bgmTriggers(Arrays.stream(request.getBgmTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
@@ -240,6 +241,7 @@ public class EnemyInsertController {
                     .maxLevel(status.getMaxLevel())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
+                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -304,6 +306,7 @@ public class EnemyInsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
+                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();

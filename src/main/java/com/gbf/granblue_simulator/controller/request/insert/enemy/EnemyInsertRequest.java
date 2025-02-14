@@ -6,6 +6,7 @@ import lombok.Data;
 public class EnemyInsertRequest {
 
     private String name;
+    private String nameEn;
     private String backgroundImageSrc;
     private String hpTriggers; // "100, 90, 80 ... "
     private String bgmTriggers; // "100, 90, 80 ... "
