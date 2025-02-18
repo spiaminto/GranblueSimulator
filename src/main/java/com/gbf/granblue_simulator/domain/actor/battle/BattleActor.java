@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.logic.actor.ActorLogic;
+import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -96,7 +96,7 @@ public class BattleActor {
     private Integer thirdAbilityUseCount;
 
     @Transient
-    private ActorLogic actorLogic;
+    private CharacterLogic characterLogic;
 
     @OneToMany(mappedBy = "battleActor") @MapKey(name = "type")
     private List<BattleStatus> battleStatuses = new ArrayList<>();
@@ -134,7 +134,23 @@ public class BattleActor {
         this.amplifyDamageRate = amplifyDamageRate;
     }
 
-    public static boolean isEnemy(BattleActor battleActor) {
-        return "BattleEnemy".equals(battleActor.getdType());
+    public boolean isEnemy() {
+        return "BattleEnemy".equals(this.dtype);
+    }
+
+    /**
+     * 적의 경우 무기공인항 및 무기수호항을 0 으로 초기화
+     */
+    public void clearWeaponRate() {
+        this.atkWeaponRate = 0.0;
+        this.hpWeaponRate = 0.0;
+    }
+
+    /**
+     * 현재 체력 비율을 NN% 로 반환
+     * @return
+     */
+    public Integer getHpRateInteger() {
+     return (int) (((double) hp / maxHp) * 100);
     }
 }

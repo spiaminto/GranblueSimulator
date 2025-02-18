@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.Comparator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,7 +31,7 @@ public class StatusUtil {
      */
     public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(Move move) {
         return move.getStatuses().stream()
-                .flatMap(status -> status.getStatusEffects().stream())
+                .flatMap(status -> status.getStatusEffects().values().stream())
                 .collect(Collectors.groupingBy(
                         StatusEffect::getType,
                         mapping(Function.identity(), collectingAndThen(
@@ -74,7 +75,7 @@ public class StatusUtil {
 
     protected Stream<StatusEffect> getFlatStatusEffectStream(BattleActor battleActor) {
         return battleActor.getBattleStatuses().stream()
-                .map(battleStatus -> battleStatus.getStatus().getStatusEffects().stream()
+                .map(battleStatus -> battleStatus.getStatus().getStatusEffects().values().stream()
                         .map(statusEffect -> statusEffect.setCurrentLevel(battleStatus.getLevel())).toList())
                 .flatMap(List::stream);
     }
@@ -89,6 +90,30 @@ public class StatusUtil {
     public boolean hasUniqueStatus(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .anyMatch(battleStatus -> name.equals(battleStatus.getStatus().getName()));
+    }
+
+    /**
+     * 해당 name 을 가진 BattleStatus 반환, findfirst, contains
+     * @param battleActor
+     * @param name
+     * @return
+     */
+    public Optional<BattleStatus> getUniqueStatus(BattleActor battleActor, String name) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
+                .findFirst();
+    }
+
+    /**
+     * 해당 name 을 가진 List<BattleStatus> 반환, contains
+     * @param battleActor
+     * @param name
+     * @return
+     */
+    public List<BattleStatus> getUniqueStatuses(BattleActor battleActor, String name) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
+                .toList();
     }
 
     /**
@@ -114,11 +139,34 @@ public class StatusUtil {
      * @return Optional<BattleStatus>
      */
     public Optional<BattleStatus> getSameEffectTypeStatus(BattleActor battleActor, Status status) {
+        if (status.getStatusEffects().isEmpty()) return Optional.empty();
         if (status.getStatusEffects().size() > 1) log.warn("Status 가 두개이상의 StatusEffect 로 구성됨, Status = {}", status);
         return battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().getFirst().getType() == status.getStatusEffects().getFirst().getType())
-                .findFirst();
+                .filter(battleStatus -> Objects.nonNull(
+                        battleStatus.getStatus().getStatusEffects()
+                                .get(status.getStatusEffects().keySet().iterator().next()))
+                ).findFirst();
     }
+
+
+    /**
+     * 모든 partyMembers 를 받아 StatusEffectType 이 같은것중 우선적용될것을 반환한다.
+     * @param battleActors 모든 파티원 (partyMembers)
+     * @param statusEffectType
+     * @return StatusEffectType 이 같은것중 적용 우선순위가 가장 높은 Optional<BattleStatus>
+     */
+    public Optional<BattleStatus> getEffectiveCoveringEffect(List<BattleActor> battleActors, StatusEffectType statusEffectType) {
+        return battleActors.stream()
+                .map(BattleActor::getBattleStatuses)
+                .flatMap(List::stream)
+                .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().containsKey(statusEffectType))
+                .max(Comparator
+                        .comparing((BattleStatus battleStatus) -> battleStatus.getStatus().getStatusEffects().get(statusEffectType).getValue()) // StatusEffect.value 높은쪽
+                        .thenComparing(BattleStatus::getCreatedAt))// BattleStatus.createdAt 가 더 최근인쪽
+                ;
+
+    }
+
 
     /**
      * Status 의 StatusEffect 의 값 반환.
@@ -131,7 +179,7 @@ public class StatusUtil {
         if (status.getStatusEffects().size() > 1) {
             log.warn("statusEffect 가 두개 이상입니다. status = {}", status);
         }
-        return status.getStatusEffects().getFirst().getValue();
+        return status.getStatusEffects().entrySet().iterator().next().getValue().getValue();
     }
 
     /**

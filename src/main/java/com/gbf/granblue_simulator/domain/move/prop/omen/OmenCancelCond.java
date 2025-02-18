@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
+@EqualsAndHashCode @ToString(exclude = "omen")
 public class OmenCancelCond {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

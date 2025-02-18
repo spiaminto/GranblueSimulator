@@ -8,6 +8,7 @@ import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +53,8 @@ public class Move {
     private Integer hitCount; // 데미지 횟수
     
     // 오의
-    //...
+    @Accessors(fluent = true)
+    private boolean isAllTarget; // 적 전체 대상 공격인지 (보스용)
 
     // set character
     public void setCharacter(Actor actor) {

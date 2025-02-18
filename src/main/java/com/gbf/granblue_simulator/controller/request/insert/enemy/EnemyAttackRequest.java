@@ -8,6 +8,12 @@ public class EnemyAttackRequest {
     private Long enemyId;
 
     // move - attack
-    private String attackSeAudioSrc;
-    private String attackEffectVideoSrc;
+    private String singleAttackSeAudioSrc;
+    private String singleAttackEffectVideoSrc;
+
+    private String doubleAttackSeAudioSrc;
+    private String doubleAttackEffectVideoSrc;
+
+    private String tripleAttackSeAudioSrc;
+    private String tripleAttackEffectVideoSrc;
 }

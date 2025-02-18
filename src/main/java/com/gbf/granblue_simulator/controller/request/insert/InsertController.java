@@ -4,7 +4,6 @@ import com.gbf.granblue_simulator.controller.request.insert.character.AbilityReq
 import com.gbf.granblue_simulator.controller.request.insert.character.CharacterInsertRequest;
 import com.gbf.granblue_simulator.controller.request.insert.character.ChargeAttackRequest;
 import com.gbf.granblue_simulator.controller.request.insert.character.IdleAndAttackRequest;
-import com.gbf.granblue_simulator.controller.request.insert.enemy.EnemyAbilityRequest;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -166,7 +165,7 @@ public class InsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
-                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -230,7 +229,7 @@ public class InsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
-                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();

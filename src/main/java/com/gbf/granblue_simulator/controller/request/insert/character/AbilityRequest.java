@@ -36,7 +36,7 @@ public class AbilityRequest {
         private String effectText;
         private String statusText;
         private Integer duration;
-        private String canDispel;
+        private String removable;
         private String iconSrcs;
 
         private String statusEffects; // type, value \n

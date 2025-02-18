@@ -12,9 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.*;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -57,9 +56,6 @@ public class SetStatusLogic {
      * @param move
      */
     public void setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
-        mainActor.getActor().getMoves();
-        enemy.getActor().getMoves();
-        partyMembers.forEach(partyMember -> partyMember.getActor().getMoves());
         move.getStatuses().forEach(status -> {
             switch (status.getTarget()) {
                 case SELF -> applyStatusToActor(mainActor, status);
@@ -76,6 +72,33 @@ public class SetStatusLogic {
         // 스텟 재계산
         partyMembers.forEach(calcStatusLogic::syncStatus);
         calcStatusLogic.syncStatus(enemy);
+    }
+
+    /**
+     * 파라미터로 넘긴 status 만 적용
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @param statuses
+     */
+    public void setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, List<Status> statuses) {
+        statuses.forEach(status -> {
+            switch (status.getTarget()) {
+                case SELF -> applyStatusToActor(mainActor, status);
+                case ENEMY -> applyStatusToActor(enemy, status);
+                case PARTY_MEMBERS -> partyMembers.forEach(partyMember -> applyStatusToActor(partyMember, status));
+                case ALL_PLAYERS -> {
+                } // 미구현
+                case NEXT_CHARACTER -> {
+                } // 미구현
+                default -> throw new IllegalArgumentException("Invalid target type: " + status.getTarget());
+            }
+        });
+
+        // 스텟 재계산
+        partyMembers.forEach(calcStatusLogic::syncStatus);
+        calcStatusLogic.syncStatus(enemy);
+
     }
 
     /**
@@ -101,26 +124,20 @@ public class SetStatusLogic {
      *
      * @param
      */
-    protected void applyStatusToActor(BattleActor battleActor, Status status) {
-//        log.info("barrier = {}", battleActor);
-        if (battleActor == null) {
-            log.error("BattleActor is null, status = {}", status);
-            return;
-        }
-//        battleActors.forEach(battleActor -> log.info("log = {}", battleActor));
+    protected Status applyStatusToActor(BattleActor battleActor, Status status) {
         if (statusValidFilter(status, battleActor)) {
-            List<BattleStatus> battleStatuses = new ArrayList<>();
-            battleStatuses.add(BattleStatus.builder()
+            BattleStatus battleStatus = BattleStatus.builder()
                     .battleActor(battleActor)
                     .duration(status.getDuration())
                     .status(status)
                     .level(status.getMaxLevel() > 0 ? 1 : 0) // maxLevel 이 존재하는 레벨제의 경우 시작레벨 1
                     .iconSrc(status.getIconSrcs().isEmpty() ? "" : status.getIconSrcs().getFirst())
                     .build()
-                    .setBattleActor(battleActor));
-            // 만든 배틀스테이터스 모두 저장
-//        battleStatuses.forEach(s -> log.info("log = {}", s.getBattleActor().getId()));
-            battleStatusRepository.saveAll(battleStatuses);
+                    .setBattleActor(battleActor);
+            battleStatusRepository.save(battleStatus);
+            return status;
+        }  else {
+            return null;
         }
     }
 
@@ -134,7 +151,7 @@ public class SetStatusLogic {
      */
     protected boolean statusValidFilter(Status status, BattleActor battleActor) {
         boolean isStatusValid = true;
-        StatusEffect firstStatusEffect = status.getStatusEffects().getFirst();
+        StatusEffect firstStatusEffect = status.getStatusEffects().entrySet().iterator().next().getValue();
         
         // 오의 게이지 업 -> 반드시 하나의 StatusEffect 로 구성됨
         if (firstStatusEffect.getType() == StatusEffectType.ACT_CHARGE_GAUGE_UP) {
@@ -158,8 +175,8 @@ public class SetStatusLogic {
             }).orElseGet(() -> true); // 동일한 battleStatus 없음
         }
 
-        // 덮어쓰는 효과 (공존불가 이펙트)
-        if (firstStatusEffect.getType().isCoveringEffect()) { // -> 반드시 하나의 Status 를 차지하는 버프여야 제대로 적용됨. StatusEffect 두개이상인 경우 로직문제발생
+        // 덮어쓰는 효과 (공존불가 이펙트, 레벨제면 안됨)
+        if (status.getMaxLevel() < 1 && firstStatusEffect.getType().isCoveringEffect()) { // -> 반드시 하나의 Status 를 차지하는 버프여야 제대로 적용됨. StatusEffect 두개이상인 경우 로직문제발생
             // 덮어쓰는 효과인 경우
             isStatusValid = statusUtil.getSameEffectTypeStatus(battleActor, status).map(battleStatus -> {
                 boolean isValid = true;

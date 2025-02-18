@@ -4,8 +4,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
-import com.gbf.granblue_simulator.logic.actor.ActorLogic;
-import com.gbf.granblue_simulator.logic.actor.ActorLogicResultMapper;
+import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.*;
@@ -22,19 +21,20 @@ import java.util.List;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-public class YachimaLogic implements ActorLogic {
+public class YachimaLogic implements CharacterLogic {
     private final DamageLogic damageLogic;
     private final SetStatusLogic setStatusLogic;
     private final StatusUtil statusUtil;
     private final ChargeGaugeLogic chargeGaugeLogic;
-    private final ActorLogicResultMapper resultMapper;
+    private final CharacterLogicResultMapper resultMapper;
+    private final ActorLogicUtil actorLogicUtil;
 
 
     @Override
     public ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         // 데미지
-        DamageLogicResult damageLogicResult = damageLogic.processAttack(mainActor, enemy);
-        Move attackMove = mainActor.getActor().getMoves().get(damageLogicResult.getNormalAttackType());
+        Move attackMove = actorLogicUtil.determineAttackMove(mainActor);
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, attackMove);
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, attackMove.getType());
 
@@ -49,7 +49,7 @@ public class YachimaLogic implements ActorLogic {
         // 데미지 
         int alphaLevel = statusUtil.getUniqueStatusLevel(mainActor, "알파");
         int hitCount = firstAbility.getHitCount() + alphaLevel;
-        DamageLogicResult damageLogicResult = damageLogic.processAbilityAttack(mainActor, enemy, firstAbility.getDamageRate(), hitCount);
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, firstAbility);
         // 스테이터스 적용
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstAbility);
         // 쿨타임 적용
@@ -97,9 +97,9 @@ public class YachimaLogic implements ActorLogic {
         DamageLogicResult damageLogicResult = null;
         if (statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크")) {
             // 레코데이션 싱크중 배율 극대
-            damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, 12.5);
+            damageLogicResult = damageLogic.process(mainActor, enemy, chargeAttack);
         } else {
-            damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
+            damageLogicResult = damageLogic.process(mainActor, enemy, chargeAttack);
         }
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());

@@ -48,7 +48,7 @@ public class Actor {
     private Double baseCriticalDamageRate = 0.5; // 크리티컬 데미지 증가율
 
     @Builder.Default
-    private Integer maxChargeGauge = 100; // 최대 오의 게이지
+    private Integer maxChargeGauge = 100; // 최대 오의 게이지 or 차지 턴
     @Builder.Default
     private Double baseChargeGaugeIncreaseRate = 0.0; // 오의 게이지 증가율
 

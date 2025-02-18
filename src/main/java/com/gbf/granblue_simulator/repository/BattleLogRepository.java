@@ -10,4 +10,6 @@ import java.util.List;
 public interface BattleLogRepository extends JpaRepository<BattleLog, Long> {
 
     List<BattleLog> findAllByRoomIdAndUserId(Long roomId, Long userId);
+
+    List<BattleLog> findAllByRoomIdAndUserIdAndMainActorIdNot(Long roomId, Long userId, Long actorId);
 }

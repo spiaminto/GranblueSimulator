@@ -15,6 +15,4 @@ public class DamageLogicResult {
     @Builder.Default
     private final List<List<Integer>> additionalDamages = new ArrayList<>();
     private final boolean isEnemyHpZero;
-
-    private final MoveType normalAttackType;
 }

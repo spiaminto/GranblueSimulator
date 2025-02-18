@@ -107,7 +107,7 @@ public enum StatusEffectType {
 
     // 방어 특수
     IMMORTAL, // 불사신 효과 [버틸 횟수 1]
-    SUBSTITUTE, // 감싸기 [우선순위 1 or 2]
+    SUBSTITUTE, // 감싸기 [우선순위 1 or 2] -> value 가 클수록 우선순위 높음
 
     // 체력
     MAX_HP_DOWN, // 최대 체력 감소 [감소배율]
@@ -150,7 +150,8 @@ public enum StatusEffectType {
 
     /**
      * 효과를 합산하지 않고 덮어씌우는 이펙트의 경우 true 로 반환
-     * 추격
+     * 추격, 베리어, 감싸기
+     * value 가 큰쪽이 우선되며, value 다음으로 duration 이 긴쪽이 우선된다.
      * @return 효과를 덮어씌우는 경우 true
      */
     public boolean isCoveringEffect() {
@@ -159,7 +160,8 @@ public enum StatusEffectType {
                 this == ADDITIONAL_DAMAGE_S ||
                 this == ADDITIONAL_DAMAGE_U ||
                 this == ADDITIONAL_DAMAGE_W ||
-                this == BARRIER
+                this == BARRIER ||
+                this == SUBSTITUTE
                 ;
     }
 

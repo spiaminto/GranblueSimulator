@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.logic.actor;
+package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import java.util.List;
 
 
-public interface ActorLogic {
+public interface CharacterLogic {
 
     ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 

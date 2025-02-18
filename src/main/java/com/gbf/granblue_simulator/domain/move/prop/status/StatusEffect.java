@@ -27,7 +27,7 @@ public class StatusEffect {
 
     public void setStatus(Status status) {
         this.status = status;
-        status.getStatusEffects().add(this);
+        status.getStatusEffects().put(this.type, this);
     }
 
     public StatusEffect setCurrentLevel(Integer level) {

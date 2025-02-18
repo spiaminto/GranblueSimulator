@@ -3,6 +3,9 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 
 @Entity
@@ -23,8 +26,11 @@ public class BattleStatus {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "battle_actor_id")
     private BattleActor battleActor;
 
-    @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "status_id")
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "status_id")
     private Status status;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
 
     public BattleStatus setBattleActor(BattleActor battleActor) {
         this.battleActor = battleActor;

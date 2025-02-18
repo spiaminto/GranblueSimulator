@@ -24,7 +24,7 @@ public class Omen {
     private OmenType omenType;
     
     private String info; // 전조 설명
-    private Integer triggerHp; // HP 트리거일시, %
+    private Integer triggerHp; // HP트리거와 차지어택이 의 경우 현재 ENEMY 의 HP 가 이 값보다 작은경우 발동
 
     @OneToMany(mappedBy = "omen")
     private List<OmenCancelCond> omenCancelConds = new ArrayList<>();

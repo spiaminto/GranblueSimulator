@@ -7,8 +7,7 @@ import lombok.*;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.Type;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Entity
 @Builder
@@ -42,10 +41,10 @@ public class Status {
     private String statusText; // 스테이터스 창에 띄울 텍스트
     private Integer duration; // 효과시간
     @Accessors(fluent = true)
-    private boolean canDispel; // 소거불가 여부
+    private boolean removable; // 소거불가, 해제불가, 회복불가
 
-    @OneToMany(mappedBy = "status") @Builder.Default
-    List<StatusEffect> statusEffects = new ArrayList<>();
+    @OneToMany(mappedBy = "status") @MapKey(name = "type") @Builder.Default
+    Map<StatusEffectType, StatusEffect> statusEffects = new LinkedHashMap<>();
 
     @Type(ListArrayType.class)
     @Column(name = "iconSrcs", columnDefinition = "text[]") @Builder.Default

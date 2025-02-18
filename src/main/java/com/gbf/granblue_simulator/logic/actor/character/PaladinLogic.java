@@ -3,10 +3,8 @@ package com.gbf.granblue_simulator.logic.actor.character;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.logic.actor.ActorLogic;
-import com.gbf.granblue_simulator.logic.actor.ActorLogicResultMapper;
+import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.common.CalcStatusLogic;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.logic.common.DamageLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
@@ -23,19 +21,20 @@ import java.util.Map;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-public class PaladinLogic implements ActorLogic {
+public class PaladinLogic implements CharacterLogic {
 
     private final SetStatusLogic setStatusLogic;
     private final DamageLogic damageLogic;
     private final ChargeGaugeLogic chargeGaugeLogic;
-    private final ActorLogicResultMapper resultMapper;
+    private final CharacterLogicResultMapper resultMapper;
+    private final ActorLogicUtil actorLogicUtil;
 
 
     @Override
     public ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         // 데미지
-        DamageLogicResult damageLogicResult = damageLogic.processAttack(mainActor, enemy);
-        Move attackMove = mainActor.getActor().getMoves().get(damageLogicResult.getNormalAttackType());
+        Move attackMove = actorLogicUtil.determineAttackMove(mainActor);
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, attackMove);
 
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, attackMove.getType());
@@ -83,7 +82,7 @@ public class PaladinLogic implements ActorLogic {
     public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
         // 데미지 계싼
-        DamageLogicResult damageLogicResult = damageLogic.processChargeAttack(mainActor, enemy, chargeAttack.getDamageRate());
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, chargeAttack);
         // 스테이터스 적용
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, chargeAttack);
         // 오의게이지
@@ -129,9 +128,6 @@ public class PaladinLogic implements ActorLogic {
         Map<MoveType, Move> moves = mainActor.getActor().getMoves();
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, moves.get(MoveType.FIRST_SUPPORT_ABILITY));
         setStatusLogic.setStatus(mainActor, enemy, partyMembers, moves.get(MoveType.SECOND_SUPPORT_ABILITY));
-
-        //TODO 테스트를 위해 현재 디아스포라는 로직없이 여기서 init 함
-        setStatusLogic.initStatus(enemy);
         return null;
     }
 

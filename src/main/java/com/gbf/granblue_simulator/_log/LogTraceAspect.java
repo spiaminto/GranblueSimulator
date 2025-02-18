@@ -9,14 +9,19 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
 @Slf4j
-@Aspect @Component
+@Aspect
+//@Component
 public class LogTraceAspect {
 
     private final LogTrace logTrace;
+
+    @Value("${log.trace.active}")
+    private boolean activated;
 
     // Pointcut 표현식 분리
     @Pointcut("execution(* com.gbf.granblue_simulator.controller..*(..))")
@@ -36,6 +41,8 @@ public class LogTraceAspect {
 
     @Around("(allLogic() && ignoreHealthCheck())")
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
+        if (!activated) return null;
+
         TraceStatus status = null;
         Object[] params = null;
         try {

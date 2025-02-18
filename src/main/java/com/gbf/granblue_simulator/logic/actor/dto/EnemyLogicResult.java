@@ -12,7 +12,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class ActorLogicResult {
+public class EnemyLogicResult {
 
     // 필수
     private Long mainBattleActorId;
@@ -29,13 +29,10 @@ public class ActorLogicResult {
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>(); // order by BattleActor.currentOrder
     private Integer enemyChargeGauge;
-    private Integer omenValue;
 
     // 필요한 경우 사용
     @Builder.Default
-    private List<Long> enemyChargeAttackTargetIds = new ArrayList<>(); // 적의 특수기 공격타겟
-    @Builder.Default
-    private List<String> enemyChargeAttackTargetNames = new ArrayList<>(); // 적의 특수기 공격타겟 (디버깅용)
+    private List<Long> EnemyChargeAttackTargetIds = new ArrayList<>(); // 적의 특수기 공격타겟
 
     @Accessors(fluent = true)
     private boolean hasNextMove; // 후행동

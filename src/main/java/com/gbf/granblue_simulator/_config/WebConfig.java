@@ -1,12 +1,18 @@
 package com.gbf.granblue_simulator._config;
 
+import com.gbf.granblue_simulator._log.LogTraceAspect;
+import com.gbf.granblue_simulator._log.trace.LogTrace;
 import com.gbf.granblue_simulator.interceptor.HttpLogInterceptor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
     private String resourceRequestUrl = "/static/**"; // 브라우저에서 이미지 요청 url

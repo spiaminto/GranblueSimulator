@@ -26,7 +26,7 @@ public class EnemyChargeAttackRequest {
         private String targetType;
         private String statusText;
         private Integer duration;
-        private String canDispel;
+        private String removable;
         private String iconSrcs; // 엔터로 구분되는 src 들
 
 

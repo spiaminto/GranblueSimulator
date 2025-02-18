@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.logic.actor;
+package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -11,7 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @Component
-public class ActorLogicResultMapper {
+public class CharacterLogicResultMapper {
     public ActorLogicResult toResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
         return toResult(mainActor, enemy, partyMembers, move, null);
     }

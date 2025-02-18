@@ -66,3 +66,11 @@
 .motion-attack:not(.hidden), .motion-ability:not(.hidden), .motion-charge-attack:not(.hidden) {
     right: 0;
 }
+
+
+.ability-full-size {
+    width: 100%;
+    top: 5%;
+    left: 0;
+    z-index: 0;
+}

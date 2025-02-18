@@ -1,6 +1,5 @@
 package com.gbf.granblue_simulator.controller.request.insert;
 
-import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
 import com.gbf.granblue_simulator.controller.request.insert.enemy.*;
 import com.gbf.granblue_simulator.controller.response.EnemyInsertResponse;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
@@ -91,19 +90,51 @@ public class EnemyInsertController {
     public EnemyInsertResponse insertAttack(@RequestBody EnemyAttackRequest request) {
         log.info("enemyAttackRequest: {}", request);
         Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move attack = Move.builder()
-                .name("attack")
-                .type(MoveType.ENEMY_ATTACK)
-                .info("attack")
+        Move singleAttack = Move.builder()
+                .name("single attack")
+                .type(MoveType.SINGLE_ATTACK)
+                .info("single attack")
+                .hitCount(1)
                 .actor(enemy)
                 .build();
-        moveRepository.save(attack);
-        Asset attackAsset = Asset.builder()
-                .effectVideoSrc(request.getAttackEffectVideoSrc())
-                .seAudioSrc(request.getAttackSeAudioSrc())
-                .move(attack)
+        moveRepository.save(singleAttack);
+        Asset singleAttackAsset = Asset.builder()
+                .effectVideoSrc(request.getSingleAttackEffectVideoSrc())
+                .seAudioSrc(request.getSingleAttackSeAudioSrc())
+                .move(singleAttack)
                 .build();
-        assetRepository.save(attackAsset);
+        assetRepository.save(singleAttackAsset);
+
+        Move doubleAttack = Move.builder()
+                .name("double attack")
+                .type(MoveType.DOUBLE_ATTACK)
+                .info("double attack")
+                .hitCount(2)
+                .actor(enemy)
+                .build();
+        moveRepository.save(doubleAttack);
+        Asset doubleAttackAsset = Asset.builder()
+                .effectVideoSrc(request.getDoubleAttackEffectVideoSrc())
+                .seAudioSrc(request.getDoubleAttackSeAudioSrc())
+                .move(doubleAttack)
+                .build();
+        assetRepository.save(doubleAttackAsset);
+
+        Move tripleAttack = Move.builder()
+                .name("triple attack")
+                .type(MoveType.TRIPLE_ATTACK)
+                .info("triple attack")
+                .hitCount(3)
+                .actor(enemy)
+                .build();
+        moveRepository.save(tripleAttack);
+        Asset tripleAttackAsset = Asset.builder()
+                .effectVideoSrc(request.getTripleAttackEffectVideoSrc())
+                .seAudioSrc(request.getTripleAttackSeAudioSrc())
+                .move(tripleAttack)
+                .build();
+        assetRepository.save(tripleAttackAsset);
+
         return EnemyInsertResponse.ok(enemy.getId());
     }
 
@@ -241,7 +272,7 @@ public class EnemyInsertController {
                     .maxLevel(status.getMaxLevel())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
-                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -306,7 +337,7 @@ public class EnemyInsertController {
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
-                    .canDispel(Boolean.parseBoolean(status.getCanDispel()))
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();
