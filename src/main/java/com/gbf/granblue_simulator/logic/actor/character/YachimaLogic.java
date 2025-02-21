@@ -87,12 +87,12 @@ public class YachimaLogic implements CharacterLogic {
         // TODO 통상공격 해야된다고 리턴해줘야됨.
         StatusTargetType afterMoveTarget = hasUniqueStatus ? StatusTargetType.PARTY_MEMBERS : StatusTargetType.SELF;
         return resultMapper.toResult(mainActor, enemy, partyMembers, thirdAbility, null,
-                NextMoveRequest.of(true, MoveType.NORMAL_ATTACK, afterMoveTarget));
+                NextMoveRequest.of(true, MoveType.ATTACK, afterMoveTarget));
     }
 
     @Override // 데미지, 1어빌발동, 레코데이션 싱크시 오의배율 극대로 변화
     public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
+        Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT);
         // 데미지
         DamageLogicResult damageLogicResult = null;
         if (statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크")) {

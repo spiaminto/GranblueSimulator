@@ -55,7 +55,7 @@ public class EnemyInsertController {
 
         Move dead = Move.builder()
                 .name("dead")
-                .type(MoveType.ENEMY_DEAD)
+                .type(MoveType.DEAD)
                 .info("dead")
                 .actor(enemy)
                 .build();
@@ -70,7 +70,7 @@ public class EnemyInsertController {
 
         Move phaseChange = Move.builder()
                 .name("phase change")
-                .type(MoveType.ENEMY_PHASE_CHANGE)
+                .type(MoveType.PHASE_CHANGE)
                 .info("phase change")
                 .actor(enemy)
                 .build();

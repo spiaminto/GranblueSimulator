@@ -85,8 +85,9 @@ public class DiasporaLogic implements EnemyLogic {
     @Override
     public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy enemy = (BattleEnemy) mainActor;
-        Omen omen = enemy.getActor().getMoves().get(enemy.getNextStandbyType()).getOmen();
-        Move chargeAttack = actorLogicUtil.determineEnemyChargeAttack(enemy);
+        Move standByMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
+        Omen omen = standByMove.getOmen();
+        Move chargeAttack = enemy.getActor().getMoves().get(standByMove.getType().getChargeAttackType());
         // 타겟
         List<BattleActor> targets = getTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
         // 데미지
@@ -163,7 +164,7 @@ public class DiasporaLogic implements EnemyLogic {
             Optional<BattleStatus> activatedStatus = activateStatuses.stream().filter(status -> status.getLevel().equals(status.getStatus().getMaxLevel())).findFirst();
             if (activatedStatus.isPresent()) {
                 // 활성 레벨 10 있음
-                enemy.setNextStandbyType(MoveType.ENEMY_STANDBY_D); // 다음 오의 긴급 회복 시스템
+                enemy.setNextStandbyType(MoveType.STANDBY_D); // 다음 오의 긴급 회복 시스템
             } else {
                 // 활성레벨 10 없음
                 List<Integer> damages = otherResult.getDamages();
@@ -172,9 +173,9 @@ public class DiasporaLogic implements EnemyLogic {
                     MoveType otherMoveType = otherResult.getMoveType();
                     Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
                     String activeStatusName = "";
-                    if (otherMoveType.isNormalAttack()) activeStatusName = "알파";
-                    else if (otherMoveType.isAbility()) activeStatusName = "델타";
-                    else if (otherMoveType.isChargeAttack()) activeStatusName = "감마";
+                    if (otherMoveType.getParentType() == MoveType.ATTACK) activeStatusName = "알파";
+                    else if (otherMoveType.getParentType() == MoveType.ABILITY) activeStatusName = "베타";
+                    else if (otherMoveType.getParentType() == MoveType.CHARGE_ATTACK) activeStatusName = "감마";
                     final String statusName = activeStatusName;
                     Optional<BattleStatus> activeStatusOptional = statusUtil.getUniqueStatus(mainActor, activeStatusName);
                     if (activeStatusOptional.isPresent()) {

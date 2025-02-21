@@ -41,6 +41,15 @@ public class BattleLogic {
      -> 적 post process 실행 (여기에 전조 포함) -> 결과반환
      */
 
+    public void startBattle(List<BattleActor> partyMembers, BattleActor enemy) {
+        partyMembers.forEach(partyMember -> {
+            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+            characterLogic.onBattleStart(partyMember, enemy, partyMembers);
+        });
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        enemyLogic.onBattleStart(enemy, partyMembers);
+    }
+
     public List<ActorLogicResult> process(BattleLogicRequest request) {
         BattleActor mainActor = battleActorRepository.findById(request.getMainActorId()).orElseThrow();
         //TODO 정렬필요
@@ -64,12 +73,12 @@ public class BattleLogic {
 
         // moveActor 마다 NORMAL_ATTACK 또는 CHARGE_ATTACK 실행. 그에따른 재행동역시 실행함.
         for (BattleActor moveActor : moveActors) {
-            MoveType moveType = moveActor.getChargeGauge() >= moveActor.getMaxChargeGauge() ? MoveType.CHARGE_ATTACK : MoveType.NORMAL_ATTACK;
+            MoveType moveType = moveActor.getChargeGauge() >= moveActor.getMaxChargeGauge() ? MoveType.CHARGE_ATTACK : MoveType.ATTACK;
             CharacterLogic nextCharacterLogic = characterLogicMap.get(moveActor.getActor().getNameEn() + "Logic");
             ActorLogicResult moveResult = ActorLogicResult.builder().build();
             do {
                 switch (moveType) {
-                    case NORMAL_ATTACK -> moveResult = nextCharacterLogic.attack(moveActor, enemy, partyMembers);
+                    case ATTACK -> moveResult = nextCharacterLogic.attack(moveActor, enemy, partyMembers);
                     case FIRST_ABILITY -> moveResult = nextCharacterLogic.firstAbility(moveActor, enemy, partyMembers);
                     case SECOND_ABILITY ->
                             moveResult = nextCharacterLogic.secondAbility(moveActor, enemy, partyMembers);
@@ -107,13 +116,13 @@ public class BattleLogic {
         ActorLogicResult result = null;
 
         // moveActor 마다 NORMAL_ATTACK 또는 CHARGE_ATTACK 실행. 그에따른 재행동역시 실행함.
-        MoveType moveType = enemy.getNextStandbyType() != null ? MoveType.CHARGE_ATTACK : MoveType.NORMAL_ATTACK;
+        MoveType moveType = enemy.getNextStandbyType() != null ? MoveType.CHARGE_ATTACK : MoveType.ATTACK;
         EnemyLogic enemyLogic = enemyLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
 
         ActorLogicResult moveResult = ActorLogicResult.builder().build();
         do {
             switch (moveType) {
-                case NORMAL_ATTACK -> moveResult = enemyLogic.attack(mainActor, partyMembers);
+                case ATTACK -> moveResult = enemyLogic.attack(mainActor, partyMembers);
                 case CHARGE_ATTACK ->
                         moveResult = enemyLogic.chargeAttack(mainActor, partyMembers); // 재행동류, 오의재발동 버프가 있을시 후행동으로 오의가 발동할 수 있다.
                 case FIRST_SUPPORT_ABILITY -> moveResult = enemyLogic.firstSupportAbility(mainActor, partyMembers);
@@ -180,7 +189,7 @@ public class BattleLogic {
                 ActorLogicResult nextMoveResult = ActorLogicResult.builder().build(); // 후행동 결과저장
                 do { // 후행동의 후행동 처리를 위해 반복 
                     switch (nextMoveType) {
-                        case NORMAL_ATTACK ->
+                        case ATTACK ->
                                 nextMoveResult = nextCharacterLogic.attack(nextMoveActor, enemy, partyMembers);
                         case FIRST_ABILITY ->
                                 nextMoveResult = nextCharacterLogic.firstAbility(nextMoveActor, enemy, partyMembers);
@@ -265,38 +274,4 @@ public class BattleLogic {
 
     }
 
-
-    public void saveBattleLogs(List<ActorLogicResult> logicResults) {
-        List<BattleLog> battleLogs = logicResults.stream().map(
-                logicResult -> {
-                    List<Integer> damages = logicResult.getDamages();
-                    Integer[][] additionalDamages = logicResult.getAdditionalDamages().stream()
-                            .map(additionalDamage -> additionalDamage.toArray(Integer[]::new))
-                            .toArray(Integer[][]::new);
-                    List<Status> statuses = logicResult.getStatusList();
-                    List<String> statusTypes = statuses.stream()
-                            .map(status -> status.getType().name())
-                            .toList();
-                    List<String> statusEffectTypes = statuses.stream()
-                            .map(status -> status.getStatusEffects().keySet().stream()
-                                    .map(Enum::name).toList())
-                            .flatMap(List::stream)
-                            .toList();
-                    BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow();
-
-                    return BattleLog.builder()
-                            .roomId(mainActor.getMember().getRoom().getId())
-                            .userId(mainActor.getMember().getUser().getId())
-                            .moveType(logicResult.getMoveType())
-                            .mainActorId(mainActor.getId())
-                            .hitCount(logicResult.getTotalHitCount())
-                            .damages(damages)
-                            .additionalDamages(additionalDamages)
-                            .statusTypes(statusTypes)
-                            .statusEffectTypes(statusEffectTypes)
-                            .build();
-                }).toList();
-
-        battleLogRepository.saveAll(battleLogs);
-    }
 }

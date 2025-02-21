@@ -23,7 +23,7 @@ public class ChargeGaugeLogic {
     private final Integer baseGaugePointWhenOtherActorChargeAttack = 10; // 다른 캐릭터가 오의쓰면 후열의 캐릭터 오의게이지증가치
 
     /**
-     * 통상공격, 오의사용 후 오의게이지 설정
+     * 캐릭터의 통상공격, 오의사용 후 오의게이지 설정
      *
      * @param mainActor
      * @param moveType
@@ -33,7 +33,7 @@ public class ChargeGaugeLogic {
             case SINGLE_ATTACK -> increaseChargeGauge(mainActor, baseSingleAttackGaugePoint);
             case DOUBLE_ATTACK -> increaseChargeGauge(mainActor, baseDoubleAttackGaugePoint);
             case TRIPLE_ATTACK -> increaseChargeGauge(mainActor, baseTripleAttackGaugePoint);
-            case CHARGE_ATTACK -> {
+            case CHARGE_ATTACK_DEFAULT -> {
                 mainActor.setChargeGauge(0); // 사용자는 초기화
                 partyMembers.stream() // 뒷자리 파티 멤버는 오의 게이지 증가
                         .filter(battleActor -> battleActor.getCurrentOrder() > mainActor.getCurrentOrder())
@@ -45,13 +45,13 @@ public class ChargeGaugeLogic {
     }
 
     /**
-     * 적 통상공격, 오의 후 차지턴 설정
+     * 적의 통상공격, 오의 후 차지턴 설정
      * 적 역시 chargeGauge 필드를 사용. 1, 2, 3... 정수형으로 +1 씩증가. increaseRate 역시 100%, 200% 단위로 설정
      * @param enemy
      * @param moveType
      */
     public void afterEnemyAttack(BattleActor enemy, MoveType moveType) {
-        if (moveType.isChargeAttack()) {
+        if (moveType.getParentType() == MoveType.CHARGE_ATTACK) {
             enemy.setChargeGauge(0);
         } else {
             increaseChargeGauge(enemy, baseEnemyAttackGaugePoint);

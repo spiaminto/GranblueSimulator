@@ -35,13 +35,13 @@ public class BattleLogService {
         List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndUserIdAndMainActorIdNot(roomId, userId, mainActor.getId());
 //        battleLogs.forEach(b -> log.info("battleLog = {}", b));
         damageSum = battleLogs.stream()
-                .filter(battleLog -> battleLog.getMoveType().getUpperType() == moveType.getUpperType())
+                .filter(battleLog -> battleLog.getMoveType().getParentType() == moveType.getParentType())
                 .mapToInt(battleLog -> battleLog.getDamages().stream()
                         .mapToInt(Integer::intValue).sum())
                 .sum();
-        if (moveType.isNormalAttack()) {
+        if (moveType.getParentType() == MoveType.ATTACK) {
             additionalDamageSum = battleLogs.stream()
-                    .filter(battleLog -> battleLog.getMoveType().getUpperType() == moveType.getUpperType())
+                    .filter(battleLog -> battleLog.getMoveType().getParentType() == moveType.getParentType())
                     .map(battleLog -> Arrays.stream(battleLog.getAdditionalDamages())
                             .map(Arrays::asList)
                             .flatMap(List::stream)

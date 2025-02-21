@@ -1,160 +1,122 @@
 package com.gbf.granblue_simulator.domain.move;
 
-// 기본적으로 모션 여부를 기준으로 정의함
+import lombok.Getter;
+
+// 논리적 행동을 통해 정의함. Asset 은 필요에 의해 같을 수 있음
+@Getter
 public enum MoveType {
-    // 아군
-    IDLE,
+    ROOT(null, "root"),
 
-    NORMAL_ATTACK, // 조건연산 전용 타입
-    SINGLE_ATTACK,
-    DOUBLE_ATTACK,
-    TRIPLE_ATTACK,
+    IDLE(ROOT, "idle"),
+        IDLE_DEFAULT(IDLE, "idle-default"),
+        IDLE_A(IDLE, "idle-a"),
+        IDLE_B(IDLE, "idle-b"),
+        IDLE_C(IDLE, "idle-c"),
+        IDLE_D(IDLE, "idle-d"),
+        IDLE_E(IDLE, "idle-e"),
+        IDLE_F(IDLE, "idle-f"),
+        IDLE_G(IDLE, "idle-g"),
 
-    CHARGE_ATTACK,
+    DAMAGED(ROOT, "damaged"),
+        DAMAGED_DEFAULT(DAMAGED, "damaged"),
+        DAMAGED_A(DAMAGED, "damaged-a"),
+        DAMAGED_B(DAMAGED, "damaged-b"),
+        DAMAGED_C(DAMAGED, "damaged-c"),
+        DAMAGED_D(DAMAGED, "damaged-d"),
+        DAMAGED_E(DAMAGED, "damaged-e"),
+        DAMAGED_F(DAMAGED, "damaged-f"),
+        DAMAGED_G(DAMAGED, "damaged-g"),
 
-    ABILITY, // 조건연산 전용타입
-    FIRST_ABILITY,
-    SECOND_ABILITY,
-    THIRD_ABILITY,
+    STANDBY(ROOT, "standby"),
+        STANDBY_A(STANDBY, "standby-a"),
+        STANDBY_B(STANDBY, "standby-b"),
+        STANDBY_C(STANDBY, "standby-c"),
+        STANDBY_D(STANDBY, "standby-d"),
+        STANDBY_E(STANDBY, "standby-e"),
+        STANDBY_F(STANDBY, "standby-f"),
+        STANDBY_G(STANDBY, "standby-g"),
 
-    FIRST_SUPPORT_ABILITY,
-    SECOND_SUPPORT_ABILITY,
-    THIRD_SUPPORT_ABILITY,
-    FOURTH_SUPPORT_ABILITY,
-    FIFTH_SUPPORT_ABILITY,
+    BREAK(ROOT, "break"),
+        BREAK_A(BREAK, "break-a"),
+        BREAK_B(BREAK, "break-b"),
+        BREAK_C(BREAK, "break-c"),
+        BREAK_D(BREAK, "break-d"),
+        BREAK_E(BREAK, "break-e"),
+        BREAK_F(BREAK, "break-f"),
+        BREAK_G(BREAK, "break-g"),
 
-    DEAD,
+    ATTACK(ROOT, "attack"),
+        SINGLE_ATTACK(ATTACK, "single-attack"),
+        DOUBLE_ATTACK(ATTACK, "double-attack"),
+        TRIPLE_ATTACK(ATTACK, "triple-attack"),
 
-    // 적
-    ENEMY_IDLE,
-    ENEMY_IDLE_A,
-    ENEMY_IDLE_B,
-    ENEMY_IDLE_C,
-    ENEMY_IDLE_D,
+    ABILITY(ROOT, "ability"),
+        FIRST_ABILITY(ABILITY, "first-ability"),
+        SECOND_ABILITY(ABILITY, "second-ability"),
+        THIRD_ABILITY(ABILITY, "third-ability"),
 
-    ENEMY_DAMAGED,
-    ENEMY_DAMAGED_A,
-    ENEMY_DAMAGED_B,
-    ENEMY_DAMAGED_C,
-    ENEMY_DAMAGED_D,
-    ENEMY_DAMAGED_E,
-    ENEMY_DAMAGED_F,
-    ENEMY_DAMAGED_G,
+    SUPPORT_ABILITY(ROOT, "support-ability"),
+        FIRST_SUPPORT_ABILITY(SUPPORT_ABILITY, "first-support-ability"),
+        SECOND_SUPPORT_ABILITY(SUPPORT_ABILITY, "second-support-ability"),
+        THIRD_SUPPORT_ABILITY(SUPPORT_ABILITY, "third-support-ability"),
+        FOURTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "fourth-support-ability"),
+        FIFTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "fifth-support-ability"),
 
+    CHARGE_ATTACK(ROOT, "charge-attack"),
+        CHARGE_ATTACK_DEFAULT(CHARGE_ATTACK, "charge-attack-default"),
+        CHARGE_ATTACK_A(CHARGE_ATTACK, "charge-attack-a"),
+        CHARGE_ATTACK_B(CHARGE_ATTACK, "charge-attack-b"),
+        CHARGE_ATTACK_C(CHARGE_ATTACK, "charge-attack-c"),
+        CHARGE_ATTACK_D(CHARGE_ATTACK, "charge-attack-d"),
+        CHARGE_ATTACK_E(CHARGE_ATTACK, "charge-attack-e"),
+        CHARGE_ATTACK_F(CHARGE_ATTACK, "charge-attack-f"),
+        CHARGE_ATTACK_G(CHARGE_ATTACK, "charge-attack-g"),
 
-    ENEMY_BREAK_A,
-    ENEMY_BREAK_B,
-    ENEMY_BREAK_C,
-    ENEMY_BREAK_D,
-    ENEMY_BREAK_E,
-    ENEMY_BREAK_F,
-    ENEMY_BREAK_G,
+    PHASE_CHANGE(ROOT, "phase-change"),
 
-    ENEMY_STANDBY_A,
-    ENEMY_STANDBY_B,
-    ENEMY_STANDBY_C,
-    ENEMY_STANDBY_D,
-    ENEMY_STANDBY_E,
-    ENEMY_STANDBY_F,
-    ENEMY_STANDBY_G,
+    DEAD(ROOT, "dead"),
 
-    ENEMY_CHARGE_ATTACK_A,
-    ENEMY_CHARGE_ATTACK_B,
-    ENEMY_CHARGE_ATTACK_C,
-    ENEMY_CHARGE_ATTACK_D,
-    ENEMY_CHARGE_ATTACK_E,
-    ENEMY_CHARGE_ATTACK_F,
-    ENEMY_CHARGE_ATTACK_G,
+    ETC(ROOT, "etc"),
+    
+    // NULL 대응
+    NONE(ROOT, "none"), // null 대응
+    ;
 
-    ENEMY_ATTACK,
-    ENEMY_DEAD,
-    ENEMY_PHASE_CHANGE,
+    private final MoveType parentType;
+    private final String className;
 
-    // 기타사항 (되도록 사용하지 말고 임시구현후 타입으로 추가할것)
-    ETC,
-    ENEMY_ETC;
-
-    public boolean isNormalAttack() {
-        return this == NORMAL_ATTACK ||
-                this == SINGLE_ATTACK ||
-                this == DOUBLE_ATTACK ||
-                this == TRIPLE_ATTACK;
+    MoveType(MoveType parentType, String className) {
+        this.parentType = parentType;
+        this.className = className;
     }
 
-    public boolean isAbility() {
-        return this == FIRST_ABILITY ||
-                this == SECOND_ABILITY ||
-                this == THIRD_ABILITY;
-    }
 
-    public boolean isSupportAbility() {
-        return this == FIRST_SUPPORT_ABILITY ||
-                this == SECOND_SUPPORT_ABILITY ||
-                this == THIRD_SUPPORT_ABILITY ||
-                this == FOURTH_SUPPORT_ABILITY ||
-                this == FIFTH_SUPPORT_ABILITY;
-    }
-
-    public boolean isChargeAttack() {
-        return this == CHARGE_ATTACK ||
-                this == ENEMY_CHARGE_ATTACK_A ||
-                this == ENEMY_CHARGE_ATTACK_B ||
-                this == ENEMY_CHARGE_ATTACK_C ||
-                this == ENEMY_CHARGE_ATTACK_D ||
-                this == ENEMY_CHARGE_ATTACK_E ||
-                this == ENEMY_CHARGE_ATTACK_F ||
-                this == ENEMY_CHARGE_ATTACK_G;
-    }
-
-    public MoveType getUpperType() {
-        if (isAbility() || isSupportAbility()) {
-            return ABILITY;
-        } else if (isNormalAttack()) {
-            return NORMAL_ATTACK;
-        } else if (isChargeAttack()) {
-            return CHARGE_ATTACK;
-        } else
-            return null;
-    }
-
+    // STANDBY 타입으로 가져오기
     public MoveType getChargeAttackType() {
-        if (this == ENEMY_STANDBY_A) {
-            return MoveType.ENEMY_CHARGE_ATTACK_A;
-        } else if (this == ENEMY_STANDBY_B) {
-            return MoveType.ENEMY_CHARGE_ATTACK_B;
-        } else if (this == ENEMY_STANDBY_C) {
-            return MoveType.ENEMY_CHARGE_ATTACK_C;
-        } else if (this == ENEMY_STANDBY_D) {
-            return MoveType.ENEMY_CHARGE_ATTACK_D;
-        } else if (this == ENEMY_STANDBY_E) {
-            return MoveType.ENEMY_CHARGE_ATTACK_E;
-        } else if (this == ENEMY_STANDBY_F) {
-            return MoveType.ENEMY_CHARGE_ATTACK_F;
-        } else if (this == ENEMY_STANDBY_G) {
-            return MoveType.ENEMY_CHARGE_ATTACK_G;
-        } else {
-            return null;
-        }
+        return getMoveType(CHARGE_ATTACK_A, CHARGE_ATTACK_B, CHARGE_ATTACK_C, CHARGE_ATTACK_D, CHARGE_ATTACK_E, CHARGE_ATTACK_F, CHARGE_ATTACK_G);
+    }
+    public MoveType getBreakType() {
+        return getMoveType(BREAK_A, BREAK_B, BREAK_C, BREAK_D, BREAK_E, BREAK_F, BREAK_G);
+    }
+    public MoveType getIdleType() {
+        return getMoveType(IDLE_A, IDLE_B, IDLE_C, IDLE_D, IDLE_E, IDLE_F, IDLE_G);
+    }
+    private MoveType getMoveType(MoveType moveType, MoveType moveType2, MoveType moveType3, MoveType moveType4, MoveType moveType5, MoveType moveType6, MoveType moveType7) {
+        return switch (this) {
+            case STANDBY_A -> moveType;
+            case STANDBY_B -> moveType2;
+            case STANDBY_C -> moveType3;
+            case STANDBY_D -> moveType4;
+            case STANDBY_E -> moveType5;
+            case STANDBY_F -> moveType6;
+            case STANDBY_G -> moveType7;
+            default -> NONE;
+        };
     }
 
-    public MoveType getBreakType() {
-        if (this == ENEMY_STANDBY_A) {
-            return MoveType.ENEMY_BREAK_A;
-        } else if (this == ENEMY_STANDBY_B) {
-            return MoveType.ENEMY_BREAK_B;
-        } else if (this == ENEMY_STANDBY_C) {
-            return MoveType.ENEMY_BREAK_C;
-        } else if (this == ENEMY_STANDBY_D) {
-            return MoveType.ENEMY_BREAK_D;
-        } else if (this == ENEMY_STANDBY_E) {
-            return MoveType.ENEMY_BREAK_E;
-        } else if (this == ENEMY_STANDBY_F) {
-            return MoveType.ENEMY_BREAK_F;
-        } else if (this == ENEMY_STANDBY_G) {
-            return MoveType.ENEMY_BREAK_G;
-        } else {
-            return null;
-        }
+    // NONE 확인
+    public boolean isNone() {
+        return this == NONE;
     }
 }
 

@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain.actor;
 
+import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import jakarta.persistence.*;
@@ -7,7 +8,9 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.jpa.repository.EntityGraph;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Entity
@@ -15,7 +18,7 @@ import java.util.Map;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
+@EqualsAndHashCode @ToString(exclude = "battleActors")
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn
 public class Actor {
@@ -59,6 +62,9 @@ public class Actor {
 
     @OneToMany(mappedBy = "actor") @MapKey(name = "type")
     private Map<MoveType, Move> moves = new HashMap<>();
+
+    @OneToMany(mappedBy = "actor") @Builder.Default
+    private List<BattleActor> battleActors = new ArrayList<>();
 
     // Asset
     private String battlePortraitSrc;

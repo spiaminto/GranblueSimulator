@@ -6,7 +6,9 @@ import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -95,10 +97,10 @@ public class BattleActor {
     private Integer thirdAbilityCoolDown;
     private Integer thirdAbilityUseCount;
 
-    @Transient
-    private CharacterLogic characterLogic;
+    @CreationTimestamp
+    private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "battleActor") @MapKey(name = "type")
+    @OneToMany(mappedBy = "battleActor") @MapKey(name = "type") @Builder.Default
     private List<BattleStatus> battleStatuses = new ArrayList<>();
 
     @ManyToOne
@@ -117,6 +119,7 @@ public class BattleActor {
 
     public void setActor(Actor actor) {
         this.actor = actor;
+        this.actor.getBattleActors().add(this);
     }
 
     // lombok getter 안먹혀서 생성

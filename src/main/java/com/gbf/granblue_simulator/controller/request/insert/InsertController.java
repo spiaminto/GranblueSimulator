@@ -57,7 +57,7 @@ public class InsertController {
 
         // idle
         Move idle = Move.builder()
-                .type(MoveType.IDLE)
+                .type(MoveType.IDLE_DEFAULT)
                 .info("idle")
                 .damageRate(null)
                 .coolDown(null)
@@ -136,7 +136,7 @@ public class InsertController {
         Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
         Move chargeAttack = Move.builder()
                 .name(request.getName())
-                .type(MoveType.CHARGE_ATTACK)
+                .type(MoveType.CHARGE_ATTACK_DEFAULT)
                 .info(request.getInfo())
                 .damageRate(4.5) // 일단 극대 캐릭의 경우 따로 수정
                 .coolDown(null)

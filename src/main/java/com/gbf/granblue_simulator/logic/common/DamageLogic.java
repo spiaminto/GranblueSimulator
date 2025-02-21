@@ -1,7 +1,6 @@
 package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
@@ -40,9 +39,9 @@ public class DamageLogic {
      */
     public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
         ProcessType processType = ProcessType.ATTACK;
-        if (move.getType().isAbility() || move.getType().isSupportAbility()) {
+        if (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY) {
             processType = ProcessType.ABILITY; // 적은 ABILITY 가 일단 구현 되어있지 않음.
-        } else if (move.getType() == MoveType.CHARGE_ATTACK) {
+        } else if (move.getType().getParentType() == MoveType.CHARGE_ATTACK) {
             processType = ProcessType.CHARGE_ATTACK;
         }
 
@@ -130,9 +129,9 @@ public class DamageLogic {
      */
     public DamageLogicResult process(BattleActor mainActor, BattleActor targetActor, Move move, double damageRate, int hitCount) {
         ProcessType processType = ProcessType.ATTACK;
-        if (move.getType().isAbility() || move.getType().isSupportAbility()) {
+        if (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY) {
             processType = ProcessType.ABILITY;
-        } else if (move.getType() == MoveType.CHARGE_ATTACK) {
+        } else if (move.getType().getParentType() == MoveType.CHARGE_ATTACK) {
             processType = ProcessType.CHARGE_ATTACK;
         }
         GetDamageResult getDamageResult = getDamage(mainActor, targetActor, processType, damageRate, hitCount);
