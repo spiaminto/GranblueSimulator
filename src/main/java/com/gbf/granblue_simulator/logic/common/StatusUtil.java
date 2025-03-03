@@ -3,9 +3,11 @@ package com.gbf.granblue_simulator.logic.common;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,19 +95,48 @@ public class StatusUtil {
     }
 
     /**
+     * 해당 MoveType 의 Status 중 name 을 가진 Status 반환, findfirst, contains
+     *
+     * @param battleActor
+     * @param name
+     * @return
+     * @throws IllegalArgumentException 해당 이름의 status 가 없음
+     */
+    public Status getStatusByNameFromMove(BattleActor battleActor, MoveType moveType, String name) {
+        return battleActor.getActor().getMoves().get(moveType).getStatuses().stream()
+                .filter(status -> status.getName().contains(name))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("해당 name 을 가진 Status 가 없습니다. name = " + name + "moveType = " + moveType.name()));
+    }
+
+    /**
      * 해당 name 을 가진 BattleStatus 반환, findfirst, contains
+     *
      * @param battleActor
      * @param name
      * @return
      */
-    public Optional<BattleStatus> getUniqueStatus(BattleActor battleActor, String name) {
+    public Optional<BattleStatus> getBattleStatusByName(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
                 .findFirst();
     }
 
     /**
+     * 해당 name 을 가진 BattleStatus 반환, findfirst, contains
+     *
+     * @param battleActor
+     * @param statusType
+     * @return
+     */
+    public List<BattleStatus> getBattleStatusByStatusType(BattleActor battleActor, StatusType statusType) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getType() == statusType)
+                .toList();
+    }
+
+    /**
      * 해당 name 을 가진 List<BattleStatus> 반환, contains
+     *
      * @param battleActor
      * @param name
      * @return
@@ -131,27 +162,30 @@ public class StatusUtil {
     }
 
     /**
-     * BattleActor.battleStatuses 에서 동일한 statusEffect.type 의 status 찾아 Optional 로 반환
-     * 하나의 StatusEffect 로 구성된 Status 가 아닐경우 일단 반환하나, warn 로그 찍음 (정상상황 아님)
+     * BattleActor.battleStatuses 에서 단일 statusEffect 로 구성되며, 그 statusEffect 가 파라미터로 받은 status 의 statusEffect 와 동일한 경우 그 battleStatus를 Optional 반환
      *
      * @param battleActor
      * @param status
-     * @return Optional<BattleStatus>
+     * @return Optional<BattleStatus> battleStatus, 단일 statusEffect 로 구성되지 않은 status 의 경우 Optional.empty
      */
     public Optional<BattleStatus> getSameEffectTypeStatus(BattleActor battleActor, Status status) {
-        if (status.getStatusEffects().isEmpty()) return Optional.empty();
-        if (status.getStatusEffects().size() > 1) log.warn("Status 가 두개이상의 StatusEffect 로 구성됨, Status = {}", status);
+        Map<StatusEffectType, StatusEffect> inputStatusEffects = status.getStatusEffects();
+        if (inputStatusEffects.size() != 1) return Optional.empty();
         return battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> Objects.nonNull(
-                        battleStatus.getStatus().getStatusEffects()
-                                .get(status.getStatusEffects().keySet().iterator().next()))
-                ).findFirst();
+                .filter(battleStatus -> {
+                    // 각 battleStatus 중 단일 StatusEffect 로 이루어지면서 입력된 status 와 동일한 StatusEffect 를 가진것을 필터링
+                    Map<StatusEffectType, StatusEffect> currentBattleStatusEffects = battleStatus.getStatus().getStatusEffects();
+                    return currentBattleStatusEffects.size() < 2 &&
+                            currentBattleStatusEffects.get(inputStatusEffects.keySet().iterator().next()) != null;
+                        }
+                ).findFirst(); // 동일 StatusEffect 끼리는 중첩 안됨 (단일 이펙트로 구성된 스테이터스의 경우)
     }
 
 
     /**
      * 모든 partyMembers 를 받아 StatusEffectType 이 같은것중 우선적용될것을 반환한다.
-     * @param battleActors 모든 파티원 (partyMembers)
+     *
+     * @param battleActors     모든 파티원 (partyMembers)
      * @param statusEffectType
      * @return StatusEffectType 이 같은것중 적용 우선순위가 가장 높은 Optional<BattleStatus>
      */
@@ -169,16 +203,13 @@ public class StatusUtil {
 
 
     /**
-     * Status 의 StatusEffect 의 값 반환.
-     * 단일 StatusEffect 로 이루어지지 않은경우 첫번째 StatusEffect 의 value 를 리턴하지만, 경고 로그를 띄움 (정상상황 아님)
+     * Status 의 StatusEffect 의 값 중 첫번째 반환.
+     * 단일 StatusEffect 인 경우 사용 권장
      *
      * @param status
      * @return
      */
-    public Double getStatusEffectValue(Status status) {
-        if (status.getStatusEffects().size() > 1) {
-            log.warn("statusEffect 가 두개 이상입니다. status = {}", status);
-        }
+    public Double getFirstStatusEffectValue(Status status) {
         return status.getStatusEffects().entrySet().iterator().next().getValue().getValue();
     }
 

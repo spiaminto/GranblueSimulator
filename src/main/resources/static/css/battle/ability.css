@@ -1,5 +1,7 @@
 #battleMemberContainer {
-    margin: 0 auto;
+    margin: -10px auto 0;
+    padding-top: 10px;
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
 }
 
 #abilitySlider {
@@ -7,7 +9,7 @@
     top: 0;
     left: 0;
     z-index: -1;
-    background-color: white;
+    background-color: transparent;
     width: 100%;
     height: 35vw;
     min-height: 160px;
@@ -18,17 +20,23 @@
     display: flex;
     width: 100%;
     /*padding: 1rem;*/
+    justify-content: space-between;
+    color: white;
 }
 
 .charge-attack-wrapper {
-    height: 25%;
+    /*height: 25%;*/
     padding: 0.25rem;
-    border: 2px solid goldenrod;
     border-radius: 10px;
     overflow: hidden;
+
+    box-shadow: inset 0 0 6px 1px rgba(168,132,99,0.5);
+    border: 1px solid #a88463;
+    margin-bottom: 0.1rem;
 }
 
 .charge-attack-info {
+    height: 1.5rem;
     font-size: 0.6rem;
 
     @media (min-width: 600px) {
@@ -45,17 +53,26 @@
     width: 100%;
     height: 50%;
     justify-content: space-evenly;
-    border: 2px solid deepskyblue;
-    border-radius: 10px;
+    margin-bottom: 0.1rem;
+
+    box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
+    border: 1px solid #639fa8;
+    border-radius: 5px;
+    background: #150f0f;
 }
 
 .ability-battle-portrait {
-    width: 21%;
+    width: 18%;
+    min-width: 75px;
     position: relative;
+    min-height: 150px;
 }
 
 .ability-battle-portrait img {
-    width: 88%;
+}
+
+.ability-battle-portrait img {
+    width: 100%;
 }
 
 .ability-icon {
@@ -89,6 +106,10 @@
     font-size: 1rem;
 }
 
+.ability-cooldown-text.active {
+    visibility: hidden;
+}
+
 .ability-wrapper .ability-info-text {
     display: none;
 }
@@ -100,49 +121,40 @@
 }
 
 .panel-wrapper {
-    width: 79%; /* battle-portriat 합쳐 100 */
+    width: 80%; /* battle-portriat 합쳐 100 */
 }
 
-.status-wrapper {
+.status-container.party {
     padding: 0 0.25rem;
-    border: solid 2px darkgrey;
     border-radius: 10px;
     height: 25%; /* .ability-wrapper, .charge-attack-wrapper 합쳐 100 */
     align-content: center;
     display: flex;
+
+    box-shadow: inset 0 0 6px 1px rgba(77,73,72,0.5);
+    border: 1px solid #4d4948;
 }
 
-.status-wrapper .show-status-info-button-wrapper {
+.status-container.party .show-status-info-button-wrapper {
     display: flex;
     width: 17%;
     align-items: center;
 }
 
-.status-wrapper button {
+.show-status-info-button-wrapper button {
     width: 100%;
 }
 
-.status-wrapper .status {
+.status-container.party .status {
     width: 10%;
     display: flex;
     align-items: center;
 }
 
-.status .status-icon {
+.status-container.party .status .status-icon {
     display: inline-block;
     width: 100%;
 }
-
-.status-wrapper .status-info-text {
-    display: none;
-}
-
-/* 어빌리티 백버튼 - 배틀 캔버스 */
-/*.ability-back-button {*/
-/*    position: absolute;*/
-/*    bottom: 3%;*/
-/*    left: 3%;*/
-/*}*/
 
 /* 어빌리티 백버튼 - 하단메뉴 */
 .ability-back-button {
@@ -179,6 +191,31 @@
 }
 
 /* 스테이터스 모달 */
+#statusInfoModal .modal-body {
+    padding: 0.5rem;
+}
+
+.status-info {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    
+    @media (min-width: 600px) {
+        font-size: 0.9rem;
+    }
+}
+
+.status-info.status-buff {
+    background-color: rgba(32,24,22,0.8);
+    border-top: 1px #ca7652 solid;
+    border-bottom: 1px #ca7652 solid;
+}
+
+.status-info.status-debuff {
+    background-color: rgba(23,41,31,0.8);
+    border-top: 1px #7aaaaa solid;
+    border-bottom: 1px #7aaaaa solid;
+}
+
 .status-modal-button {
     display: none;
 }
@@ -209,6 +246,7 @@
 
 .ability-slider-slide-button-wrapper button {
     font-size: 1.25rem;  /* btn-sm 0.875rem */
+    color: white;
 
     @media (min-width: 600px) {
         font-size: 1.5rem;
@@ -219,13 +257,13 @@
 .ability-slider-slide-button-wrapper.to-right {
     top: 50%;
     transform: translateY(-50%);
-    right: 0;
+    right: -5px;
 }
 
 .ability-slider-slide-button-wrapper.to-left {
     top: 50%;
     transform: translateY(-50%);
-    left: 0;
+    left: -5px;
 }
 
 

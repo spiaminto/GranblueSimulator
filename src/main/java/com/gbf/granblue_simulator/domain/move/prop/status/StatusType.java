@@ -5,8 +5,12 @@ public enum StatusType {
     BUFF_FOR_ALL, // 참전자 전체 버프
     DEBUFF,
     DEBUFF_FOR_ALL, // 참전자 전체 디버프
-    ETC,
-    HEAL, // 힐
     
+    HEAL, // 힐,
+
+    DISPEL, // 디스펠
+    DISPEL_GUARD, // 디스펠 가드
+
+    ETC,
     UNIQUE // 고유버프, name 으로 필드 구분
 }

@@ -5,7 +5,6 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import lombok.RequiredArgsConstructor;
@@ -52,8 +51,9 @@ public class OmenLogic {
 
             }
             case DEBUFF_COUNT -> {
-                int debuffCount = otherResult.getStatusList().stream()
-                        .map(Status::getType)
+                int debuffCount = otherResult.getAddedBattleStatusesList().stream()
+                        .flatMap(battleStatuses -> battleStatuses.stream()
+                                .map(battleStatus -> battleStatus.getStatus().getType()))
                         .filter(type -> type == StatusType.DEBUFF || type == StatusType.DEBUFF_FOR_ALL)
                         .toList().size();
                 enemy.setOmenValue(Math.max(omenValue - debuffCount, 0));

@@ -29,6 +29,7 @@ public class BattleLog {
 
     private Long targetActorId; // 행동 타겟
 
+    @Enumerated(EnumType.STRING)
     private MoveType moveType;
 
     private Integer hitCount;

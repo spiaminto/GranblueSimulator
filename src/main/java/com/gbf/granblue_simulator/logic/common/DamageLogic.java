@@ -429,9 +429,9 @@ public class DamageLogic {
 
         List<List<Integer>> additionalDamages = new ArrayList<>();
         if (!damageDto.getAdditionalDamages().isEmpty()) {
-            for (double additionalDamage : damageDto.getAdditionalDamages()) {
-                additionalDamages.add(new ArrayList<>(Collections.nCopies(hitCount, additionalDamage)).stream()
-                        .map(addDamage -> (int) (addDamage * (1 - Math.random() / 100)))
+            for (int i = 0; i < hitCount; i++) {
+                additionalDamages.add(damageDto.getAdditionalDamages().stream()
+                        .map(additionalDamage -> (int) (additionalDamage * (1 - Math.random() / 100)))
                         .toList());
             }
         }

@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain.move.prop.status;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 

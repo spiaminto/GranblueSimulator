@@ -3,9 +3,9 @@ package com.gbf.granblue_simulator.logic;
 import com.gbf.granblue_simulator.domain.BattleLog;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -244,20 +245,28 @@ public class BattleLogic {
 
     public void saveBattleLog(ActorLogicResult logicResult) {
         if (logicResult == null) return;
+        // 현재 Status 및 관련사항은 mainActor 것만 저장함
+        BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow();
         List<Integer> damages = logicResult.getDamages();
         Integer[][] additionalDamages = logicResult.getAdditionalDamages().stream()
                 .map(additionalDamage -> additionalDamage.toArray(Integer[]::new))
                 .toArray(Integer[][]::new);
-        List<Status> statuses = logicResult.getStatusList();
-        List<String> statusTypes = statuses.stream()
-                .map(status -> status.getType().name())
+        // 스테이터스 비엇는지 확인 ( {{}} )
+        boolean isResultStatusEmpty = logicResult.getAddedBattleStatusesList().stream().mapToInt(List::size).sum() == 0;
+        log.info("size = {}", logicResult.getAddedBattleStatusesList().size());
+        logicResult.getAddedBattleStatusesList().forEach(
+                list -> log.info("statuslist = {}, size = {}", list, list.size())
+        );
+        log.info("empty = {}", isResultStatusEmpty);
+        List<BattleStatus> battleStatuses = !isResultStatusEmpty ? logicResult.getAddedBattleStatusesList().get(mainActor.getCurrentOrder()) : Collections.emptyList();
+        List<String> statusTypes = battleStatuses.stream()
+                .map(battleStatus -> battleStatus.getStatus().getType().name())
                 .toList();
-        List<String> statusEffectTypes = statuses.stream()
-                .map(status -> status.getStatusEffects().keySet().stream()
+        List<String> statusEffectTypes = battleStatuses.stream()
+                .map(battleStatus -> battleStatus.getStatus().getStatusEffects().keySet().stream()
                         .map(Enum::name).toList())
                 .flatMap(List::stream)
                 .toList();
-        BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow();
 
         battleLogRepository.save(
                 BattleLog.builder()

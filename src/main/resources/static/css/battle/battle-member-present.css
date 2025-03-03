@@ -14,10 +14,10 @@
     width: 100%;
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem 1.5em;
+    padding: 0.25rem 0.75rem;
 
     @media (min-width: 600px) {
-        padding: 0.5rem 2em;
+        padding: 0.5rem 1.5rem;
     }
 }
 
@@ -30,6 +30,8 @@
     position: relative;
     width: 23%;
     margin-right: 1%;
+    min-width: 65px;
+    min-height: 130px;
 }
 
 .battle-portrait img {
@@ -40,32 +42,49 @@
     position: absolute;
     width: 95%;
     padding: 0.25rem;
-    bottom: 3%;
+    bottom: 0.15rem;
     left: 0;
 }
 
-/* TODO 이거 나중에 ability.css 랑 합쳐서 수정해야함 */
-.ability-battle-portrait .charge-gauge-wrapper {
-    bottom: 7%;
-    width: 85%;
-
-    @media(min-width: 600px) {
-        bottom: 3%;
-    }
+.hp-gauge-wrapper {
+    position: absolute;
+    width: 95%;
+    padding: 0.25rem;
+    bottom: 1rem;
+    left: 0;
 }
 
 .charge-gauge-value {
+    position: absolute;
+    bottom: 2px;
+    font-size: 0.8rem;
     font-weight: bold;
-    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
+    color: white;
+}
+
+.hp-gauge-value {
+    position: absolute;
+    bottom: 3px;
+    font-weight: bold;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
     color: white;
 }
 
 
-.charge-gauge .progress{
-    height: 5px;
+.hp-gauge .progress{
+    height: 6px;
 
     @media (min-width: 600px) {
-        height: 6px;
+        height: 7px;
+    }
+}
+
+.charge-gauge .progress{
+    height: 4px;
+
+    @media (min-width: 600px) {
+        height: 5px;
     }
 }
 
@@ -84,8 +103,13 @@
 /* 버튼 */
 
 .button-container {
+    color: white;
     display: flex;
-    padding: 0.25rem 1.5rem;
+    padding: 0.25rem 1.25rem;
+    
+    @media (max-width: 410px) {
+        padding: 0.25rem 0.5rem; /*작은 화면 찌그러짐 방지*/
+    }
 }
 
 .button-container .form-switch {
@@ -96,6 +120,10 @@
 .button-container .form-switch input {
     margin-top: 0;
     height: 1.2rem;
+}
+
+.button-container .form-check-label {
+    margin-left: 5px;
 }
 
 .show-ability-info-check-wrapper {

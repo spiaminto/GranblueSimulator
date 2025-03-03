@@ -18,7 +18,7 @@ public enum MoveType {
         IDLE_G(IDLE, "idle-g"),
 
     DAMAGED(ROOT, "damaged"),
-        DAMAGED_DEFAULT(DAMAGED, "damaged"),
+        DAMAGED_DEFAULT(DAMAGED, "damaged-default"),
         DAMAGED_A(DAMAGED, "damaged-a"),
         DAMAGED_B(DAMAGED, "damaged-b"),
         DAMAGED_C(DAMAGED, "damaged-c"),
@@ -92,6 +92,9 @@ public enum MoveType {
 
 
     // STANDBY 타입으로 가져오기
+    public MoveType getDamagedType() {
+        return getMoveType(DAMAGED_A, DAMAGED_B, DAMAGED_C, DAMAGED_D, DAMAGED_E, DAMAGED_F, DAMAGED_G);
+    }
     public MoveType getChargeAttackType() {
         return getMoveType(CHARGE_ATTACK_A, CHARGE_ATTACK_B, CHARGE_ATTACK_C, CHARGE_ATTACK_D, CHARGE_ATTACK_E, CHARGE_ATTACK_F, CHARGE_ATTACK_G);
     }
@@ -114,9 +117,33 @@ public enum MoveType {
         };
     }
 
+    public MoveType getStandbyByIdle() {
+        return switch (this) {
+            case IDLE_A -> STANDBY_A;
+            case IDLE_B -> STANDBY_B;
+            case IDLE_C -> STANDBY_C;
+            case IDLE_D -> STANDBY_D;
+            case IDLE_E -> STANDBY_E;
+            case IDLE_F -> STANDBY_F;
+            case IDLE_G -> STANDBY_G;
+            default -> NONE;
+        };
+    }
+
     // NONE 확인
     public boolean isNone() {
         return this == NONE;
+    }
+
+    public int getOrder() {
+        return switch (this) {
+            case FIRST_ABILITY, FIRST_SUPPORT_ABILITY -> 1;
+            case SECOND_ABILITY, SECOND_SUPPORT_ABILITY -> 2;
+            case THIRD_ABILITY, THIRD_SUPPORT_ABILITY -> 3;
+            case FOURTH_SUPPORT_ABILITY -> 4;
+            case FIFTH_SUPPORT_ABILITY -> 5;
+            default -> -1;
+        };
     }
 }
 

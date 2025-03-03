@@ -1,23 +1,18 @@
-.status-enemy {
+.enemy-info-container {
     position: absolute;
     width: 80%;
     top: 7%;
     left: 50%;
     transform: translateX(-50%);
     z-index: 20;
+    padding: 5px 0;
 }
 
-/* 상단 .status-enemy-top wrapper */
-.status-enemy-top-wrapper {
-    display: flex;
-}
-
-.status-enemy .value-hp {
+.hp-container.enemy .value-hp {
     color: white;
-    width: 14%;
+    width: 13%;
+    font-size: 0.9rem;
     align-content: center;
-    font-size: 0.8rem;
-    line-height: 0.8rem;
     font-weight: bold;
     text-indent: 0.25rem;
 
@@ -27,42 +22,15 @@
     }
 }
 
-.status-effect-enemy-wrapper {
-    display: flex;
-    width: 86%;
-
-    @media (min-width: 600px) {
-        width: 88%;
-    }
-
-}
-
-
-.status-effect-enemy-wrapper .status-effect-enemy {
-    width: 6%; /* 15개 90% */
-
-    @media (min-width: 600px) {
-        width: 5%;
-    }
-}
-
-.status-effect-enemy-wrapper .status-effect-enemy img {
-    width: 100%;
-}
-
-.status-effect-enemy-text {
-    display: none;
-}
-
-.status-enemy .hp-bar {
+.hp-container.enemy .hp-bar {
     border: solid 1px grey;
     position: relative;
     background-color: transparent;
     height: 1.2rem;
 }
 
-/* 중단 - 체력줄 */
-.status-enemy .progress .hp-trigger {
+/* 트리거 hp 강조 */
+.hp-container.enemy .progress .hp-trigger {
     position: absolute;
     background-color: yellow;
     left: 25%;
@@ -71,21 +39,41 @@
     min-width: 3px;
 }
 
+.status-container.enemy {
+    display: flex;
+    position: absolute;
+    top: 3px; /* .enemy-info-container 의 상하 padding 에 맞춰 살짝 작게 */
+    left: 13%;
+    width: 91%; /* .value-hp 와 합쳐서 110 정도 */
+}
+
+.status-container.enemy .status {
+    width: 5.5%;
+
+    @media (min-width: 600px) {
+        width: 5%;
+    }
+}
+
+.status-container.enemy .status img{
+    width: 100%;
+}
+
 /* 하단 - CT, 전조 */
 
 .status-enemy-bottom-wrapper {
     display: flex;
 }
 
-.charge-turn-gauge-wrapper {
-    padding: 0.25rem;
+.charge-turn-container {
+    padding: 0.25rem 0.5rem 0.25rem;
     display: flex;
 }
 
-.charge-turn-gauge-wrapper .charge-turn-gauge {
+.charge-turn-container .charge-turn {
     border-radius: 100%;
-    width: 0.7rem;
-    height: 0.7rem;
+    width: 0.75rem;
+    height: 0.75rem;
     border: 2px solid darkred;
     margin-right: 0.2rem;
     
@@ -95,7 +83,7 @@
     }
 }
 
-.omen-wrapper {
+.omen-container {
     margin-left: auto;
 }
 
@@ -125,17 +113,21 @@
     background-color: rgba(255, 255, 255, 0.8);
 }
 
-.charge-turn-gauge.active {
+.charge-turn.active {
     background-color: gold;
 }
 
-.charge-turn-gauge.inactive {
+.charge-turn.inactive {
     background-color: dimgrey;
 }
 
 /* 하단 전조 표시 */
-.bottom-omen-wrapper {
+.bottom-omen-wrapper.bottom {
     position: absolute;
     left: 5%;
     bottom: 5%;
+}
+
+.omen-container:not(.activated) {
+    display: none;
 }

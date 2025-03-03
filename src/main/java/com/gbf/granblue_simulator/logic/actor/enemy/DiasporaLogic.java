@@ -9,11 +9,13 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
+import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.service.BattleLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,16 @@ public class DiasporaLogic implements EnemyLogic {
                                 .toList());
     }
 
+    /**
+     * 스테이터스 효과는 한번만 들어가므로 중복제거
+     *
+     * @param targets
+     * @return
+     */
+    protected List<BattleActor> getStatusTargets(List<BattleActor> targets) {
+        return targets.stream().distinct().toList();
+    }
+
     @Override
     public ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers) {
         Move attackMove = actorLogicUtil.determineAttackMove(mainActor);
@@ -66,10 +78,11 @@ public class DiasporaLogic implements EnemyLogic {
         List<BattleActor> targets = getTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
+        List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
         // 차지턴
-        chargeGaugeLogic.afterEnemyAttack(mainActor, attackMove.getType());
+        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType());
 
-        return enemyLogicResultMapper.toResult(mainActor, targets, attackMove, damageLogicResult);
+        return enemyLogicResultMapper.attackToResult(mainActor, targets, attackMove, damageLogicResult, targetOrders);
     }
 
     @Override
@@ -90,14 +103,18 @@ public class DiasporaLogic implements EnemyLogic {
         Move chargeAttack = enemy.getActor().getMoves().get(standByMove.getType().getChargeAttackType());
         // 타겟
         List<BattleActor> targets = getTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
+        List<BattleActor> statusTargets = getStatusTargets(targets);
+        List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack);
+        // 스테이터스
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, statusTargets, chargeAttack);
         // 차지턴 (차지어택의 경우 초기화, 아니면 그대로)
         if (omen.getOmenType() == OmenType.CHARGE_ATTACK)
-            chargeGaugeLogic.afterEnemyAttack(mainActor, chargeAttack.getType());
+            chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType());
         // 스탠바이 초기화
         enemy.setNextStandbyType(null);
-        return enemyLogicResultMapper.toResult(mainActor, targets, chargeAttack, damageLogicResult);
+        return enemyLogicResultMapper.toResult(mainActor, targets, chargeAttack, damageLogicResult, targetOrders, setStatusResult);
     }
 
     @Override
@@ -130,9 +147,9 @@ public class DiasporaLogic implements EnemyLogic {
         setStatusLogic.initStatus(mainActor);
 
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-        setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility);
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility.getStatuses());
 
-        return enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null);
+        return enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult);
     }
 
     @Override
@@ -141,6 +158,7 @@ public class DiasporaLogic implements EnemyLogic {
         Enemy enemyActor = (Enemy) enemy.getActor();
         List<ActorLogicResult> results = new ArrayList<>();
 
+        // 전조처리
         if (enemy.getNextStandbyType() != null) {
             Move standbyMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
             Omen standbyOmen = standbyMove.getOmen();
@@ -150,51 +168,55 @@ public class DiasporaLogic implements EnemyLogic {
                 Move breakMove = enemy.getActor().getMoves().get(standbyMove.getType().getBreakType());
                 enemy.setNextStandbyType(null);
                 if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) enemy.setChargeGauge(0);
-                results.add(enemyLogicResultMapper.toResult(mainActor, partyMembers, breakMove));
+                results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, breakMove));
             } else {
                 results.add(enemyLogicResultMapper.toResultWithOmenValue(mainActor, partyMembers, standbyMove, processedOmenValue));
             }
         }
 
 
-        // 활성버프 =========================================
+        // 서포어비 1,2
         List<BattleStatus> activateStatuses = statusUtil.getUniqueStatuses(mainActor, "활성");
         if (!activateStatuses.isEmpty()) {
             // 활성 버프 붙어있음
-            Optional<BattleStatus> activatedStatus = activateStatuses.stream().filter(status -> status.getLevel().equals(status.getStatus().getMaxLevel())).findFirst();
-            if (activatedStatus.isPresent()) {
-                // 활성 레벨 10 있음
-                enemy.setNextStandbyType(MoveType.STANDBY_D); // 다음 오의 긴급 회복 시스템
-            } else {
-                // 활성레벨 10 없음
-                List<Integer> damages = otherResult.getDamages();
-                if (!damages.isEmpty()) {
-                    // 다른 캐릭터의 행동결과로 데미지 발생
-                    MoveType otherMoveType = otherResult.getMoveType();
-                    Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
-                    String activeStatusName = "";
-                    if (otherMoveType.getParentType() == MoveType.ATTACK) activeStatusName = "알파";
-                    else if (otherMoveType.getParentType() == MoveType.ABILITY) activeStatusName = "베타";
-                    else if (otherMoveType.getParentType() == MoveType.CHARGE_ATTACK) activeStatusName = "감마";
-                    final String statusName = activeStatusName;
-                    Optional<BattleStatus> activeStatusOptional = statusUtil.getUniqueStatus(mainActor, activeStatusName);
-                    if (activeStatusOptional.isPresent()) {
-                        BattleStatus activeStatus = activeStatusOptional.get();
-                        if (takenDamageSum / 300000 > activeStatus.getLevel()) {
-                            int increasingLevel = takenDamageSum / 300000 - activeStatus.getLevel();
-                            for (int i = 1; i <= increasingLevel; i++) {
-                                // 증가량 만큼 스테이터스 set, 해당하는 레벨의 스테이터스만 적용시킴
-                                setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(activeStatus.getStatus()));
-                            }
-                            statusUtil.addUniqueStatusLevel(mainActor, takenDamageSum / 300000 - activeStatus.getLevel(), statusName);
-                            Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-                            results.add(enemyLogicResultMapper.toResultWithStatus(mainActor, partyMembers, firstSupportAbility, List.of(activeStatus.getStatus())));
-                        }
+            // 서포어비2 - 활성레벨 최고레벨(10) 잇을 시 다음 행동을 긴급회복시스템으로 변화
+            activateStatuses.stream()
+                    .filter(battleStatus -> battleStatus.getLevel().equals(battleStatus.getStatus().getMaxLevel()))
+                    .findFirst()
+                    .ifPresent(battleStatus -> enemy.setNextStandbyType(MoveType.STANDBY_D));
+
+            // 서포어비1 - 타 활성레벨 최고레벨과 관계없이 활성레벨링 자체는 독립적으로 수행
+            List<Integer> damages = otherResult.getDamages();
+            if (!damages.isEmpty()) {
+                // 다른 캐릭터의 행동결과로 데미지 발생
+                MoveType otherMoveType = otherResult.getMoveType();
+                Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
+                String matchingStatusName = // 적의 공격 타입에 따른 스테이터스 매칭
+                        otherMoveType.getParentType() == MoveType.ATTACK ? "알파" :
+                                otherMoveType.getParentType() == MoveType.ABILITY ? "베타" :
+                                        otherMoveType.getParentType() == MoveType.CHARGE_ATTACK ? "감마" : "해당 스테이터스 없음";
+                // 타입에 따라 매칭된 배틀 스테이터스 (활성 버프는 3개가 세트로 전투시작시 달림 사라질때도 동시에 사라짐)
+                BattleStatus matchedBattleStatus = activateStatuses.stream()
+                        .filter(battleStatus -> battleStatus.getStatus().getName().contains(matchingStatusName))
+                        .findFirst().orElseThrow(() -> new IllegalStateException("해당 애름의 BattleStatus가 없습니다. statusName: " + matchingStatusName));
+                log.info("otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}",otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
+                // 입은 데미지에 비례해 매칭된 배틀스테이터스 레벨 상승
+                int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
+                if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
+                    int increasingLevel = levelFromTakenDamage - matchedBattleStatus.getLevel();
+                    SetStatusResult setStatusResult = null;
+                    for (int i = 1; i <= increasingLevel; i++) {
+                        // 증가량 만큼 스테이터스 set (레벨상승), 결과는 마지막것만 사용
+                        setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
                     }
+                    Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
+                    // 결과에 추가
+                    results.add(enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
                 }
             }
         }
-        return results; // 반환없음
+        
+        return results;
     }
 
     @Override
@@ -206,7 +228,7 @@ public class DiasporaLogic implements EnemyLogic {
         Move standbyMove = determineStandbyMove(enemy);
         if (standbyMove != null) {
             // 전조 발생함
-            return enemyLogicResultMapper.toResult(enemy, partyMembers, standbyMove);
+            return enemyLogicResultMapper.toResultMoveOnly(enemy, partyMembers, standbyMove);
         }
         return null;
     }

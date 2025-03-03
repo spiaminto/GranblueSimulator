@@ -1,41 +1,98 @@
-.damage-wrapper {
-    position: absolute;
-    opacity: 0.8;
-}
-
-.damage-first {
-    top: 75%;
-    left: 17%;
-}
-
-.damage-second {
-    top: 60%;
-    left: 3%;
-}
-
-.damage-third {
-    top: 45%;
-    left: 23%;
+/* 아군 통상공격 데미지 */
+.attack-damage-wrapper {
+    /* posotion static -> attack-damage 를 damageContainer 기준으로배치 */
 }
 
 .damage {
-    display: none;
     color: white;
     font-weight: bold;
     font-size: 3rem;
+    line-height: 3rem;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
-.origin-damage {
-    position: relative;
+.attack-damage {
+    position: absolute;
+    opacity: 0;
 }
 
-.after-damage {
-    position: absolute;
-    top: -35%;
-    left: 20%;
+.attack-damage-wrapper .attack-damage:first-child {
+    top: 75%;
+    left: 17%;
 }
+
+.attack-damage-wrapper .attack-damage:nth-child(2) {
+    top: 60%;
+    left: 3%;
+}
+
+.attack-damage-wrapper .attack-damage:nth-child(3) {
+    top: 45%;
+    left: 23%;
+}
+
+.additional-damage {
+    font-size: 90%; /* .attack-damage 의 80% */
+}
+
+.additional-damage:nth-child(1) {
+    position: absolute;
+    top: -40%;
+    left: 25%;
+    z-index: -1;
+}
+
+.additional-damage:nth-child(2) {
+    position: absolute;
+    top: -80%;
+    left: 30%;
+    z-index: -2;
+}
+
+.additional-damage:nth-child(3) {
+    position: absolute;
+    top: -120%;
+    left: 35%;
+    z-index: -3;
+}
+
+.additional-damage:nth-child(4) {
+    position: absolute;
+    top: -160%;
+    left: 40%;
+    z-index: -4;
+}
+
+.additional-damage:nth-child(5) {
+    position: absolute;
+    top: -200%;
+    left: 45%;
+    z-index: -5;
+}
+
+/* 아군 어빌리티 데미지 */
+
+.ability-damage-wrapper {
+    position: absolute;
+    width: 120px;
+    top: 20%;
+    left: 10%;
+    height: 70%;
+    align-content: center;
+}
+
+.ability-damage {
+    opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
+    color: white;
+    font-weight: bold;
+    font-size: 2.5rem;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    margin-bottom: -27%; /* 부모 120px, 마진타겟 약 30px*/
+}
+
+
+/*아군 피격 데미지 */
 
 .taken-damage-container {
     position: absolute;
@@ -71,28 +128,10 @@
     right: 4%;
 }
 
-.ability-damage-wrapper {
-    position: absolute;
-    width: 120px;
-    top: 20%;
-    left: 10%;
-    height: 70%;
-    align-content: center;
-}
-
-.ability-damage {
-    opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
-    color: white;
-    font-weight: bold;
-    font-size: 2.5rem;
-    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-    margin-bottom: -27%; /* 부모 120px, 마진타겟 약 30px*/
-}
-
-
 @media(min-width: 600px) {
     .damage {
         font-size: 6rem;
+        line-height: 6rem;
     }
     .taken-damage {
         font-size: 2rem;

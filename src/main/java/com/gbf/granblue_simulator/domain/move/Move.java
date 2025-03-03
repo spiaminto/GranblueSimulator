@@ -52,6 +52,9 @@ public class Move {
     private String duration; // 지속시간 -> 표현만을 위한 지속시간. 쉼표로 여러개 구분
     private Integer hitCount; // 데미지 횟수
     
+    // 랜덤 스테이터스 효과 부여시 사용
+    private Integer randomStatusCount;
+    
     // 오의
     @Accessors(fluent = true)
     private boolean isAllTarget; // 적 전체 대상 공격인지 (보스용)

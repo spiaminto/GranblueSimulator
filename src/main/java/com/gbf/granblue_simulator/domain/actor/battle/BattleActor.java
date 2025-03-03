@@ -7,9 +7,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Entity
@@ -82,7 +84,7 @@ public class BattleActor {
     // 크리티컬
     private Double criticalRate; // 크리티컬율 (증가만 있고 감소는 없음)
     private Double criticalDamageRate; // 크리티컬 데미지 배율 (합산)
-    
+
     private Integer maxChargeGauge; // 최대 오의 게이지
     private Integer chargeGauge; // 현재 오의게이지
     private Double chargeGaugeIncreaseRate; // 오의 게이지 증가율
@@ -100,7 +102,9 @@ public class BattleActor {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "battleActor") @MapKey(name = "type") @Builder.Default
+    @OneToMany(mappedBy = "battleActor")
+    @MapKey(name = "type")
+    @Builder.Default
     private List<BattleStatus> battleStatuses = new ArrayList<>();
 
     @ManyToOne
@@ -151,9 +155,11 @@ public class BattleActor {
 
     /**
      * 현재 체력 비율을 NN% 로 반환
+     *
      * @return
      */
     public Integer getHpRateInteger() {
-     return (int) (((double) hp / maxHp) * 100);
+        return (int) (((double) hp / maxHp) * 100);
     }
+
 }

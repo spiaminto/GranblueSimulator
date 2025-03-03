@@ -17,7 +17,9 @@ public class BattleEnemy extends BattleActor {
 
     private Integer standby; //현재 스탠바이, 기본값 0
 
+    @Enumerated(EnumType.STRING)
     private MoveType nextChargeAttackType; // 스탠바이시 다음 발생할 특수기타입
+    @Enumerated(EnumType.STRING)
     private MoveType nextStandbyType;
 
     private Integer omenValue; // omen cancel value

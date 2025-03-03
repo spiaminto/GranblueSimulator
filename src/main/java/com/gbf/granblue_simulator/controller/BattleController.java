@@ -1,147 +1,354 @@
-//package com.gbf.granblue_simulator.controller;
-//
-//import com.gbf.granblue_simulator.domain.Member;
-//import com.gbf.granblue_simulator.domain.User;
-//import com.gbf.granblue_simulator.domain.entity.Character;
-//import com.gbf.granblue_simulator.domain.entity.battle.BattleCharacter;
-//import com.gbf.granblue_simulator.domain.move.Move;
-//import com.gbf.granblue_simulator.domain.move.prop.asset.sub.Audio;
-//import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-//import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
-//import com.gbf.granblue_simulator.repository.*;
-//import lombok.RequiredArgsConstructor;
-//import lombok.extern.slf4j.Slf4j;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.stereotype.Controller;
-//import org.springframework.ui.Model;
-//import org.springframework.web.bind.annotation.GetMapping;
-//import org.springframework.web.bind.annotation.PostMapping;
-//import org.springframework.web.bind.annotation.RequestBody;
-//import org.springframework.web.bind.annotation.ResponseBody;
-//
-//import java.util.List;
-//
-//@Controller
-//@RequiredArgsConstructor
-//@Slf4j
-//public class BattleController {
-//
-//    private final UserRepository userRepository;
-//    private final RoomRepository roomRepository;
-//    private final MemberRepository memberRepository;
-//
-//    private final BattleCharacterRepository battleCharacterRepository;
-//    private final CharacterRepository characterRepository;
-//
-//
-//    @GetMapping("/battle")
-//    public String battle(Model model) {
-//
-//
-//        User user = userRepository.findByUsername("test");
-//        if (user.getMembers().isEmpty()) {
-//            log.info("user.getMembers().isEmpty(), user: {}", user);
-//        }
-//
-//        Member member = user.getMembers().getFirst();
-//        model.addAttribute("member", member);
-//
-//        List<BattleCharacter> characters = member.getCharacters();
-//        if (characters.isEmpty()) {
-//            log.info("characters.isEmpty(), member: {}", member);
-//        }
-//
-//        characters.forEach(character -> {
-//            log.info("character: {}", character);
-//        });
-//        model.addAttribute("characters", characters);
-//
-//        model.addAttribute("roomId", member.getRoom().getId());
-//
-//
-//        return "battle";
-//    }
-//
-//    @PostMapping("/api/ability")
-//    @ResponseBody
-//    public ResponseEntity<AbilityResponse> ability(@RequestBody AbilityRequest abilityRequest) {
-//        log.info("abilityRequest: {}", abilityRequest);
-//
-//        long memberId = abilityRequest.getMemberId();
-//        long characterId = abilityRequest.getCharacterId();
-//        long roomId = abilityRequest.getRoomId();
-//        long abilityId = abilityRequest.getAbilityId();
-//        long abilityOrder = abilityRequest.getAbilityOrder();
-//        long characterOrder = abilityRequest.getCharacterOrder();
-//        List<BattleCharacter> battleCharacters = battleCharacterRepository.findByMemberId(memberId);
-//        battleCharacters.forEach(battleCharacter -> {
-//            log.info("battleCharacter: {}", battleCharacter);
-//        });
-//
-//        BattleCharacter usedAbilityCharacter = battleCharacters.stream().filter(character -> character.getId().equals(characterId)).findAny().orElse(null);
-//        if (usedAbilityCharacter == null) {
-//            log.info("usedAbilityCharacter is null");
-//            return ResponseEntity.badRequest().body(null);
-//        }
-//
-//        Character character = characterRepository.findById(usedAbilityCharacter.getCharacter().getId()).orElse(null);
-//        Move move = character.getMoves().get(abilityId);
-//        log.info("move: {}", move);
-//
-//        Integer[] damages = new Integer[] {1, 2, 3, 4};
-//
-//        List<Status> buffStatuses = move.getStatuses().stream().filter(status -> status.getType() == StatusType.BUFF || status.getType() == StatusType.BUFF_FOR_ALL).toList();
-//        List<StatusDto> buffs = buffStatuses.stream().map(StatusDto::of).toList();
-//
-//        List<Status> debuffStatues = move.getStatuses().stream().filter(status -> status.getType() == StatusType.DEBUFF || status.getType() == StatusType.DEBUFF_FOR_ALL).toList();
-//        List<StatusDto> debuffs = debuffStatues.stream().map(StatusDto::of).toList();
-//
-//        Integer abilityHitCount = 6;
-//        Integer abilityEffectCount = 1;
-//
-//        AbilityResponse abilityResponse = AbilityResponse.builder()
-//                .hasMotion(false)
-//                .isMotionFullSize(false)
-//                .abilityHitCount(abilityHitCount)
-//                .abilityEffectCount(abilityEffectCount)
-//                .abilityVideoSrc(move.getAsset().getEffectVideo().getSrc())
-//                .abilityAudioSrcs(move.getAsset().getAudios().stream().map(Audio::getSrc).toList())
-//                .damages(damages)
-//                .buffs(buffs)
-//                .deBuffs(debuffs)
-//                .build();
-//
-//        return ResponseEntity.ok(abilityResponse);
-//    }
-//
-//    /*
-//    {
-//                        hasMotion: true,
-//                        isMotionFullSize: false,
-//                        abilityHitCount: 0,
-//                        abilityEffectCount: 1,
-//                        damages: [],
-//                        buffs: [
-//                            {
-//                                targets: [1, 2, 3],
-//                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-1.png',
-//                                effectText: '재공격',
-//                                infoText: '턴 진행시 공격행동을 2회 진행하는 상태'
-//                            },
-//                            {
-//                                targets: [4],
-//                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-2.png',
-//                                effectText: '감싸기',
-//                                infoText: '적의 공격을 아군 대신 받는 상태'
-//                            },
-//                            {
-//                                targets: [4],
-//                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-3.png',
-//                                effectText: '피해 무시',
-//                                infoText: '적의 공격 데미지와 약체효과를 무시하는 상태'
-//                            },
-//                        ],
-//                        deBuffs: []
-//                    },
-//     */
-//}
+package com.gbf.granblue_simulator.controller;
+
+import com.gbf.granblue_simulator.controller.response.CharacterInfo;
+import com.gbf.granblue_simulator.controller.response.EnemyInfo;
+import com.gbf.granblue_simulator.domain.Member;
+import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
+import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.logic.BattleLogic;
+import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.repository.MemberRepository;
+import com.gbf.granblue_simulator.repository.RoomRepository;
+import com.gbf.granblue_simulator.repository.UserRepository;
+import com.gbf.granblue_simulator.repository.actor.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Controller
+@RequiredArgsConstructor
+@Slf4j
+public class BattleController {
+
+    private final UserRepository userRepository;
+    private final RoomRepository roomRepository;
+    private final MemberRepository memberRepository;
+
+    private final BattleCharacterRepository battleCharacterRepository;
+    private final CharacterRepository characterRepository;
+
+    private final ActorRepository actorRepository;
+    private final BattleActorRepository battleActorRepository;
+    private final BattleLogic battleLogic;
+    private final BattleEnemyRepository battleEnemyRepository;
+
+
+    @GetMapping("/battle")
+    @Transactional
+    public String battle(Model model) {
+        BattleActor paladin = battleActorRepository.findById(945L).get();
+        BattleActor yachima = battleActorRepository.findById(946L).get();
+        BattleActor diaspora = battleActorRepository.findById(947L).get();
+
+        BattleEnemy enemy = (BattleEnemy) diaspora;
+        EnemyInfo enemyInfo = EnemyInfo.builder()
+                .id(enemy.getId())
+                .name(enemy.getName())
+                .phase(enemy.getPhase())
+                .statuses(enemy.getBattleStatuses())
+                .hpRate(enemy.getHpRateInteger())
+                .currentChargeGauge(enemy.getChargeGauge())
+                .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1))
+                .initialMoveType(MoveType.IDLE_DEFAULT) // 동적으로
+                .build();
+        model.addAttribute("enemyInfo", enemyInfo);
+
+        CharacterInfo paladinInfo = CharacterInfo.builder()
+                .id(paladin.getId())
+                .name(paladin.getName())
+                .portraitSrc(paladin.getActor().getBattlePortraitSrc())
+                .statuses(paladin.getBattleStatuses())
+                .hp(paladin.getHp())
+                .maxHp(paladin.getMaxHp())
+                .hpRate(paladin.getHpRateInteger())
+                .chargeGauge(paladin.getChargeGauge())
+                .maxChargeGauge(paladin.getMaxChargeGauge())
+                .abilities(paladin.getActor().getMoves().values().stream().filter(move -> move.getType().getParentType() == MoveType.ABILITY).sorted(Comparator.comparing(Move::getType)).toList())
+                .chargeAttack(paladin.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
+                .abilityCoolDowns(List.of(paladin.getFirstAbilityCoolDown(), paladin.getSecondAbilityCoolDown(), paladin.getThirdAbilityCoolDown()))
+                .build();
+
+        CharacterInfo yachimaInfo = CharacterInfo.builder()
+                .id(yachima.getId())
+                .name(yachima.getName())
+                .portraitSrc(yachima.getActor().getBattlePortraitSrc())
+                .statuses(yachima.getBattleStatuses())
+                .hp(yachima.getHp())
+                .maxHp(yachima.getMaxHp())
+                .hpRate(yachima.getHpRateInteger())
+                .chargeGauge(yachima.getChargeGauge())
+                .maxChargeGauge(yachima.getMaxChargeGauge())
+                .abilities(yachima.getActor().getMoves().values().stream().filter(move -> move.getType().getParentType() == MoveType.ABILITY).sorted(Comparator.comparing(Move::getType)).toList())
+                .chargeAttack(yachima.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
+                .abilityCoolDowns(List.of(yachima.getFirstAbilityCoolDown(), yachima.getSecondAbilityCoolDown(), yachima.getThirdAbilityCoolDown()))
+                .build();
+
+        List<CharacterInfo> characterInfos = List.of(paladinInfo, yachimaInfo);
+        model.addAttribute("characterInfos", characterInfos);
+
+
+        List<Move> firstCharacterMoves = paladin.getActor().getMoves().values().stream().toList();
+        Map<String, String> firstCharacterVideoSrcMap = new HashMap<>();
+        firstCharacterMoves.forEach(move -> {
+                    firstCharacterVideoSrcMap.put(move.getAsset().getEffectVideoSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    String motionVideoSrc = move.getAsset().getMotionVideoSrc();
+                    if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
+                        // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
+                        firstCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion");
+                    }
+                }
+        );
+        firstCharacterVideoSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
+        model.addAttribute("firstCharacterVideoSrcMap", firstCharacterVideoSrcMap);
+
+        Map<String, String> firstCharacterAudioSrcMap = new HashMap<>();
+        firstCharacterMoves.forEach(move -> {
+            firstCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            String voiceAudioSrc = move.getAsset().getVoiceAudioSrc();
+            if (voiceAudioSrc != null && !voiceAudioSrc.isEmpty()) {
+                // 현재 보이스는 없을 수 있음 TODO 향후 모두 존재하도록 변경 예정
+                firstCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            }
+        });
+        firstCharacterAudioSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
+        model.addAttribute("firstCharacterAudioSrcMap", firstCharacterAudioSrcMap);
+
+
+        List<Move> secondCharacterMoves = yachima.getActor().getMoves().values().stream().toList();
+        Map<String, String> secondCharacterVideoSrcMap = new HashMap<>();
+        secondCharacterMoves.forEach(move -> {
+                    secondCharacterVideoSrcMap.put(move.getAsset().getEffectVideoSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    String motionVideoSrc = move.getAsset().getMotionVideoSrc();
+                    if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
+                        // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
+                        secondCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion");
+                    }
+                }
+        );
+        model.addAttribute("secondCharacterVideoSrcMap", secondCharacterVideoSrcMap);
+
+        Map<String, String> secondCharacterAudioSrcMap = new HashMap<>();
+        secondCharacterMoves.forEach(move -> {
+            secondCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            String voiceAudioSrc = move.getAsset().getVoiceAudioSrc();
+            if (voiceAudioSrc != null && !voiceAudioSrc.isEmpty()) {
+                // 현재 보이스는 없을 수 있음 TODO 향후 모두 존재하도록 변경 예정
+                secondCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            }
+        });
+        model.addAttribute("secondCharacterAudioSrcMap", secondCharacterAudioSrcMap);
+
+        // 적의 effectVideo 를 key = effectVideoSrc, value = [MoveType.parentType.className, MoveType.className1 , ...] 인 Map 으로 변환
+        // ex) 같은 effectVideoSrc (standby-1.webm) 을 가지는 STAND_BY_A, STAND_BY_D 의 경우 value 를 [standby, standby-a, standby-d] 로 묶는다.
+        Map<String, List<String>> enemyVideoSrcMap = new HashMap<>();
+        enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
+                .collect(Collectors.groupingBy(
+                        move -> move.getAsset().getEffectVideoSrc(),
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                moves -> {
+                                    List<String> classNames = new ArrayList<>(moves.stream()
+                                            .map(move -> move.getType().getClassName())
+                                            .toList());
+                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
+                                    classNames.add(parentClassName);
+                                    return classNames;
+                                }
+                        )
+                )));
+
+        model.addAttribute("enemyVideoSrcMap", enemyVideoSrcMap);
+//        enemyVideoSrcMap.entrySet().forEach(
+//                entry -> log.info("key = {}, value = {}", entry.getKey(), entry.getValue())
+//        );
+
+        Map<String, List<String>> enemyAudioSrcMap = new HashMap<>();
+        enemyAudioSrcMap.putAll(enemy.getActor().getMoves().values().stream()
+                .collect(Collectors.groupingBy(
+                        move -> move.getAsset().getSeAudioSrc() != null ? move.getAsset().getSeAudioSrc() : "",
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                moves -> {
+                                    List<String> classNames = new ArrayList<>(moves.stream()
+                                            .map(move -> move.getType().getClassName())
+                                            .toList());
+                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
+                                    classNames.add(parentClassName);
+                                    return classNames;
+                                }
+                        )
+                )));
+        Member testMember = memberRepository.findById(1L).orElseThrow();
+        model.addAttribute("enemyAudioSrcMap", enemyAudioSrcMap);
+        model.addAttribute("member", testMember);
+
+        return "battle";
+    }
+
+
+    public void init() {
+        Member testMember = memberRepository.findById(1L).orElseThrow();
+
+        //배틀 액터 생성
+        Actor paladinActor = actorRepository.findById(1L).get();
+        Actor yachimaActor = actorRepository.findById(2L).get();
+        Actor diasporaActor = actorRepository.findById(5L).get();
+
+        // 배틀 액터 생성
+        BattleCharacter paladin = BattleCharacter.builder()
+                .name(paladinActor.getName())
+                .member(testMember)
+                .currentOrder(1)
+                .build();
+        paladin.setActor(paladinActor);
+        paladin = battleCharacterRepository.save(paladin);
+        BattleCharacter yachima = BattleCharacter.builder()
+                .name(yachimaActor.getName())
+                .member(testMember)
+                .actor(yachimaActor)
+                .currentOrder(2)
+                .build();
+        yachima.setActor(yachimaActor);
+        yachima = battleCharacterRepository.save(yachima);
+        BattleEnemy diaspora = BattleEnemy.builder()
+                .member(testMember)
+                .name(diasporaActor.getName())
+                .currentOrder(0) // 적이 0
+                .build();
+        diaspora.setActor(diasporaActor);
+        diaspora = battleEnemyRepository.save(diaspora);
+
+        List<BattleActor> partyMembers = List.of(paladin, yachima);
+        BattleActor enemy = diaspora;
+        battleLogic.startBattle(partyMembers, enemy);
+    }
+
+
+    @PostMapping("/api/ability")
+    @ResponseBody
+    public ResponseEntity<List<AbilityResponse>> ability(@RequestBody AbilityRequest abilityRequest) {
+        log.info("abilityRequest: {}", abilityRequest);
+
+        long memberId = abilityRequest.getMemberId();
+        long characterId = abilityRequest.getCharacterId();
+        long roomId = abilityRequest.getRoomId();
+        long abilityId = abilityRequest.getAbilityId();
+        MoveType moveType = MoveType.valueOf(abilityRequest.getMoveType());
+        long abilityOrder = abilityRequest.getAbilityOrder();
+        long characterOrder = abilityRequest.getCharacterOrder();
+
+        List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
+        List<BattleActor> allActors = battleActorRepository.findByMemberId(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
+        BattleActor mainCharacter = partyMembers.stream().filter(battleCharacter -> battleCharacter.getId().equals(characterId)).findFirst().orElseThrow();
+        Long moveId = mainCharacter.getActor().getMoves().get(moveType).getId(); // TODO 나중에 바꿀것
+        BattleEnemy battleEnemy = battleEnemyRepository.findByMemberId(memberId).orElseThrow();
+
+//        partyMembers.forEach(character -> log.info("character: {}", character));
+//        log.info("enemy: {}", battleEnemy);
+
+        List<ActorLogicResult> results = battleLogic.processAbility(mainCharacter, battleEnemy, partyMembers, moveId);
+
+        List<AbilityResponse> responses = results.stream().map(result ->
+                AbilityResponse.builder()
+                        .moveType(result.getMoveType())
+                        .damages(result.getDamages())
+                        .hitCount(result.getTotalHitCount())
+                        .additionalDamages(result.getAdditionalDamages())
+                        .hpList(result.getHpList())
+                        .chargeGauges(result.getChargeGauges())
+                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
+                                .map(battleStatuses -> battleStatuses.stream()
+                                        .map(battleStatus ->
+                                                StatusDto.builder()
+                                                        .type(battleStatus.getStatus().getType().name())
+                                                        .name(battleStatus.getStatus().getName())
+                                                        .imageSrc(battleStatus.getIconSrc())
+                                                        .effectText(battleStatus.getStatus().getEffectText())
+                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .duration(battleStatus.getDuration())
+                                                        .build())
+                                        .toList()
+                                ).toList())
+                        .abilityCoolDowns(result.getAbilityCooldowns())
+                        .isEnemyDispelled(result.isEnemyDispelled())
+                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .build()
+        ).toList();
+        responses.forEach(response -> log.info("response: {}", response));
+
+
+        return ResponseEntity.ok(responses);
+    }
+
+
+
+    /*
+    {
+                        hasMotion: true,
+                        isMotionFullSize: false,
+                        abilityHitCount: 0,
+                        abilityEffectCount: 1,
+                        damages: [],
+                        buffs: [
+                            {
+                                targets: [1, 2, 3],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-1.png',
+                                effectText: '재공격',
+                                infoText: '턴 진행시 공격행동을 2회 진행하는 상태'
+                            },
+                            {
+                                targets: [4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-2.png',
+                                effectText: '감싸기',
+                                infoText: '적의 공격을 아군 대신 받는 상태'
+                            },
+                            {
+                                targets: [4],
+                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-3.png',
+                                effectText: '피해 무시',
+                                infoText: '적의 공격 데미지와 약체효과를 무시하는 상태'
+                            },
+                        ],
+                        deBuffs: []
+                    },
+     */
+}

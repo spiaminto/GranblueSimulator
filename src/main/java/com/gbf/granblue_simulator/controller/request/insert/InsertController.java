@@ -67,7 +67,7 @@ public class InsertController {
         idle = moveRepository.save(idle);
 
         Asset idleAsset = Asset.builder()
-                .effectVideoSrc(idleAndAttackRequest.getIdleEffectVideoSrc())
+                .motionVideoSrc(idleAndAttackRequest.getIdleEffectVideoSrc())
                 .move(idle)
                 .build();
         idleAsset = assetRepository.save(idleAsset);
@@ -214,6 +214,7 @@ public class InsertController {
                 .motionVideoSrc(request.getMotionVideoSrc())
                 .seAudioSrc(request.getSeAudioSrc())
                 .voiceAudioSrc(request.getVoiceAudioSrc())
+                .iconImageSrc(request.getIconSrc())
                 .build();
         abilityAsset = assetRepository.save(abilityAsset);
 

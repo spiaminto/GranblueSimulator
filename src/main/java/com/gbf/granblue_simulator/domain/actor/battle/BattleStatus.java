@@ -1,9 +1,12 @@
 package com.gbf.granblue_simulator.domain.actor.battle;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 
@@ -13,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = {"battleActor"})
+@EqualsAndHashCode @ToString(exclude = {"battleActor", "status"})
 public class BattleStatus {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,6 +35,9 @@ public class BattleStatus {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
     public BattleStatus setBattleActor(BattleActor battleActor) {
         this.battleActor = battleActor;
         battleActor.getBattleStatuses().add(this);
@@ -42,11 +48,13 @@ public class BattleStatus {
         this.level = Math.min(this.status.getMaxLevel(), this.level + 1);
         // 레벨이 10 이상일경우 버그남. 레벨은 무조건 9 까지. <- 이제 src 배열로 저장하니까 상관없지 않나?
         this.iconSrc = this.status.getIconSrcs().get(level - 1);
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void addLevel(int level) {
         this.level = Math.min(this.status.getMaxLevel(), this.level + level);
         this.iconSrc = this.status.getIconSrcs().get(level - 1);
+        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -54,5 +62,6 @@ public class BattleStatus {
      */
     public void resetDuration() {
         this.duration = this.status.getDuration();
+        this.updatedAt = LocalDateTime.now();
     }
 }

@@ -50,11 +50,19 @@ public class ChargeGaugeLogic {
      * @param enemy
      * @param moveType
      */
-    public void afterEnemyAttack(BattleActor enemy, MoveType moveType) {
+    public void afterEnemyAttack(BattleActor enemy, List<BattleActor> targets, List<Integer> damages, MoveType moveType) {
         if (moveType.getParentType() == MoveType.CHARGE_ATTACK) {
             enemy.setChargeGauge(0);
         } else {
             increaseChargeGauge(enemy, baseEnemyAttackGaugePoint);
+        }
+        
+        // 적의 공격에 따른 아군의 오의게이지 변화
+        for (int i = 0; i < targets.size(); i++) {
+            BattleActor target = targets.get(i);
+            int damage = damages.get(i);
+            double addValue = Math.ceil(100 * ((double) damage / target.getMaxHp()) * 0.5);
+            increaseChargeGauge(target, addValue);
         }
     }
 

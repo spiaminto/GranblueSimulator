@@ -100,3 +100,16 @@ body .font-xxsm {
 .blinking-element {
     animation: blink 1.5s infinite;
 }
+
+.modal-body hr {
+    margin: 0;
+}
+
+.modal-content {
+    background-color: #150f0f;
+    opacity: 0.95;
+    color: white;
+}
+
+.modal-header {
+}

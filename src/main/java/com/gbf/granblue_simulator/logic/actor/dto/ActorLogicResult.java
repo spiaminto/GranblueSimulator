@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.dto;
 
+import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import lombok.Builder;
 import lombok.Data;
@@ -20,22 +20,32 @@ public class ActorLogicResult {
     @Builder.Default
     private List<Integer> damages = new ArrayList<>();
 
+    // 프론트 갱신용
+    // 0: enemy , 1~: character (index 는 currentOrder)
+    @Builder.Default
+    private List<Integer> hpList = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> chargeGauges = new ArrayList<>();
+    @Builder.Default
+    private List<List<BattleStatus>> addedBattleStatusesList = new ArrayList<>();
+    @Builder.Default
+    private List<List<BattleStatus>> removedBattleStatusesList = new ArrayList<>();
+    @Builder.Default
+    private List<List<Integer>> abilityCooldowns = new ArrayList<>();
+
     // 비필수, 중요
     private Integer totalHitCount; // 통상공격의 경우 추격까지 모두 더함
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
-    @Builder.Default
-    private List<Status> statusList = new ArrayList<>();
-    @Builder.Default
-    private List<Integer> chargeGauges = new ArrayList<>(); // order by BattleActor.currentOrder
     private Integer enemyChargeGauge;
     private Integer omenValue;
 
-    // 필요한 경우 사용
+    private boolean enemyDispelled;
+    private boolean partyMemberDispelled;
+
+    // 적의 데미지 발생시 사용
     @Builder.Default
-    private List<Long> enemyChargeAttackTargetIds = new ArrayList<>(); // 적의 특수기 공격타겟
-    @Builder.Default
-    private List<String> enemyChargeAttackTargetNames = new ArrayList<>(); // 적의 특수기 공격타겟 (디버깅용)
+    private List<Integer> enemyAttackTargetOrders = new ArrayList<>(); // 적의 특수기 공격타겟 currentOrder
 
     @Accessors(fluent = true)
     private boolean hasNextMove; // 후행동

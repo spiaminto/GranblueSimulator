@@ -91,7 +91,7 @@ $(function () {
             let abilityOrder = $(addedAbility).data('ability-order');
             $(addedAbility).addClass('active');
             setTimeout(() => {
-                processAbility(charOrder, abilityOrder);
+                requestAbility(charOrder, abilityOrder);
             }, 500);
             return true;
         }
@@ -109,7 +109,7 @@ $(function () {
                 let abilityOrder = $latestAbility.data('ability-order');
                 $latestAbility.addClass('active');
                 setTimeout(() => {
-                    processAbility(charOrder, abilityOrder);
+                    requestAbility(charOrder, abilityOrder);
                 }, 700);
                 return true;
             } else {
