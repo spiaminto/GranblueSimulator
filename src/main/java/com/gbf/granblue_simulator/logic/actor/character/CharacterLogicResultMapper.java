@@ -102,6 +102,7 @@ public class CharacterLogicResultMapper {
 
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
+                .mainBattleActorOrder(mainActor.getCurrentOrder())
 
                 .moveType(move.getType())
                 .hpList(hpList)

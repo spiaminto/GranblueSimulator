@@ -7,6 +7,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
@@ -19,10 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -35,6 +33,7 @@ public class BattleLogic {
     private final BattleActorRepository battleActorRepository;
     private final MoveRepository moveRepository;
     private final BattleLogRepository battleLogRepository;
+    private final ActorLogicUtil actorLogicUtil;
 
     /*
     캐릭터 어빌리티발동
@@ -66,6 +65,49 @@ public class BattleLogic {
         return results;
     }
 
+    public List<ActorLogicResult> progressTurn(BattleActor enemy, List<BattleActor> partyMembers) {
+        List<ActorLogicResult> progressTurnResults = new ArrayList<>();
+        progressTurnResults.addAll(processAttack(enemy, partyMembers)); // 아군의 공격 추가
+        progressTurnResults.addAll(processEnemyAttack(enemy, partyMembers)); // 적의 공격 추가
+        progressTurnResults.addAll(processTurnEnd(enemy, partyMembers)); // 턴종 처리 추가
+        progressTurnResults = progressTurnResults.stream().filter(Objects::nonNull).toList();
+
+        actorLogicUtil.progressTurn(enemy, partyMembers); // 턴진행 부가처리
+        progressTurnResults.forEach(result -> log.info("progressTurnResult: {}", result));
+
+        return progressTurnResults;
+    }
+
+    protected List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
+        List<ActorLogicResult> turnEndResults = new ArrayList<>();
+        // 아군 턴종 처리
+        partyMembers.forEach(partyMember -> {
+            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+            ActorLogicResult result = characterLogic.onTurnEnd(partyMember, enemy, partyMembers);
+            if (result != null) {
+                turnEndResults.add(result);
+                saveBattleLog(result);
+            }
+        });
+        
+        // 적 턴종료 처리
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        ActorLogicResult enemyTurnEndResult = enemyLogic.onTurnEnd(enemy, partyMembers);
+        if (enemyTurnEndResult != null) {
+            turnEndResults.add(enemyTurnEndResult);
+            saveBattleLog(enemyTurnEndResult);
+        }
+
+        return turnEndResults;
+    }
+
+    /**
+     * 파라미터로 받은 partyMembers 전원이 enemy 를 대상으로 일반공격
+     *
+     * @param enemy
+     * @param partyMembers
+     * @return
+     */
     public List<ActorLogicResult> processAttack(BattleActor enemy, List<BattleActor> partyMembers) {
         List<BattleActor> moveActors = partyMembers;
 
@@ -116,7 +158,7 @@ public class BattleLogic {
         List<ActorLogicResult> results = new ArrayList<>();
         ActorLogicResult result = null;
 
-        // moveActor 마다 NORMAL_ATTACK 또는 CHARGE_ATTACK 실행. 그에따른 재행동역시 실행함.
+        // 다음 스탠바이가 있으면 특수기
         MoveType moveType = enemy.getNextStandbyType() != null ? MoveType.CHARGE_ATTACK : MoveType.ATTACK;
         EnemyLogic enemyLogic = enemyLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
 
@@ -138,9 +180,9 @@ public class BattleLogic {
         } while (moveResult.hasNextMove());
 
         // turn end
-        ActorLogicResult turnEndEnemyResult = enemyLogic.onTurnEnd(mainActor, partyMembers);
-        results.add(turnEndEnemyResult);
-        saveBattleLog(turnEndEnemyResult);
+//        ActorLogicResult turnEndEnemyResult = enemyLogic.onTurnEnd(mainActor, partyMembers);
+//        results.add(turnEndEnemyResult);
+//        saveBattleLog(turnEndEnemyResult);
         return results;
     }
 
@@ -190,8 +232,7 @@ public class BattleLogic {
                 ActorLogicResult nextMoveResult = ActorLogicResult.builder().build(); // 후행동 결과저장
                 do { // 후행동의 후행동 처리를 위해 반복 
                     switch (nextMoveType) {
-                        case ATTACK ->
-                                nextMoveResult = nextCharacterLogic.attack(nextMoveActor, enemy, partyMembers);
+                        case ATTACK -> nextMoveResult = nextCharacterLogic.attack(nextMoveActor, enemy, partyMembers);
                         case FIRST_ABILITY ->
                                 nextMoveResult = nextCharacterLogic.firstAbility(nextMoveActor, enemy, partyMembers);
                         case SECOND_ABILITY ->

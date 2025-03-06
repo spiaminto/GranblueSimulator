@@ -50,7 +50,7 @@ public class Move {
     // 어빌리티
     private Integer coolDown; // 쿨타임
     private String duration; // 지속시간 -> 표현만을 위한 지속시간. 쉼표로 여러개 구분
-    private Integer hitCount; // 데미지 횟수
+    private Integer hitCount; // 데미지 횟수 (적의 전체공격은 '적전체에게 1회 데미지' 이므로 hitCount = 1, isAllTarget 추가사용)
     
     // 랜덤 스테이터스 효과 부여시 사용
     private Integer randomStatusCount;

@@ -162,4 +162,13 @@ public class BattleActor {
         return (int) (((double) hp / maxHp) * 100);
     }
 
+    /**
+     * 어빌리티 쿨타임 진행
+     */
+    public void progressAbilityCoolDown() {
+        this.firstAbilityCoolDown = Math.max(0, this.firstAbilityCoolDown - 1);
+        this.secondAbilityCoolDown = Math.max(0, this.secondAbilityCoolDown - 1);
+        this.thirdAbilityCoolDown = Math.max(0, this.thirdAbilityCoolDown - 1);
+    }
+
 }

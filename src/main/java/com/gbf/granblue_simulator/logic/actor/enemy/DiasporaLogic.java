@@ -164,13 +164,14 @@ public class DiasporaLogic implements EnemyLogic {
             Omen standbyOmen = standbyMove.getOmen();
             Integer processedOmenValue = processOmen(enemy, otherResult);
             if (processedOmenValue == 0) {
-                // 전조 해제
+                // 전조 해제됨
                 Move breakMove = enemy.getActor().getMoves().get(standbyMove.getType().getBreakType());
                 enemy.setNextStandbyType(null);
                 if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) enemy.setChargeGauge(0);
                 results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, breakMove));
             } else {
-                results.add(enemyLogicResultMapper.toResultWithOmenValue(mainActor, partyMembers, standbyMove, processedOmenValue));
+                // 전조 갱신됨
+                results.add(enemyLogicResultMapper.toResultWithOmen(mainActor, partyMembers, standbyMove, standbyMove.getOmen()));
             }
         }
 
@@ -223,12 +224,11 @@ public class DiasporaLogic implements EnemyLogic {
     public ActorLogicResult onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy enemy = (BattleEnemy) mainActor;
         Enemy enemyActor = (Enemy) enemy.getActor();
-
         // 전조발생
         Move standbyMove = determineStandbyMove(enemy);
         if (standbyMove != null) {
             // 전조 발생함
-            return enemyLogicResultMapper.toResultMoveOnly(enemy, partyMembers, standbyMove);
+            return enemyLogicResultMapper.toResultWithOmen(enemy, partyMembers, standbyMove, standbyMove.getOmen());
         }
         return null;
     }
@@ -243,12 +243,14 @@ public class DiasporaLogic implements EnemyLogic {
             // 영창기 (로직내부에서 발동설정)
             standby = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
         } else if (hpTriggerOmen.isPresent() && !hpTriggerOmen.get().getTriggerHp().equals(enemy.getLatestTriggeredHp())) {
+            // hp 트리거가 존재하며, 마지막으로 발동한 hp 트리거와 다름
             log.warn("HPTRIGGER rate = {}, target = {}", enemy.getHpRateInteger(), hpTriggerOmen.get().getTriggerHp());
             // HP 트리거
             Omen triggeredOmen = hpTriggerOmen.get();
             standby = enemy.getActor().getMoves().get(triggeredOmen.getMove().getType());
             enemy.setNextStandbyType(standby.getType());
-            enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
+            // TODO HP 트리거 테스트 후 주석해제
+            // enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
         } else if (enemy.getChargeGauge() >= enemy.getActor().getMaxChargeGauge()) {
             log.warn("CHARGEATTACK");
             // 차지어택

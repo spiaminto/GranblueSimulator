@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface BattleActorRepository extends JpaRepository<BattleActor, Long> {
 
-    List<BattleActor> findByMemberId (Long memberId);
+    List<BattleActor> findByMemberIdOrderByCurrentOrderAsc(Long memberId);
 }

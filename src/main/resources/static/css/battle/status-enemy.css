@@ -85,6 +85,10 @@
 
 .omen-container {
     margin-left: auto;
+
+    /* TODO 테스트용 */
+    position: absolute;
+    top: 50px;
 }
 
 .omen-text {

@@ -228,7 +228,7 @@ public class EnemyInsertController {
             Integer omenCancelValue = Integer.valueOf(splitCancelCondition[2].trim());
             OmenCancelCond omenCancel = OmenCancelCond.builder()
                     .type(omenCancelType)
-                    .presentInfo(omenCancelPresentInfo)
+                    .info(omenCancelPresentInfo)
                     .initValue(omenCancelValue)
                     .omen(omen).build();
             omenCancelCondRepository.save(omenCancel);

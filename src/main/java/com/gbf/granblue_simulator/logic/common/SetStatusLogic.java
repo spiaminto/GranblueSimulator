@@ -310,4 +310,35 @@ public class SetStatusLogic {
         return battleStatus;
     }
 
+    /**
+     * 배틀 스테이터스의 턴을 진행시킴. 남은시간이 감소하고 남은시간이 0턴인 배틀스테이터스는 삭제됨
+     * @param enemy
+     * @param partyMembers
+     */
+    public void progressBattleStatus(BattleActor enemy, List<BattleActor> partyMembers) {
+        List<BattleActor> allActors = new ArrayList<>();
+        allActors.add(enemy);
+        allActors.addAll(partyMembers);
+
+        // BattleStatus 남은시간 1턴 감소
+        allActors.forEach(battleActor -> battleActor.getBattleStatuses().forEach(BattleStatus::decreaseDuration));
+
+        // 남은시간 0턴인 BattleStatus
+        List<List<BattleStatus>> expiredBattleStatusesList = allActors.stream()
+                .map(battleActor -> battleActor.getBattleStatuses()
+                        .stream().filter(battleStatus -> battleStatus.getDuration() == 0).toList())
+                .toList();
+        expiredBattleStatusesList.forEach(list -> list.forEach(battleStatus -> log.info("[progressBattleStatus] listIndex = {} statusName = {}, expiredBattleStatus = {}",expiredBattleStatusesList.indexOf(list), battleStatus.getStatus().getName(), battleStatus)));
+
+        // 남은 시간 0턴인 BAttleStatus 삭제
+        expiredBattleStatusesList.forEach(battleStatuses -> {
+            if (!battleStatuses.isEmpty()) {
+                battleStatuses.getFirst().getBattleActor().getBattleStatuses().removeAll(battleStatuses);
+                battleStatusRepository.deleteAll(battleStatuses);
+            }
+        });
+        
+    }
+
+
 }

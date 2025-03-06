@@ -81,7 +81,7 @@ public class PaladinLogic implements CharacterLogic {
 
     @Override // 아군 전체 스트렝스, 베리어
     public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK);
+        Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT);
         // 데미지 계싼
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, chargeAttack);
         // 스테이터스 적용

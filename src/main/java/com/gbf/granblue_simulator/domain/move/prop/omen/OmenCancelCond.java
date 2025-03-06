@@ -18,7 +18,7 @@ public class OmenCancelCond {
     @Enumerated(EnumType.STRING)
     private OmenCancelType type; // 해제조건 타입
 
-    private String presentInfo; // 해제조건표시용 (보스 체력 아래에 표시될 텍스트)
+    private String info; // 해제조건표시용 (보스 체력 아래에 표시될 텍스트)
     private Integer initValue; // 해제 조건 초기값
 
     @ManyToOne @JoinColumn(name = "omen_id")

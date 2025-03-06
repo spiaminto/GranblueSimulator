@@ -194,7 +194,7 @@ public class CalcStatusLogic {
         double doubleAttackDownRate = getSum(statusEffects.get(StatusEffectType.DOUBLE_ATTACK_RATE_DOWN));
 
         // 상한 하한 처리
-        double doubleAttackRate = Math.max(baseDoubleAttackRate + doubleAttackUpRate - doubleAttackDownRate, -0.99); // 상한 x 하한 -99%
+        double doubleAttackRate = Math.max(baseDoubleAttackRate + doubleAttackUpRate - doubleAttackDownRate, 0); // 상한 x 하한 0
 
         battleActor.setDoubleAttackRate(doubleAttackRate);
         return 0;
@@ -206,7 +206,7 @@ public class CalcStatusLogic {
         double tripleAttackDownRate = getSum(statusEffects.get(StatusEffectType.TRIPLE_ATTACK_RATE_DOWN));
 
         // 상한 하한 처리
-        double tripleAttackRate = Math.max(baseTripleAttackRate + tripleAttackUpRate - tripleAttackDownRate, -0.99); // 상한 x 하한 -99%
+        double tripleAttackRate = Math.max(baseTripleAttackRate + tripleAttackUpRate - tripleAttackDownRate, 0); // 상한 x 하한 0
 
         battleActor.setTripleAttackRate(tripleAttackRate);
         return 0;

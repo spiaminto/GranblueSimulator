@@ -1,63 +1,8 @@
-function requestAbility(charOrder, abilityOrder) {
-
-    console.log('[processAbility] start process charOrder = ' + charOrder + 'abilityOrder = ' + abilityOrder);
-
-    // TODO 통신
-    let characterId = $('#battleMemberPresentContainer .battle-portrait').eq(charOrder - 1).data('character-id');
-    let memberId = $('#memberInfo').data('member-id');
-    let roomId = $('#roomInfo').data('room-id');
-    let abilityId = $('#abilityInfo').data('ability-id');
-    let moveType = abilityOrder > 1 ? MoveType.SECOND_ABILITY : MoveType.FIRST_ABILITY;
-    moveType = abilityOrder > 2 ? MoveType.THIRD_ABILITY : moveType;
-    let responseResults = null;
-    $.ajax({
-        url: '/api/ability',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            memberId: memberId,
-            characterId: characterId,
-            moveType: moveType.name,
-            abilityId: abilityId,
-            charOrder: charOrder,
-            abilityOrder: abilityOrder,
-            roomId: roomId
-        }),
-        async: false,
-        success: function (response) {
-            responseResults = response;
-            console.log(responseResults);
-            processResponseMoves(charOrder, abilityOrder, responseResults);
-        },
-        error: function (response) {
-            console.log(response);
-        }
-    });
-}
-
-async function processResponseMoves(charOrder, abilityOrder, responseResults) {
-    for (const response of responseResults) {
-        let moveType = MoveType.byName(response.moveType);
-        let parentMoveType = moveType.getParentType();
-        switch (parentMoveType) {
-            case MoveType.SUPPORT_ABILITY:
-            case MoveType.ABILITY:
-                await processAbility(response, charOrder, abilityOrder);
-                console.log('is then?');
-                break;
-            case MoveType.ATTACK:
-                await processCharacterAttack(response, charOrder);
-                break;
-            default:
-                console.log('invalid type', parentMoveType);
-        }
-    }
-}
-
-async function processAbility(responseAbilityData, charOrder, abilityOrder) {
-
+function processAbility(responseAbilityData) {
     let abilityData = responseAbilityData;
+    let charOrder = responseAbilityData.charOrder;
     let moveType = MoveType.byName(responseAbilityData.moveType);
+    let abilityOrder = moveType === MoveType.FIRST_ABILITY ? 1 : moveType === MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
     let abilityHitCount = abilityData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
     let abilityDamages = abilityData.damages;
 
@@ -111,7 +56,7 @@ async function processAbility(responseAbilityData, charOrder, abilityOrder) {
         // 적 idle 및 damaged 모션 클래스 찾기
         let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
         let idleMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdletype().className;
+            MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
         let damagedMoveClassName = standbyMoveClassName === 'none' ?
             MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
         // 클래스로 비디오 찾기
@@ -245,21 +190,19 @@ async function processAbility(responseAbilityData, charOrder, abilityOrder) {
         });
     });
     let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    // 디버프 이펙트 처리 끝
 
-    console.log('abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime)
     let totalEndTime = Math.max(abilityDuration + 100, buffEndTime, debuffEndTime);
-    console.log("total = " + totalEndTime)
+    console.log('totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
+
     return new Promise(resolve => setTimeout(function () {
         if (moveType.getParentType() === MoveType.ABILITY) {
             // 어빌리티 후처리 (서폿어빌 X)
-            $('.ability-rail-wrapper .rail-ability').get(0).remove();
+            $('.ability-rail-wrapper .rail-ability').eq(0).remove();
             let $processedAbility = $('.ability-panel.actor-' + charOrder + ' .ability-' + abilityOrder);
             $processedAbility.find('.ability-overlay').show();
         }
-
         console.log(moveType.name + ' done');
         resolve();
     }, totalEndTime));
-
-    // 디버프 이펙트 처리 끝
 }

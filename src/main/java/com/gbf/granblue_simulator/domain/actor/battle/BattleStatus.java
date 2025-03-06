@@ -64,4 +64,9 @@ public class BattleStatus {
         this.duration = this.status.getDuration();
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void decreaseDuration() {
+        this.duration = Math.max(0, this.duration - 1);
+        this.updatedAt = LocalDateTime.now();
+    }
 }

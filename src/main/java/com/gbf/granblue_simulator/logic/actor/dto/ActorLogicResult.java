@@ -2,6 +2,8 @@ package com.gbf.granblue_simulator.logic.actor.dto;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +18,7 @@ public class ActorLogicResult {
 
     // 필수
     private Long mainBattleActorId;
+    private Integer mainBattleActorOrder;
     private MoveType moveType;
     @Builder.Default
     private List<Integer> damages = new ArrayList<>();
@@ -38,7 +41,10 @@ public class ActorLogicResult {
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
     private Integer enemyChargeGauge;
+
+    private OmenType omenType;
     private Integer omenValue;
+    private String omenCancelCondInfo;
 
     private boolean enemyDispelled;
     private boolean partyMemberDispelled;
@@ -46,6 +52,7 @@ public class ActorLogicResult {
     // 적의 데미지 발생시 사용
     @Builder.Default
     private List<Integer> enemyAttackTargetOrders = new ArrayList<>(); // 적의 특수기 공격타겟 currentOrder
+    private boolean isAllTarget;
 
     @Accessors(fluent = true)
     private boolean hasNextMove; // 후행동

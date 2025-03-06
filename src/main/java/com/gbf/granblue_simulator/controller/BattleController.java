@@ -9,6 +9,8 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.repository.MemberRepository;
@@ -52,6 +54,16 @@ public class BattleController {
         BattleActor diaspora = battleActorRepository.findById(947L).get();
 
         BattleEnemy enemy = (BattleEnemy) diaspora;
+        String omenPrefix = null;
+        Integer omenValue = null;
+        OmenType omenType = null;
+        if (enemy.getNextStandbyType() != null) {
+            Omen omen = enemy.getActor().getMoves().get(enemy.getNextStandbyType()).getOmen();
+            omenPrefix = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo(); // TODO 나중에 리팩토링 해야될듯
+            omenValue = enemy.getOmenValue();
+            omenType = omen.getOmenType();
+        }
+
         EnemyInfo enemyInfo = EnemyInfo.builder()
                 .id(enemy.getId())
                 .name(enemy.getName())
@@ -60,7 +72,11 @@ public class BattleController {
                 .hpRate(enemy.getHpRateInteger())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1))
-                .initialMoveType(MoveType.IDLE_DEFAULT) // 동적으로
+                .initialMoveType(enemy.getNextStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getNextStandbyType()) // 동적으로
+                .omenActivated(enemy.getNextStandbyType() != null)
+                .omenPrefix(omenPrefix)
+                .omenValue(omenValue)
+                .omenType(omenType)
                 .build();
         model.addAttribute("enemyInfo", enemyInfo);
 
@@ -101,7 +117,10 @@ public class BattleController {
         List<Move> firstCharacterMoves = paladin.getActor().getMoves().values().stream().toList();
         Map<String, String> firstCharacterVideoSrcMap = new HashMap<>();
         firstCharacterMoves.forEach(move -> {
-                    firstCharacterVideoSrcMap.put(move.getAsset().getEffectVideoSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    String effectVideoSrc = move.getAsset().getEffectVideoSrc();
+                    if (effectVideoSrc != null && !effectVideoSrc.isEmpty()) {
+                        firstCharacterVideoSrcMap.put(effectVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    }
                     String motionVideoSrc = move.getAsset().getMotionVideoSrc();
                     if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
                         // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
@@ -128,7 +147,10 @@ public class BattleController {
         List<Move> secondCharacterMoves = yachima.getActor().getMoves().values().stream().toList();
         Map<String, String> secondCharacterVideoSrcMap = new HashMap<>();
         secondCharacterMoves.forEach(move -> {
-                    secondCharacterVideoSrcMap.put(move.getAsset().getEffectVideoSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    String effectVideoSrc = move.getAsset().getEffectVideoSrc();
+                    if (effectVideoSrc != null && !effectVideoSrc.isEmpty()) {
+                        secondCharacterVideoSrcMap.put(effectVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
+                    }
                     String motionVideoSrc = move.getAsset().getMotionVideoSrc();
                     if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
                         // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
@@ -249,7 +271,7 @@ public class BattleController {
         long characterOrder = abilityRequest.getCharacterOrder();
 
         List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
-        List<BattleActor> allActors = battleActorRepository.findByMemberId(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
+        List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
         BattleActor mainCharacter = partyMembers.stream().filter(battleCharacter -> battleCharacter.getId().equals(characterId)).findFirst().orElseThrow();
         Long moveId = mainCharacter.getActor().getMoves().get(moveType).getId(); // TODO 나중에 바꿀것
         BattleEnemy battleEnemy = battleEnemyRepository.findByMemberId(memberId).orElseThrow();
@@ -261,6 +283,7 @@ public class BattleController {
 
         List<AbilityResponse> responses = results.stream().map(result ->
                 AbilityResponse.builder()
+                        .charOrder(result.getMainBattleActorOrder())
                         .moveType(result.getMoveType())
                         .damages(result.getDamages())
                         .hitCount(result.getTotalHitCount())
@@ -319,36 +342,82 @@ public class BattleController {
         return ResponseEntity.ok(responses);
     }
 
+    @PostMapping("/api/turn-progress")
+    @ResponseBody
+    public ResponseEntity<List<AbilityResponse>> turnProgress(@RequestBody TurnProgressRequest turnProgressRequest) {
+        log.info("turnProgressRequest: {}", turnProgressRequest);
+        long memberId = turnProgressRequest.getMemberId();
+
+        List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
+        BattleActor enemy = allActors.getFirst();
+        List<BattleActor> partyMembers = allActors.subList(1, allActors.size());
+
+        List<ActorLogicResult> turnProgressResults = battleLogic.progressTurn(enemy, partyMembers);
+
+        List<AbilityResponse> responses = turnProgressResults.stream().map(result ->
+                AbilityResponse.builder()
+                        .charOrder(result.getMainBattleActorOrder())
+                        .moveType(result.getMoveType())
+                        .damages(result.getDamages())
+                        .hitCount(result.getTotalHitCount())
+                        .additionalDamages(result.getAdditionalDamages())
+                        .hpList(result.getHpList())
+                        .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
+                        .isAllTarget(result.isAllTarget())
+                        .omenType(result.getOmenType())
+                        .omenValue(result.getOmenValue())
+                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                        .chargeGauges(result.getChargeGauges())
+                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
+                                .map(battleStatuses -> battleStatuses.stream()
+                                        .map(battleStatus ->
+                                                StatusDto.builder()
+                                                        .type(battleStatus.getStatus().getType().name())
+                                                        .name(battleStatus.getStatus().getName())
+                                                        .imageSrc(battleStatus.getIconSrc())
+                                                        .effectText(battleStatus.getStatus().getEffectText())
+                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .duration(battleStatus.getDuration())
+                                                        .build())
+                                        .toList()
+                                ).toList())
+                        .abilityCoolDowns(result.getAbilityCooldowns())
+                        .isEnemyDispelled(result.isEnemyDispelled())
+                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .build()
+        ).toList();
+        responses.forEach(response -> log.info("response: {}", response));
 
 
-    /*
-    {
-                        hasMotion: true,
-                        isMotionFullSize: false,
-                        abilityHitCount: 0,
-                        abilityEffectCount: 1,
-                        damages: [],
-                        buffs: [
-                            {
-                                targets: [1, 2, 3],
-                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-1.png',
-                                effectText: '재공격',
-                                infoText: '턴 진행시 공격행동을 2회 진행하는 상태'
-                            },
-                            {
-                                targets: [4],
-                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-2.png',
-                                effectText: '감싸기',
-                                infoText: '적의 공격을 아군 대신 받는 상태'
-                            },
-                            {
-                                targets: [4],
-                                iconSrc: '/static/assets/img/ch/haira/status/status-haira-ability-3-3.png',
-                                effectText: '피해 무시',
-                                infoText: '적의 공격 데미지와 약체효과를 무시하는 상태'
-                            },
-                        ],
-                        deBuffs: []
-                    },
-     */
+        return ResponseEntity.ok(responses);
+    }
+
 }

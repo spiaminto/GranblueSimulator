@@ -8,7 +8,7 @@ video {
 }
 
 .motion-enemy-attack, .motion-enemy-charge-attack {
-    z-index: 0;
+    z-index: 10;
 }
 
 .motion-ability {
@@ -48,7 +48,7 @@ video {
     z-index: -1;
 }
 
-.party-video-container .effect {
+.party-video-container .effect:not(.damaged) {
     width: 100% !important;
     top: 5% !important;
     left: 0 !important;
@@ -67,9 +67,9 @@ video {
     visibility: hidden;
 }
 
-.enemy:not(.hidden) {
-    visibility: visible;
-}
+/*.enemy:not(.hidden) {*/
+/*    visibility: visible;*/
+/*}*/
 
 .motion-attack-active , .motion-ability.full-size{
     width: 100%;

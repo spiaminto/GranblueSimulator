@@ -135,3 +135,16 @@ MoveType.getMoveType = function getMoveType(moveType, moveType1, moveType2, move
 }
 
 Object.freeze(MoveType);
+
+const OmenType=  {
+    NONE: { name: 'NONE', info: '없음', className: 'none'},
+    CHARGE_ATTACK: { name: 'INCANT', info: '차지어택', className: 'charge-attack' }, // CT기
+    INCANT_ATTACK: { name: 'INCANT_ATTACK', info: '영창기', className: 'incant-attack' },
+    HP_TRIGGER: { name: 'HP_TRIGGER', info: 'HP트리거', className: 'hp-trigger' },
+}
+
+OmenType.byName = function () {
+    return Object.values(OmenType).find(type => type.name === name);
+}
+
+Object.freeze(OmenType);

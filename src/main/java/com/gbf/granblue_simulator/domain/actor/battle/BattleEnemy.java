@@ -25,7 +25,7 @@ public class BattleEnemy extends BattleActor {
     private Integer omenValue; // omen cancel value
     private Integer omenCancelCondIndex; // 랜덤 조건중 인덱스
 
-    private Integer latestTriggeredHp; // hp 트리거 중복 방지용
+    private Integer latestTriggeredHp; // 마지막으로 발동한 hp 트리거 (중복 방지용 이전 HP 트리거 기록)
 
 
     public BattleEnemy of(Enemy enemy) {

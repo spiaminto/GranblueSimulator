@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.controller.response;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -20,6 +21,7 @@ public class EnemyInfo {
     private List<Integer> maxChargeGauge; // each 반복을 위해 카운트 크기의 배열
 
     private boolean omenActivated;
+    private OmenType omenType;
     private String omenPrefix;
     private Integer omenValue;
 }

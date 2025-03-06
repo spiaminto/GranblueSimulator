@@ -47,24 +47,28 @@ public class DamageLogic {
 
         List<Integer> resultDamages = new ArrayList<>();
         List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
-        for (BattleActor targetActor : targetActors) {
-            GetDamageResult getDamageResult = getEnemyDamage(mainActor, targetActor, processType, move.getDamageRate());
-            if (getDamageResult.getDamages().size() > 1) throw new IllegalStateException("적의 공격 데미지가 1회 초과로 발생하였습니다. size = " + getDamageResult.getDamages().size());
+        int index = 0;
+        do {
+            for (BattleActor targetActor : targetActors) {
+                GetDamageResult getDamageResult = getEnemyDamage(mainActor, move.isAllTarget(), targetActor, processType, move.getDamageRate());
+                if (getDamageResult.getDamages().size() > 1) throw new IllegalStateException("적의 공격 데미지가 1회 초과로 발생하였습니다. size = " + getDamageResult.getDamages().size());
 
-            Integer targetHp = targetActor.getHp();
-            Integer damage = getDamageResult.getDamages().getFirst();
-            List<Integer> additionalDamages = getDamageResult.getAdditionalDamages().isEmpty() ?
-                    Collections.emptyList() :
-                    getDamageResult.getAdditionalDamages().getFirst();
-            targetHp -= damage;
-            for (Integer additionalDamage : additionalDamages) {
-                targetHp -= additionalDamage;
+                Integer targetHp = targetActor.getHp();
+                Integer damage = getDamageResult.getDamages().getFirst();
+                List<Integer> additionalDamages = getDamageResult.getAdditionalDamages().isEmpty() ?
+                        Collections.emptyList() :
+                        getDamageResult.getAdditionalDamages().getFirst();
+                targetHp -= damage;
+                for (Integer additionalDamage : additionalDamages) {
+                    targetHp -= additionalDamage;
+                }
+                targetActor.setHp(Math.max(targetHp, 0));
+
+                resultDamages.add(damage);
+                resultAdditionalDamages.add(additionalDamages);
             }
-            targetActor.setHp(Math.max(targetHp, 0));
-
-            resultDamages.add(damage);
-            resultAdditionalDamages.add(additionalDamages);
-        }
+            index ++;
+        } while(move.isAllTarget() && move.getType().getParentType() == MoveType.ATTACK && move.getHitCount() > index); // 전체공격이고, 일반공격일때 공격횟수만큼 반복
 
         return DamageLogicResult.builder()
                 .damages(resultDamages)
@@ -72,7 +76,7 @@ public class DamageLogic {
                 .build();
     }
 
-    protected GetDamageResult getEnemyDamage(BattleActor mainActor, BattleActor target, ProcessType processType, double damageRate) {
+    protected GetDamageResult getEnemyDamage(BattleActor mainActor, boolean isAllTarget, BattleActor target, ProcessType processType, double damageRate) {
         Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
         Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = statusUtil.getStatusEffectMap(mainActor);
 
@@ -207,6 +211,7 @@ public class DamageLogic {
      * @return
      */
     protected double atkToDamage(int atk, double damageRate) {
+        log.info("[atkToDamage] atk = {}, damageRate = {}", atk, damageRate);
         return atk * damageRate;
     }
 
@@ -218,6 +223,7 @@ public class DamageLogic {
      * @return
      */
     protected double applyDef(BattleActor target, double damage) {
+        log.info("[applyDef] targetDef = {}", target.getDef());
         Integer targetDef = target.getDef();
         return damage / targetDef;
     }
@@ -234,6 +240,7 @@ public class DamageLogic {
         double damageCutRate = getSum(damageCutEffects);
         // 상한 하한 처리
         damageCutRate = Math.min(damageCutRate, 1.0); // 상한 100% 하한 X
+        log.info("[applyDamageCut] damageCutRate = {}", damageCutRate);
         return damage * (1 - damageCutRate);
     }
 
@@ -269,7 +276,7 @@ public class DamageLogic {
             }
         }
 
-//        log.info("[applyDamageCap] damageCapRate = {}, moveDamageCapRate = {}, damage = {}", damageCapRate, moveDamageCapRate, damage);
+        log.info("[applyDamageCap] damageCapRate = {}, moveDamageCapRate = {}, damage = {}", damageCapRate, moveDamageCapRate, damage);
         return damage;
     }
 

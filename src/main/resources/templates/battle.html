@@ -41,9 +41,39 @@
   <script src="/static/js/battle/ability-rail.js"></script>
   <script src="/static/js/battle/charge-attack.js"></script>
   <script src="/static/js/battle/movetype.js"></script>
-  <script src="/static/js/battle/sequenceManager.js"></script>
+  <script src="/static/js/battle/request-command.js"></script>
   <script>
       $(function () {
+
+          // initial
+          // 서버로 부터 받은 적의 첫 무브 hidden 해제
+          // 첫 무브는 IDLE_DEFAULT or STANDBY_X 중 하나이다.
+          let initialMoveClassName = $('.enemy-video-container').data('initial-move-class');
+          // 모든 idle 무브에 loop 추가
+          $('.enemy-video-container .idle').attr('loop', true);
+          $('.party-video-container .idle').attr('loop', true);
+          // 적의 첫무브 재생
+          let $enemyInitialVideo = $('.enemy-video-container .' + initialMoveClassName);
+          $enemyInitialVideo.attr('preload', 'auto')
+          setTimeout(function () {
+              $enemyInitialVideo.removeClass('hidden').get(0).play();
+              if ($enemyInitialVideo.hasClass('standby')) {
+                  // 스탠바이 일경우 오디오 재생
+                  let audioPlayer = new AudioPlayer();
+                  let audioSrc = $('.enemy-audio-container').find('.' + initialMoveClassName).attr('src');
+                  audioPlayer.loadSound(audioSrc, 0).then(() => {
+                      audioPlayer.playAllSounds();
+                  })
+                  $enemyInitialVideo.one('ended', function () {
+                      // stnadby 일 경우 이어서 standbyIdle 재생
+                      $('.enemy-video-container').find('.' + MoveType.byClassName(initialMoveClassName).getIdleType().className).removeClass('hidden').get(0).play();
+                      $(this).addClass('hidden');
+                  });
+              }
+          }, 500) // 로드할 시간 줌
+          // 아군 무브 idle 보이게 설정
+          $('.party-video-container .idle-default').removeClass('hidden').get(0).play();
+
 
           // 길게 누르기용 함수
           const onLongPress = ($target, duration, callback) => {
@@ -95,7 +125,7 @@
           })
 
           $('#attackButton').on('click', function () {
-              processTurn();
+              requestTurnProgress();
           })
 
           $('#abilitySlider').slick({speed: 200, arrows: false});
@@ -172,22 +202,6 @@
               $('.status-modal-button').click();
           }
 
-// initial
-          // 서버로 부터 받은 적의 첫 무브 hidden 해제
-          // 첫 무브는 IDLE_DEFAULT or STANDBY_X 중 하나이다.
-          let initialMoveClassName = $('.enemy-video-container').data('initial-move-class');
-          console.log(initialMoveClassName)
-          $('.enemy-video-container .' + initialMoveClassName).removeClass('hidden').attr({
-              'autoplay': true,
-              'loop': true
-          });
-          // 아군 무브 idle 보이게 설정
-          $('.party-video-container .idle-default').removeClass('hidden').attr({
-              'autoplay': true,
-              'loop': true
-          });
-
-
 
       });
   </script>
@@ -235,7 +249,7 @@
              th:classappend="${chargeGaugeStat.index < enemyInfo.currentChargeGauge ? 'active' : 'inactive'}"></div>
       </div>
       <div class="omen-container enemy" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
-        <div class="omen-text incant-attack">
+        <div class="omen-text" th:classappend="${enemyInfo.omenType.className}">
           <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
           <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
         </div>
@@ -330,58 +344,36 @@
 
   <!-- 적 피격 데미지 -->
   <div id="damageContainer" class="battle-canvas">
-    <div class="attack-damage-wrapper">
-<!--      <div class="damage attack-damage">123123-->
-<!--        <div class="damage additional-damage">22222</div>-->
-<!--        <div class="damage additional-damage">33333</div>-->
-<!--      </div>-->
-<!--      <div class="damage attack-damage">234234-->
-<!--        <div class="damage additional-damage" >44444</div>-->
-<!--        <div class="damage additional-damage">55555</div>-->
-<!--      </div>-->
-<!--      <div class="damage attack-damage">345345-->
-<!--        <div class="damage additional-damage">66666</div>-->
-<!--        <div class="damage additional-damage">77777</div>-->
-<!--      </div>-->
-    </div>
-
-<!--    <div class="damage-first damage-wrapper damage-attack-1">-->
-<!--      <div class="damage origin-damage damage-1">-->
-<!--        10000-->
-<!--        <div class="damage after-damage damage-2">-->
-<!--          5000-->
-<!--          <div class="damage after-damage damage-3">-->
-<!--            2000-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
-<!--    <div class="damage-second damage-wrapper damage-attack-2">-->
-<!--      <div class="damage origin-damage damage-1">-->
-<!--        10000-->
-<!--        <div class="damage after-damage damage-2">-->
-<!--          5000-->
-<!--          <div class="damage after-damage damage-3">-->
-<!--            2000-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
-<!--    <div class="damage-third damage-wrapper damage-attack-3">-->
-<!--      <div class="damage origin-damage damage-1">-->
-<!--        10000-->
-<!--        <div class="damage after-damage damage-2">-->
-<!--          5000-->
-<!--          <div class="damage after-damage damage-3">-->
-<!--            2000-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
+    <!-- 일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가 -->
+    <!--    <div class="attack-damage-wrapper actor-1">-->
+    <!--      <div class="damage attack-damage">123123-->
+    <!--        <div class="damage additional-damage">22222</div>-->
+    <!--        <div class="damage additional-damage">33333</div>-->
+    <!--      </div>-->
+    <!--      <div class="damage attack-damage">234234-->
+    <!--        <div class="damage additional-damage" >44444</div>-->
+    <!--        <div class="damage additional-damage">55555</div>-->
+    <!--      </div>-->
+    <!--      <div class="damage attack-damage">345345-->
+    <!--        <div class="damage additional-damage">66666</div>-->
+    <!--        <div class="damage additional-damage">77777</div>-->
+    <!--      </div>-->
+    <!--    </div>-->
 
     <!-- max 12, 10에서 컷-->
     <div class="ability-damage-wrapper">
       <!--      <div class="ability-damage">10000</div>-->
+    </div>
+
+    <div class="charge-attack-damage-wrapper">
+      <!--      <div class="charge-attack-damage">1000000</div>-->
+    </div>
+
+    <div class="enemy-damage-wrapper">
+      <!--      <div class="damage enemy-attack-damage actor-1">123123-->
+      <!--        <div class="damage additional-damage">22222</div>-->
+      <!--        <div class="damage additional-damage">33333</div>-->
+      <!--      </div>-->
     </div>
 
   </div>
@@ -395,6 +387,7 @@
   </div>
 
   <!-- 아군 피격 데미지 -->
+
   <div class="taken-damage-container character-1">
     <div class="taken-damage-wrapper">
       <div class="taken-damage origin-damage damage-1">
@@ -682,7 +675,7 @@
 </div>
 
 <div id="sequenceQueue">
-<!--  <div class="move" data-parent-movetype="ATTACK" data-character-order="1" data-ability-order="2"></div>-->
+  <!--  <div class="move" data-parent-movetype="ATTACK" data-character-order="1" data-ability-order="2"></div>-->
 </div>
 
 

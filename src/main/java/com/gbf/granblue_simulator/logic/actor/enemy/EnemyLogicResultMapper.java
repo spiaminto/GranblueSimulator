@@ -1,8 +1,12 @@
 package com.gbf.granblue_simulator.logic.actor.enemy;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
@@ -28,15 +32,16 @@ public class EnemyLogicResultMapper {
     }
 
     /**
-     * 스탠바이시 아군의 행동결과에 따른 결과와 함께 omenValue 반환
+     * 적의 Omen 결과를 같이 맵핑해야할때 사용
+     * STANDBY 시작, 적의 피격으로인한 STANDBY 갱신(전조 갱신)때 사용
      * @param mainActor
      * @param partyMembers
      * @param move
-     * @param omenValue
+     * @param omen
      * @return
      */
-    public ActorLogicResult toResultWithOmenValue(BattleActor mainActor, List<BattleActor> partyMembers, Move move, Integer omenValue) {
-        return map(mainActor, partyMembers, move, null, null, null, NextMoveRequest.of(false, null, null), omenValue);
+    public ActorLogicResult toResultWithOmen(BattleActor mainActor, List<BattleActor> partyMembers, Move move, Omen omen) {
+        return map(mainActor, partyMembers, move, null, null, null, NextMoveRequest.of(false, null, null), omen);
     }
 
     /**
@@ -76,13 +81,14 @@ public class EnemyLogicResultMapper {
         return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, setStatusResult, NextMoveRequest.of(false, null, null), null);
     }
 
-    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest, Integer omenValue) {
+    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest, Omen omen) {
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
         if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
         if (nextMoveRequest == null) nextMoveRequest = NextMoveRequest.of(false, null, null); // 후행동이 없을경우 기본객체 생성
-        if (omenValue == null) omenValue = -1; // 전조 값이 없을땐 -1
+
         int hitCount = damageLogicResult.getDamages().size();
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
+
         // 체력
         List<Integer> hpList = new ArrayList<>();
         hpList.add(mainActor.getHp());
@@ -115,8 +121,15 @@ public class EnemyLogicResultMapper {
         List<List<Integer>> partyMemberCooldowns = partyMembers.stream().map(actor -> List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown())).toList();
         cooldownList.addAll(partyMemberCooldowns);
 
+        // 전조 있을때 처리
+        BattleEnemy enemy = (BattleEnemy) mainActor;
+        OmenType omenType = omen != null ? move.getOmen().getOmenType() : null; // omenValue 가 존재하면 omenType 지정 (omenValue 가 없을때 omenType 을 null 로 놔둠)
+        String omenCancelCondInfo = omen != null ? omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo() : null; // 보여줄 텍스트만
+        Integer omenValue = omen != null ? enemy.getOmenValue() : null;
+
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
+                .mainBattleActorOrder(mainActor.getCurrentOrder())
 
                 .moveType(move.getType())
                 .hpList(hpList)
@@ -124,8 +137,12 @@ public class EnemyLogicResultMapper {
                 .addedBattleStatusesList(resultStatusList)
                 .removedBattleStatusesList(removedStatusList)
 
+                .omenType(omenType)
+                .omenCancelCondInfo(omenCancelCondInfo)
                 .omenValue(omenValue)
+
                 .enemyAttackTargetOrders(targetOrders)
+                .isAllTarget(move.isAllTarget())
 
                 .totalHitCount(totalHitCount)
                 .damages(damageLogicResult.getDamages())
