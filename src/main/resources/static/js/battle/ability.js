@@ -5,6 +5,9 @@ function processAbility(responseAbilityData) {
     let abilityOrder = moveType === MoveType.FIRST_ABILITY ? 1 : moveType === MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
     let abilityHitCount = abilityData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
     let abilityDamages = abilityData.damages;
+    let chargeGauges = abilityData.chargeGauges;
+    let hps = abilityData.hps;
+    let hpRates = abilityData.hpRates;
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
@@ -146,9 +149,11 @@ function processAbility(responseAbilityData) {
             longestBuffDelay = Math.max(longestBuffDelay, additionalStartDelay + removeDelay);
 
             setTimeout(() => {
+                // 하나하나 페이드
                 $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
             }, abilityDuration + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
+                // 버프 스테이터스 3개단위 종료시 한꺼번에 삭제
                 $statusEffect.remove();
             }, abilityDuration + additionalStartDelay + removeDelay);
         });
@@ -202,6 +207,7 @@ function processAbility(responseAbilityData) {
             let $processedAbility = $('.ability-panel.actor-' + charOrder + ' .ability-' + abilityOrder);
             $processedAbility.find('.ability-overlay').show();
         }
+        syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
     }, totalEndTime));

@@ -9,7 +9,6 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -168,7 +167,7 @@ public class DiasporaLogic implements EnemyLogic {
                 Move breakMove = enemy.getActor().getMoves().get(standbyMove.getType().getBreakType());
                 enemy.setNextStandbyType(null);
                 if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) enemy.setChargeGauge(0);
-                results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, breakMove));
+                results.add(enemyLogicResultMapper.toResultWithOmen(mainActor, partyMembers, breakMove, standbyOmen));
             } else {
                 // 전조 갱신됨
                 results.add(enemyLogicResultMapper.toResultWithOmen(mainActor, partyMembers, standbyMove, standbyMove.getOmen()));
@@ -244,14 +243,13 @@ public class DiasporaLogic implements EnemyLogic {
             standby = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
         } else if (hpTriggerOmen.isPresent() && !hpTriggerOmen.get().getTriggerHp().equals(enemy.getLatestTriggeredHp())) {
             // hp 트리거가 존재하며, 마지막으로 발동한 hp 트리거와 다름
-            log.warn("HPTRIGGER rate = {}, target = {}", enemy.getHpRateInteger(), hpTriggerOmen.get().getTriggerHp());
+            log.warn("HPTRIGGER rate = {}, target = {}", enemy.calcHpRate(), hpTriggerOmen.get().getTriggerHp());
             // HP 트리거
             Omen triggeredOmen = hpTriggerOmen.get();
             standby = enemy.getActor().getMoves().get(triggeredOmen.getMove().getType());
             enemy.setNextStandbyType(standby.getType());
-            // TODO HP 트리거 테스트 후 주석해제
-            // enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
-        } else if (enemy.getChargeGauge() >= enemy.getActor().getMaxChargeGauge()) {
+             enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
+        } else if (enemy.getChargeGauge() >= enemy.getMaxChargeGauge()) {
             log.warn("CHARGEATTACK");
             // 차지어택
             Optional<Omen> triggeredOmenOptional = omenLogic.getTriggeredOmen(enemy, OmenType.CHARGE_ATTACK);
@@ -260,7 +258,7 @@ public class DiasporaLogic implements EnemyLogic {
                 enemy.setNextStandbyType(standby.getType());
             }
         }
-        log.info("\n\n\n determineStandbyMove, hprate = {}, move = {}, chargeTurn = {}, maxCT = {}", enemy.getHpRateInteger(), standby, enemy.getChargeGauge(), enemy.getActor().getMaxChargeGauge());
+        log.info("\n\n determineStandbyMove, hprate = {}, move = {}, chargeTurn = {}, maxCT = {}", enemy.calcHpRate(), standby, enemy.getChargeGauge(), enemy.getActor().getMaxChargeGauge());
         if (standby == null) return null;
 
         // 스탠바이의 전조 결정

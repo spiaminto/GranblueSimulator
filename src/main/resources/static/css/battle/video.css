@@ -7,16 +7,8 @@ video {
     z-index: -10;
 }
 
-.motion-enemy-attack, .motion-enemy-charge-attack {
-    z-index: 10;
-}
-
-.motion-ability {
+.enemy-video-container video:is(.attack, .charge-attack, .standby, .idle) {
     z-index: 0;
-}
-
-.render-video-container {
-
 }
 
 .party-video {
@@ -65,21 +57,6 @@ video {
 
 .hidden {
     visibility: hidden;
-}
-
-/*.enemy:not(.hidden) {*/
-/*    visibility: visible;*/
-/*}*/
-
-.motion-attack-active , .motion-ability.full-size{
-    width: 100%;
-    top: 5%;
-    left: 0;
-    z-index: 0;
-}
-
-.motion-attack:not(.hidden), .motion-ability:not(.hidden), .motion-charge-attack:not(.hidden) {
-    right: 0;
 }
 
 

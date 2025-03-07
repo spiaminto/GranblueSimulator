@@ -34,7 +34,7 @@ public class OmenLogic {
         return enemy.getActor().getMoves().values().stream()
                 .map(Move::getOmen)
                 .filter(Objects::nonNull) // Omen 이 없는 move 의 경우 null 이므로 제거
-                .filter(omen -> omen.getOmenType() == omenType && enemy.getHpRateInteger() <= omen.getTriggerHp())
+                .filter(omen -> omen.getOmenType() == omenType && enemy.calcHpRate() <= omen.getTriggerHp())
                 .min(Comparator.comparing(Omen::getTriggerHp)); // triggerHP 가 가장 작은쪽을 반환
     }
 
@@ -57,6 +57,9 @@ public class OmenLogic {
                         .filter(type -> type == StatusType.DEBUFF || type == StatusType.DEBUFF_FOR_ALL)
                         .toList().size();
                 enemy.setOmenValue(Math.max(omenValue - debuffCount, 0));
+            }
+            case IMPOSSIBLE -> {
+                // 해제불가, 아무것도 하지 않음
             }
         }
         log.info("OmenLogic.process() type = {}, originValue = {}, modifiedValue = {}", cancelCond.getType(), omenValue, enemy.getOmenValue());

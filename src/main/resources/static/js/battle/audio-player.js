@@ -44,6 +44,9 @@ class AudioPlayer {
             return;
         }
         const audioBuffer = this.buffers[index];
+        if (!audioBuffer) {
+            console.error(`Invalid audio Buffer: ${audioBuffer}`)
+        }
         const source = this.audioContext.createBufferSource();
         source.buffer = audioBuffer.buffer;
         source.connect(this.audioContext.destination);

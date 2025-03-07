@@ -223,6 +223,13 @@
     </div>
   </div>
 
+  <div class="omen-container omen-container-bottom enemy blinking-element" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
+    <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
+      <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
+      <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
+    </div>
+  </div>
+
   <div class="enemy-info-container">
     <div class="hp-container enemy">
       <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}">100%</div>
@@ -246,22 +253,13 @@
     <div class="d-flex">
       <div class="charge-turn-container enemy">
         <div class="charge-turn" th:each="chargeGauge : ${enemyInfo.maxChargeGauge}"
-             th:classappend="${chargeGaugeStat.index < enemyInfo.currentChargeGauge ? 'active' : 'inactive'}"></div>
+             th:classappend="${chargeGaugeStat.index < enemyInfo.currentChargeGauge ? 'active' : ''}"></div>
       </div>
       <div class="omen-container enemy" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
-        <div class="omen-text" th:classappend="${enemyInfo.omenType.className}">
+        <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
           <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
           <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="omen-container bottom">
-    <div class="omen-wrapper">
-      <div class="omen-text blinking-element incant-attack">
-        <span class="omen-header">[ 영창기 ]</span>
-        <span class="omen-name">섬멸지시 : 경성반사</span>
       </div>
     </div>
   </div>
@@ -469,7 +467,7 @@
 
       <div class="battle-member-wrapper">
         <div class="battle-portrait" th:each="characterInfo : ${characterInfos}"
-             th:data-character-id="${characterInfo.id}">
+             th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + characterInfoStat.count}">
           <img src="/static/assets/img/mc/paladin/ability/mc-paladin-battle-portrait.jpg"
                th:src="${characterInfo.portraitSrc}">
           <div class="hp-gauge-wrapper">

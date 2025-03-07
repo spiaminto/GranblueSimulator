@@ -2,16 +2,13 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Entity
@@ -158,7 +155,7 @@ public class BattleActor {
      *
      * @return
      */
-    public Integer getHpRateInteger() {
+    public Integer calcHpRate() {
         return (int) (((double) hp / maxHp) * 100);
     }
 

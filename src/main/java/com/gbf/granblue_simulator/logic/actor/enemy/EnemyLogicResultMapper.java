@@ -5,7 +5,6 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
@@ -14,6 +13,7 @@ import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -33,7 +33,7 @@ public class EnemyLogicResultMapper {
 
     /**
      * 적의 Omen 결과를 같이 맵핑해야할때 사용
-     * STANDBY 시작, 적의 피격으로인한 STANDBY 갱신(전조 갱신)때 사용
+     * STANDBY 시작, 적의 피격으로인한 STANDBY 갱신(전조 갱신), BREAK 때 사용
      * @param mainActor
      * @param partyMembers
      * @param move
@@ -82,18 +82,24 @@ public class EnemyLogicResultMapper {
     }
 
     protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest, Omen omen) {
+        List<BattleActor> allActors = new ArrayList<>(partyMembers);
+        allActors.addFirst(mainActor); // 순서 유지
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
         if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
         if (nextMoveRequest == null) nextMoveRequest = NextMoveRequest.of(false, null, null); // 후행동이 없을경우 기본객체 생성
 
-        int hitCount = damageLogicResult.getDamages().size();
+        int hitCount = move.getHitCount() == null ? 0 : move.getHitCount(); // 적은 공격횟수가 가변인경우가 없음
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
 
         // 체력
-        List<Integer> hpList = new ArrayList<>();
-        hpList.add(mainActor.getHp());
+        List<Integer> hps = new ArrayList<>();
+        List<Integer> hpRates = new ArrayList<>();
+        hps.add(mainActor.getHp());
+        hpRates.add(mainActor.calcHpRate());
         List<Integer> partyMemberHpList = partyMembers.stream().map(BattleActor::getHp).toList();
-        hpList.addAll(partyMemberHpList);
+        hps.addAll(partyMemberHpList);
+        List<Integer> partyMemberHpRateList = partyMembers.stream().map(BattleActor::calcHpRate).toList();
+        hpRates.addAll(partyMemberHpRateList);
 
         // 오의게이지
         List<Integer> chargeGauges = new ArrayList<>();
@@ -104,9 +110,9 @@ public class EnemyLogicResultMapper {
         // 추가된 스테이터스
         List<BattleStatus> enemyAddedStatus = setStatusResult.getEnemyAddedStatuses();
         List<List<BattleStatus>> partyMemberAddedStatus = setStatusResult.getPartyMemberAddedStatuses();
-        List<List<BattleStatus>> resultStatusList = new ArrayList<>();
-        resultStatusList.add(enemyAddedStatus);
-        resultStatusList.addAll(partyMemberAddedStatus);
+        List<List<BattleStatus>> addedStatusesList = new ArrayList<>();
+        addedStatusesList.add(enemyAddedStatus);
+        addedStatusesList.addAll(partyMemberAddedStatus);
 
         // 삭제된 스테이터스
         List<BattleStatus> enemyRemovedStatuses = setStatusResult.getEnemyRemovedStatuses();
@@ -123,7 +129,7 @@ public class EnemyLogicResultMapper {
 
         // 전조 있을때 처리
         BattleEnemy enemy = (BattleEnemy) mainActor;
-        OmenType omenType = omen != null ? move.getOmen().getOmenType() : null; // omenValue 가 존재하면 omenType 지정 (omenValue 가 없을때 omenType 을 null 로 놔둠)
+        OmenType omenType = omen != null ? omen.getOmenType() : null; // omenValue 가 존재하면 omenType 지정 (omenValue 가 없을때 omenType 을 null 로 놔둠)
         String omenCancelCondInfo = omen != null ? omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo() : null; // 보여줄 텍스트만
         Integer omenValue = omen != null ? enemy.getOmenValue() : null;
 
@@ -132,9 +138,10 @@ public class EnemyLogicResultMapper {
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
 
                 .moveType(move.getType())
-                .hpList(hpList)
+                .hps(hps)
+                .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
-                .addedBattleStatusesList(resultStatusList)
+                .addedBattleStatusesList(addedStatusesList)
                 .removedBattleStatusesList(removedStatusList)
 
                 .omenType(omenType)

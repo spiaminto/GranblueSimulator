@@ -69,10 +69,14 @@ public class CharacterLogicResultMapper {
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
 
         // 체력
-        List<Integer> hpList = new ArrayList<>();
-        hpList.add(enemy.getHp());
+        List<Integer> hps = new ArrayList<>();
+        List<Integer> hpRates = new ArrayList<>();
+        hps.add(enemy.getHp());
+        hpRates.add(enemy.calcHpRate());
         List<Integer> partyMemberHpList = partyMembers.stream().map(BattleActor::getHp).toList();
-        hpList.addAll(partyMemberHpList);
+        hps.addAll(partyMemberHpList);
+        List<Integer> partyMemberHpRateList = partyMembers.stream().map(BattleActor::calcHpRate).toList();
+        hpRates.addAll(partyMemberHpRateList);
 
         // 오의게이지
         List<Integer> chargeGauges = new ArrayList<>();
@@ -105,7 +109,8 @@ public class CharacterLogicResultMapper {
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
 
                 .moveType(move.getType())
-                .hpList(hpList)
+                .hps(hps)
+                .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
                 .addedBattleStatusesList(resultStatusList)
                 .removedBattleStatusesList(removedStatusList)

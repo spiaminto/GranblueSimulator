@@ -75,6 +75,7 @@
     width: 0.75rem;
     height: 0.75rem;
     border: 2px solid darkred;
+    background-color: dimgrey;
     margin-right: 0.2rem;
     
     @media (min-width: 600px) {
@@ -121,15 +122,12 @@
     background-color: gold;
 }
 
-.charge-turn.inactive {
-    background-color: dimgrey;
-}
-
 /* 하단 전조 표시 */
-.bottom-omen-wrapper.bottom {
+#container .omen-container-bottom {
     position: absolute;
     left: 5%;
-    bottom: 5%;
+    top: 90%; /* bottom 말고 top 오버라이딩 */
+    z-index: 1;
 }
 
 .omen-container:not(.activated) {

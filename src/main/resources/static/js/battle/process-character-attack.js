@@ -1,7 +1,6 @@
 function processCharacterAttack(responseAttackData) {
 
     // 변수초기화
-
     let attackData = responseAttackData;
     let charOrder = attackData.charOrder;
     let partySelector = '.party-' + charOrder
@@ -11,6 +10,9 @@ function processCharacterAttack(responseAttackData) {
     let attackHitCount = damages.length;
     let additionalDamages = attackData.additionalDamages;
     let additionalAttackHitCount = additionalDamages.reduce((totalSize, damage) => totalSize + damage.length, 0);
+    let chargeGauges = attackData.chargeGauges;
+    let hps = attackData.hps;
+    let hpRates = attackData.hpRates;
 
     // 준비
     let $attackMotionVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className);
@@ -87,8 +89,10 @@ function processCharacterAttack(responseAttackData) {
                     // 히트수만큼 재생 완료했으면 모션 정상화, 데미지 전체 제거 후 인터벌 클리어
                     $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
                     $enemyDamagedVideo.addClass('hidden');
+
                     setTimeout(function () {
-                        // $('.attack-damage-wrapper.actor-' + charOrder).remove();
+                        // 페이드 아웃후 데미지 제거
+                        $('.attack-damage-wrapper.actor-' + charOrder).remove();
                     }, 1000);
                     clearInterval(attackHitProcessInterval);
                 }, enemyDamagedVideoElement.duration * 1000 + 100); // 마지막 enemyDamagedVideoElement.play() 가 씹히는걸 방지
@@ -101,7 +105,9 @@ function processCharacterAttack(responseAttackData) {
 
     let totalEndTime = attackDuration;
     console.log("total = " + totalEndTime)
+    // 최종종료
     return new Promise(resolve => setTimeout(function () {
+        syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
     }, totalEndTime));
@@ -120,6 +126,9 @@ function processEnemyAttack(responseAttackData) {
     let hitCount = moveType === MoveType.SINGLE_ATTACK ? 1 : moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
     let damages = attackData.damages;
     let additionalDamages = attackData.additionalDamages;
+    let chargeGauges = attackData.chargeGauges;
+    let hps = attackData.hps;
+    let hpRates = attackData.hpRates;
     // 적 한정
     let targetOrders = attackData.enemyAttackTargetOrders;
     let isAllTarget = attackData.allTarget; // 전체공격여부
@@ -143,11 +152,6 @@ function processEnemyAttack(responseAttackData) {
     let attackDuration = $enemyAttackVideo.get(0).duration * 1000; // ms 변환 및 100ms 영상보정
     let attackHitDuration = attackDuration / hitCount;
 
-    // 데미지 채우기 및 표시
-    damages.forEach(function (damage, attackIndex) {
-
-    })
-
     // 적 일반공격 이펙트 재생 - 히트수가 영상에 적용되어있어서 1회만
     $enemyIdleVideo.addClass('hidden'); // idle 모션 숨김
     $enemyAttackVideo.removeClass('hidden').one('ended', function () {
@@ -157,11 +161,11 @@ function processEnemyAttack(responseAttackData) {
         setTimeout(function () {
             $('.enemy-damage-wrapper').children().remove();
         }, 1000);
+        // 차지턴 갱신
     }).get(0).play();
 
     //  데미지 마다 반복
     console.log(targetOrders, isAllTarget)
-    let damageIntervalStartTime = Date.now();
     damages.every(function (damage, damageIndex) {
         let effectDelay = isAllTarget ?
             attackHitDuration * Math.floor(damageIndex / targetOrders.length) : // 전체타겟의 경우 공격 한번당 파티 인원만큼 이펙트를 지연시키지 않고 모두 재생함
@@ -187,14 +191,14 @@ function processEnemyAttack(responseAttackData) {
         let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);
         let $targetDamagedVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.DAMAGED.className);
         setTimeout(function () {
-            $targetDamagedVideo.removeClass('hidden').delay((targetOrder - 1) * 100).get(0).play(); // 재생할때 순서별로 약간씩 딜레이 100 추가
+            $targetDamagedVideo.removeClass('hidden').get(0).play();
             $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
             // 아군 피격 모션을 idle 로 되돌림
             setTimeout(function () {
                 $targetIdleVideo.removeClass('hidden');
                 $targetDamagedVideo.addClass('hidden');
             }, attackHitDuration - 100); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨
-        }, effectDelay + 200); // 공격보다 피격이 약간 느리게 시작
+        }, effectDelay + 100 * (damageIndex + 1)); // 공격보다 피격이 약간 느리게 시작, 캐릭터별 순서대로 100씩 딜레이 추가
 
         return true;
     });
@@ -202,6 +206,8 @@ function processEnemyAttack(responseAttackData) {
     let totalEndTime = isAllTarget ? attackDuration + 100 : attackDuration * damages.length + 100;
     console.log("total = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
+        // 최종종료
+        syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
     }, totalEndTime));

@@ -2,7 +2,6 @@ package com.gbf.granblue_simulator.logic.actor.dto;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import lombok.Builder;
@@ -26,7 +25,9 @@ public class ActorLogicResult {
     // 프론트 갱신용
     // 0: enemy , 1~: character (index 는 currentOrder)
     @Builder.Default
-    private List<Integer> hpList = new ArrayList<>();
+    private List<Integer> hps = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> hpRates = new ArrayList<>();
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();
     @Builder.Default
