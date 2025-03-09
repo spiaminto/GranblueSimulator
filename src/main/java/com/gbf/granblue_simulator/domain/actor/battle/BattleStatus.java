@@ -57,6 +57,10 @@ public class BattleStatus {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public boolean isMaxLevel() {
+        return this.level >= this.status.getMaxLevel();
+    }
+
     /**
      * 같은 버프가 다시걸렷을때 효과시간 초기화
      */

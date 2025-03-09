@@ -89,7 +89,7 @@ public class BattleLogic {
                 saveBattleLog(result);
             }
         });
-        
+
         // 적 턴종료 처리
         EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
         ActorLogicResult enemyTurnEndResult = enemyLogic.onTurnEnd(enemy, partyMembers);
@@ -177,6 +177,16 @@ public class BattleLogic {
             results.add(moveResult);
             saveBattleLog(moveResult);
             moveType = moveResult.getNextMoveType(); // 내부에서 공격 이후 후행동이 발생할 경우 후행동의 moveType 으로 변경
+
+            // 적의 공격에 대한 아군의 반응
+            partyMembers.stream()
+                    .map(partyMember -> {
+                        CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+                        return characterLogic.postProcessEnemyMove(partyMember, enemy, partyMembers);
+                    })
+                    .filter(Objects::nonNull)
+                    .forEach(this::saveBattleLog);
+
         } while (moveResult.hasNextMove());
 
         // turn end
@@ -285,7 +295,7 @@ public class BattleLogic {
     }
 
     public void saveBattleLog(ActorLogicResult logicResult) {
-        if (logicResult == null) return;
+        if (logicResult.getMoveType().isNone()) return;
         // 현재 Status 및 관련사항은 mainActor 것만 저장함
         BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow();
         List<Integer> damages = logicResult.getDamages();

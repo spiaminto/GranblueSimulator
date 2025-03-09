@@ -182,7 +182,7 @@ function processChargeAttack(responseChargeAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 500));
 }
 
 
@@ -200,6 +200,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
     // 적 한정
     let targetOrders = chargeAttackData.enemyAttackTargetOrders;
     let isAllTarget = chargeAttackData.allTarget; // 전체공격여부
+    let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
 
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
@@ -260,6 +261,15 @@ function processEnemyChargeAttack(responseChargeAttackData) {
             chargeAttackHitDuration * damageIndex; // 단일 타겟의 경우 공격
         let targetOrder = isAllTarget ? targetOrders[damageIndex % targetOrders.length] : targetOrders[damageIndex]; // 데미지가 발생한 타겟순서, 전체타겟의 경우 1,2,3,4 만옴
         console.log('targetorder', targetOrder, 'effectdelay', effectDelay);
+
+        if (isAllTargetSubstituted && damageIndex % targetOrders.length !== 0) {
+            // 전체공격 이면서 감싸기 && 데미지가 해당 타수의 첫번째가 아닌경우 ex) targetOrders = [1, 1, 1, 1, 1, 1, 1, 1] 전체공격, 타겟 4명, 타수2회, 조건 진입은 index 가 1, 2, 3, 5, 6, 7
+            let $attackDamage = $('.enemy-damage-wrapper .enemy-attack-damage.actor-' + targetOrder);
+            $attackDamage.text(Number.parseInt($attackDamage.text()) + damage);
+            let $additionalDamages = $attackDamage.find('.additional-damage:first');
+            $additionalDamages.text(Number.parseInt($additionalDamages));
+            return true; // 이후 처리 무시 (모션)
+        }
 
         // 데미지 채우기 및 표시
         let $attackDamage = $('<div>', {

@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -18,6 +19,14 @@ import java.util.List;
 
 @Component
 public class EnemyLogicResultMapper {
+
+    /**
+     * 적 로직에서 아무것도 하지않았을때 리턴 (null X)
+     * @return
+     */
+    public ActorLogicResult emptyResult() {
+        return ActorLogicResult.builder().moveType(MoveType.NONE).build();
+    }
 
     /**
      * 적의 경우 무브만 필요한때 사용

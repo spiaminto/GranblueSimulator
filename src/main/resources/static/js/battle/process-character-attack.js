@@ -110,7 +110,7 @@ function processCharacterAttack(responseAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 500));
 
     // 현재 일반공격의 스테이터스 갱신은 없음
 }
@@ -132,6 +132,7 @@ function processEnemyAttack(responseAttackData) {
     // 적 한정
     let targetOrders = attackData.enemyAttackTargetOrders;
     let isAllTarget = attackData.allTarget; // 전체공격여부
+    let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
 
     // 준비
     let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
@@ -173,6 +174,18 @@ function processEnemyAttack(responseAttackData) {
         let targetOrder = isAllTarget ? targetOrders[damageIndex % targetOrders.length] : targetOrders[damageIndex]; // 데미지가 발생한 타겟순서, 전체타겟의 경우 1,2,3,4 만옴
         // console.log('targetorder', targetOrder, 'effectdelay', effectDelay);
 
+        if (isAllTargetSubstituted && damageIndex % targetOrders.length !== 0) {
+            // 전체공격 이면서 감싸기 && 데미지가 해당 타수의 첫번째가 아닌경우 ex) targetOrders = [1, 1, 1, 1, 1, 1, 1, 1] 전체공격, 타겟 4명, 타수2회, 조건 진입은 index 가 1, 2, 3, 5, 6, 7
+            let $attackDamage = $('.enemy-damage-wrapper .enemy-attack-damage.actor-' + targetOrder).last(); // 아직 안없어진 이전 데미지와 겹침 방지
+            // console.log('damage ', damage, $attackDamage.text(), Number.parseInt($attackDamage.text()), Number.parseInt($attackDamage.text()) + damage)
+            $attackDamage.text(Number.parseInt($attackDamage.text()) + damage);
+            if (additionalDamages[damageIndex]) {
+                let $additionalDamage = $attackDamage.find('.additional-damage:first');
+                $additionalDamage.text(Number.parseInt($additionalDamage.text()) + additionalDamages[damageIndex]);
+            }
+            return true; // 이후 처리 무시 (모션)
+        }
+
         // 데미지 채우기 및 표시
         let $attackDamage = $('<div>', {
             class: 'damage enemy-attack-damage actor-' + targetOrder,
@@ -210,7 +223,7 @@ function processEnemyAttack(responseAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 500));
 
 // 현재 일반공격의 스테이터스 갱신은 없음
 }

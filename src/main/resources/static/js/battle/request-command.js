@@ -87,6 +87,18 @@ async function processResponseMoves(responseResults) {
                 console.log('invalid type', parentMoveType);
         }
     }
+
+    // 후처리
+    console.log('im here')
+    let firstMoveType = MoveType.byName(responseResults[0].moveType);
+    let firstMoveCharOrder = responseResults[0].charOrder;
+    if (firstMoveType.getParentType() === MoveType.ABILITY) {
+        // 어빌리티 후처리 (서폿어빌 X) -> 어빌리티 레일 에서 삭제 및 오버레이
+        let abilityOrder = firstMoveType === MoveType.FIRST_ABILITY ? 1 : MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
+        $('.ability-rail-wrapper .rail-ability').eq(0).remove();
+        let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' .ability-' + abilityOrder);
+        $processedAbility.find('.ability-overlay').show();
+    }
 }
 
 function processEnemyStandBy(standbyResponse) {

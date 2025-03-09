@@ -201,14 +201,8 @@ function processAbility(responseAbilityData) {
     console.log('totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
 
     return new Promise(resolve => setTimeout(function () {
-        if (moveType.getParentType() === MoveType.ABILITY) {
-            // 어빌리티 후처리 (서폿어빌 X)
-            $('.ability-rail-wrapper .rail-ability').eq(0).remove();
-            let $processedAbility = $('.ability-panel.actor-' + charOrder + ' .ability-' + abilityOrder);
-            $processedAbility.find('.ability-overlay').show();
-        }
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 500));
 }

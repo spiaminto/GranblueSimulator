@@ -232,6 +232,7 @@ public class SetStatusLogic {
      * BattleActor 에 Status 를 BattleStatus 로 적용
      * 파라미터로 들어온 Status 를 기반으로 생성된 BattleStatus 를 반환함.
      * Status 가 기존의 BattleStatus 와 중첩되어 기존의 BattleStatus 가 업데이트 될 경우 해당 BattleStatus 를 반환하고 파라미터로 들어온 STatus 는 무시함
+     * TODO 반환을 MISS (저항함) 랑 NONE (부여되지않음) 도 구분해서 해야됨.
      *
      * @param battleActor
      * @param status

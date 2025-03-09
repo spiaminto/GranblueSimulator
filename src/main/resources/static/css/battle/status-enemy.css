@@ -47,6 +47,12 @@
     width: 91%; /* .value-hp 와 합쳐서 110 정도 */
 }
 
+.status-container .show-status-info-button-wrapper.enemy {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+}
+
 .status-container.enemy .status {
     width: 5.5%;
 
@@ -88,8 +94,8 @@
     margin-left: auto;
 
     /* TODO 테스트용 */
-    position: absolute;
-    top: 50px;
+    /*position: absolute;*/
+    /*top: 50px;*/
 }
 
 .omen-text {

@@ -241,6 +241,9 @@
       </div>
     </div>
     <div class="status-container enemy actor-0">
+      <div class="show-status-info-button-wrapper enemy">
+        <button class="btn btn-outline-light button-xsm">상세</button>
+      </div>
       <div class="status" th:each="status : ${enemyInfo.statuses}"
            th:data-status-type="${status.status.type}">
         <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png"
@@ -658,72 +661,14 @@
   </div>
 </div>
 
-
 <div class="container position-relative">
-  <button class="attack-button" id="attackButton">attack1</button>
-  <button class="attack-button">attack2</button>
-  <button class="attack-button">attack3</button>
-  <button class="attack-button">attack4</button>
+  <button class="attack-button" id="attackButton">attack</button>
   <button id="audioButton">audio</button>
   <button id="audioPlayButton">play</button>
 </div>
 
 <div class="audio-container">
   <audio id="audioPlaying" src="" muted="muted"></audio>
-</div>
-
-<div id="sequenceQueue">
-  <!--  <div class="move" data-parent-movetype="ATTACK" data-character-order="1" data-ability-order="2"></div>-->
-</div>
-
-
-<div id="processingTask">
-  <input type="radio" id="firstCharacterAttack" name="processingTask" value="firstCharacterAttack">
-  <label for="firstCharacterAttack">첫번째 캐릭터 공격행동</label>
-  <br>
-  <input type="radio" id="firstCharacterAttackPost" name="processingTask" value="firstCharacterAttackPost">
-  <label for="firstCharacterAttackPost">첫번째 캐릭터 공격행동 후처리</label>
-  <br>
-  <input type="radio" id="secondCharacterAttack" name="processingTask" value="secondCharacterAttack">
-  <label for="secondCharacterAttack">두번째 캐릭터 공격행동</label>
-  <br>
-  <input type="radio" id="secondCharacterAttackPost" name="processingTask" value="secondCharacterAttackPost">
-  <label for="secondCharacterAttackPost">두번째 캐릭터 공격행동 후처리</label>
-  <br>
-  <input type="radio" id="thirdCharacterAttack" name="processingTask" value="thirdCharacterAttack">
-  <label for="thirdCharacterAttack">세번째 캐릭터 공격행동</label>
-  <br>
-  <input type="radio" id="thirdCharacterAttackPost" name="processingTask" value="thirdCharacterAttackPost">
-  <label for="thirdCharacterAttackPost">세번째 캐릭터 공격행동 후처리</label>
-  <br>
-  <input type="radio" id="fourthCharacterAttack" name="processingTask" value="fourthCharacterAttack">
-  <label for="thirdCharacterAttack">네번째 캐릭터 공격행동</label>
-  <br>
-  <input type="radio" id="fourthCharacterAttackPost" name="processingTask" value="fourthCharacterAttackPost">
-  <label for="thirdCharacterAttackPost">네번째 캐릭터 공격행동 후처리</label>
-  <br>
-  <input type="radio" id="enemyAttack" name="processingTask" value="enemyAttack">
-  <label for="enemyAttack">적 공격행동</label>
-  <br>
-  <input type="radio" id="enemyAttackPost" name="processingTask" value="enemyAttackPost">
-  <label for="enemyAttackPost">적 공격행동 후처리</label>
-  <br>
-  <input type="radio" id="turnPost" name="processingTask" value="turnPost">
-  <label for="turnPost">턴 종료 전처리</label>
-  <br>
-</div>
-<div id="abilityProcessingTask">
-  <input type="radio" id="playingMotion" name="abilityProcessingTask" value="motion">
-  <label for="firstCharacterAttackPost">모션</label>
-  <br>
-  <input type="radio" id="playingBuffs" name="abilityProcessingTask" value="buffs">
-  <label for="firstCharacterAttack">버프</label>
-  <br>
-  <input type="radio" id="playingDebuffs" name="abilityProcessingTask" value="debuffs">
-  <label for="firstCharacterAttack">디버프</label>
-  <br>
-  <input type="radio" id="playingPostAction" name="abilityProcessingTask" value="postAction">
-  <label for="firstCharacterAttack">후 행동</label>
 </div>
 
 <div id="memberInfo" th:data-member-id="${member.getId()}">

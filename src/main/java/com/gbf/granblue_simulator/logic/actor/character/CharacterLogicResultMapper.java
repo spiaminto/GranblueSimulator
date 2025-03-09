@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.logic.actor.character;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
@@ -16,9 +17,14 @@ import java.util.List;
 @Component
 @Slf4j
 public class CharacterLogicResultMapper {
-//    public ActorLogicResult toResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
-//        return map(mainActor, enemy, partyMembers, move, null, null, null);
-//    }
+
+    /**
+     * 캐릭터 로직에서 아무것도 발생하지 않았을때 리턴 (null X)
+     * @return
+     */
+    public ActorLogicResult emptyResult() {
+        return ActorLogicResult.builder().moveType(MoveType.NONE).build();
+    }
 
     /**
      * 데미지만 발생하는 기본공격 결과맵핑

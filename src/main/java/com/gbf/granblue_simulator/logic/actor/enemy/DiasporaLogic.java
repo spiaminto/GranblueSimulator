@@ -51,8 +51,10 @@ public class DiasporaLogic implements EnemyLogic {
     protected List<BattleActor> getTargets(boolean isAllTarget, int hitCount, List<BattleActor> partyMembers) {
         // 감싸기 효과 적용 확인
         Optional<BattleStatus> substituteEffect = statusUtil.getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
-        return substituteEffect // 감싸기 있으면 해당 actor id 로 전부, 아니면 랜덤으로 id 채워 반환
-                .map(battleStatus -> Collections.nCopies(hitCount, battleStatus.getBattleActor()))
+        return substituteEffect
+                .map(battleStatus -> isAllTarget ?
+                        Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor()) : // 전체타겟인 경우 전원분 감싸기 id
+                        Collections.nCopies(hitCount, battleStatus.getBattleActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
                 .orElseGet(() -> isAllTarget ?
                         partyMembers :
                         IntStream.range(0, hitCount)
@@ -81,7 +83,7 @@ public class DiasporaLogic implements EnemyLogic {
         // 차지턴
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType());
 
-        return enemyLogicResultMapper.attackToResult(mainActor, targets, attackMove, damageLogicResult, targetOrders);
+        return enemyLogicResultMapper.attackToResult(mainActor, partyMembers, attackMove, damageLogicResult, targetOrders);
     }
 
     @Override
@@ -113,7 +115,7 @@ public class DiasporaLogic implements EnemyLogic {
             chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType());
         // 스탠바이 초기화
         enemy.setNextStandbyType(null);
-        return enemyLogicResultMapper.toResult(mainActor, targets, chargeAttack, damageLogicResult, targetOrders, setStatusResult);
+        return enemyLogicResultMapper.toResult(mainActor, partyMembers, chargeAttack, damageLogicResult, targetOrders, setStatusResult);
     }
 
     @Override

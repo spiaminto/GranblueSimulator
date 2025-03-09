@@ -369,6 +369,10 @@ public class DamageLogic {
             damage = (damage + supplementalDamage) * (1 + amplifyDamageRate);
             // 추격 없음
         }
+        
+        // 요다메에 의한 데미지가 음수일경우 0으로 보정
+        damage = Math.max(damage, 0);
+        additionalDamages = additionalDamages.stream().map(additionalDamage -> Math.max(additionalDamage, 0)).toList();
 
         log.info("[applyAmplifyAndSupplementalDamage] damage = {}, supplementalDamage = {}, amplifyDamageRate = {}", damage, supplementalDamage, amplifyDamageRate);
         return DamageDto.builder()

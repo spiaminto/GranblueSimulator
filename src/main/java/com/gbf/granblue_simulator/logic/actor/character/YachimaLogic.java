@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Transactional
@@ -114,9 +116,10 @@ public class YachimaLogic implements CharacterLogic {
     @Override // 자신이 공격행동시 사포아비1 적용 (알파레벨 증가)
     public ActorLogicResult firstSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstSupportAbility.getStatuses());
-
-        return resultMapper.toResult(mainActor, enemy, partyMembers, firstSupportAbility, null, setStatusResult);
+        return statusUtil.getBattleStatusByName(mainActor, "알파")
+                .filter(alphaBattleStatus -> !alphaBattleStatus.isMaxLevel()) // 만렙 아닌경우만 스테이터스 부여
+                .map(alphaBattleStatus -> resultMapper.toResult(mainActor, enemy, partyMembers, firstSupportAbility, null,
+                        setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstSupportAbility.getStatuses()))).orElseGet(resultMapper::emptyResult);
     }
 
     @Override
@@ -155,8 +158,9 @@ public class YachimaLogic implements CharacterLogic {
         log.info("mainActor = {}", mainActor);
         boolean isAlphaLevelMax = statusUtil.isUniqueStatusReachedLevel(mainActor, "알파", 4);
         boolean isDeltaLevelMax = statusUtil.isUniqueStatusReachedLevel(mainActor, "델타", 4);
-        if (isDeltaLevelMax && isAlphaLevelMax) {
-            // 알파와 델타레벨이 모두 최고레벨일때 자신에게 서폿3 레코데이션 싱크 적용
+        Optional<BattleStatus> recordationSyncOptional = statusUtil.getBattleStatusByName(mainActor, "레코데이션");
+        if (isDeltaLevelMax && isAlphaLevelMax && recordationSyncOptional.isEmpty()) {
+            // 레코데이션 싱크 없고, 알파와 델타레벨이 모두 최고레벨일때 자신에게 서폿3 레코데이션 싱크 적용
             Move thirdSupportAbility = mainActor.getActor().getMoves().get(MoveType.THIRD_SUPPORT_ABILITY);
             SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdSupportAbility.getStatuses());
 
@@ -175,7 +179,7 @@ public class YachimaLogic implements CharacterLogic {
             // 레벨 4로 변경 및 실적용
             log.info("others = {}", others);
             others.forEach(other -> log.info("other = {}", other));
-            statusUtil.addUniqueStatusLevelAll(others, 3, "알파", "델타");
+            statusUtil.addUniqueStatusLevelAll(others, 4, "알파", "델타");
             partyMembers.forEach(setStatusLogic::syncStatus);
 
             // 자신의 3어빌 쿨타임 0으로 감소

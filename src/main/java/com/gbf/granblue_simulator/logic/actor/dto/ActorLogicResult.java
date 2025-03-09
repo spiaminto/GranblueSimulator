@@ -17,7 +17,7 @@ public class ActorLogicResult {
 
     // 필수
     private Long mainBattleActorId;
-    private Integer mainBattleActorOrder;
+    private int mainBattleActorOrder;
     private MoveType moveType;
     @Builder.Default
     private List<Integer> damages = new ArrayList<>();
@@ -38,10 +38,10 @@ public class ActorLogicResult {
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
 
     // 비필수, 중요
-    private Integer totalHitCount; // 통상공격의 경우 추격까지 모두 더함
+    private int totalHitCount; // 통상공격의 경우 추격까지 모두 더함
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
-    private Integer enemyChargeGauge;
+    private int enemyChargeGauge;
 
     private OmenType omenType;
     private Integer omenValue;
