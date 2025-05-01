@@ -1,3 +1,22 @@
+#damageContainer .element-type-fire {
+    color: red;
+}
+#damageContainer .element-type-water {
+    color: cyan;
+}
+#damageContainer .element-type-wind {
+    color: lightgreen;
+}
+#damageContainer .element-type-earth {
+    color: saddlebrown;
+}
+#damageContainer .element-type-light {
+    color: gold;
+}
+#damageContainer .element-type-dark {
+    color: rebeccapurple;
+}
+
 /* 아군 통상공격 데미지 */
 .attack-damage-wrapper {
     /* posotion static -> attack-damage 를 damageContainer 기준으로배치 */

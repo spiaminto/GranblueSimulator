@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain.move;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
@@ -42,7 +43,10 @@ public class Move {
     private String name;
     private String info;
 
+    @Enumerated(EnumType.STRING)
+    private ElementType elementType;
     private Double damageRate;
+    private Integer damageConstant;
 
     // 통상공격
     // 히트수는 배틀상태에서 결정

@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.controller.request.insert.enemy;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import lombok.Data;
 
 import java.util.List;
@@ -12,7 +13,9 @@ public class EnemyChargeAttackRequest {
     private String name;
     private String type;
     private String info;
+    private ElementType elementType;
     private Integer damageRate;
+    private Integer damageConstant;
     private String effectVideoSrc;
     private String seAudioSrc;
 

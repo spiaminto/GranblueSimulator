@@ -187,6 +187,8 @@
     <div>영문명 Actor.nameEn</div>
     <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
     <button type="button" class="apply-name-button btn btn-primary">이름 적용</button>
+    <div>enemy.elementType FIRE , ... NONE </div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
 
     <div>enemy.backgroundImageSrc</div>
     <input class="form-control mb-2" type="text" name="backgroundImageSrc" placeholder="">
@@ -220,6 +222,8 @@
   <form id="attackInputForm">
     <div>enemyId</div>
     <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
 
     <h3>single</h3>
     <div>asset.effectVideo.src</div>
@@ -348,8 +352,12 @@
     <input class="form-control mb-2" type="text" name="type" placeholder="">
     <div>info 오의 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
     <div>damageRate 오의 1타당 데미지 배율 (정수)</div>
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>damageConstant: 오의 1타당 고정 데미지 없으면 0</div>
+    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="">
     <div>effectVideoSrc 이펙트 비디오</div>
     <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
     <div>seAudioSrc SE 오디오</div>
@@ -433,6 +441,10 @@
     <input class="form-control mb-2" type="text" name="info" placeholder="">
     <div>damageRate: 데미지 배율</div>
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>damageConstant: 데미지 고정값 (없으면 0)</div>
+    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ... 속성</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
     <div>hitCount: 히트수</div>
     <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
     <div>coolDown: 어빌리티 쿨타임</div>

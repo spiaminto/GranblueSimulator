@@ -6,6 +6,7 @@ function processChargeAttack(responseChargeAttackData) {
     let moveType = MoveType.byName(chargeAttackData.moveType);
     let chargeAttackHitCount = chargeAttackData.length; // 히트수 (피격모션, 데미지 표시관련)
     let damages = chargeAttackData.damages;
+    let elementType = chargeAttackData.elementTypes[0];
     let chargeGauges = chargeAttackData.chargeGauges;
     let hps = chargeAttackData.hps;
     let hpRates = chargeAttackData.hpRates;
@@ -41,7 +42,7 @@ function processChargeAttack(responseChargeAttackData) {
         });
 
     // 데미지 채우기
-    $('.charge-attack-damage-wrapper').append($('<div>', {class: 'charge-attack-damage', text: damages[0]}));
+    $('.charge-attack-damage-wrapper').append($('<div>', {class: 'charge-attack-damage element-type-' + elementType.toLowerCase(), text: damages[0]}));
 
     // 아군 오의 이펙트 재생 (오디오 속도가 느리므로, 100ms 정도 딜레이 걸고 재생
     setTimeout(function () {
@@ -194,6 +195,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
     let moveType = MoveType.byName(chargeAttackData.moveType);
     let chargeAttackHitCount = chargeAttackData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
     let damages = chargeAttackData.damages;
+    let elementTypes = chargeAttackData.elementTypes;
     let chargeGauges = chargeAttackData.chargeGauges;
     let hps = chargeAttackData.hps;
     let hpRates = chargeAttackData.hpRates;
@@ -273,7 +275,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
 
         // 데미지 채우기 및 표시
         let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder,
+            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
             text: damage
         });
         $attackDamage.delay(effectDelay + 100 * damageIndex) // 2번부터 앞캐릭보다 100ms 딜레이 추가

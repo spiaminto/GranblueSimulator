@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.logic.actor.dto;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
@@ -19,11 +20,13 @@ public class ActorLogicResult {
     private Long mainBattleActorId;
     private int mainBattleActorOrder;
     private MoveType moveType;
-    @Builder.Default
-    private List<Integer> damages = new ArrayList<>();
 
     // 프론트 갱신용
     // 0: enemy , 1~: character (index 는 currentOrder)
+    @Builder.Default
+    private List<Integer> damages = new ArrayList<>();
+    @Builder.Default
+    private List<ElementType> damageElementTypes = new ArrayList<>();
     @Builder.Default
     private List<Integer> hps = new ArrayList<>();
     @Builder.Default

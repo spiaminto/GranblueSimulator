@@ -5,6 +5,7 @@ function processAbility(responseAbilityData) {
     let abilityOrder = moveType === MoveType.FIRST_ABILITY ? 1 : moveType === MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
     let abilityHitCount = abilityData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
     let abilityDamages = abilityData.damages;
+    let elementType = abilityData.elementTypes[0];
     let chargeGauges = abilityData.chargeGauges;
     let hps = abilityData.hps;
     let hpRates = abilityData.hpRates;
@@ -45,7 +46,7 @@ function processAbility(responseAbilityData) {
 
     // 데미지 채우기
     abilityDamages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index, text: item}));
+        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(), text: item}));
     })
 
     // 어빌리티 영상 종료 이후 버프 / 버프 작업 위해 delay 계산용 어빌리티 재생길이 구함

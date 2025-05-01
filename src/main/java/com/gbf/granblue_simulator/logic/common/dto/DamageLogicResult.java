@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.logic.common.dto;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import lombok.Builder;
 import lombok.Data;
@@ -14,5 +15,7 @@ public class DamageLogicResult {
     private final List<Integer> damages = new ArrayList<>();
     @Builder.Default
     private final List<List<Integer>> additionalDamages = new ArrayList<>();
+    @Builder.Default
+    private final List<ElementType> elementTypes = new ArrayList<>();
     private final boolean isEnemyHpZero;
 }

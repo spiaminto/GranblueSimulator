@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.controller.request.insert.enemy;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import lombok.Data;
 
 @Data
@@ -11,6 +12,7 @@ public class EnemyInsertRequest {
     private String hpTriggers; // "100, 90, 80 ... "
     private String bgmTriggers; // "100, 90, 80 ... "
     private String bgmSrcs; // \n 으로 구분
+    private ElementType elementType;
 
     // move dead
     private String deadEffectVideoSrc;

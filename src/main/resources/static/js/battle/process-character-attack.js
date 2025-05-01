@@ -7,6 +7,7 @@ function processCharacterAttack(responseAttackData) {
     let moveType = MoveType.byName(attackData.moveType);
     let hitCount = attackData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
     let damages = attackData.damages;
+    let elementType = attackData.elementTypes[0];
     let attackHitCount = damages.length;
     let additionalDamages = attackData.additionalDamages;
     let additionalAttackHitCount = additionalDamages.reduce((totalSize, damage) => totalSize + damage.length, 0);
@@ -39,11 +40,11 @@ function processCharacterAttack(responseAttackData) {
     // 데미지 채우기
     let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper actor-'+ charOrder});
     damages.forEach(function (damage, attackIndex) {
-        let $attackDamage = $('<div>', {class: 'damage attack-damage actor-' + charOrder, text: damage}); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
+        let $attackDamage = $('<div>', {class: 'damage attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase(), text: damage}); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
         if (additionalDamages[attackIndex]) {
             additionalDamages[attackIndex].forEach(function (additionalDamage, additionalIndex) {
                 // 공격 타수마다 맞게 추격 붙여줌
-                $attackDamage.append($('<div>', {class: 'damage additional-damage', text: additionalDamage}));
+                $attackDamage.append($('<div>', {class: 'damage additional-damage element-type-' + elementType.toLowerCase(), text: additionalDamage}));
             })
         }
         $attackDamageWrapper.append($attackDamage).prependTo($('#damageContainer'));
@@ -125,6 +126,7 @@ function processEnemyAttack(responseAttackData) {
     let moveType = MoveType.byName(attackData.moveType);
     let hitCount = moveType === MoveType.SINGLE_ATTACK ? 1 : moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
     let damages = attackData.damages;
+    let elementTypes = attackData.elementTypes;
     let additionalDamages = attackData.additionalDamages;
     let chargeGauges = attackData.chargeGauges;
     let hps = attackData.hps;
@@ -188,13 +190,13 @@ function processEnemyAttack(responseAttackData) {
 
         // 데미지 채우기 및 표시
         let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder,
+            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
             text: damage
         });
         if (additionalDamages[damageIndex]) {
             additionalDamages[damageIndex].forEach(function (additionalDamage, additionalIndex) {
                 // 공격 타수마다 맞게 추격 붙여줌
-                $attackDamage.append($('<div>', {class: 'damage additional-damage', text: additionalDamage}));
+                $attackDamage.append($('<div>', {class: 'damage additional-damage' + ' element-type-' + elementTypes[damageIndex].toLowerCase(), text: additionalDamage}));
             })
         }
         $attackDamage.delay(effectDelay) // 각 공격 종료 다음에 데미지가 나와야함

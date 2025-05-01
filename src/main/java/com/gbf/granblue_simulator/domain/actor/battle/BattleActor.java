@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain.actor.battle;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import jakarta.persistence.*;
@@ -29,6 +30,8 @@ public class BattleActor {
     @Column(insertable = false, updatable = false)
     private String dtype;
     private Integer currentOrder; // 자신의 자리 순서 Party 로 부터받아 처리할 예정
+    @Enumerated(EnumType.STRING)
+    private ElementType elementType;
 
     // 공격
     private Integer atk;

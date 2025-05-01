@@ -1,12 +1,12 @@
 package com.gbf.granblue_simulator.domain.actor;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +27,8 @@ public class Actor {
     private Long id;
     private String name;
     private String nameEn; // 영어명
+    @Enumerated(EnumType.STRING)
+    private ElementType elementType; // 속성
 
     @Builder.Default
     private Integer baseAttackPoint = 1000; // 공력력

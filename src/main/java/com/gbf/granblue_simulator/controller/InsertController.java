@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.request.insert;
+package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
 import com.gbf.granblue_simulator.controller.request.insert.character.CharacterInsertRequest;
@@ -43,6 +43,7 @@ public class InsertController {
                 .name(characterInsertRequest.getName())
                 .nameEn(characterInsertRequest.getNameEn())
                 .battlePortraitSrc(characterInsertRequest.getBattlePortraitSrc())
+                .elementType(characterInsertRequest.getElementType())
                 .build();
         character = characterRepository.save(character);
         log.info("savedChar = {}", character);
@@ -59,6 +60,7 @@ public class InsertController {
         Move idle = Move.builder()
                 .type(MoveType.IDLE_DEFAULT)
                 .info("idle")
+                .elementType(character.getElementType())
                 .damageRate(null)
                 .coolDown(null)
                 .duration(null)
@@ -76,6 +78,7 @@ public class InsertController {
         Move singleAttack = Move.builder()
                 .type(MoveType.SINGLE_ATTACK)
                 .info("single attack")
+                .elementType(character.getElementType())
                 .damageRate(1.0)
                 .coolDown(null)
                 .duration(null)
@@ -94,6 +97,7 @@ public class InsertController {
         Move doubleAttack = Move.builder()
                 .type(MoveType.DOUBLE_ATTACK)
                 .info("double attack")
+                .elementType(character.getElementType())
                 .damageRate(1.0)
                 .coolDown(null)
                 .duration(null)
@@ -112,6 +116,7 @@ public class InsertController {
         Move tripleAttack = Move.builder()
                 .type(MoveType.TRIPLE_ATTACK)
                 .info("triple attack")
+                .elementType(character.getElementType())
                 .damageRate(1.0)
                 .coolDown(null)
                 .duration(null)
@@ -138,6 +143,7 @@ public class InsertController {
                 .name(request.getName())
                 .type(MoveType.CHARGE_ATTACK_DEFAULT)
                 .info(request.getInfo())
+                .elementType(character.getElementType())
                 .damageRate(4.5) // 일단 극대 캐릭의 경우 따로 수정
                 .coolDown(null)
                 .duration(null)
@@ -198,6 +204,7 @@ public class InsertController {
                 .type(MoveType.valueOf(request.getType()))
                 .name(request.getName())
                 .info(request.getInfo())
+                .elementType(character.getElementType())
                 .damageRate(request.getDamageRate())
                 .hitCount(request.getHitCount())
                 .coolDown(request.getCoolDown())

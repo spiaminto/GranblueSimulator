@@ -162,6 +162,7 @@ public class EnemyLogicResultMapper {
 
                 .totalHitCount(totalHitCount)
                 .damages(damageLogicResult.getDamages())
+                .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
 

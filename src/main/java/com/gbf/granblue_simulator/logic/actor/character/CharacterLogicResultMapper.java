@@ -123,6 +123,7 @@ public class CharacterLogicResultMapper {
 
                 .totalHitCount(totalHitCount)
                 .damages(damageLogicResult.getDamages())
+                .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
 

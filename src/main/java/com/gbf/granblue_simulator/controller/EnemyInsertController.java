@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.request.insert;
+package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.enemy.*;
 import com.gbf.granblue_simulator.controller.response.EnemyInsertResponse;
@@ -46,6 +46,7 @@ public class EnemyInsertController {
         Enemy enemy = Enemy.builder()
                 .name(request.getName())
                 .nameEn(request.getNameEn())
+                .elementType(request.getElementType())
                 .backgroundImageSrc(request.getBackgroundImageSrc())
                 .hpTriggers(Arrays.stream(request.getHpTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
                 .bgmTriggers(Arrays.stream(request.getBgmTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
@@ -92,6 +93,7 @@ public class EnemyInsertController {
         Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move singleAttack = Move.builder()
                 .name("single attack")
+                .elementType(request.getElementType())
                 .type(MoveType.SINGLE_ATTACK)
                 .info("single attack")
                 .hitCount(1)
@@ -107,6 +109,7 @@ public class EnemyInsertController {
 
         Move doubleAttack = Move.builder()
                 .name("double attack")
+                .elementType(request.getElementType())
                 .type(MoveType.DOUBLE_ATTACK)
                 .info("double attack")
                 .hitCount(2)
@@ -122,6 +125,7 @@ public class EnemyInsertController {
 
         Move tripleAttack = Move.builder()
                 .name("triple attack")
+                .elementType(request.getElementType())
                 .type(MoveType.TRIPLE_ATTACK)
                 .info("triple attack")
                 .hitCount(3)
@@ -246,7 +250,9 @@ public class EnemyInsertController {
                 .name(request.getName())
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getInfo())
+                .elementType(request.getElementType())
                 .damageRate(request.getDamageRate() + 0.0)
+                .damageConstant(request.getDamageConstant())
                 .coolDown(null)
                 .duration(null)
                 .actor(enemy)
@@ -306,7 +312,9 @@ public class EnemyInsertController {
                 .type(MoveType.valueOf(request.getType()))
                 .name(request.getName())
                 .info(request.getInfo())
+                .elementType(request.getElementType())
                 .damageRate(request.getDamageRate())
+                .damageConstant(request.getDamageConstant())
                 .hitCount(request.getHitCount())
                 .coolDown(request.getCoolDown())
                 .duration(request.getDuration())

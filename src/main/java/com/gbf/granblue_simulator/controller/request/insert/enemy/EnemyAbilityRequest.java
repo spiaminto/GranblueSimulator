@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.controller.request.insert.enemy;
 
+import com.gbf.granblue_simulator.domain.ElementType;
 import lombok.Data;
 
 import java.util.List;
@@ -12,7 +13,9 @@ public class EnemyAbilityRequest {
 
     private String name;
     private String info;
+    private ElementType elementType;
     private Double damageRate;
+    private Integer damageConstant;
     private Integer hitCount;
     private Integer coolDown;
     private String duration;
