@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,7 +99,6 @@ public class BattleActor {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "battleActor")
-    @MapKey(name = "type")
     @Builder.Default
     private List<BattleStatus> battleStatuses = new ArrayList<>();
 

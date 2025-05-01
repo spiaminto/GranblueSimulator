@@ -241,18 +241,19 @@ public class DiasporaLogic implements EnemyLogic {
         Optional<Omen> hpTriggerOmen = omenLogic.getTriggeredOmen(enemy, OmenType.HP_TRIGGER);
 
         if (enemy.getNextStandbyType() != null) {
+            log.info("INCANT ATTACK");
             // 영창기 (로직내부에서 발동설정)
             standby = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
         } else if (hpTriggerOmen.isPresent() && !hpTriggerOmen.get().getTriggerHp().equals(enemy.getLatestTriggeredHp())) {
             // hp 트리거가 존재하며, 마지막으로 발동한 hp 트리거와 다름
-            log.warn("HPTRIGGER rate = {}, target = {}", enemy.calcHpRate(), hpTriggerOmen.get().getTriggerHp());
+            log.info("HPTRIGGER rate = {}, target = {}", enemy.calcHpRate(), hpTriggerOmen.get().getTriggerHp());
             // HP 트리거
             Omen triggeredOmen = hpTriggerOmen.get();
             standby = enemy.getActor().getMoves().get(triggeredOmen.getMove().getType());
             enemy.setNextStandbyType(standby.getType());
              enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
         } else if (enemy.getChargeGauge() >= enemy.getMaxChargeGauge()) {
-            log.warn("CHARGEATTACK");
+            log.info("CHARGEATTACK");
             // 차지어택
             Optional<Omen> triggeredOmenOptional = omenLogic.getTriggeredOmen(enemy, OmenType.CHARGE_ATTACK);
             if (triggeredOmenOptional.isPresent()) {
