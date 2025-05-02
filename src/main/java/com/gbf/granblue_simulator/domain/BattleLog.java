@@ -38,6 +38,10 @@ public class BattleLog {
     @Column(name = "damages", columnDefinition = "integer[]")
     private List<Integer> damages;
 
+    @Type(ListArrayType.class)
+    @Column(name = "damage_element_types", columnDefinition = "text[]")
+    private List<String> damageElementTypes;
+
     @Type(IntArrayType.class)
     @Column(name = "additional_damages", columnDefinition = "integer[][]")
     private Integer[][] additionalDamages;

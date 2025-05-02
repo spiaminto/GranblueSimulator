@@ -57,11 +57,13 @@ public class BattleController {
         String omenPrefix = null;
         Integer omenValue = null;
         OmenType omenType = null;
+        String omenName = null;
         if (enemy.getNextStandbyType() != null) {
             Omen omen = enemy.getActor().getMoves().get(enemy.getNextStandbyType()).getOmen();
             omenPrefix = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo(); // TODO 나중에 리팩토링 해야될듯
             omenValue = enemy.getOmenValue();
             omenType = omen.getOmenType();
+            omenName = omen.getName();
         }
 
         EnemyInfo enemyInfo = EnemyInfo.builder()
@@ -74,9 +76,11 @@ public class BattleController {
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1))
                 .initialMoveType(enemy.getNextStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getNextStandbyType()) // 동적으로
                 .omenActivated(enemy.getNextStandbyType() != null)
+
                 .omenPrefix(omenPrefix)
                 .omenValue(omenValue)
                 .omenType(omenType)
+                .omenName(omenName)
                 .build();
         model.addAttribute("enemyInfo", enemyInfo);
 
@@ -295,6 +299,7 @@ public class BattleController {
                         .omenType(result.getOmenType())
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                        .omenName(result.getOmenName())
                         .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
                                 .map(battleStatuses ->
                                         battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()

@@ -141,6 +141,7 @@ public class EnemyLogicResultMapper {
         OmenType omenType = omen != null ? omen.getOmenType() : null; // omenValue 가 존재하면 omenType 지정 (omenValue 가 없을때 omenType 을 null 로 놔둠)
         String omenCancelCondInfo = omen != null ? omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo() : null; // 보여줄 텍스트만
         Integer omenValue = omen != null ? enemy.getOmenValue() : null;
+        String omenName = omen != null ? omen.getName() : null;
 
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
@@ -156,6 +157,7 @@ public class EnemyLogicResultMapper {
                 .omenType(omenType)
                 .omenCancelCondInfo(omenCancelCondInfo)
                 .omenValue(omenValue)
+                .omenName(omenName)
 
                 .enemyAttackTargetOrders(targetOrders)
                 .isAllTarget(move.isAllTarget())

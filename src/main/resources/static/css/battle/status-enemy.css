@@ -131,9 +131,17 @@
 /* 하단 전조 표시 */
 #container .omen-container-bottom {
     position: absolute;
-    left: 5%;
-    top: 90%; /* bottom 말고 top 오버라이딩 */
+    left: 10%;
+    top: 85%; /* bottom 말고 top 오버라이딩 */
     z-index: 1;
+}
+
+.omen-container-bottom .omen-text {
+    font-size: 0.65rem;
+
+    @media (min-width: 600px) {
+        font-size: 0.85rem;
+    }
 }
 
 .omen-container:not(.activated) {

@@ -25,7 +25,7 @@
 .damage {
     color: white;
     font-weight: bold;
-    font-size: 3rem;
+    font-size: 2.75rem;
     line-height: 3rem;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
@@ -37,49 +37,49 @@
 }
 
 .attack-damage-wrapper .attack-damage:nth-child(1) {
-    top: 75%;
-    left: 17%;
+    top: 70%;
+    left: 10%;
 }
 
 .attack-damage-wrapper .attack-damage:nth-child(2) {
-    top: 60%;
-    left: 3%;
+    top: 55%;
+    left: 10%;
 }
 
 .attack-damage-wrapper .attack-damage:nth-child(3) {
-    top: 45%;
-    left: 23%;
+    top: 40%;
+    left: 10%;
 }
 
 .additional-damage {
-    font-size: 90%; /* .attack-damage 의 80% */
+    font-size: 85%; /* .attack-damage 의 85% */
     line-height: 90%;
 }
 
 .additional-damage:nth-child(1) {
     position: absolute;
-    top: -40%;
+    top: -30%;
     left: 25%;
     z-index: -1;
 }
 
 .additional-damage:nth-child(2) {
     position: absolute;
-    top: -80%;
+    top: -70%;
     left: 30%;
     z-index: -2;
 }
 
 .additional-damage:nth-child(3) {
     position: absolute;
-    top: -120%;
+    top: -110%;
     left: 35%;
     z-index: -3;
 }
 
 .additional-damage:nth-child(4) {
     position: absolute;
-    top: -160%;
+    top: -150%;
     left: 40%;
     z-index: -4;
 }

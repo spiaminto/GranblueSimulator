@@ -49,6 +49,7 @@ public class ActorLogicResult {
     private OmenType omenType;
     private Integer omenValue;
     private String omenCancelCondInfo;
+    private String omenName;
 
     private boolean enemyDispelled;
     private boolean partyMemberDispelled;

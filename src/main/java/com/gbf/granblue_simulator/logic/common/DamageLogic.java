@@ -239,10 +239,13 @@ public class DamageLogic {
      * 전처리 - 유리속성 보정
      */
     protected int applyElementTypeAdjustment(ElementType moveElementType, ElementType targetElementType, int atk) {
+        log.info("[applyElementTypeAdjustment] moveElementType = {}, targetElementType = {}, atk = {}", moveElementType, targetElementType, atk);
         if (moveElementType.isAdvantageTo(targetElementType)) {
             atk = (int) (atk * 1.5);
-        } else {
+        } else if (moveElementType.isDisadvantageTo(targetElementType)){
             atk = (int) (atk * 0.75);
+        } else {
+            // 무상성시 1배율
         }
         return atk;
     }

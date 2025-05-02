@@ -22,7 +22,7 @@ public enum ElementType {
     RANDOM // 랜덤속성 -> 로직에서 변환해서사용
     ;
 
-    // 속성은 유불리만 따짐. (동등 없음)
+    // 유리속성 확인
     public boolean isAdvantageTo(ElementType target) {
         return switch (this) {
             case FIRE -> target == WIND || target == NONE;
@@ -32,6 +32,18 @@ public enum ElementType {
             case LIGHT -> target == DARK || target == NONE;
             case DARK -> target == LIGHT || target == NONE;
             default -> false;// 무속성 공격의 고정데미지 이므로 유불리 적용 x
+        };
+    }
+
+    // 불리속성 확인 (무속성은 무상성)
+    public boolean isDisadvantageTo(ElementType target) {
+        return switch (this) {
+            case FIRE -> target == WATER;
+            case WATER -> target == EARTH;
+            case WIND -> target == FIRE;
+            case EARTH -> target == WIND;
+            // LIGHT, DARK 는 불리속성 없음
+            default -> false;
         };
     }
 

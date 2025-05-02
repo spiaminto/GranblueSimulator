@@ -24,4 +24,5 @@ public class EnemyInfo {
     private OmenType omenType;
     private String omenPrefix;
     private Integer omenValue;
+    private String omenName;
 }

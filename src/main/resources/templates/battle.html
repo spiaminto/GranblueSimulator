@@ -225,8 +225,7 @@
 
   <div class="omen-container omen-container-bottom enemy blinking-element" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
     <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
-      <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
-      <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
+      <span class="omen-prefix" th:text="${'[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
     </div>
   </div>
 
@@ -345,21 +344,21 @@
 
   <!-- 적 피격 데미지 -->
   <div id="damageContainer" class="battle-canvas">
-    <!-- 일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가 -->
-    <!--    <div class="attack-damage-wrapper actor-1">-->
-    <!--      <div class="damage attack-damage">123123-->
-    <!--        <div class="damage additional-damage">22222</div>-->
-    <!--        <div class="damage additional-damage">33333</div>-->
-    <!--      </div>-->
-    <!--      <div class="damage attack-damage">234234-->
-    <!--        <div class="damage additional-damage" >44444</div>-->
-    <!--        <div class="damage additional-damage">55555</div>-->
-    <!--      </div>-->
-    <!--      <div class="damage attack-damage">345345-->
-    <!--        <div class="damage additional-damage">66666</div>-->
-    <!--        <div class="damage additional-damage">77777</div>-->
-    <!--      </div>-->
-    <!--    </div>-->
+<!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
+<!--        <div class="attack-damage-wrapper actor-1">-->
+<!--          <div class="damage attack-damage">123123-->
+<!--            <div class="damage additional-damage">22222</div>-->
+<!--            <div class="damage additional-damage">33333</div>-->
+<!--          </div>-->
+<!--          <div class="damage attack-damage">234234-->
+<!--            <div class="damage additional-damage" >44444</div>-->
+<!--            <div class="damage additional-damage">55555</div>-->
+<!--          </div>-->
+<!--          <div class="damage attack-damage">345345-->
+<!--            <div class="damage additional-damage">66666</div>-->
+<!--            <div class="damage additional-damage">77777</div>-->
+<!--          </div>-->
+<!--        </div>-->
 
     <!-- max 12, 10에서 컷-->
     <div class="ability-damage-wrapper">

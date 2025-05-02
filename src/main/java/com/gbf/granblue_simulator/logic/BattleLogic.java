@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic;
 
 import com.gbf.granblue_simulator.domain.BattleLog;
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
@@ -299,6 +300,9 @@ public class BattleLogic {
         // 현재 Status 및 관련사항은 mainActor 것만 저장함
         BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow();
         List<Integer> damages = logicResult.getDamages();
+        List<String> damageElementTypes = logicResult.getDamageElementTypes().stream()
+                .map(ElementType::name)
+                .toList();
         Integer[][] additionalDamages = logicResult.getAdditionalDamages().stream()
                 .map(additionalDamage -> additionalDamage.toArray(Integer[]::new))
                 .toArray(Integer[][]::new);
@@ -327,6 +331,7 @@ public class BattleLogic {
                         .mainActorId(mainActor.getId())
                         .hitCount(logicResult.getTotalHitCount())
                         .damages(damages)
+                        .damageElementTypes(damageElementTypes)
                         .additionalDamages(additionalDamages)
                         .statusTypes(statusTypes)
                         .statusEffectTypes(statusEffectTypes)
