@@ -2,7 +2,7 @@ function requestAbility(charOrder, abilityOrder) {
     // console.log('[processAbility] start process charOrder = ' + charOrder + 'abilityOrder = ' + abilityOrder);
 
     // TODO 통신
-    let characterId = $('#battleMemberPresentContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
     let memberId = $('#memberInfo').data('member-id');
     let roomId = $('#roomInfo').data('room-id');
     let abilityId = $('#abilityInfo').data('ability-id');
@@ -106,12 +106,14 @@ function processEnemyStandBy(standbyResponse) {
     let $enemyDefaultIdleVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className);
     let omenType = OmenType.byName(standbyResponse.omenType);
     console.log(omenType)
+    let omenName = standbyResponse.omenName;
     let omenValue = standbyResponse.omenValue;
     let omenCancelCondInfo = standbyResponse.omenCancelCondInfo;
-    let $omenContainer = $('.omen-container.enemy');
+    let $omenContainerTop = $('.omen-container-top.enemy');
+    let $omenContainerBottom = $('.omen-container-bottom.enemy');
     if ($enemyDefaultIdleVideo.hasClass('hidden')) {
         // 적이 현재 스탠바이 상태일경우 전조 갱신후 아래의 내용은 무시
-        $omenContainer.find('.omen-text .omen-value').text(omenValue);
+        $omenContainerTop.find('.omen-text .omen-value').text(omenValue);
         return;   
     }
 
@@ -124,10 +126,14 @@ function processEnemyStandBy(standbyResponse) {
     $('.enemy-video-container').data('standby-move-class', moveType.className);
 
     // 전조 컨테이너 activate
-    $omenContainer.addClass('activated')
+    $omenContainerTop.addClass('activated')
         .find('.omen-text').addClass(omenType.className)
         .find('.omen-prefix').text(omenCancelCondInfo).end()
         .find('.omen-value').text(omenValue);
+
+    $omenContainerBottom.addClass('activated')
+        .find('.omen-text').addClass(omenType.className)
+        .find('.omen-prefix').text(omenName);
 
 
     // 오디오 재생

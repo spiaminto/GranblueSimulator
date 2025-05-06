@@ -25,8 +25,8 @@
 .damage {
     color: white;
     font-weight: bold;
-    font-size: 2.75rem;
-    line-height: 3rem;
+    font-size: 40px;
+    line-height: 45px;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
@@ -102,10 +102,11 @@
 }
 
 .ability-damage {
+    z-index: 1;
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     color: white;
     font-weight: bold;
-    font-size: 2.5rem;
+    font-size: 35px;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     margin-bottom: -27%; /* 부모 120px, 마진타겟 약 30px*/
 }
@@ -122,8 +123,8 @@
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     color: white;
     font-weight: bold;
-    font-size: 3rem;
-    line-height: 3rem;
+    font-size: 45px;
+    line-height: 45px;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
 
@@ -157,8 +158,8 @@
     opacity: 1;
     color: white;
     font-weight: bold;
-    font-size: 1.5rem;
-    line-height: 1.5rem;
+    font-size: 25px;
+    line-height: 25px;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
@@ -166,73 +167,3 @@
 .enemy-attack-damage .additional-damage {
     /*transform: translateY(-50%);*/
 }
-
-
-/*아군 피격 데미지 */
-.taken-damage-container {
-    position: absolute;
-    opacity: 0.8;
-}
-
-.taken-damage {
-    display: none;
-    color: white;
-    font-weight: bold;
-    font-size: 1.5rem;
-    /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
-    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-}
-
-.taken-damage-container.character-1 {
-    top: 34%;
-    right: 13%;
-}
-
-.taken-damage-container.character-2 {
-    top: 47%;
-    right: 4%;
-}
-
-.taken-damage-container.character-3 {
-    top: 60%;
-    right: 13%;
-}
-
-.taken-damage-container.character-4 {
-    top: 73%;
-    right: 4%;
-}
-
-@media(min-width: 600px) {
-    .damage {
-        font-size: 4rem;
-        line-height: 4rem;
-    }
-    .ability-damage {
-        font-size: 4rem;
-        margin-bottom: -50%;
-    }
-    .charge-attack-damage {
-        font-size: 4.25rem;
-        line-height: 4.25rem;
-    }
-    .taken-damage {
-        font-size: 2rem;
-    }
-}
-
-/* 적 오의데미지 */
-/*.enemy-charge-attack-damage-wrapper {*/
-/*    top: 52%;*/
-/*    left: 7%;*/
-/*    position: absolute;*/
-/*}*/
-
-/*.enemy-charge-attack-damage {*/
-/*    opacity: 0;*/
-/*    color: white;*/
-/*    font-weight: bold;*/
-/*    font-size: 3.5rem;*/
-/*    !*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*!*/
-/*    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;*/
-/*}*/

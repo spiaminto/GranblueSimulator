@@ -376,6 +376,7 @@ public class BattleController {
                         .hpRates(result.getHpRates())
                         .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
                         .isAllTarget(result.isAllTarget())
+                        .omenName(result.getOmenName())
                         .omenType(result.getOmenType())
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())

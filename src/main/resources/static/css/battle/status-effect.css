@@ -26,15 +26,11 @@
 }
 
 .status-effect-container.enemy .status-effect-text {
-    font-size: 1.2rem;
+    font-size: 18px;
     font-weight: bold;
     color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
-    text-indent: -1rem;
-
-    @media (min-width: 600px) {
-        font-size: 1.6rem;
-    }
+    text-indent: -16px;
 }
 
 .status-effect-text.none-icon {
@@ -61,14 +57,10 @@
 }
 
 .status-effect-container.party .status-effect-text {
-    font-size: 1rem;
+    font-size: 16px;
     font-weight: bold;
     color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
-
-    @media (min-width: 600px) {
-        font-size: 1.3rem;
-    }
 }
 
 

@@ -1,57 +1,54 @@
-#battleMemberContainer {
-    background-color: white;
+#commandContainer {
+    margin: -10px auto 0;
+    padding-top: 12px;
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
 }
 
-#battleMemberPresentContainer {
-    width: 100%;
-    height: 35vw;
-    min-height: 160px;
-    max-height: 225px; /* #abilitySlider 와 연동 */
+#partyCommandContainer {
+    height: 145px;
     position: relative;
-}
+    padding: 5px 15px;
 
-.present-container { /* 이거랑 상위 컨테이너랑 합쳐야 될듯 */
-    width: 100%;
     display: flex;
-    justify-content: space-between;
-    padding: 0.25rem 0.75rem;
-    position: relative;
-
-    @media (min-width: 600px) {
-        padding: 0.5rem 1.5rem;
-    }
 }
+
+/*.present-container { !* 이거랑 상위 컨테이너랑 합쳐야 될듯 *!*/
+/*    width: 100%;*/
+/*    display: flex;*/
+/*    justify-content: space-between;*/
+/*    padding: 0.25rem 0.75rem;*/
+/*    position: relative;*/
+/*}*/
 
 .battle-member-wrapper {
     display: flex;
-    width: 80%;
+    width: 292px;
+    height: 145px;
 }
 
 .battle-portrait {
     position: relative;
-    width: 23%;
-    margin-right: 1%;
-    min-width: 65px;
-    min-height: 130px;
+    width: 70px;
+    margin-right: 3px;
 }
 
 .battle-portrait img {
-    width: 100%;
+    width: 70px;
 }
 
 .charge-gauge-wrapper {
     position: absolute;
     width: 95%;
-    padding: 0.25rem;
-    bottom: 0.15rem;
+    padding: 4px;
+    bottom: 1px;
     left: 0;
 }
 
 .hp-gauge-wrapper {
     position: absolute;
     width: 95%;
-    padding: 0.25rem;
-    bottom: 1rem;
+    padding: 4px;
+    bottom: 15px;
     left: 0;
 }
 
@@ -92,30 +89,34 @@
 /* 소환석 */
 
 .summon-button-wrapper {
-    width: 19%;
+    position: relative;
+    width: 70px;
 }
 
 .summon-portrait {
-    width: 96%;
+    width: 70px;
 }
 
 .summon-portrait img{
-    width: 100%;
+    width: 70px;
 }
 
 
 .summon-display-button {
-    padding: 0;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    opacity: 0;
 }
 
 .summon-display-wrapper {
     position: absolute;
-    max-width: 441px;
+    width: 292px;
 }
 
 .summon-collapse {
-    max-width: 441px;
-    min-width: 260px; /* 65 * 4 */
+    width: 292px;
 }
 
 .summon-list {
@@ -125,17 +126,13 @@
 
 .summon-list-item {
     float: left;
-    width: 23%;
-    height: 100%;
-    margin-right: 1%;
-    min-height: 130px;
+    width: 70px;
+    margin-right: 3px;
     position: relative;
 }
 
 .summon-list-item img {
-    width: 100%;
-    min-width: 65px;
-    min-height: 130px;
+    width: 70px;
 }
 
 .summon-cooldown {
@@ -144,46 +141,39 @@
     right: 10%;
     color: white;
     font-weight: bold;
+    font-size: 16px;
 }
 
 .summon-list-item.disabled {
     background: rgba(0, 0, 0, 0.5);
 }
 
-/* 버튼 */
-
-.button-container {
+/* 서브커맨드 */
+.sub-command-container {
     color: white;
     display: flex;
-    padding: 0.25rem 1.25rem;
-    
-    @media (max-width: 410px) {
-        padding: 0.25rem 0.5rem; /*작은 화면 찌그러짐 방지*/
-    }
+    padding: 12px 12px;
+    height: 62px;
 }
 
-.button-container .form-switch {
+.sub-command-container .form-switch {
     display: flex;
     align-items: center;
 }
 
-.button-container .form-switch input {
+.sub-command-container .form-switch input {
     margin-top: 0;
-    height: 1.2rem;
+    height: 16px;
 }
 
-.button-container .form-check-label {
+.sub-command-container .form-check-label {
     margin-left: 5px;
 }
 
 .show-ability-info-check-wrapper {
-    margin-left: 2%;
+    margin-left: 5px;
 }
 
 .charge-attack-check-wrapper {
-    margin-left: 2%;
-}
-
-.ability-back-button-wrapper {
-    margin-left: auto;
+    margin-left: 5px;
 }

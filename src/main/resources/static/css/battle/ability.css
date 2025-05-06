@@ -1,57 +1,57 @@
-#battleMemberContainer {
-    margin: -10px auto 0;
-    padding-top: 10px;
-    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
-}
-
 #abilitySlider {
     position: absolute;
     top: 0;
     left: 0;
     z-index: -1;
-    background-color: transparent;
-    width: 100%;
-    height: 35vw;
-    min-height: 160px;
-    max-height: 225px; /* #battleMemberPresentContainer 와 연동 */
+    /*background-color: transparent;*/
+    padding: 5px 15px;
+    width: 390px;
+    height: 210px;
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
+    background-size: 3px;
+
 }
 
 .ability-panel {
-    display: flex;
-    width: 100%;
-    /*padding: 1rem;*/
+    position: relative;
+    height: 210px;
     justify-content: space-between;
     color: white;
+
+    margin-left: 1px; /*복사된 다음 엘리먼트의 왼쪽 외각선 표시 방지*/
+
 }
 
 .charge-attack-wrapper {
-    /*height: 25%;*/
-    padding: 0.25rem;
-    border-radius: 10px;
+    position: absolute;
+    top: 0;
+    left: 73px;
+    width: 280px;
+    height: 50px;
+
+    padding: 4px;
+    border-radius: 5px;
     overflow: hidden;
 
     box-shadow: inset 0 0 6px 1px rgba(168,132,99,0.5);
     border: 1px solid #a88463;
-    margin-bottom: 0.1rem;
+    margin-bottom: 1px;
 }
 
 .charge-attack-info {
-    height: 1.5rem;
-    font-size: 0.6rem;
-
-    @media (min-width: 600px) {
-        font-size: 0.7rem;
-    }
-}
-
-.charge-attack-info .charge-attack-text {
+    height: 20px;
+    font-size: 10px;
 }
 
 .ability-wrapper {
+    position: absolute;
+    top: 55px;
+    left: 73px;
+    height: 80px;
+    width: 280px;
+
     display: flex;
     padding: 0.25rem 0;
-    width: 100%;
-    height: 50%;
     justify-content: space-evenly;
     margin-bottom: 0.1rem;
 
@@ -62,23 +62,19 @@
 }
 
 .ability-battle-portrait {
-    width: 18%;
-    min-width: 75px;
+    top: 0;
+    width: 70px;
     position: relative;
-    min-height: 150px;
 }
 
 .ability-battle-portrait img {
-}
-
-.ability-battle-portrait img {
-    width: 100%;
+    width: 70px;
 }
 
 .ability-icon {
     position: relative;
     align-content: center;
-    width: 15%;
+    width: 45px;
 }
 
 .ability-icon .ability-overlay {
@@ -103,7 +99,7 @@
 
 .ability-cooldown-text {
     text-align: center;
-    font-size: 1rem;
+    font-size: 16px;
 }
 
 .ability-cooldown-text.active {
@@ -114,20 +110,18 @@
     display: none;
 }
 
-@media (min-width: 600px) {
-    .ability-cooldown-text {
-        font-size: 1.3rem;
-    }
-}
-
 .panel-wrapper {
-    width: 80%; /* battle-portriat 합쳐 100 */
+    width: 320px; /* battle-portriat 합쳐 100% */
 }
 
 .status-container.party {
-    padding: 0 0.25rem;
-    border-radius: 10px;
-    height: 25%; /* .ability-wrapper, .charge-attack-wrapper 합쳐 100 */
+    position: absolute;
+    width: 100%;
+    top: 150px;
+
+    padding: 0 4px;
+    border-radius: 5px;
+    height: 40px;
     align-content: center;
     display: flex;
 
@@ -137,7 +131,8 @@
 
 .status-container.party .show-status-info-button-wrapper {
     display: flex;
-    width: 17%;
+    width: 40px;
+    margin-right: 10px;
     align-items: center;
 }
 
@@ -146,14 +141,13 @@
 }
 
 .status-container.party .status {
-    width: 10%;
     display: flex;
     align-items: center;
 }
 
 .status-container.party .status .status-icon {
     display: inline-block;
-    width: 100%;
+    width: 28px;
 }
 
 /* 어빌리티 백버튼 - 하단메뉴 */
@@ -257,7 +251,7 @@
 .ability-slider-slide-button-wrapper.to-right {
     top: 50%;
     transform: translateY(-50%);
-    right: -5px;
+    right: 0;
 }
 
 .ability-slider-slide-button-wrapper.to-left {
@@ -266,6 +260,16 @@
     left: -5px;
 }
 
+
+.ability-back-button-wrapper {
+    position: absolute;
+    bottom: 10px;
+    left: 5px;
+}
+
+.ability-back-button {
+    display: none;
+}
 
 
 

@@ -1,7 +1,5 @@
 #battleCanvasTopMenu {
-    position: absolute;
-    width: 100%;
-    height: 7%;
+    height: 30px;
 }
 
 #battleCanvasTopMenu::after {
@@ -9,14 +7,14 @@
     display: block;
     position: relative;
     width: 100%;
-    height: 200%;
+    height: 150%;
     background: linear-gradient(
             to bottom,
             rgba(0, 0, 0, 1) 0%,
-            rgba(0, 0, 0, 1) 55%,
-            rgba(0, 0, 0, 0.8) 65%,
-            rgba(0, 0, 0, 0.5) 75%,
-            rgba(0, 0, 0, 0.3) 90%,
+            rgba(0, 0, 0, 1) 35%,
+            rgba(0, 0, 0, 0.8) 45%,
+            rgba(0, 0, 0, 0.5) 65%,
+            rgba(0, 0, 0, 0.3) 70%,
             rgba(0, 0, 0, 0) 100%
     );
 }
@@ -24,7 +22,7 @@
 .top-menu-container {
     position: relative;
     z-index: 100;
-    height: 90%;
+    height: 100%;
 
     display: flex;
     align-items: center;
