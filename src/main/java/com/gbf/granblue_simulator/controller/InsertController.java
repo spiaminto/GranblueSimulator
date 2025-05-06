@@ -1,9 +1,7 @@
 package com.gbf.granblue_simulator.controller;
 
+import com.gbf.granblue_simulator.controller.request.insert.character.*;
 import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
-import com.gbf.granblue_simulator.controller.request.insert.character.CharacterInsertRequest;
-import com.gbf.granblue_simulator.controller.request.insert.character.ChargeAttackRequest;
-import com.gbf.granblue_simulator.controller.request.insert.character.IdleAndAttackRequest;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -240,6 +238,70 @@ public class InsertController {
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
+                    .build();
+            log.info("statusEntity = {}", statusEntity);
+            statusRepository.save(statusEntity);
+
+            // 스테이터스 효과 ("type, value \n ...")
+            status.getStatusEffects().lines().forEach(statusEffect -> {
+                String[] splitStatusEffect = statusEffect.split(",");
+                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
+                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                StatusEffect statusEffectEntity = StatusEffect.builder()
+                        .status(statusEntity)
+                        .type(statusEffectType)
+                        .value(statusEffectValue)
+                        .build();
+                statusEffectRepository.save(statusEffectEntity);
+            });
+        });
+
+        return ResponseEntity.ok(InsertResponse.ok(1L));
+    }
+
+    @PostMapping("/insert/summon")
+    public ResponseEntity<InsertResponse> insertSummon(@RequestBody SummonRequest request) {
+        log.info("summonRequest: {}", request);
+
+        // 소환용 캐릭터 ID = 6 으로 고정됨
+        Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
+        Move summon = Move.builder()
+                .name(request.getName())
+                .type(MoveType.SUMMON)
+                .info(request.getInfo())
+                .elementType(request.getElementType())
+                .damageRate(request.getDamageRate())
+                .coolDown(request.getCoolDown())
+                .hitCount(request.getHitCount())
+                .duration(null)
+                .actor(character)
+                .build();
+        summon = moveRepository.save(summon);
+
+        Asset summonAsset = Asset.builder()
+                .iconImageSrc(request.getIconSrc())
+                .effectVideoSrc(request.getEffectVideoSrc())
+                .seAudioSrc(request.getSeAudioSrc())
+                .move(summon)
+                .build();
+        summonAsset = assetRepository.save(summonAsset);
+
+        // 스테이터스
+        final Move summonFinal = summon;
+        request.getStatuses().forEach(status -> {
+            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            // 스테이터스
+            Status statusEntity = Status.builder()
+                    .type(StatusType.valueOf(status.getType()))
+                    .name(status.getName())
+                    .target(StatusTargetType.valueOf(status.getTargetType()))
+                    .maxLevel(status.getMaxLevel())
+                    .effectText(status.getEffectText())
+                    .statusText(status.getStatusText())
+                    .duration(status.getDuration())
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .move(summonFinal)
                     .build();
             log.info("statusEntity = {}", statusEntity);
             statusRepository.save(statusEntity);

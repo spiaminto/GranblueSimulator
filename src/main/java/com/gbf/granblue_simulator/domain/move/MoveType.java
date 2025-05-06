@@ -76,6 +76,8 @@ public enum MoveType {
 
     DEAD(ROOT, "dead"),
 
+    SUMMON(ROOT, "summon"), // 소환
+
     ETC(ROOT, "etc"),
     
     // NULL 대응

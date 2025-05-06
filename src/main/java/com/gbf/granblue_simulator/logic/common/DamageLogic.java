@@ -40,12 +40,7 @@ public class DamageLogic {
      * @return DamageLogicResult: List<BattleActor> targetActors 와 동일순서, 1대1 대응하는 데미지결과
      */
     public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
-        ProcessType processType = ProcessType.ATTACK;
-        if (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY) {
-            processType = ProcessType.ABILITY; // 적은 ABILITY 가 일단 구현 되어있지 않음.
-        } else if (move.getType().getParentType() == MoveType.CHARGE_ATTACK) {
-            processType = ProcessType.CHARGE_ATTACK;
-        }
+        ProcessType processType = determineProcessType(move);
 
         List<Integer> resultDamages = new ArrayList<>();
         List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
@@ -81,6 +76,27 @@ public class DamageLogic {
                 .additionalDamages(resultAdditionalDamages)
                 .elementTypes(damageElementTypes)
                 .build();
+    }
+
+    /**
+     * ProcessType 결정
+     *
+     * @param move
+     * @return
+     */
+    private ProcessType determineProcessType(Move move) {
+        ProcessType processType = null;
+        MoveType parentType = move.getType().getParentType();
+        switch (parentType) {
+            case ABILITY, SUPPORT_ABILITY -> processType = ProcessType.ABILITY;
+            case ATTACK -> processType = ProcessType.ATTACK;
+            case CHARGE_ATTACK -> processType = ProcessType.CHARGE_ATTACK;
+            default -> {
+                if (move.getType() == MoveType.SUMMON) processType = ProcessType.SUMMON; // 얘는 상위타입이 ROOT
+                else throw new IllegalArgumentException("Unexpected value: " + parentType);
+            }
+        }
+        return processType;
     }
 
     protected GetDamageResult getEnemyDamage(BattleActor mainActor, BattleActor target, ProcessType processType, Move move) {
@@ -155,12 +171,7 @@ public class DamageLogic {
      * @return
      */
     public DamageLogicResult process(BattleActor mainActor, BattleActor targetActor, Move move, double damageRate, int hitCount) {
-        ProcessType processType = ProcessType.ATTACK;
-        if (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY) {
-            processType = ProcessType.ABILITY;
-        } else if (move.getType().getParentType() == MoveType.CHARGE_ATTACK) {
-            processType = ProcessType.CHARGE_ATTACK;
-        }
+        ProcessType processType = determineProcessType(move);
         GetDamageResult getDamageResult = getDamage(mainActor, targetActor, processType, move.getElementType(), damageRate, hitCount);
         List<Integer> damages = getDamageResult.getDamages();
         List<List<Integer>> additionalDamages = getDamageResult.getAdditionalDamages();
@@ -242,7 +253,7 @@ public class DamageLogic {
         log.info("[applyElementTypeAdjustment] moveElementType = {}, targetElementType = {}, atk = {}", moveElementType, targetElementType, atk);
         if (moveElementType.isAdvantageTo(targetElementType)) {
             atk = (int) (atk * 1.5);
-        } else if (moveElementType.isDisadvantageTo(targetElementType)){
+        } else if (moveElementType.isDisadvantageTo(targetElementType)) {
             atk = (int) (atk * 0.75);
         } else {
             // 무상성시 1배율
@@ -606,7 +617,9 @@ public class DamageLogic {
     protected enum ProcessType {
         ATTACK,
         ABILITY,
-        CHARGE_ATTACK;
+        CHARGE_ATTACK,
+        SUMMON,
+        ;
     }
 
 

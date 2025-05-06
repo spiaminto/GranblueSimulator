@@ -79,6 +79,15 @@
                       $(element).attr('name', changedAttrs[index]);
                   }).end().html())
           })
+          $('.summon-input-wrapper .status-input-wrapper').each(function (index, element) {
+              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
+              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
+              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']'));
+              $(this).append($('.status-input-wrapper-origin').clone()
+                  .find('input, textarea').each(function (index, element) {
+                      $(element).attr('name', changedAttrs[index]);
+                  }).end().html())
+          })
 
 // placeholder
           $('input, textarea').each(function (index, element) {
@@ -121,6 +130,10 @@
           $('.ability-submit-button').click(function () {
               let requestData = serializeJson($('#abilityForm').get(0));
               ajaxRequest("/insert/ability", requestData);
+          })
+          $('.summon-submit-button').click(function () {
+              let requestData = serializeJson($('#summonForm').get(0));
+              ajaxRequest("/insert/summon", requestData);
           })
 
           // requestData 는 JSON string
@@ -366,6 +379,77 @@
   <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
   <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
 </div>
+
+
+<h2>summon 입력, ID = 6 고정</h2>
+<div class="summon-input-wrapper">
+  <form id="summonForm">
+    <div>CharacterId</div>
+    <input class="form-control mb-2" type="text" name="characterId" placeholder="" value="6">
+
+    <div>name 솬석 이름</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>info 솬석 설명 텍스트</div>
+    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>iconSrc: asset.iconImageSrc 에서 사용, battle-portrait</div>
+    <input class="form-control mb-2" type="text" name="iconSrc" placeholder="" value="/static/assets/img/summon/이름입력/battle-portrait.jpg">
+    <div>elementType 속성</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+    <div>damageRate: 데미지 배율</div>
+    <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>hitCount: 히트수</div>
+    <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
+    <div>coolDown: 어빌리티 쿨타임</div>
+    <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
+    <div>effectVideoSrc 이펙트 비디오</div>
+    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="" value="/static/assets/video/summon/이름입력/effect-video.mp4">
+    <div>seAudioSrc SE 오디오</div>
+    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="" value="/static/assets/audio/summon/이름입력/se-audio.mp3">
+
+    <h3>status1</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status2</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status3</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status4</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status5</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <button type="button" class="btn btn-primary summon-submit-button">솬석</button>
+  </form>
+</div>
+
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

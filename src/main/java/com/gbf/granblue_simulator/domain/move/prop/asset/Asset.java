@@ -24,7 +24,7 @@ public class Asset {
     private String effectVideoSrc;
     private String motionVideoSrc;
 
-    private String iconImageSrc; // 어빌리티 아이콘 및 기타
+    private String iconImageSrc; // 어빌리티 아이콘, 소환석 포트레잇 및 기타
 
 
     public void setMove(Move move) {

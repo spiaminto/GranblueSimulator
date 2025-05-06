@@ -3,10 +3,13 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,6 +100,11 @@ public class BattleActor {
     private Integer secondAbilityUseCount;
     private Integer thirdAbilityCoolDown;
     private Integer thirdAbilityUseCount;
+
+    // 소환석 쿨타임, 순서 지켜서.
+    @Type(ListArrayType.class)
+    @Column(name = "summon_cool_downs", columnDefinition = "integer[]")
+    private List<Integer> summonCoolDowns;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

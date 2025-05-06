@@ -10,11 +10,12 @@
     position: relative;
 }
 
-.present-container {
+.present-container { /* 이거랑 상위 컨테이너랑 합쳐야 될듯 */
     width: 100%;
     display: flex;
     justify-content: space-between;
     padding: 0.25rem 0.75rem;
+    position: relative;
 
     @media (min-width: 600px) {
         padding: 0.5rem 1.5rem;
@@ -88,7 +89,9 @@
     }
 }
 
-.summon-wrapper {
+/* 소환석 */
+
+.summon-button-wrapper {
     width: 19%;
 }
 
@@ -98,6 +101,53 @@
 
 .summon-portrait img{
     width: 100%;
+}
+
+
+.summon-display-button {
+    padding: 0;
+}
+
+.summon-display-wrapper {
+    position: absolute;
+    max-width: 441px;
+}
+
+.summon-collapse {
+    max-width: 441px;
+    min-width: 260px; /* 65 * 4 */
+}
+
+.summon-list {
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
+    background-size: 3px;
+}
+
+.summon-list-item {
+    float: left;
+    width: 23%;
+    height: 100%;
+    margin-right: 1%;
+    min-height: 130px;
+    position: relative;
+}
+
+.summon-list-item img {
+    width: 100%;
+    min-width: 65px;
+    min-height: 130px;
+}
+
+.summon-cooldown {
+    position: absolute;
+    bottom: 3%;
+    right: 10%;
+    color: white;
+    font-weight: bold;
+}
+
+.summon-list-item.disabled {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 /* 버튼 */

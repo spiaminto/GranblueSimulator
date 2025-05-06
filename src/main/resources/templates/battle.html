@@ -45,6 +45,19 @@
   <script>
       $(function () {
 
+          // 소환석 창 크기 조정
+          let resizeTimer;
+          $(window).on('resize', function () {
+              clearTimeout(resizeTimer);
+              resizeTimer = setTimeout(function () {
+                  console.log('resize');
+                  let width = $('.battle-member-wrapper').width();
+                  $('.summon-display-wrapper').width(width);
+                  $('.summon-collapse').width(width);
+              }, 300); // 300ms 동안 추가 resize가 없으면 실행
+          });
+          $(window).trigger('resize');
+
           // initial
           // 서버로 부터 받은 적의 첫 무브 hidden 해제
           // 첫 무브는 IDLE_DEFAULT or STANDBY_X 중 하나이다.
@@ -223,9 +236,11 @@
     </div>
   </div>
 
-  <div class="omen-container omen-container-bottom enemy blinking-element" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
+  <div class="omen-container omen-container-bottom enemy blinking-element"
+       th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
     <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
-      <span class="omen-prefix" th:text="${'[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
+      <span class="omen-prefix" th:if="${enemyInfo.isOmenActivated()}"
+            th:text="${'[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
     </div>
   </div>
 
@@ -344,21 +359,21 @@
 
   <!-- 적 피격 데미지 -->
   <div id="damageContainer" class="battle-canvas">
-<!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
-<!--        <div class="attack-damage-wrapper actor-1">-->
-<!--          <div class="damage attack-damage">123123-->
-<!--            <div class="damage additional-damage">22222</div>-->
-<!--            <div class="damage additional-damage">33333</div>-->
-<!--          </div>-->
-<!--          <div class="damage attack-damage">234234-->
-<!--            <div class="damage additional-damage" >44444</div>-->
-<!--            <div class="damage additional-damage">55555</div>-->
-<!--          </div>-->
-<!--          <div class="damage attack-damage">345345-->
-<!--            <div class="damage additional-damage">66666</div>-->
-<!--            <div class="damage additional-damage">77777</div>-->
-<!--          </div>-->
-<!--        </div>-->
+    <!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
+    <!--        <div class="attack-damage-wrapper actor-1">-->
+    <!--          <div class="damage attack-damage">123123-->
+    <!--            <div class="damage additional-damage">22222</div>-->
+    <!--            <div class="damage additional-damage">33333</div>-->
+    <!--          </div>-->
+    <!--          <div class="damage attack-damage">234234-->
+    <!--            <div class="damage additional-damage" >44444</div>-->
+    <!--            <div class="damage additional-damage">55555</div>-->
+    <!--          </div>-->
+    <!--          <div class="damage attack-damage">345345-->
+    <!--            <div class="damage additional-damage">66666</div>-->
+    <!--            <div class="damage additional-damage">77777</div>-->
+    <!--          </div>-->
+    <!--        </div>-->
 
     <!-- max 12, 10에서 컷-->
     <div class="ability-damage-wrapper">
@@ -470,7 +485,7 @@
       <div class="battle-member-wrapper">
         <div class="battle-portrait" th:each="characterInfo : ${characterInfos}"
              th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + characterInfoStat.count}">
-          <img src="/static/assets/img/mc/paladin/ability/mc-paladin-battle-portrait.jpg"
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
                th:src="${characterInfo.portraitSrc}">
           <div class="hp-gauge-wrapper">
             <div class="hp-gauge">
@@ -492,11 +507,86 @@
             </div>
           </div>
         </div>
+
+        <!-- 더미 -->
+        <div class="battle-portrait">
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+          <div class="hp-gauge-wrapper">
+            <div class="hp-gauge">
+              <div class="hp-gauge-value"><span class="value">123</span></div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-danger" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="charge-gauge-wrapper">
+            <div class="charge-gauge">
+              <div class="charge-gauge-value"><span class="value">50</span>%
+              </div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-warning" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="battle-portrait">
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+          <div class="hp-gauge-wrapper">
+            <div class="hp-gauge">
+              <div class="hp-gauge-value"><span class="value">123</span></div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-danger" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="charge-gauge-wrapper">
+            <div class="charge-gauge">
+              <div class="charge-gauge-value"><span class="value">50</span>%
+              </div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-warning" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="summon-wrapper">
+
+      <div class="summon-display-wrapper">
+        <div class="collapse collapse-horizontal" id="summonCollapse">
+          <div class="summon-collapse">
+            <div class="summon-list clearfix">
+              <div class="summon-list-item disabled">
+                <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+                <div class="summon-cooldown">
+                  1턴
+                </div>
+                <div class="summon-disable-overlay">
+
+                </div>
+              </div>
+
+
+              <div class="summon-list-item">
+                <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+              </div>
+              <div class="summon-list-item">
+                <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+              </div>
+              <div class="summon-list-item">
+                <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summon-button-wrapper">
         <div class="summon-portrait">
-          <img src="/static/assets/img/ui/ui-summon-active.png">
+          <button class="summon-display-button" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#summonCollapse" aria-expanded="false" aria-controls="summonCollapse">
+            <img src="/static/assets/img/ui/ui-summon-active.png">
+          </button>
         </div>
       </div>
     </div>
@@ -579,6 +669,7 @@
     </div>
   </div>
 
+
   <div class="button-container">
     <button type="button" class="btn btn-outline-success">회복</button>
     <div class="form-check form-switch show-ability-info-check-wrapper">
@@ -595,6 +686,7 @@
       </button>
     </div>
   </div>
+
 </div>
 
 <!-- 어빌리티 설명 모달 -->
