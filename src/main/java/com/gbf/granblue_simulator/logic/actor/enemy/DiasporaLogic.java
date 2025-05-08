@@ -189,35 +189,36 @@ public class DiasporaLogic implements EnemyLogic {
 
             // 서포어비1 - 타 활성레벨 최고레벨과 관계없이 활성레벨링 자체는 독립적으로 수행
             List<Integer> damages = otherResult.getDamages();
-            if (!damages.isEmpty()) {
-                // 다른 캐릭터의 행동결과로 데미지 발생
-                MoveType otherMoveType = otherResult.getMoveType();
-                Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
+            MoveType otherMoveType = otherResult.getMoveType();
+            if (!damages.isEmpty()) { // 적의 행동에 데미지 발생
                 String matchingStatusName = // 적의 공격 타입에 따른 스테이터스 매칭
                         otherMoveType.getParentType() == MoveType.ATTACK ? "알파" :
                                 otherMoveType.getParentType() == MoveType.ABILITY ? "베타" :
                                         otherMoveType.getParentType() == MoveType.CHARGE_ATTACK ? "감마" : "해당 스테이터스 없음";
-                // 타입에 따라 매칭된 배틀 스테이터스 (활성 버프는 3개가 세트로 전투시작시 달림 사라질때도 동시에 사라짐)
-                BattleStatus matchedBattleStatus = activateStatuses.stream()
-                        .filter(battleStatus -> battleStatus.getStatus().getName().contains(matchingStatusName))
-                        .findFirst().orElseThrow(() -> new IllegalStateException("해당 애름의 BattleStatus가 없습니다. statusName: " + matchingStatusName));
-                log.info("otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}",otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
-                // 입은 데미지에 비례해 매칭된 배틀스테이터스 레벨 상승
-                int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
-                if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
-                    int increasingLevel = levelFromTakenDamage - matchedBattleStatus.getLevel();
-                    SetStatusResult setStatusResult = null;
-                    for (int i = 1; i <= increasingLevel; i++) {
-                        // 증가량 만큼 스테이터스 set (레벨상승), 결과는 마지막것만 사용
-                        setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
+                if (!matchingStatusName.equals("해당 스테이터스 없음")) { // 공격, 어빌리티, 오의가 아니면 패스
+                    Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
+                    // 타입에 따라 매칭된 배틀 스테이터스 (활성 버프는 3개가 세트로 전투시작시 달림 사라질때도 동시에 사라짐)
+                    BattleStatus matchedBattleStatus = activateStatuses.stream()
+                            .filter(battleStatus -> battleStatus.getStatus().getName().contains(matchingStatusName))
+                            .findFirst().orElseThrow(() -> new IllegalStateException("해당 이름의 BattleStatus가 없습니다. statusName: " + matchingStatusName));
+                    log.info("otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
+                    // 입은 데미지에 비례해 매칭된 배틀스테이터스 레벨 상승
+                    int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
+                    if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
+                        int increasingLevel = levelFromTakenDamage - matchedBattleStatus.getLevel();
+                        SetStatusResult setStatusResult = null;
+                        for (int i = 1; i <= increasingLevel; i++) {
+                            // 증가량 만큼 스테이터스 set (레벨상승), 결과는 마지막것만 사용
+                            setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
+                        }
+                        Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
+                        // 결과에 추가
+                        results.add(enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
                     }
-                    Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-                    // 결과에 추가
-                    results.add(enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -251,7 +252,7 @@ public class DiasporaLogic implements EnemyLogic {
             Omen triggeredOmen = hpTriggerOmen.get();
             standby = enemy.getActor().getMoves().get(triggeredOmen.getMove().getType());
             enemy.setNextStandbyType(standby.getType());
-             enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
+            enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
         } else if (enemy.getChargeGauge() >= enemy.getMaxChargeGauge()) {
             log.info("CHARGEATTACK");
             // 차지어택

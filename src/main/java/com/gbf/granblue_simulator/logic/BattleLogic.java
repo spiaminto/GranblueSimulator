@@ -12,6 +12,8 @@ import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
+import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
+import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
@@ -35,6 +37,7 @@ public class BattleLogic {
     private final MoveRepository moveRepository;
     private final BattleLogRepository battleLogRepository;
     private final ActorLogicUtil actorLogicUtil;
+    private final SummonLogic summonLogic;
 
     /*
     캐릭터 어빌리티발동
@@ -276,6 +279,27 @@ public class BattleLogic {
                 // 이는 특정 액터의 무한행동을 유도할수 있다. 원본 게임에서도 해당 조건은 현재까지 존재하지 않는다.
             }
         }
+        return results;
+    }
+
+    public List<ActorLogicResult> processSummon(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
+        CharacterLogic mainCharacterLogic = characterLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
+        Move move = moveRepository.findById(moveId).orElseThrow();
+
+        List<ActorLogicResult> results = new ArrayList<>();
+        ActorLogicResult result = summonLogic.processSummon(mainActor, enemy, partyMembers, move);
+
+        saveBattleLog(result);
+        results.add(result);
+
+        // 적의 반응
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        List<ActorLogicResult> enemyReactResults = enemyLogic.onOtherMove(enemy, partyMembers, result);
+        if (!enemyReactResults.isEmpty()) {
+            results.addAll(enemyReactResults);
+            enemyReactResults.forEach(this::saveBattleLog);
+        }
+
         return results;
     }
 

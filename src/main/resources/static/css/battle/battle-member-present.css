@@ -144,6 +144,10 @@
     font-size: 16px;
 }
 
+.summon-list-item:not(.empty):hover {
+    cursor: pointer;
+}
+
 .summon-list-item.disabled {
     background: rgba(0, 0, 0, 0.5);
 }

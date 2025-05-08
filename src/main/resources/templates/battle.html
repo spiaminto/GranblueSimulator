@@ -7,7 +7,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
   <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
   <!--  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>-->
   <link rel="stylesheet" type="text/css" href="/static/slick/slick.css">
@@ -43,6 +44,7 @@
   <script src="/static/js/battle/charge-attack.js"></script>
   <script src="/static/js/battle/movetype.js"></script>
   <script src="/static/js/battle/request-command.js"></script>
+  <script src="/static/js/battle/summon.js"></script>
   <script>
       $(function () {
           let scale = window.innerWidth / 390;
@@ -225,8 +227,6 @@
           // })
 
 
-
-
       });
   </script>
   <link rel="stylesheet" href="../static/css/battle/ability.css">
@@ -289,7 +289,8 @@
           <div class="charge-turn" th:each="chargeGauge : ${enemyInfo.maxChargeGauge}"
                th:classappend="${chargeGaugeStat.index < enemyInfo.currentChargeGauge ? 'active' : ''}"></div>
         </div>
-        <div class="omen-container enemy omen-container-top" th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
+        <div class="omen-container enemy omen-container-top"
+             th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
           <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
             <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
             <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
@@ -322,6 +323,13 @@
           </audio>
         </div>
       </div>
+      <div class="summon-audio-container">
+        <audio class="audio summon-audio"
+               th:each="entry : ${summonAudioSrcMap}"
+               th:src="${entry.key}"
+               th:data-summon-id="${entry.value}">
+        </audio>
+      </div>
     </div>
 
     <div id="videoContainer" class="battle-canvas">
@@ -352,6 +360,14 @@
         </div>
       </div>
 
+      <div class="summon-video-container">
+        <video class="hidden summon-video" muted playsinline
+               th:each="entry : ${summonVideoSrcMap}"
+               th:src="${entry.key}"
+               th:data-summon-id="${entry.value}">
+        </video>
+      </div>
+
 
       <div class="party-global-video">
         <audio class='party-global-audio ability-start-se' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
@@ -373,25 +389,25 @@
     <!-- 적 피격 데미지 -->
     <div id="damageContainer" class="battle-canvas">
       <!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
-<!--              <div class="attack-damage-wrapper actor-1">-->
-<!--                <div class="damage attack-damage element-type-water " style="opacity: 1">123123-->
-<!--                  <div class="damage additional-damage element-type-water " style="opacity: 0.99">22222</div>-->
-<!--                  <div class="damage additional-damage element-type-water ">33333</div>-->
-<!--                </div>-->
-<!--                <div class="damage attack-damage">234234-->
-<!--                  <div class="damage additional-damage" >44444</div>-->
-<!--                  <div class="damage additional-damage">55555</div>-->
-<!--                </div>-->
-<!--                <div class="damage attack-damage">345345-->
-<!--                  <div class="damage additional-damage">66666</div>-->
-<!--                  <div class="damage additional-damage">77777</div>-->
-<!--                </div>-->
-<!--              </div>-->
+      <!--              <div class="attack-damage-wrapper actor-1">-->
+      <!--                <div class="damage attack-damage element-type-water " style="opacity: 1">123123-->
+      <!--                  <div class="damage additional-damage element-type-water " style="opacity: 0.99">22222</div>-->
+      <!--                  <div class="damage additional-damage element-type-water ">33333</div>-->
+      <!--                </div>-->
+      <!--                <div class="damage attack-damage">234234-->
+      <!--                  <div class="damage additional-damage" >44444</div>-->
+      <!--                  <div class="damage additional-damage">55555</div>-->
+      <!--                </div>-->
+      <!--                <div class="damage attack-damage">345345-->
+      <!--                  <div class="damage additional-damage">66666</div>-->
+      <!--                  <div class="damage additional-damage">77777</div>-->
+      <!--                </div>-->
+      <!--              </div>-->
 
       <!-- max 12, 10에서 컷-->
       <div class="ability-damage-wrapper">
-<!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
-<!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
+        <!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
+        <!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
       </div>
 
       <div class="charge-attack-damage-wrapper">
@@ -434,74 +450,74 @@
 
     <div id="partyCommandContainer">
 
-        <div class="battle-member-wrapper">
-          <div class="battle-portrait" th:each="characterInfo : ${characterInfos}"
-               th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + characterInfoStat.count}">
-            <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
-                 th:src="${characterInfo.portraitSrc}">
-            <div class="hp-gauge-wrapper">
-              <div class="hp-gauge">
-                <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-danger" style="width: 50%"
-                       th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
-                </div>
-              </div>
-            </div>
-            <div class="charge-gauge-wrapper">
-              <div class="charge-gauge">
-                <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
-                </div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-warning" style="width: 50%"
-                       th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                </div>
+      <div class="battle-member-wrapper">
+        <div class="battle-portrait" th:each="characterInfo : ${characterInfos}"
+             th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + characterInfoStat.count}">
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
+               th:src="${characterInfo.portraitSrc}">
+          <div class="hp-gauge-wrapper">
+            <div class="hp-gauge">
+              <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-danger" style="width: 50%"
+                     th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
               </div>
             </div>
           </div>
-
-          <!-- 더미 -->
-          <div class="battle-portrait">
-            <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-            <div class="hp-gauge-wrapper">
-              <div class="hp-gauge">
-                <div class="hp-gauge-value"><span class="value">123</span></div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-danger" style="width: 50%"></div>
-                </div>
+          <div class="charge-gauge-wrapper">
+            <div class="charge-gauge">
+              <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
               </div>
-            </div>
-            <div class="charge-gauge-wrapper">
-              <div class="charge-gauge">
-                <div class="charge-gauge-value"><span class="value">50</span>%
-                </div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-warning" style="width: 50%"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="battle-portrait">
-            <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-            <div class="hp-gauge-wrapper">
-              <div class="hp-gauge">
-                <div class="hp-gauge-value"><span class="value">123</span></div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-danger" style="width: 50%"></div>
-                </div>
-              </div>
-            </div>
-            <div class="charge-gauge-wrapper">
-              <div class="charge-gauge">
-                <div class="charge-gauge-value"><span class="value">50</span>%
-                </div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-warning" style="width: 50%"></div>
-                </div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-warning" style="width: 50%"
+                     th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- 더미 -->
+        <div class="battle-portrait">
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+          <div class="hp-gauge-wrapper">
+            <div class="hp-gauge">
+              <div class="hp-gauge-value"><span class="value">123</span></div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-danger" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="charge-gauge-wrapper">
+            <div class="charge-gauge">
+              <div class="charge-gauge-value"><span class="value">50</span>%
+              </div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-warning" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="battle-portrait">
+          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+          <div class="hp-gauge-wrapper">
+            <div class="hp-gauge">
+              <div class="hp-gauge-value"><span class="value">123</span></div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-danger" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="charge-gauge-wrapper">
+            <div class="charge-gauge">
+              <div class="charge-gauge-value"><span class="value">50</span>%
+              </div>
+              <div class="progress" role="progressbar">
+                <div class="progress-bar bg-warning" style="width: 50%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
 
       <div class="summon-button-wrapper">
@@ -514,34 +530,28 @@
       </div>
 
 
-        <div class="summon-display-wrapper">
-          <div class="collapse collapse-horizontal" id="summonCollapse">
-            <div class="summon-collapse">
-              <div class="summon-list clearfix">
-                <div class="summon-list-item disabled">
-                  <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                  <div class="summon-cooldown">
-                    1턴
-                  </div>
-                  <div class="summon-disable-overlay">
-
-                  </div>
+      <div class="summon-display-wrapper">
+        <div class="collapse collapse-horizontal" id="summonCollapse">
+          <div class="summon-collapse">
+            <div class="summon-list clearfix">
+              <div class="summon-list-item" th:each="summonInfo : ${summonInfos}" th:data-summon-id="${summonInfo.id}">
+                <img src="/static/assets/img/summon/empty.jpg" th:src="${summonInfo.iconImageSrc}">
+                <div class="summon-cooldown" th:text="${summonInfo.getCooldown() + ' 턴'}">
+                  -1턴
                 </div>
+                <div class="summon-disable-overlay">
 
-
-                <div class="summon-list-item">
-                  <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                </div>
-                <div class="summon-list-item">
-                  <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                </div>
-                <div class="summon-list-item">
-                  <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
                 </div>
               </div>
+
+              <div class="summon-list-item empty" th:each="index : ${#numbers.sequence(1, 4 - summonInfos.size())}">
+                <img src="/static/assets/img/summon/empty.jpg">
+              </div>
+
             </div>
           </div>
         </div>
+      </div>
 
 
       <div class="ability-slider-slide-button-wrapper to-right">

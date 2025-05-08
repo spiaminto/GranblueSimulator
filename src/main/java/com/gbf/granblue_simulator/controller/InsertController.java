@@ -260,7 +260,7 @@ public class InsertController {
     }
 
     @PostMapping("/insert/summon")
-    public ResponseEntity<InsertResponse> insertSummon(@RequestBody SummonRequest request) {
+    public ResponseEntity<InsertResponse> insertSummon(@RequestBody SummonInsertRequest request) {
         log.info("summonRequest: {}", request);
 
         // 소환용 캐릭터 ID = 6 으로 고정됨

@@ -58,6 +58,7 @@ const MoveType = {
     CHARGE_ATTACK_F: { name: 'CHARGE_ATTACK_F', parentType: 'CHARGE_ATTACK', className: 'charge-attack-f' },
     CHARGE_ATTACK_G: { name: 'CHARGE_ATTACK_G', parentType: 'CHARGE_ATTACK', className: 'charge-attack-g' },
     PHASE_CHANGE: { name: 'PHASE_CHANGE', parentType: 'ROOT', className: 'phase-change' },
+    SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
     DEAD: { name: 'DEAD', parentType: 'ROOT', className: 'dead' },
     ETC: { name: 'ETC', parentType: 'ROOT', className: 'etc' },
     NONE: { name: 'NONE', parentType: 'ROOT', className: 'none' },

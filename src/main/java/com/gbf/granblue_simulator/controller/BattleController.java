@@ -1,7 +1,9 @@
 package com.gbf.granblue_simulator.controller;
 
+import com.gbf.granblue_simulator.controller.request.insert.character.SummonInsertRequest;
 import com.gbf.granblue_simulator.controller.response.CharacterInfo;
 import com.gbf.granblue_simulator.controller.response.EnemyInfo;
+import com.gbf.granblue_simulator.controller.response.SummonInfo;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
@@ -17,6 +19,7 @@ import com.gbf.granblue_simulator.repository.MemberRepository;
 import com.gbf.granblue_simulator.repository.RoomRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
 import com.gbf.granblue_simulator.repository.actor.*;
+import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +47,7 @@ public class BattleController {
     private final BattleActorRepository battleActorRepository;
     private final BattleLogic battleLogic;
     private final BattleEnemyRepository battleEnemyRepository;
+    private final MoveRepository moveRepository;
 
 
     @GetMapping("/battle")
@@ -117,7 +121,42 @@ public class BattleController {
         List<CharacterInfo> characterInfos = List.of(paladinInfo, yachimaInfo);
         model.addAttribute("characterInfos", characterInfos);
 
+        // 소환석 인포
 
+
+        List<SummonInfo> summonInfos = new ArrayList<>();
+        
+        // 소환석 무브 추가 -> 여기는 value 에 type 지정이 필요하지 않기 때문에 id 로 대체
+        List<Long> summonMoveIds = paladin.getSummonMoveIds();
+        summonMoveIds.forEach(System.out::println);
+        List<Move> summonMoves = moveRepository.findAllById(summonMoveIds);
+        Map<String, Long> summonVideoSrcMap = new HashMap<>();
+        summonMoves.forEach(move -> {
+            String effectVideoSrc = move.getAsset().getEffectVideoSrc();
+            summonVideoSrcMap.put(effectVideoSrc, move.getId());
+        });
+        model.addAttribute("summonVideoSrcMap", summonVideoSrcMap);
+
+        Map<String, Long> summonAudioSrcMap = new HashMap<>();
+        summonMoves.forEach(move -> {
+            summonAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getId());
+        });
+        model.addAttribute("summonAudioSrcMap", summonAudioSrcMap);
+
+        // 소환석 인포
+        summonMoves.forEach(move -> {
+            SummonInfo summonInfo = SummonInfo.builder()
+                    .id(move.getId())
+                    .name(move.getName())
+                    .info(move.getInfo())
+                    .iconImageSrc(move.getAsset().getIconImageSrc())
+                    .cooldown(paladin.getSummonCoolDowns().get(paladin.getSummonMoveIds().indexOf(move.getId())))
+                    .build();
+            summonInfos.add(summonInfo);
+        });
+        model.addAttribute("summonInfos", summonInfos);
+
+        // 캐릭터 무브 추가
         List<Move> firstCharacterMoves = paladin.getActor().getMoves().values().stream().toList();
         Map<String, String> firstCharacterVideoSrcMap = new HashMap<>();
         firstCharacterMoves.forEach(move -> {
@@ -381,6 +420,95 @@ public class BattleController {
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())
                         .chargeGauges(result.getChargeGauges())
+                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
+                                .map(battleStatuses -> battleStatuses.stream()
+                                        .map(battleStatus ->
+                                                StatusDto.builder()
+                                                        .type(battleStatus.getStatus().getType().name())
+                                                        .name(battleStatus.getStatus().getName())
+                                                        .imageSrc(battleStatus.getIconSrc())
+                                                        .effectText(battleStatus.getStatus().getEffectText())
+                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .duration(battleStatus.getDuration())
+                                                        .build())
+                                        .toList()
+                                ).toList())
+                        .abilityCoolDowns(result.getAbilityCooldowns())
+                        .isEnemyDispelled(result.isEnemyDispelled())
+                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .build()
+        ).toList();
+        responses.forEach(response -> log.info("response: {}", response));
+
+
+        return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/api/summon")
+    @ResponseBody
+    public ResponseEntity<List<AbilityResponse>> summon(@RequestBody SummonRequest summonRequest) {
+        log.info("summonRequest: {}", summonRequest);
+
+        long memberId = summonRequest.getMemberId();
+        long characterId = summonRequest.getCharacterId();
+        long roomId = summonRequest.getRoomId();
+        long summonMoveId = summonRequest.getSummonId();
+        MoveType moveType = MoveType.valueOf(summonRequest.getMoveType());
+
+        List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
+        List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
+        BattleActor mainCharacter = partyMembers.stream().filter(battleCharacter -> battleCharacter.getId().equals(characterId)).findFirst().orElseThrow();
+        BattleEnemy battleEnemy = battleEnemyRepository.findByMemberId(memberId).orElseThrow();
+
+//        partyMembers.forEach(character -> log.info("character: {}", character));
+//        log.info("enemy: {}", battleEnemy);
+
+        List<ActorLogicResult> results = battleLogic.processSummon(mainCharacter, battleEnemy, partyMembers, summonMoveId);
+
+        List<AbilityResponse> responses = results.stream().map(result ->
+                AbilityResponse.builder()
+                        .charOrder(result.getMainBattleActorOrder())
+                        .moveType(result.getMoveType())
+                        .summonId(summonMoveId)
+                        .damages(result.getDamages())
+                        .elementTypes(result.getDamageElementTypes())
+                        .hitCount(result.getTotalHitCount())
+                        .additionalDamages(result.getAdditionalDamages())
+                        .hps(result.getHps())
+                        .hpRates(result.getHpRates())
+                        .chargeGauges(result.getChargeGauges())
+                        .omenType(result.getOmenType())
+                        .omenValue(result.getOmenValue())
+                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                        .omenName(result.getOmenName())
                         .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
                                 .map(battleStatuses ->
                                         battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()

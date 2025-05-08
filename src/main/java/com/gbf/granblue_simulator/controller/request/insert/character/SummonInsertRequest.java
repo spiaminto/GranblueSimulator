@@ -6,7 +6,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class SummonRequest {
+public class SummonInsertRequest {
 
     private Long characterId;
 

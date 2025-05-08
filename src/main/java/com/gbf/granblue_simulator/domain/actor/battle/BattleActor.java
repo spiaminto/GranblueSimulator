@@ -101,6 +101,11 @@ public class BattleActor {
     private Integer thirdAbilityCoolDown;
     private Integer thirdAbilityUseCount;
 
+    // 소환석 id, MC 에 귀속시켜야함, 나중에 isMC 같은거 추가해야할듯
+    @Type(ListArrayType.class)
+    @Column(name = "summon_move_ids", columnDefinition = "bigint[]")
+    private List<Long> summonMoveIds;
+
     // 소환석 쿨타임, 순서 지켜서.
     @Type(ListArrayType.class)
     @Column(name = "summon_cool_downs", columnDefinition = "integer[]")

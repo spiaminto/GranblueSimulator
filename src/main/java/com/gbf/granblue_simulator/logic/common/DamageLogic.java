@@ -599,6 +599,17 @@ public class DamageLogic {
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_CHARGE_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.5)
                 .build());
+        baseCapMap.put(ProcessType.SUMMON, BaseCap.builder() // 기본적으로 소환석은 어빌리티의 공식을 따름
+                .baseSoftCap(30000)
+                .baseHardCap(50000)
+                .exDamageCap(1300000)
+                .moveDamageCapRateCapEffectType(StatusEffectType.ABILITY_DAMAGE_CAP_UP)
+                .moveDamageCapRateCap(0.5)
+                .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ABILITY_DAMAGE_UP)
+                .moveSupplementalDamageCap(10000)
+                .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ABILITY_DAMAGE_UP)
+                .moveAmplifyDamageRateCap(0.3)
+                .build());
     }
 
     @Getter

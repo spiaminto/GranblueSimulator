@@ -47,6 +47,11 @@ video {
     z-index: 0 !important;
 }
 
+.summon-video {
+    position: relative;
+    z-index: 1;
+}
+
 .party-global {
     width: 110%;
     height: 120%;
