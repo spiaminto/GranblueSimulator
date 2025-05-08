@@ -46,7 +46,7 @@ function processAbility(responseAbilityData) {
 
     // 데미지 채우기
     abilityDamages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(), text: item}));
+        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(), text: item, 'data-text': item}));
     })
 
     // 어빌리티 영상 종료 이후 버프 / 버프 작업 위해 delay 계산용 어빌리티 재생길이 구함
@@ -76,7 +76,7 @@ function processAbility(responseAbilityData) {
             enemyDamagedVideoElement.play();
 
             // 데미지 표시
-            $('.ability-damage-wrapper .ability-damage-' + abilityHitPlayCount).fadeTo(10, 0.8).delay(600).fadeTo(400, 0);
+            $('.ability-damage-wrapper .ability-damage-' + abilityHitPlayCount).fadeTo(10, 1).delay(600).fadeTo(400, 0);
 
             if (++abilityHitPlayCount >= abilityHitCount) {
                 // 어빌리티 히트수만큼 재생 완료했으면 모션 정상화, 어빌리티 데미지 전체 제거 후 인터벌 클리어
@@ -151,7 +151,7 @@ function processAbility(responseAbilityData) {
 
             setTimeout(() => {
                 // 하나하나 페이드
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, abilityDuration + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 // 버프 스테이터스 3개단위 종료시 한꺼번에 삭제
@@ -188,7 +188,7 @@ function processAbility(responseAbilityData) {
             longestDebuffDelay = Math.max(longestDebuffDelay, additionalStartDelay + removeDelay);
 
             setTimeout(() => {
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, debuffStartDelay + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 $statusEffect.remove();

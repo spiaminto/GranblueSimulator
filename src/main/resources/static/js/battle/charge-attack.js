@@ -79,7 +79,7 @@ function processChargeAttack(responseChargeAttackData) {
         }).get(0).play();
 
         // 데미지 표시
-        $('.charge-attack-damage-wrapper .charge-attack-damage').fadeTo(10, 0.8).delay(600).fadeTo(400, 0);
+        $('.charge-attack-damage-wrapper .charge-attack-damage').fadeTo(10, 1).delay(600).fadeTo(400, 0);
 
         setTimeout(function () {
             $('.charge-attack-damage-wrapper').children().remove();
@@ -127,7 +127,7 @@ function processChargeAttack(responseChargeAttackData) {
             longestBuffDelay = Math.max(longestBuffDelay, additionalStartDelay + removeDelay);
 
             setTimeout(() => {
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, chargeAttackDuration + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 $statusEffect.remove();
@@ -166,7 +166,7 @@ function processChargeAttack(responseChargeAttackData) {
             longestDebuffDelay = Math.max(longestDebuffDelay, additionalStartDelay + removeDelay);
 
             setTimeout(() => {
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, debuffStartDelay + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 $statusEffect.remove();
@@ -279,7 +279,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
             text: damage
         });
         $attackDamage.delay(effectDelay + 100 * damageIndex) // 2번부터 앞캐릭보다 100ms 딜레이 추가
-            .fadeTo(10, 0.8).delay(400).fadeTo(400, 0).appendTo($('.enemy-damage-wrapper'));
+            .fadeTo(10, 1).delay(400).fadeTo(400, 0).appendTo($('.enemy-damage-wrapper'));
 
         // 아군의 피격 이펙트 재생
         let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);
@@ -347,7 +347,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
             longestBuffDelay = Math.max(longestBuffDelay, additionalStartDelay + removeDelay);
 
             setTimeout(() => {
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, chargeAttackDuration + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 $statusEffect.remove();
@@ -384,7 +384,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
 
             setTimeout(() => {
                 // 하나하나 페이드
-                $statusEffect.fadeTo(100, 0.9).delay(600).fadeTo(400, 0);
+                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
             }, debuffStartDelay + additionalStartDelay + (buffIndex * 50))
             setTimeout(() => {
                 // 3개단위 종료시 삭제

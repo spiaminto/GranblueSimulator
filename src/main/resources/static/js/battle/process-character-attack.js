@@ -40,11 +40,11 @@ function processCharacterAttack(responseAttackData) {
     // 데미지 채우기
     let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper actor-'+ charOrder});
     damages.forEach(function (damage, attackIndex) {
-        let $attackDamage = $('<div>', {class: 'damage attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase(), text: damage}); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
+        let $attackDamage = $('<div>', {class: 'attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase(), text: damage}); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
         if (additionalDamages[attackIndex]) {
             additionalDamages[attackIndex].forEach(function (additionalDamage, additionalIndex) {
                 // 공격 타수마다 맞게 추격 붙여줌
-                $attackDamage.append($('<div>', {class: 'damage additional-damage element-type-' + elementType.toLowerCase(), text: additionalDamage}));
+                $attackDamage.append($('<div>', {class: 'additional-damage element-type-' + elementType.toLowerCase(), text: additionalDamage}));
             })
         }
         $attackDamageWrapper.append($attackDamage).prependTo($('#damageContainer'));
@@ -81,8 +81,8 @@ function processCharacterAttack(responseAttackData) {
 
             // 데미지 표시
             let $attackDamage = $('.attack-damage-wrapper.actor-' + charOrder + ' .attack-damage').eq(attackHitPlayCount);
-            console.log('attack damage', $attackDamage)
-            $attackDamage.fadeTo(10, 0.8).delay(600).fadeTo(400, 0);
+            console.log('attack damage', $attackDamage.get(0).outerHTML);
+            $attackDamage.fadeTo(10, 1).delay(600).fadeTo(400, 0);
             console.log('playcount, hitocunt', attackHitPlayCount, attackHitCount)
 
             if (++attackHitPlayCount >= attackHitCount) {
@@ -101,7 +101,7 @@ function processCharacterAttack(responseAttackData) {
 
         }
         hitIntervalCallback(); // 첫번째 즉시실행
-        attackHitProcessInterval = attackHitPlayCount < attackHitCount ? setInterval(hitIntervalCallback, attackHitDuration) : null;
+        attackHitProcessInterval = attackHitPlayCount < attackHitCount ? setInterval(hitIntervalCallback, attackHitDuration + 50) : null;
     }
 
     let totalEndTime = attackDuration;
@@ -200,7 +200,7 @@ function processEnemyAttack(responseAttackData) {
             })
         }
         $attackDamage.delay(effectDelay) // 각 공격 종료 다음에 데미지가 나와야함
-            .fadeTo(10, 0.8).delay(400).fadeTo(400, 0).appendTo($('.enemy-damage-wrapper'));
+            .fadeTo(10, 1).delay(400).fadeTo(400, 0).appendTo($('.enemy-damage-wrapper'));
 
         // 아군의 피격 이펙트 재생
         let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);

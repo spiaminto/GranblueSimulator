@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
   <!--  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>-->
   <link rel="stylesheet" type="text/css" href="/static/slick/slick.css">
@@ -46,9 +47,11 @@
       $(function () {
           let scale = window.innerWidth / 390;
           scale = scale > 2 ? 2 : scale;
+          console.log('bodywidth = scale = ', window.innerWidth, scale)
           let container = document.querySelector('#container');
           container.style.transform = `scale(${scale})`;
           container.style.transformOrigin = 'top left';
+
 
           // 소환석 창 크기 조정
           // let resizeTimer;
@@ -370,24 +373,25 @@
     <!-- 적 피격 데미지 -->
     <div id="damageContainer" class="battle-canvas">
       <!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
-      <!--        <div class="attack-damage-wrapper actor-1">-->
-      <!--          <div class="damage attack-damage">123123-->
-      <!--            <div class="damage additional-damage">22222</div>-->
-      <!--            <div class="damage additional-damage">33333</div>-->
-      <!--          </div>-->
-      <!--          <div class="damage attack-damage">234234-->
-      <!--            <div class="damage additional-damage" >44444</div>-->
-      <!--            <div class="damage additional-damage">55555</div>-->
-      <!--          </div>-->
-      <!--          <div class="damage attack-damage">345345-->
-      <!--            <div class="damage additional-damage">66666</div>-->
-      <!--            <div class="damage additional-damage">77777</div>-->
-      <!--          </div>-->
-      <!--        </div>-->
+<!--              <div class="attack-damage-wrapper actor-1">-->
+<!--                <div class="damage attack-damage element-type-water " style="opacity: 1">123123-->
+<!--                  <div class="damage additional-damage element-type-water " style="opacity: 0.99">22222</div>-->
+<!--                  <div class="damage additional-damage element-type-water ">33333</div>-->
+<!--                </div>-->
+<!--                <div class="damage attack-damage">234234-->
+<!--                  <div class="damage additional-damage" >44444</div>-->
+<!--                  <div class="damage additional-damage">55555</div>-->
+<!--                </div>-->
+<!--                <div class="damage attack-damage">345345-->
+<!--                  <div class="damage additional-damage">66666</div>-->
+<!--                  <div class="damage additional-damage">77777</div>-->
+<!--                </div>-->
+<!--              </div>-->
 
       <!-- max 12, 10에서 컷-->
       <div class="ability-damage-wrapper">
-        <!--      <div class="ability-damage">10000</div>-->
+<!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
+<!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
       </div>
 
       <div class="charge-attack-damage-wrapper">
@@ -633,69 +637,6 @@
 
   </div>
 
-  <!-- 어빌리티 설명 모달 -->
-  <button type="button" class="btn btn-primary ability-info-modal-button" data-bs-toggle="modal"
-          data-bs-target="#abilityInfoModal">
-    어빌리티 설명 모달 버튼
-  </button>
-  <div class="modal fade" id="abilityInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-       aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="exampleModalLabel">어빌리티 설명</h1>
-        </div>
-        <div class="modal-body">
-          <div class="ability-info-wrapper">
-            <div class="ability-info-icon-wrapper">
-              <img class="ability-info-icon" src="">
-            </div>
-            <div class="ability-info-text">
-
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button" data-bs-dismiss="modal">
-            닫기
-          </button>
-          <button type="button" class="btn btn-primary use-ability-button">사용</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 스테이터스 모달 -->
-  <button type="button" class="btn btn-primary status-modal-button" data-bs-toggle="modal"
-          data-bs-target="#statusInfoModal">
-    스테이터스 모달 버튼
-  </button>
-  <div class="modal fade" id="statusInfoModal" tabindex="-1"
-       aria-labelledby="statusInfoModal" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered .modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="statusModalLabel">현재 스테이터스</h1>
-        </div>
-        <div class="modal-body">
-          <div class="status-info-wrapper">
-            <!--          <div class="status-info">-->
-            <!--            <div class="status-info-icon-wrapper">-->
-            <!--              <img class="status-info-icon" src="">-->
-            <!--            </div>-->
-            <!--            <div class="status-info-text">-->
-
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary me-4" data-bs-dismiss="modal">
-            닫기
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="container position-relative">
     <button class="attack-button" id="attackButton">attack</button>
     <button id="audioButton">audio</button>
@@ -723,6 +664,69 @@
   </div>
 
 </div> <!-- #container -->
+
+<!-- 어빌리티 설명 모달 -->
+<button type="button" class="btn btn-primary ability-info-modal-button" data-bs-toggle="modal"
+        data-bs-target="#abilityInfoModal">
+  어빌리티 설명 모달 버튼
+</button>
+<div class="modal fade" id="abilityInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">어빌리티 설명</h1>
+      </div>
+      <div class="modal-body">
+        <div class="ability-info-wrapper">
+          <div class="ability-info-icon-wrapper">
+            <img class="ability-info-icon" src="">
+          </div>
+          <div class="ability-info-text">
+
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button" data-bs-dismiss="modal">
+          닫기
+        </button>
+        <button type="button" class="btn btn-primary use-ability-button">사용</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 스테이터스 모달 -->
+<button type="button" class="btn btn-primary status-modal-button" data-bs-toggle="modal"
+        data-bs-target="#statusInfoModal">
+  스테이터스 모달 버튼
+</button>
+<div class="modal fade" id="statusInfoModal" tabindex="-1"
+     aria-labelledby="statusInfoModal" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered .modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="statusModalLabel">현재 스테이터스</h1>
+      </div>
+      <div class="modal-body">
+        <div class="status-info-wrapper">
+          <!--          <div class="status-info">-->
+          <!--            <div class="status-info-icon-wrapper">-->
+          <!--              <img class="status-info-icon" src="">-->
+          <!--            </div>-->
+          <!--            <div class="status-info-text">-->
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary me-4" data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

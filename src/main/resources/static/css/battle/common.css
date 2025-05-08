@@ -1,10 +1,13 @@
+
+
 body {
-    font-family: 'NanumSquareRound', sans-serif;
+    font-family: 'PretendardVariable', Pretendard, sans-serif;
+    overflow-x: hidden;
 }
 
-body, html {
+body::-webkit-scrollbar {
+    display: none;      /* 스크롤바 숨기기 */
 }
-
 
 #container {
     position: relative;

@@ -112,7 +112,7 @@
 #container .omen-container-bottom {
     position: absolute;
     left: 10%;
-    top: 80%; /* bottom 말고 top 오버라이딩 */
+    top: 82%; /* bottom 말고 top 오버라이딩 */
     z-index: 1;
 }
 
