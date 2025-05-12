@@ -81,8 +81,8 @@ public class YachimaLogic implements CharacterLogic {
         boolean hasUniqueStatus = statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크");
         SetStatusResult setStatusResult = null;
         if (hasUniqueStatus) {
-            // 레코데이션 효과중 전체화
-            setStatusResult = setStatusLogic.setStatusToManualTargets(partyMembers, enemy, partyMembers, thirdAbility);
+            // 레코데이션 효과중 전체화 (SELF -> PARTY_MEMBERS)
+            setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility.getStatuses(), StatusTargetType.PARTY_MEMBERS);
         } else {
             setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility.getStatuses());
         }
@@ -164,22 +164,16 @@ public class YachimaLogic implements CharacterLogic {
             Move thirdSupportAbility = mainActor.getActor().getMoves().get(MoveType.THIRD_SUPPORT_ABILITY);
             SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdSupportAbility.getStatuses());
 
-            // 자신을 제외한 아군 전체에게 서폿 1, 2 알파와 델타 레벨 적용
+            // 자신을 포함한 아군 전체에게 알파, 델타 효과 재적용 (타겟 아군 전체로 변경)
             Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
             Move secondSupportAbility = mainActor.getActor().getMoves().get(MoveType.SECOND_SUPPORT_ABILITY);
-            partyMembers.forEach(partyMember -> log.info("partyMembers = {}, equals mainActor = {}", partyMember, partyMember.equals(mainActor)));
-            List<BattleActor> others = new ArrayList<>(partyMembers);
-            boolean remove = others.remove(mainActor);
-            log.info("removed = {}", remove);
-            List<Status> statuses = new ArrayList<>();
-            statuses.addAll(firstSupportAbility.getStatuses());
-            statuses.addAll(secondSupportAbility.getStatuses());
-            setStatusLogic.setStatusToManualTargets(others, enemy, partyMembers, statuses); // 이쪽결과는 이펙트 표시 x
+            List<Status> firstAndSecondSupportAbilityStatuses = new ArrayList<>();
+            firstAndSecondSupportAbilityStatuses.addAll(firstSupportAbility.getStatuses());
+            firstAndSecondSupportAbilityStatuses.addAll(secondSupportAbility.getStatuses());
+            setStatusLogic.setStatus(mainActor, enemy, partyMembers, firstAndSecondSupportAbilityStatuses, StatusTargetType.PARTY_MEMBERS); // 이쪽결과는 이펙트 표시 x
 
-            // 레벨 4로 변경 및 실적용
-            log.info("others = {}", others);
-            others.forEach(other -> log.info("other = {}", other));
-            statusUtil.addUniqueStatusLevelAll(others, 4, "알파", "델타");
+            // 재적용 된 알파, 델타 레벨 4로 변경 및 갱신
+            statusUtil.addUniqueStatusLevelAll(partyMembers, 4, "알파", "델타");
             partyMembers.forEach(setStatusLogic::syncStatus);
 
             // 자신의 3어빌 쿨타임 0으로 감소

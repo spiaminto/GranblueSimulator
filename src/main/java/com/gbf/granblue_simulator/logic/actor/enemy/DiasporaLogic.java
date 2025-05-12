@@ -109,7 +109,7 @@ public class DiasporaLogic implements EnemyLogic {
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack);
         // 스테이터스
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, statusTargets, chargeAttack);
+        SetStatusResult setStatusResult = setStatusLogic.setRandomStatusFromMove(mainActor, mainActor, statusTargets, chargeAttack);
         // 차지턴 (차지어택의 경우 초기화, 아니면 그대로)
         if (omen.getOmenType() == OmenType.CHARGE_ATTACK)
             chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType());

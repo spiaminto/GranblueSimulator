@@ -218,7 +218,7 @@ public class CalcStatusLogic {
         double deBuffResistDownRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_RESIST_DOWN));
 
         // 상한 하한 처리
-        double deBuffResistRate = Math.max(baseDeBuffResistRate + deBuffResistUpRate - deBuffResistDownRate, -0.99); // 상한 X 하한 -99%
+        double deBuffResistRate = Math.clamp(baseDeBuffResistRate + deBuffResistUpRate - deBuffResistDownRate, -0.99, 1.0); // 상한 1.0, 하한 - 99% 저항이 음수일경우 성공률에 양으로 곱해짐
 
         battleActor.setDeBuffResistRate(deBuffResistRate);
         return 0;
@@ -230,7 +230,7 @@ public class CalcStatusLogic {
         double deBuffSuccessDownRate = getSum(statusEffects.get(StatusEffectType.DEBUFF_SUCCESS_DOWN));
 
         // 상한 하한 처리
-        double deBuffSuccessRate = Math.max(baseDeBuffSuccessRate + deBuffSuccessUpRate - deBuffSuccessDownRate, -0.99); // 상한 x 하한 -99%
+        double deBuffSuccessRate = Math.max(baseDeBuffSuccessRate + deBuffSuccessUpRate - deBuffSuccessDownRate, 0); // 상한 x 하한 0 필중처리를 위해 상한 없음. (필중의 경우 100 이상 값 필수, 999예정)
 
         battleActor.setDeBuffSuccessRate(deBuffSuccessRate);
         return 0;
