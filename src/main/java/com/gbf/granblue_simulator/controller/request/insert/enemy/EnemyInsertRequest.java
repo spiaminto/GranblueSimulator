@@ -18,8 +18,8 @@ public class EnemyInsertRequest {
     private String deadEffectVideoSrc;
     private String deadSeAudioSrc;
 
-    // phase-change
-    private String phaseChangeEffectVideoSrc;
-    private String phaseChangeSeAudioSrc;
+    // form-change
+    private String formChangeEffectVideoSrc;
+    private String formChangeSeAudioSrc;
 
 }

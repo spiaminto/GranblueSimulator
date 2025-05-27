@@ -92,30 +92,30 @@ function processEnemyNormalAttack(hitCount, additionalHitCount) {
 
 }
 
-function processEnemyChargeAttack(damageDelay) {
-    // 공격모션재생
-    $('.motion-enemy-idle').addClass('hidden').get(0).pause();
-    $('.motion-enemy-charge-attack-c').removeClass('hidden').get(0).play();
-
-    // 효과음 재생
-    let audioElement = $('.enemy-audio-charge-attack-c-1').get(0);
-    audioElement.currentTime = 0;
-    audioElement.play();
-    audioElement.addEventListener('ended', function () {
-        let audioElement = $('.enemy-audio-charge-attack-c-2').get(0);
-        audioElement.currentTime = 0;
-        audioElement.play();
-    });
-
-    // 데미지 표시
-    $('.taken-damage-wrapper .origin-damage').fadeOut().delay(damageDelay).fadeIn(10).delay(500).fadeOut();
-
-    $('.motion-enemy-charge-attack-c').one('ended', function () {
-        // idle 로 돌아감
-        $(this).addClass('hidden');
-        $('.motion-enemy-idle').removeClass('hidden').get(0).play();
-
-        $("#processingTask input[name = 'processingTask']:checked").next().next().next().click(); // 라벨, br 건너뛰기위해 3번
-    })
-
-}
+// function processEnemyChargeAttack(damageDelay) {
+//     // 공격모션재생
+//     $('.motion-enemy-idle').addClass('hidden').get(0).pause();
+//     $('.motion-enemy-charge-attack-c').removeClass('hidden').get(0).play();
+//
+//     // 효과음 재생
+//     let audioElement = $('.enemy-audio-charge-attack-c-1').get(0);
+//     audioElement.currentTime = 0;
+//     audioElement.play();
+//     audioElement.addEventListener('ended', function () {
+//         let audioElement = $('.enemy-audio-charge-attack-c-2').get(0);
+//         audioElement.currentTime = 0;
+//         audioElement.play();
+//     });
+//
+//     // 데미지 표시
+//     $('.taken-damage-wrapper .origin-damage').fadeOut().delay(damageDelay).fadeIn(10).delay(500).fadeOut();
+//
+//     $('.motion-enemy-charge-attack-c').one('ended', function () {
+//         // idle 로 돌아감
+//         $(this).addClass('hidden');
+//         $('.motion-enemy-idle').removeClass('hidden').get(0).play();
+//
+//         $("#processingTask input[name = 'processingTask']:checked").next().next().next().click(); // 라벨, br 건너뛰기위해 3번
+//     })
+//
+// }

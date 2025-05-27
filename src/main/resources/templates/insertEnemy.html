@@ -48,16 +48,28 @@
           background-color: rgba(0, 255, 0, 0.1);
       }
 
+      .standby-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
       .idle-input-wrapper {
-          background-color: rgba(0, 255, 255, 0.1);
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
+      .damaged-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
       }
 
       .break-input-wrapper {
-          background-color: rgba(255, 0, 255, 0.1);
+          background-color: rgba(0, 0, 150, 0.15);
       }
 
       .charge-attack-input-wrapper {
-          background-color: rgba(0, 0, 255, 0.1);
+          background-color: rgba(0, 0, 255, 0.15);
+      }
+
+      .ability-input-wrapper {
+          background-color: rgba(255, 255, 0, 0.1);
       }
 
   </style>
@@ -163,7 +175,7 @@
                       console.log(data)
                       alert(data.message)
                       let enemyId = data.enemyId;
-                      $("input[name='enemyId']").each(input => $(input).val(enemyId));
+                      $("input[name='enemyId']").val(enemyId);
                   },
                   error: function (xhr) {
                       console.log(xhr);
@@ -205,11 +217,12 @@
     <div>asset.audio.src</div>
     <input class="form-control mb-2" type="text" name="deadSeAudioSrc" placeholder="">
 
-    <h3>phase-change</h3>
+    <h3>form-change</h3>
+    <p>나중에 form-change-entry 의 경우 타입을 따로 수정해줘야됨. </p>
     <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="phaseChangeEffectVideoSrc" placeholder="">
+    <input class="form-control mb-2" type="text" name="formChangeEffectVideoSrc" placeholder="">
     <div>asset.audio.src</div>
-    <input class="form-control mb-2" type="text" name="phaseChangeSeAudioSrc" placeholder="">
+    <input class="form-control mb-2" type="text" name="formChangeSeAudioSrc" placeholder="">
 
     <button type="button" class="enemy-submit-button btn btn-primary">적 저장</button>
   </form>
@@ -219,6 +232,7 @@
 
 <h2>attack</h2>
 <div class="attack-input-wrapper">
+  <p> isAllTarget 필요한경우 수정해야함 </p>
   <form id="attackInputForm">
     <div>enemyId</div>
     <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
@@ -249,67 +263,18 @@
 
 <hr>
 
-<h2>idle</h2>
-<div class="idle-input-wrapper">
-  <form id="idleInputForm">
-    <div>enemyId</div>
-    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+<p class="fw-bold"> 아래에서 IDLE_DEFAULT 와 DAMAGED_DEFAULT 를 먼저 작성한뒤 스탠바이 작성 시작할 것 </p>
+<p class="fw-bold"> standby 부터는 standby - idle - damaged - break - chargeattack 까지 한꺼번에 전부 작성하도록 한다.</p>
+<p> 전조에 따른 에셋이 동일하더라도, STANDBY 타입으로 분류하기 때문에 STNADBY 타입에 맞춰 나머지 무브들까지 다 기입하도록 한다.</p>
+<p> 예를들어, STANDBY_A 작성을 시작했다면, idle, damaged,break,chargeattack 까지 동일한 A 타입으로 작성ㅎ여 저장한후 STANDBY_B 작성으로 넘어가도록 / idle, break 등의 asset 이 같은 STANDBY_A 와 STANDBY_D 가존재할 수 있음을 기억.</p>
 
-    <div>type Move.type ENEMY_IDLE_A, B, ...</div>
-    <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
-
-    <button type="button" class="btn btn-primary idle-submit-button">아이들 저장</button>
-  </form>
-</div>
-
-<hr>
-
-<h2>damaged</h2>
-<div class="damaged-input-wrapper">
-  <form id="damagedInputForm">
-    <div>enemyId</div>
-    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
-
-    <div>type Move.type ENEMY_DAMAGED_A, B, ...</div>
-    <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="damagedEffectVideoSrc" placeholder="">
-
-    <button type="button" class="btn btn-primary damaged-submit-button">피격 저장</button>
-  </form>
-</div>
-</div>
-
-<hr>
-
-<h2>break</h2>
-<div class="break-input-wrapper">
-  <form id="breakInputForm">
-    <div>enemyId</div>
-    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
-
-    <div>type Move.type ENEMY_BREAK_A, B, ...</div>
-    <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="breakEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
-    <input class="form-control mb-2" type="text" name="breakSeAudioSrc" placeholder="">
-
-    <button type="button" class="btn btn-primary break-submit-button">　브레이크 저장</button>
-  </form>
-</div>
-
-<hr>
-
-<h2>standby</h2>
+<h2>STAND BY</h2>
 <div class="standby-input-wrapper">
   <form id="standbyInputForm">
     <div>enemyId</div>
     <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
 
-    <div>type move.type ENEMY_STANDBY_A ...</div>
+    <div>type move.type STANDBY_A ... (DEFAULT 없음)</div>
     <input class="form-control mb-2" type="text" name="type" placeholder="">
 
     <div>omen.name 전조이름 (차지어택과 동일하게 지정할것)</div>
@@ -340,6 +305,60 @@
 
 <hr>
 
+<h2>idle</h2>
+<div class="idle-input-wrapper">
+  <form id="idleInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type IDLE_DEFAULT, IDLE_A, B, ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary idle-submit-button">아이들 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>damaged</h2>
+<div class="damaged-input-wrapper">
+  <form id="damagedInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type DAMAGED_DEFAULT, DAMAGED_A,  ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="damagedEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary damaged-submit-button">피격 저장</button>
+  </form>
+</div>
+</div>
+
+<hr>
+
+<h2>break</h2>
+<div class="break-input-wrapper">
+  <form id="breakInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type BREAK_A, B, ... (DEFAULT 없음) </div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="breakEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="breakSeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary break-submit-button">　브레이크 저장</button>
+  </form>
+</div>
+
+<hr>
+
 <h2>charge attack</h2>
 <div class="charge-attack-input-wrapper">
   <form id="chargeAttackForm">
@@ -348,16 +367,20 @@
 
     <div>name 오의 이름</div>
     <input class="form-control mb-2" type="text" name="name" placeholder="">
-    <div>name 오의 타입 ENEMY_CHARGE_ATTACK_A ....</div>
+    <div>name 오의 move 타입 CHARGE_ATTACK_A ....</div>
     <input class="form-control mb-2" type="text" name="type" placeholder="">
     <div>info 오의 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
     <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+    <div>damageRate 오의 히트수 (정수)</div>
+    <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
     <div>damageRate 오의 1타당 데미지 배율 (정수)</div>
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>randomStatusCount 랜덤 스테이터스 부여일시 갯수, 없으면 0 </div>
+    <input class="form-control mb-2" type="number" name="randomStatusCount" placeholder="" value="0">
     <div>damageConstant: 오의 1타당 고정 데미지 없으면 0</div>
-    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="">
+    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="" value="0">
     <div>effectVideoSrc 이펙트 비디오</div>
     <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
     <div>seAudioSrc SE 오디오</div>
@@ -422,6 +445,9 @@
     <button type="button" class="btn btn-primary charge-attack-submit-button">오의</button>
   </form>
 </div>
+
+<hr>
+<hr>
 
 <h2> support ability </h2>
 <p> 적의 서포트 어빌리티는 고유버프 및 기믹을 구현하기 위한 Move 이기 때문에 필요한 부분만 작성하면됨</p>
@@ -531,7 +557,7 @@
     <div>effectText 이펙트 텍스트 (name 동일값)</div>
     <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
     <div>maxLevel 최대레벨, 없으면 0</div>
-    <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
+    <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="" value="0">
     <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
     <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
     <div>statusText 스테이터스 텍스트</div>
@@ -539,7 +565,7 @@
     <div>duration 효과시간</div>
     <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
     <div>removable 소거불가, 해제불가, 회복불가 여부, 소거불가이면 false 가능이면 true</div>
-    <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="">
+    <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="" value="true">
 
 
     <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>

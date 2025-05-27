@@ -1,7 +1,8 @@
 #commandContainer {
-    margin: -10px auto 0;
-    padding-top: 12px;
-    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
+    /* 셰이크 효과를 위해 background 에 1px 추가, 마진 패딩 삭제*/
+    /*margin: -10px auto 0;*/
+    /*padding-top: 12px;*/
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x 1px;
 }
 
 #partyCommandContainer {

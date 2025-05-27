@@ -104,6 +104,7 @@ function processSummon(responseSummonData) {
     let summonEffectDuration = $summonEffectVideo.get(0).duration * 1000 + 1000 + summonDamages.length * 50;
 
     $summonEffectVideo.one('ended', function () {
+        $(this).addClass('hidden');
         // 적 idle 및 damaged 모션 클래스 찾기
         let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
         let idleMoveClassName = standbyMoveClassName === 'none' ?
@@ -113,6 +114,12 @@ function processSummon(responseSummonData) {
         // 클래스로 비디오 찾기
         let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
         let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
+
+        // 화면 흔들기
+        $('#videoContainer').addClass('shake-effect');
+        setTimeout(function () {
+            $('#videoContainer').removeClass('shake-effect');
+        }, 200);
 
         // idle 숨기고 damaged 재생
         $enemyIdleVideo.addClass('hidden'); // idle 숨김 (인터벌 전에 숨기면 플리커)

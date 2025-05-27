@@ -61,11 +61,19 @@ function requestTurnProgress() {
 
 
 async function processResponseMoves(responseResults) {
+    // 결과 리스트에 폼체인지가 있을경우 비디오 미리로드
+    if (responseResults.some(response => response.moveType === MoveType.FORM_CHANGE.name)) {
+        waitingProcess(true);
+        await preloadNextEnemyVideo();
+        waitingProcess(false);
+    }
+
     for (const response of responseResults) {
         let moveType = MoveType.byName(response.moveType);
         let charOrder = response.charOrder; // mainActorOrder, 0: enemy, 1~ character
         // console.log('charOrder = ' + charOrder + ' moveType = ' + moveType.name);
         let parentMoveType = moveType.getParentType();
+
         switch (parentMoveType) {
             case MoveType.SUPPORT_ABILITY:
             case MoveType.ABILITY:
@@ -75,7 +83,7 @@ async function processResponseMoves(responseResults) {
                 charOrder !== 0 ? await processCharacterAttack(response) : await processEnemyAttack(response);
                 break;
             case MoveType.CHARGE_ATTACK:
-                charOrder !== 0 ? await processChargeAttack(response) : await  processEnemyChargeAttack(response);
+                charOrder !== 0 ? await processChargeAttack(response) : await processEnemyChargeAttack(response);
                 break;
             case MoveType.STANDBY:
                 await processEnemyStandBy(response);
@@ -83,13 +91,17 @@ async function processResponseMoves(responseResults) {
             case MoveType.BREAK:
                 await processEnemyBreak(response);
                 break;
+            case MoveType.ROOT:
+                if (moveType === MoveType.FORM_CHANGE) {
+                    await processFormChange(response);
+                }
+                break;
             default:
                 console.log('invalid type', parentMoveType);
         }
     }
 
     // 후처리
-    console.log('im here')
     let firstMoveType = MoveType.byName(responseResults[0].moveType);
     let firstMoveCharOrder = responseResults[0].charOrder;
     if (firstMoveType.getParentType() === MoveType.ABILITY) {
@@ -99,6 +111,147 @@ async function processResponseMoves(responseResults) {
         let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' .ability-' + abilityOrder);
         $processedAbility.find('.ability-overlay').show();
     }
+}
+
+async function preloadNextEnemyVideo() {
+    let memberId = $('#memberInfo').data('member-id');
+    // 서버와 통신하여 적의 다음 폼 비디오, 오디오 맵을 가져옴
+    let videoMap = null;
+    let audioMap = null;
+    $.ajax({
+        url: '/api/enemy-src?memberId=' + memberId,
+        type: 'GET',
+        async: false,
+        success: function (response) {
+            videoMap = response.video;
+            audioMap = response.audio;
+            console.log('video', videoMap);
+            console.log('audio', audioMap);
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+
+    let $videoContainer = $('#videoContainer');
+    let $enemyNextVideoContainer = $('<div>', {
+        class: 'enemy-video-container-next',
+        'data-phase': '2',
+        'data-standby-move-class': 'none'
+    })
+    $videoContainer.append($enemyNextVideoContainer);
+
+    // $.each(videoMap, function (src, classList) {
+    //     // classList가 배열이 아니라면 배열로 변환
+    //     // if (!Array.isArray(classList)) classList = [classList];
+    //
+    //     // 기본 클래스
+    //     let baseClasses = 'hidden enemy-video';
+    //     // 추가 클래스
+    //     let extraClasses = classList.join(' ');
+    //
+    //     // video 태그 생성
+    //     let $video = $('<video>', {
+    //         'class': baseClasses + (extraClasses ? ' ' + extraClasses : ''),
+    //         'muted': true,
+    //         'playsinline': true,
+    //         'data-move-type': classList.join(' '),
+    //         'src': src,
+    //         'preload': 'auto' // 강제로드
+    //     });
+    //     $video.hasClass('idle') ? $video.attr('loop', true) : null; // idle loop 추가
+    //
+    //     $enemyNextVideoContainer.append($video);
+    // });
+
+    const videoPromises = Object.entries(videoMap).map(([src, classList]) => {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.preload = 'auto';
+            video.muted = true;
+            video.playsinline = true;
+            classList.forEach(cls => video.classList.add(cls)); // 클래스추가
+            video.dataset.moveType = classList.join(' ');
+            video.loop = classList.some(className => className === 'idle');
+            video.classList.add('hidden', 'enemy-video')
+
+            // src가 비어있지 않으면 할당, 비엇으면 즉시 리졸브 (로드 이벤트 발생x)
+            if (!src) return resolve(video);
+            video.src = src;
+
+            // 로드 완료 이벤트
+            video.addEventListener('canplaythrough', () => resolve(video), {once: true});
+            video.addEventListener('error', () => reject(new Error(`Failed to load: ${src}`)), {once: true});
+
+            $enemyNextVideoContainer.append($(video));
+            video.load(); // 강제 로드 트리거
+        });
+    });
+
+    let $audioContainer = $('#audioContainer');
+    let $enemyNextAudioContainer = $('<div>', {
+        class: 'enemy-audio-container-next'
+    })
+    $audioContainer.append($enemyNextAudioContainer);
+
+    $.each(audioMap, function (src, classList) {
+        // classList가 배열이 아니라면 배열로 변환
+        // if (!Array.isArray(classList)) classList = [classList];
+
+        // 기본 클래스
+        let baseClasses = 'audio';
+        // 추가 클래스
+        let extraClasses = classList.join(' ');
+
+        // audio 태그 생성
+        let $audio = $('<audio>', {
+            'class': baseClasses + (extraClasses ? ' ' + extraClasses : ''),
+            'src': src
+        });
+
+        $enemyNextAudioContainer.append($audio);
+    });
+
+    return await Promise.all(videoPromises); // 비디오 로드 다되면 리턴
+}
+
+function processFormChange(formChangeResponse) {
+    let $enemyVideoContainer = $('.enemy-video-container');
+    let $enemyVideoContainerNext = $('.enemy-video-container-next');
+    let $enemyAudioContainer = $('.enemy-audio-container');
+    let $enemyAudioContainerNext = $('.enemy-audio-container-next');
+    let $formChangeVideo = $enemyVideoContainer.find('.form-change');
+    let $idleDefaultVideo = $enemyVideoContainer.find('.idle-default');
+    let $formChangeEntryVideo = $enemyVideoContainerNext.find('.form-change-entry');
+    let $formChangeEntryAudio = $enemyAudioContainerNext.find('.form-change-entry');
+
+    $formChangeVideo.one('ended', function () {
+        // 폼체인지 끝나면 폼체인지 엔트리
+        $(this).addClass('hidden');
+        $formChangeEntryVideo.one('ended', function () {
+            // 폼체인지 엔트리 끝나면 idle-default
+            $enemyVideoContainerNext.find('.idle-default').removeClass('hidden').get(0).play();
+            $(this).addClass('hidden');
+            // 적 이전 폼 컨테이너 전체 제거
+            $enemyVideoContainer.remove();
+            $enemyAudioContainer.remove();
+            // 다음 폼 컨테이너 next 제거
+            $enemyVideoContainerNext.attr('class', 'enemy-video-container');
+            $enemyAudioContainerNext.attr('class', 'enemy-audio-container');
+        })
+        $formChangeEntryVideo.removeClass('hidden').get(0)?.play();
+        $formChangeEntryAudio.removeClass('hidden').get(0)?.play();
+    })
+    $idleDefaultVideo.addClass('hidden');
+    $formChangeVideo.removeClass('hidden').get(0)?.play();
+    $enemyAudioContainer.find('.form-change').get(0)?.play();
+
+    let totalEndTime = $formChangeVideo.get(0).duration * 1000 + $formChangeEntryVideo.get(0).duration * 1000 + 100;
+    return new Promise(resolve => setTimeout(function () {
+        console.log('FORM_CHANGE and FORM_CHANGE_ENTRY done', formChangeResponse.moveType);
+        resolve();
+    }, totalEndTime));
+
 }
 
 function processEnemyStandBy(standbyResponse) {
@@ -114,7 +267,7 @@ function processEnemyStandBy(standbyResponse) {
     if ($enemyDefaultIdleVideo.hasClass('hidden')) {
         // 적이 현재 스탠바이 상태일경우 전조 갱신후 아래의 내용은 무시
         $omenContainerTop.find('.omen-text .omen-value').text(omenValue);
-        return;   
+        return;
     }
 
     let moveType = MoveType.byName(standbyResponse.moveType);
@@ -123,7 +276,7 @@ function processEnemyStandBy(standbyResponse) {
     let $enemyStandByIdleVideo = $('.enemy-video-container .' + standByIdleType.className);
 
     // 적 비디오 컨테이너에 스탠바이 상태 추가
-    $('.enemy-video-container').data('standby-move-class', moveType.className);
+    $('.enemy-video-container').attr('data-standby-move-class', moveType.className);
 
     // 전조 컨테이너 activate
     $omenContainerTop.addClass('activated')
@@ -193,6 +346,12 @@ function processEnemyBreak(breakResponse) {
         $(this).addClass('hidden');
     }).get(0).play();
 
+    // 화면 흔들기
+    $('#videoContainer').addClass('shake-left-effect');
+    setTimeout(function () {
+        $('#videoContainer').removeClass('shake-left-effect');
+    }, 200);
+
     let totalEndTime = $enemyBreakVideo.get(0).duration * 1000 + 100;
     return new Promise(resolve => setTimeout(function () {
         console.log('BREAK done', breakType);
@@ -241,6 +400,7 @@ function syncEnemyChargeTurn(chargeGauges) {
         enemyChargeTurn > index && $(element).addClass('active');
     });
 }
+
 /**
  * 아군의 체력 갱신
  */
@@ -270,4 +430,18 @@ function syncEnemyHp(responseHps, responseHpRates) {
     $('.hp-container.enemy')
         .find('.value-hp').text(enemyHpRate + '%')
         .end().find('.progress-bar').css('width', enemyHpRate + '%');
+}
+
+/**
+ * 웨이팅 띄우기
+ * @param toWaiting true: to waiting, false: to normal
+ */
+function waitingProcess(toWaiting) {
+    if (toWaiting) {
+        $('.waiting-video-container').css('visibility', 'visible').find('.waiting-video').get(0).play();
+        $('#container').addClass('deActivated');
+    } else {
+        $('.waiting-video-container').css('visibility', 'hidden').find('.waiting-video').get(0).pause();
+        $('#container').removeClass('deActivated');
+    }
 }

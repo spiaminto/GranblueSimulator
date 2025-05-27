@@ -13,14 +13,10 @@ import lombok.experimental.SuperBuilder;
 @Getter @EqualsAndHashCode(callSuper = true) @ToString(callSuper = true)
 public class BattleEnemy extends BattleActor {
 
-    private Integer phase;
-
-    private Integer standby; //현재 스탠바이, 기본값 0
+    private Integer currentForm; // 폼 번호, 초기값 1
 
     @Enumerated(EnumType.STRING)
-    private MoveType nextChargeAttackType; // 스탠바이시 다음 발생할 특수기타입
-    @Enumerated(EnumType.STRING)
-    private MoveType nextStandbyType;
+    private MoveType nextStandbyType; // 다음 스탠바이, 기본값 null
 
     private Integer omenValue; // omen cancel value
     private Integer omenCancelCondIndex; // 랜덤 조건중 인덱스
@@ -31,14 +27,13 @@ public class BattleEnemy extends BattleActor {
     public BattleEnemy of(Enemy enemy) {
         return BattleEnemy.builder()
                 .name(enemy.getName())
-                .phase(1)
-                .standby(0)
+                .currentForm(1)
                 .actor(enemy)
                 .build();
     }
 
-    public void setNextChargeAttackType(MoveType nextChargeAttackType) {
-        this.nextChargeAttackType = nextChargeAttackType;
+    public void setCurrentForm(Integer currentForm) {
+        this.currentForm = currentForm;
     }
 
     public void setNextStandbyType(MoveType nextStandbyType) {

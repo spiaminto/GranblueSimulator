@@ -22,7 +22,6 @@
   <link href="/static/css/battle/top-menu.css" rel="stylesheet">
   <link href="/static/css/battle/ability-rail.css" rel="stylesheet">
   <link href="/static/css/battle/battle-member-present.css" rel="stylesheet">
-  <link href="/static/css/battle/status.css" rel="stylesheet">
   <style>
 
       .container-bg {
@@ -54,6 +53,22 @@
           container.style.transform = `scale(${scale})`;
           container.style.transformOrigin = 'top left';
 
+          // 테스트용
+          $('.menu-button-wrapper button').on('click', {formChangeResponse: "hello"}, processEnemyChargeAttackPreEffect);
+
+
+
+          // 테스트용 흔들기
+          function triggerShake() {
+              let $videoContainer = $('#videoContainer');
+              $videoContainer.addClass('shake-right-effect');
+
+              // 애니메이션 종료 후 클래스 제거
+              setTimeout(() => {
+                  $videoContainer.removeClass('shake-right-effect');
+              }, 200);
+          }
+
 
           // 소환석 창 크기 조정
           // let resizeTimer;
@@ -67,6 +82,29 @@
           //     }, 300); // 300ms 동안 추가 resize가 없으면 실행
           // });
           // $(window).trigger('resize');
+
+          // $('.ability-panel .status-container').on('dragstart', function (e) {
+          //     e.preventDefault();
+          //     e.stopImmediatePropagation();
+          //     console.log('mousedown')
+          // }
+
+          // 어빌리티 커맨드에서 스테이터스 12개 이상인경우 끊어서 보여주기
+          let statusShowHideInterval = null;
+          $('#abilitySlider').on('afterChange', function (event, slick, currentSlideIndex) {
+              // console.log('current', currentSlideIndex);
+              clearInterval(statusShowHideInterval);
+              let $currentStatuses = $('.slick-active .status-container .status');
+              if ($currentStatuses.length > 11) {
+                  let statusShowHideCallback = function () {
+                      // console.log('interval', currentSlideIndex + 1);
+                      let $frontStatues = $('.slick-active .status-container .status').slice(0, 11); // 갱신되면 다시찾아야됨
+                      $frontStatues.show(0).delay(1000).hide(0);
+                  }
+                  statusShowHideCallback();
+                  statusShowHideInterval = setInterval(statusShowHideCallback, 2000);
+              }
+          })
 
           $('#audioPlayButton').on('click', function () {
               document.getElementById('audioPlaying').currentTime = 0;
@@ -102,6 +140,7 @@
               $('#abilitySlider').css('z-index', '-1');
               $('.ability-slider-slide-button-wrapper').hide();
               $('.present-container').removeClass('hidden');
+              clearInterval(statusShowHideInterval); // 스테이터스 끊어보여주기 인터벌 해제
               $(this).hide();
           });
 
@@ -192,13 +231,16 @@
           }
 
           // stanby 등 깜빡이는 영상은 이걸로 해결
-          // const video = document.getElementById("stanby");
-          // video.addEventListener('timeupdate', function () {
-          //     if (video.currentTime >= video.duration - 0.1) {
-          //         video.currentTime = 0.1;
-          //         video.play();
+          // const videos = document.querySelectorAll(".enemy-video.idle:not(.idle-default)");
+          // videos.forEach(video => video.addEventListener('timeupdate', refreshVideo))
+          // function refreshVideo() {
+          //     console.log('timeUpdate', this.currentTime)
+          //     this.loop = false;
+          //     if (this.currentTime >= this.duration - 0.3) {
+          //         this.currentTime = 0;
+          //         this.play();
           //     }
-          // });
+          // }
 
           // 평타 모션 속도조정
           // $('.motion-attack').each(function (index, item) {
@@ -248,15 +290,18 @@
 
   <div id="battleCanvas" class="battle-canvas">
 
-    <div class="container-bg">
-      <img src="/static/assets/img/enemy/diapsora/bg.jpg" width="100%">
+    <div class="waiting-video-container">
+      <video class="waiting-video" muted playsinline loop preload="auto"
+             src="/static/assets/video/gl/waiting.webm"
+      >
+      </video>
     </div>
 
     <div class="omen-container omen-container-bottom enemy blinking-element"
          th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
       <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
-      <span class="omen-prefix" th:if="${enemyInfo.isOmenActivated()}"
-            th:text="${'[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
+      <span class="omen-prefix"
+            th:text="${enemyInfo.omenType == null ? '' : '[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
       </div>
     </div>
 
@@ -333,11 +378,15 @@
     </div>
 
     <div id="videoContainer" class="battle-canvas">
+      <div class="container-bg">
+        <img src="/static/assets/img/enemy/diaspora2/bg.jpg" width="100%">
+      </div>
+
       <div class="enemy-video-container" th:data-phase="${enemyInfo.getPhase()}"
            th:data-initial-move-class="${enemyInfo.initialMoveType.className}"
            th:data-standby-move-class="${enemyInfo.initialMoveType.parentType.className.equals('standby') ? enemyInfo.initialMoveType.className : 'none'}"
       >
-        <video class="hidden enemy-video" muted playsinline
+        <video class="hidden enemy-video" muted playsinline preload="auto"
                th:each="entry : ${enemyVideoSrcMap}" th:data-move-type="${entry}"
                th:src="${entry.key}"
                th:classappend="${#strings.listJoin(entry.value, ' ')}">
@@ -345,14 +394,14 @@
       </div>
       <div class="party-video-container">
         <div class="party-1">
-          <video class="hidden party-video" muted playsinline
+          <video class="hidden party-video" muted playsinline preload="auto"
                  th:each="entry : ${firstCharacterVideoSrcMap}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
         </div>
         <div class="party-2">
-          <video class="hidden party-video" muted playsinline
+          <video class="hidden party-video" muted playsinline preload="auto"
                  th:each="entry : ${secondCharacterVideoSrcMap}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
@@ -369,19 +418,29 @@
       </div>
 
 
-      <div class="party-global-video">
-        <audio class='party-global-audio ability-start-se' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
-               muted="muted"></audio>
-        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
-               muted="muted"></audio>
-        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"
-               muted="muted"></audio>
+      <div class="global-video-container">
+        <!--        <audio class='party-global-audio ability-start-se' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
+        <!--               muted="muted"></audio>-->
+        <!--        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
+        <!--               muted="muted"></audio>-->
+        <!--        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
+        <!--               muted="muted"></audio>-->
+        <!--        <video muted playsinline-->
+        <!--               class="party party-global hidden motion-none-idle motion-buff"-->
+        <!--               src="/static/assets/mov/gl/gl-buff-motion-0.webm"-->
+        <!--               width="100%">-->
+        <!--        </video>-->
+
+
         <video muted playsinline
-               class="party party-global hidden motion-none-idle motion-buff"
-               src="/static/assets/mov/gl/gl-buff-motion-0.webm"
+               class="global-video hidden enemy-video enemy-charge-attack-start"
+               src="/static/assets/video/gl/enemy-charge-attack-start.webm"
                width="100%">
         </video>
-
+      </div>
+      <div class="global-audio-container">
+        <audio class="audio enemy-charge-attack-start"
+               src="/static/assets/audio/gl/enemy-charge-attack-start.mp3"></audio>
       </div>
 
     </div>
@@ -603,7 +662,7 @@
               <div class="ability-wrapper">
                 <div class="ability-icon" th:each="ability : ${characterInfo.abilities}"
                      th:data-ability-order="${abilityStat.count}">
-                  <img src="/static/assets/img/mc/paladin/ability/mc-paladin-ability-1.png"
+                  <img src="/static/assets/img/ch/paladin/ability-1.png"
                        th:src="${ability.asset.iconImageSrc}"/>
                   <div class="ability-cooldown-text" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}"
                        th:classappend="${characterInfo.abilityCoolDowns.get(abilityStat.index).equals(0) ? 'active' : 'inactive'}">
@@ -620,7 +679,7 @@
               </div>
               <div class="status" th:each="status : ${characterInfo.statuses}"
                    th:data-status-type="${status.status.type}">
-                <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png"
+                <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
                      th:src="${status.iconSrc}"/>
                 <div class="status-name d-none" th:text="${status.status.name}">스테이터스 이름</div>
                 <div class="status-info-text d-none" th:text="${status.status.statusText}">스테이터스 설명</div>

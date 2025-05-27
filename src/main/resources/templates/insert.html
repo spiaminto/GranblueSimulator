@@ -151,7 +151,7 @@
                   success: function (data) {
                       console.log(data)
                       alert(data.message)
-                      $("input[name='characterId']").each(input => $(input).val(data.characterId));
+                      $("input[name='characterId']").val(data.characterId);
                   },
                   error: function (xhr) {
                       console.log(xhr);
@@ -305,6 +305,8 @@
     <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
     <div>모션 비디오 asset.motionVideo</div>
     <input class="form-control mb-2" type="text" name="motionVideoSrc" placeholder="">
+    <div>모션 비디오 풀사이즈 여부 true/false 로 쓸것 boolean 임 asset.motionVideoFull</div>
+    <input class="form-control mb-2" type="text" name="motionVideoFull" placeholder="">
 
     <div>SE 오디오 asset.seAudioSrc</div>
     <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">

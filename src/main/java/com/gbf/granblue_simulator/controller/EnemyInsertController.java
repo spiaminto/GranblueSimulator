@@ -69,20 +69,20 @@ public class EnemyInsertController {
                 .build();
         assetRepository.save(deadAsset);
 
-        Move phaseChange = Move.builder()
-                .name("phase change")
-                .type(MoveType.PHASE_CHANGE)
-                .info("phase change")
+        Move formChange = Move.builder()
+                .name("form change")
+                .type(MoveType.FORM_CHANGE)
+                .info("form change")
                 .actor(enemy)
                 .build();
-        moveRepository.save(phaseChange);
+        moveRepository.save(formChange);
 
-        Asset phaseChangeAsset = Asset.builder()
-                .effectVideoSrc(request.getPhaseChangeEffectVideoSrc())
-                .seAudioSrc(request.getPhaseChangeSeAudioSrc())
-                .move(phaseChange)
+        Asset formChangeAsset = Asset.builder()
+                .effectVideoSrc(request.getFormChangeEffectVideoSrc())
+                .seAudioSrc(request.getFormChangeSeAudioSrc())
+                .move(formChange)
                 .build();
-        assetRepository.save(phaseChangeAsset);
+        assetRepository.save(formChangeAsset);
 
         return EnemyInsertResponse.ok(enemy.getId());
     }
@@ -193,6 +193,7 @@ public class EnemyInsertController {
         moveRepository.save(breakMove);
         Asset breakAsset = Asset.builder()
                 .effectVideoSrc(request.getBreakEffectVideoSrc())
+                .seAudioSrc(request.getBreakSeAudioSrc())
                 .move(breakMove)
                 .build();
         assetRepository.save(breakAsset);
@@ -251,6 +252,8 @@ public class EnemyInsertController {
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getInfo())
                 .elementType(request.getElementType())
+                .hitCount(request.getHitCount())
+                .randomStatusCount(request.getRandomStatusCount())
                 .damageRate(request.getDamageRate() + 0.0)
                 .damageConstant(request.getDamageConstant())
                 .coolDown(null)
@@ -273,6 +276,7 @@ public class EnemyInsertController {
             // 스테이터스
             Status statusEntity = Status.builder()
                     .type(StatusType.valueOf(status.getType()))
+                    .name(status.getEffectText())
                     .effectText(status.getEffectText())
                     .target(StatusTargetType.valueOf(status.getTargetType()))
                     .maxLevel(status.getMaxLevel())

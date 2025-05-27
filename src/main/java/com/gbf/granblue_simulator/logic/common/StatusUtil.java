@@ -157,7 +157,7 @@ public class StatusUtil {
      */
     public Optional<BattleStatus> getSameIdBattleStatus(BattleActor battleActor, Status status) {
         return battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> battleStatus.getStatus().getId().equals(status.getId()))
+                .filter(battleStatus -> status.getId().equals(battleStatus.getStatus().getId()))
                 .findFirst();
     }
 

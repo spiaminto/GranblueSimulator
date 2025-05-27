@@ -23,6 +23,7 @@ public class Asset {
 
     private String effectVideoSrc;
     private String motionVideoSrc;
+    private boolean motionVideoFull;
 
     private String iconImageSrc; // 어빌리티 아이콘, 소환석 포트레잇 및 기타
 

@@ -40,24 +40,39 @@ video {
     z-index: -1;
 }
 
-.party-video-container .effect:not(.damaged) {
-    width: 100% !important;
-    top: 5% !important;
-    left: 0 !important;
-    z-index: 0 !important;
-}
-
-.summon-video {
-    position: relative;
+.party-video-container .motion {
     z-index: 1;
 }
 
-.party-global {
-    width: 110%;
+.party-video-container .effect:not(.damaged) {
+    width: 100%;
+    top: 5%;
+    left: 0;
+    z-index: 2;
+}
+
+.summon-video {
+    position: absolute;
+    z-index: -1;
+}
+
+.summon-video:not(.hidden) {
+    z-index: 100;
+}
+
+.global-video {
+    position: absolute;
+}
+
+.global-video:not(.hidden) {
+    z-index: 10;
+}
+
+.global-video.enemy-charge-attack-start {
+    width: 105%;
     height: 120%;
-    top: 0;
-    right: -10%;
-    z-index: 0;
+    top: -13%;
+    left: -5%;
 }
 
 .hidden {
@@ -69,6 +84,17 @@ video {
     width: 100%;
     top: 5%;
     left: 0;
-    z-index: 0;
+}
+
+.waiting-video-container {
+    position: absolute;
+    visibility: hidden;
+    z-index: 10;
+    width: 90px;
+    top: 70px;
+}
+
+.waiting-video {
+    width: 100%;
 }
 

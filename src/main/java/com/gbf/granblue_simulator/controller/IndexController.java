@@ -17,7 +17,7 @@ public class IndexController {
         return "insert";
     }
 
-    @GetMapping("/enemy-insert")
+    @GetMapping("/insert-enemy")
     public String enemyInsert() {
         return "insertEnemy";
     }

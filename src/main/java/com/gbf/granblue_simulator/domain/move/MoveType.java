@@ -72,7 +72,8 @@ public enum MoveType {
         CHARGE_ATTACK_F(CHARGE_ATTACK, "charge-attack-f"),
         CHARGE_ATTACK_G(CHARGE_ATTACK, "charge-attack-g"),
 
-    PHASE_CHANGE(ROOT, "phase-change"),
+    FORM_CHANGE(ROOT, "form-change"),
+    FORM_CHANGE_ENTRY(ROOT, "form-change-entry"),
 
     DEAD(ROOT, "dead"),
 

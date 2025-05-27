@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.logic.actor.enemy;
 
+import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
@@ -15,21 +16,19 @@ import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
+import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.service.BattleLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.IntStream;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class DiasporaLogic implements EnemyLogic {
+public class Diaspora1Logic implements EnemyLogic {
 
     private final StatusUtil statusUtil;
     private final ActorLogicUtil actorLogicUtil;
@@ -39,6 +38,7 @@ public class DiasporaLogic implements EnemyLogic {
     private final SetStatusLogic setStatusLogic;
     private final BattleLogService battleLogService;
     private final OmenLogic omenLogic;
+    private final ActorRepository actorRepository;
 
     /**
      * 보스의 공격 타겟 결정후 반환 (전체공격의 경우 partyMembers 그대로 사용하면 됨)
@@ -223,16 +223,22 @@ public class DiasporaLogic implements EnemyLogic {
     }
 
     @Override
-    public ActorLogicResult onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
+    public List<ActorLogicResult> onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy enemy = (BattleEnemy) mainActor;
-        Enemy enemyActor = (Enemy) enemy.getActor();
+
+        // 폼체인지 (hp 95%이하), 다음 폼의 전조를 우선발생시키기 위해 전조보다 먼저실행
+        if (mainActor.calcHpRate() <= 99) {
+            List<ActorLogicResult> formChangeResults = formChange(mainActor, partyMembers);
+            return formChangeResults;
+        }
+
         // 전조발생
         Move standbyMove = determineStandbyMove(enemy);
         if (standbyMove != null) {
             // 전조 발생함
-            return enemyLogicResultMapper.toResultWithOmen(enemy, partyMembers, standbyMove, standbyMove.getOmen());
+            return List.of(enemyLogicResultMapper.toResultWithOmen(enemy, partyMembers, standbyMove, standbyMove.getOmen()));
         }
-        return null;
+        return new ArrayList<>();
     }
 
     protected Move determineStandbyMove(BattleEnemy enemy) {
@@ -287,5 +293,27 @@ public class DiasporaLogic implements EnemyLogic {
         // REMIND standby 프론트로 넘겨주고 프론트에서 standby 재생중이면 값만 처리하도록
         return processedOmenValue;
     }
+
+    protected List<ActorLogicResult> formChange(BattleActor mainActor, List<BattleActor> partyMembers) {
+        BattleEnemy enemy = (BattleEnemy) mainActor;
+        // 폼체인지 무브
+        Move formChangeMove = mainActor.getActor().getMoves().get(MoveType.FORM_CHANGE);
+        // 다음 폼 및 폼체인지 입장 무브
+        Actor diaspora2 = actorRepository.findByNameEnContains("diaspora").stream().filter(actor -> !Objects.equals(actor.getId(), mainActor.getActor().getId())).findFirst().orElse(null);
+        if (diaspora2 == null) return null;
+        Move formChangeEntryMove = diaspora2.getMoves().get(MoveType.FORM_CHANGE_ENTRY);
+        // 다음 폼으로 set
+        mainActor.setActor(diaspora2);
+        enemy.setCurrentForm(2);
+        // 영창기 스킵 (현재 사양상 영창기는 스킵)
+        enemy.setNextStandbyType(null);
+
+        // 폼체인지 / 엔트리 결과 반환
+        List<ActorLogicResult> results = new ArrayList<>();
+        results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeMove));
+        results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeEntryMove));
+        return results;
+    }
 }
+
 

@@ -116,6 +116,7 @@
 
 .status-container.party {
     position: absolute;
+    overflow: hidden;
     width: 100%;
     top: 150px;
 
@@ -137,7 +138,7 @@
 }
 
 .show-status-info-button-wrapper button {
-    width: 100%;
+    width: 50px;
 }
 
 .status-container.party .status {
@@ -263,6 +264,7 @@
 
 .ability-back-button-wrapper {
     position: absolute;
+    z-index: 1;
     bottom: 5px;
     left: 5px;
 }

@@ -60,9 +60,11 @@ function processCharacterAttack(responseAttackData) {
     let attackHitPlayCount = 0;
     if (attackHitCount > 0) {
         // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
+        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
         let idleMoveClassName = standbyMoveClassName === 'none' ?
             MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
+        console.log('===========================================================================')
+        console.log('standbyMoveClassName', standbyMoveClassName, 'idleMoveClassName', idleMoveClassName);
         let damagedMoveClassName = standbyMoveClassName === 'none' ?
             MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
         // 클래스로 비디오 찾기
@@ -137,7 +139,7 @@ function processEnemyAttack(responseAttackData) {
     let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
 
     // 준비
-    let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
+    let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
     let $enemyAttackVideo = $('.enemy-video-container .' + moveType.className);
     let idleMoveClassName = standbyMoveClassName === 'none' ?
         MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
@@ -159,6 +161,7 @@ function processEnemyAttack(responseAttackData) {
     $enemyIdleVideo.addClass('hidden'); // idle 모션 숨김
     $enemyAttackVideo.removeClass('hidden').one('ended', function () {
         $enemyIdleVideo.removeClass('hidden').get(0).play();
+
         $(this).addClass('hidden');
         // 데미지 엘리먼트 제거
         setTimeout(function () {
@@ -208,12 +211,13 @@ function processEnemyAttack(responseAttackData) {
         setTimeout(function () {
             $targetDamagedVideo.removeClass('hidden').get(0).play();
             $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
+
             // 아군 피격 모션을 idle 로 되돌림
             setTimeout(function () {
                 $targetIdleVideo.removeClass('hidden');
                 $targetDamagedVideo.addClass('hidden');
-            }, attackHitDuration - 100); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨
-        }, effectDelay + 100 * (damageIndex + 1)); // 공격보다 피격이 약간 느리게 시작, 캐릭터별 순서대로 100씩 딜레이 추가
+            }, attackHitDuration - 50); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨
+        }, effectDelay + 50 * (damageIndex + 1)); // 공격보다 피격이 약간 느리게 시작, 캐릭터별 순서대로 50씩 딜레이 추가
 
         return true;
     });

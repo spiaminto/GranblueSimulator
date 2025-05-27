@@ -217,6 +217,7 @@ public class InsertController {
                 .move(ability)
                 .effectVideoSrc(request.getEffectVideoSrc())
                 .motionVideoSrc(request.getMotionVideoSrc())
+                .motionVideoFull(request.isMotionVideoFull())
                 .seAudioSrc(request.getSeAudioSrc())
                 .voiceAudioSrc(request.getVoiceAudioSrc())
                 .iconImageSrc(request.getIconSrc())

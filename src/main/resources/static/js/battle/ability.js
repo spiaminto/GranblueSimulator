@@ -58,7 +58,7 @@ function processAbility(responseAbilityData) {
     let abilityHitPlayCount = 0;
     if (abilityHitCount > 0) {
         // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
+        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
         let idleMoveClassName = standbyMoveClassName === 'none' ?
             MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
         let damagedMoveClassName = standbyMoveClassName === 'none' ?

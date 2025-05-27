@@ -1,4 +1,4 @@
-function processChargeAttack(responseChargeAttackData) {
+async function processChargeAttack(responseChargeAttackData) {
     // 변수초기화
     let chargeAttackData = responseChargeAttackData;
     let charOrder = chargeAttackData.charOrder;
@@ -62,7 +62,7 @@ function processChargeAttack(responseChargeAttackData) {
 
     $chargeAttackVideo.one('ended', function () {
         // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
+        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
         let idleMoveClassName = standbyMoveClassName === 'none' ?
             MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
         let damagedMoveClassName = standbyMoveClassName === 'none' ?
@@ -77,6 +77,13 @@ function processChargeAttack(responseChargeAttackData) {
             $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
             $enemyDamagedVideo.addClass('hidden');
         }).get(0).play();
+
+        // 화면 흔들기
+        // 화면 흔들기 (right down)
+        $('#videoContainer').addClass('shake-effect');
+        setTimeout(function () {
+            $('#videoContainer').removeClass('shake-effect');
+        }, 150);
 
         // 데미지 표시
         $('.charge-attack-damage-wrapper .charge-attack-damage').fadeTo(10, 1).delay(600).fadeTo(400, 0);
@@ -186,8 +193,20 @@ function processChargeAttack(responseChargeAttackData) {
     }, totalEndTime + 500));
 }
 
+async function processEnemyChargeAttackPreEffect() {
+    $('.global-video-container .enemy-charge-attack-start').one('ended', function () {
+        $(this).addClass('hidden');
+    }).removeClass('hidden').get(0).play();
+    $('.global-audio-container .enemy-charge-attack-start').get(0).play();
 
-function processEnemyChargeAttack(responseChargeAttackData) {
+    return new Promise(resolve => setTimeout(function () {
+        console.log('=================enemy chargeattack preffect done');
+        resolve();
+    }, 1000));
+}
+
+async function processEnemyChargeAttack(responseChargeAttackData) {
+    await processEnemyChargeAttackPreEffect();
     // 변수초기화
     let chargeAttackData = responseChargeAttackData;
     let charOrder = chargeAttackData.charOrder;
@@ -215,7 +234,6 @@ function processEnemyChargeAttack(responseChargeAttackData) {
     // 아군 또는 적 에게 버프와 디버프 있는지 확인
     let hasBuff = addedBuffStatusesList.some(arr => arr.length > 0);
     let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
-
 
     // 준비
     let $chargeAttackVideo = $('.enemy-video-container .' + moveType.className);
@@ -287,6 +305,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
         setTimeout(function () {
             $targetDamagedVideo.removeClass('hidden').get(0).play(); // 재생할때 순서별로 약간씩 딜레이 100 추가
             $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
+
             // 아군 피격 모션을 idle 로 되돌림
             setTimeout(function () {
                 $targetIdleVideo.removeClass('hidden');
@@ -298,7 +317,7 @@ function processEnemyChargeAttack(responseChargeAttackData) {
     });
 
     // 적 비디오 컨테이너에 스탠바이 상태 해제
-    $('.enemy-video-container').data('standby-move-class', MoveType.NONE.className);
+    $('.enemy-video-container').attr('data-standby-move-class', MoveType.NONE.className);
 
     // 이펙트 직후 실행 타이머
     setTimeout(function () {

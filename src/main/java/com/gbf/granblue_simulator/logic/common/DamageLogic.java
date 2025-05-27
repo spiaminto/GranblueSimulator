@@ -101,7 +101,7 @@ public class DamageLogic {
 
     protected GetDamageResult getEnemyDamage(BattleActor mainActor, BattleActor target, ProcessType processType, Move move) {
         double damageRate = move.getDamageRate();
-        int damageConstant = move.getDamageConstant();
+        int damageConstant = move.getDamageConstant() != null ? move.getDamageConstant() : 0;
         ElementType moveElementType = move.getElementType() != ElementType.RANDOM ? move.getElementType() : ElementType.getRandomElementType();
 
         // 무속성 고정 데미지 일경우 즉시반환

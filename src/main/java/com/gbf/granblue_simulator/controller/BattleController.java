@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.request.insert.character.SummonInsertRequest;
+import com.gbf.granblue_simulator.controller.request.EnemySrcMapRequest;
 import com.gbf.granblue_simulator.controller.response.CharacterInfo;
 import com.gbf.granblue_simulator.controller.response.EnemyInfo;
 import com.gbf.granblue_simulator.controller.response.SummonInfo;
@@ -73,7 +73,7 @@ public class BattleController {
         EnemyInfo enemyInfo = EnemyInfo.builder()
                 .id(enemy.getId())
                 .name(enemy.getName())
-                .phase(enemy.getPhase())
+                .phase(enemy.getCurrentForm())
                 .statuses(enemy.getBattleStatuses())
                 .hpRate(enemy.calcHpRate())
                 .currentChargeGauge(enemy.getChargeGauge())
@@ -167,7 +167,8 @@ public class BattleController {
                     String motionVideoSrc = move.getAsset().getMotionVideoSrc();
                     if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
                         // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
-                        firstCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion");
+                        String fullSizeClassName = move.getAsset().isMotionVideoFull() ? "full-size" : "";
+                        firstCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion " + fullSizeClassName);
                     }
                 }
         );
@@ -197,7 +198,8 @@ public class BattleController {
                     String motionVideoSrc = move.getAsset().getMotionVideoSrc();
                     if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
                         // 현재 모션은 없을수 있음 TODO 향후 모두 존재하도록 변경예정
-                        secondCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion");
+                        String fullSizeClassName = move.getAsset().isMotionVideoFull() ? "full-size" : "";
+                        secondCharacterVideoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion " + fullSizeClassName);
                     }
                 }
         );
@@ -259,6 +261,59 @@ public class BattleController {
         model.addAttribute("member", testMember);
 
         return "battle";
+    }
+
+    @GetMapping("/api/enemy-src")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getEnemySrcMap(@RequestParam Long memberId) {
+//        Long memberId = request.getMemberId();
+//        Long roomId = request.getRoomId();
+        Map<String, Object> result = new HashMap<>();
+
+        BattleActor enemy = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).getFirst();
+        // 적의 effectVideo 를 key = effectVideoSrc, value = [MoveType.parentType.className, MoveType.className1 , ...] 인 Map 으로 변환
+        // ex) 같은 effectVideoSrc (standby-1.webm) 을 가지는 STAND_BY_A, STAND_BY_D 의 경우 value 를 [standby, standby-a, standby-d] 로 묶는다.
+        Map<String, List<String>> enemyVideoSrcMap = new HashMap<>();
+        enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
+                .collect(Collectors.groupingBy(
+                        move -> move.getAsset().getEffectVideoSrc(),
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                moves -> {
+                                    List<String> classNames = new ArrayList<>(moves.stream()
+                                            .map(move -> move.getType().getClassName())
+                                            .toList());
+                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
+                                    classNames.add(parentClassName);
+                                    return classNames;
+                                }
+                        )
+                )));
+
+        result.put("video", enemyVideoSrcMap);
+//        enemyVideoSrcMap.entrySet().forEach(
+//                entry -> log.info("key = {}, value = {}", entry.getKey(), entry.getValue())
+//        );
+
+        Map<String, List<String>> enemyAudioSrcMap = new HashMap<>();
+        enemyAudioSrcMap.putAll(enemy.getActor().getMoves().values().stream()
+                .collect(Collectors.groupingBy(
+                        move -> move.getAsset().getSeAudioSrc() != null ? move.getAsset().getSeAudioSrc() : "",
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                moves -> {
+                                    List<String> classNames = new ArrayList<>(moves.stream()
+                                            .map(move -> move.getType().getClassName())
+                                            .toList());
+                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
+                                    classNames.add(parentClassName);
+                                    return classNames;
+                                }
+                        )
+                )));
+        result.put("audio", enemyAudioSrcMap);
+
+        return ResponseEntity.ok(result);
     }
 
 

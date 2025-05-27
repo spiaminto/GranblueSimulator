@@ -21,6 +21,7 @@ public class AbilityRequest {
     private String iconSrc;
     private String effectVideoSrc;
     private String motionVideoSrc;
+    private boolean motionVideoFull;
     private String seAudioSrc;
     private String voiceAudioSrc;
 

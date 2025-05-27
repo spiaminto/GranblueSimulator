@@ -29,7 +29,7 @@ public interface EnemyLogic {
 
     ActorLogicResult onBattleStart(BattleActor mainActor, List<BattleActor> partyMembers);
 
-    ActorLogicResult onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers);
+    List<ActorLogicResult> onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers);
 
     List<ActorLogicResult> onOtherMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult otherResult);
 

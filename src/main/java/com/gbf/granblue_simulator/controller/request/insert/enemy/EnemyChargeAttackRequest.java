@@ -14,8 +14,10 @@ public class EnemyChargeAttackRequest {
     private String type;
     private String info;
     private ElementType elementType;
+    private Integer hitCount;
     private Integer damageRate;
     private Integer damageConstant;
+    private Integer randomStatusCount;
     private String effectVideoSrc;
     private String seAudioSrc;
 

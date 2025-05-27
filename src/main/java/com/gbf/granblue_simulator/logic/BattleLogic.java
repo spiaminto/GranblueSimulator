@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.logic;
 
 import com.gbf.granblue_simulator.domain.BattleLog;
 import com.gbf.granblue_simulator.domain.ElementType;
+import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
@@ -15,6 +16,7 @@ import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
+import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import lombok.Data;
@@ -38,6 +40,7 @@ public class BattleLogic {
     private final BattleLogRepository battleLogRepository;
     private final ActorLogicUtil actorLogicUtil;
     private final SummonLogic summonLogic;
+    private final ActorRepository actorRepository;
 
     /*
     캐릭터 어빌리티발동
@@ -96,10 +99,12 @@ public class BattleLogic {
 
         // 적 턴종료 처리
         EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
-        ActorLogicResult enemyTurnEndResult = enemyLogic.onTurnEnd(enemy, partyMembers);
-        if (enemyTurnEndResult != null) {
-            turnEndResults.add(enemyTurnEndResult);
-            saveBattleLog(enemyTurnEndResult);
+        List<ActorLogicResult> enemyTurnEndResults = enemyLogic.onTurnEnd(enemy, partyMembers);
+        turnEndResults.addAll(enemyTurnEndResults);
+        if (!enemyTurnEndResults.isEmpty() && enemyTurnEndResults.getFirst().getMoveType() == MoveType.FORM_CHANGE) {
+            // 폼체인지 시 변한 폼으로 턴종 한번 더 실행하여 전조갱신
+            EnemyLogic formChangedEnemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+            turnEndResults.addAll(formChangedEnemyLogic.onTurnEnd(enemy, partyMembers));// CT기 또는 HP 트리거 갱신 (영창기는 스킵됨)
         }
 
         return turnEndResults;
