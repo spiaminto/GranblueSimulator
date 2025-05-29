@@ -2,6 +2,8 @@ package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
+import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import lombok.RequiredArgsConstructor;
@@ -44,18 +46,23 @@ public class ChargeGaugeLogic {
         }
     }
 
+
     /**
      * 적의 통상공격, 오의 후 차지턴 설정
      * 적 역시 chargeGauge 필드를 사용. 1, 2, 3... 정수형으로 +1 씩증가. increaseRate 역시 100%, 200% 단위로 설정
-     * @param enemy
-     * @param moveType
+     * 적의 공격은 아군의 오의게이지역시 변화시킴
+     * @param enemy 주체
+     * @param targets 적의 공격타겟
+     * @param damages 피해량에 따른 아군 오의게이지 상승을 계산하기 위한 데미지
+     * @param moveType 적의 공격타입
+     * @param omenType 적의 특수기 타입 (nullable)
      */
-    public void afterEnemyAttack(BattleActor enemy, List<BattleActor> targets, List<Integer> damages, MoveType moveType) {
-        if (moveType.getParentType() == MoveType.CHARGE_ATTACK) {
-            enemy.setChargeGauge(0);
-        } else {
+    public void afterEnemyAttack(BattleActor enemy, List<BattleActor> targets, List<Integer> damages, MoveType moveType, OmenType omenType) {
+        if (moveType.getParentType() != MoveType.CHARGE_ATTACK) {
             increaseChargeGauge(enemy, baseEnemyAttackGaugePoint);
-        }
+        } else if (omenType == OmenType.CHARGE_ATTACK) {
+            enemy.setChargeGauge(0);
+        } // omenType 나머지의 경우 게이지 변화없음
         
         // 적의 공격에 따른 아군의 오의게이지 변화
         for (int i = 0; i < targets.size(); i++) {

@@ -40,7 +40,7 @@ public class DamageLogic {
      * @return DamageLogicResult: List<BattleActor> targetActors 와 동일순서, 1대1 대응하는 데미지결과
      */
     public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
-        ProcessType processType = determineProcessType(move);
+        ProcessType processType = determineProcessType(move.getType());
 
         List<Integer> resultDamages = new ArrayList<>();
         List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
@@ -81,18 +81,18 @@ public class DamageLogic {
     /**
      * ProcessType 결정
      *
-     * @param move
+     * @param moveType
      * @return
      */
-    private ProcessType determineProcessType(Move move) {
+    private ProcessType determineProcessType(MoveType moveType) {
         ProcessType processType = null;
-        MoveType parentType = move.getType().getParentType();
+        MoveType parentType = moveType.getParentType();
         switch (parentType) {
             case ABILITY, SUPPORT_ABILITY -> processType = ProcessType.ABILITY;
             case ATTACK -> processType = ProcessType.ATTACK;
             case CHARGE_ATTACK -> processType = ProcessType.CHARGE_ATTACK;
             default -> {
-                if (move.getType() == MoveType.SUMMON) processType = ProcessType.SUMMON; // 얘는 상위타입이 ROOT
+                if (moveType == MoveType.SUMMON) processType = ProcessType.SUMMON; // 얘는 상위타입이 ROOT
                 else throw new IllegalArgumentException("Unexpected value: " + parentType);
             }
         }
@@ -157,7 +157,7 @@ public class DamageLogic {
      * @return
      */
     public DamageLogicResult process(BattleActor mainActor, BattleActor targetActor, Move move) {
-        return process(mainActor, targetActor, move, move.getDamageRate(), move.getHitCount());
+        return process(mainActor, targetActor, move.getType(), move.getElementType(), move.getDamageRate(), move.getHitCount());
     }
 
     /**
@@ -165,14 +165,15 @@ public class DamageLogic {
      *
      * @param mainActor
      * @param targetActor
-     * @param move
+     * @param moveType
+     * @param elementType
      * @param damageRate
      * @param hitCount
      * @return
      */
-    public DamageLogicResult process(BattleActor mainActor, BattleActor targetActor, Move move, double damageRate, int hitCount) {
-        ProcessType processType = determineProcessType(move);
-        GetDamageResult getDamageResult = getDamage(mainActor, targetActor, processType, move.getElementType(), damageRate, hitCount);
+    public DamageLogicResult process(BattleActor mainActor, BattleActor targetActor, MoveType moveType, ElementType elementType, double damageRate, int hitCount) {
+        ProcessType processType = determineProcessType(moveType);
+        GetDamageResult getDamageResult = getDamage(mainActor, targetActor, processType, elementType, damageRate, hitCount);
         List<Integer> damages = getDamageResult.getDamages();
         List<List<Integer>> additionalDamages = getDamageResult.getAdditionalDamages();
         List<ElementType> damageElementTypes = getDamageResult.getElementTypes();

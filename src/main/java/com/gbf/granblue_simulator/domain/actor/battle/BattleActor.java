@@ -100,6 +100,8 @@ public class BattleActor {
     private Integer secondAbilityUseCount;
     private Integer thirdAbilityCoolDown;
     private Integer thirdAbilityUseCount;
+    private Integer fourthAbilityCoolDown;
+    private Integer fourthAbilityUseCount;
 
     // 소환석 id, MC 에 귀속시켜야함, 나중에 isMC 같은거 추가해야할듯
     @Type(ListArrayType.class)
@@ -180,6 +182,7 @@ public class BattleActor {
         this.firstAbilityCoolDown = Math.max(0, this.firstAbilityCoolDown - 1);
         this.secondAbilityCoolDown = Math.max(0, this.secondAbilityCoolDown - 1);
         this.thirdAbilityCoolDown = Math.max(0, this.thirdAbilityCoolDown - 1);
+        this.fourthAbilityCoolDown = Math.max(0, this.fourthAbilityCoolDown - 1);
     }
 
 }

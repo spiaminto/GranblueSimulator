@@ -83,7 +83,7 @@ public class StatusUtil {
     }
 
     /**
-     * name 이름의 고유 스테이터스 가졌는지 확인
+     * name 이름의 고유 스테이터스 가졌는지 확인 (equals)
      *
      * @param battleActor
      * @param name
@@ -92,6 +92,22 @@ public class StatusUtil {
     public boolean hasUniqueStatus(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .anyMatch(battleStatus -> name.equals(battleStatus.getStatus().getName()));
+    }
+
+    /**
+     * 스테이터스 이름으로 현재 적용된 스테이터스가 같은이름(contains)의 버프, 레벨제 만렙, 영속인 스테이터스인지 확인 (모든 조건을 만족하면 스테이터스 적용을 스킵)
+     *
+     * @param battleActor
+     * @param name
+     * @return 스테이터스 적용 스킵 가능하면 true
+     */
+    public boolean isStatusSetSkippable(BattleActor battleActor, String name) {
+        return this.getBattleStatusByName(battleActor, name).map(battleStatus ->
+                battleStatus.getStatus().getType() == StatusType.BUFF &&
+                        battleStatus.getLevel() > 0 &&
+                        battleStatus.isMaxLevel() &&
+                        battleStatus.isPerpetual()
+        ).orElse(false);
     }
 
     /**
@@ -173,10 +189,10 @@ public class StatusUtil {
         if (inputStatusEffects.size() != 1) return Optional.empty();
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> {
-                    // 각 battleStatus 중 단일 StatusEffect 로 이루어지면서 입력된 status 와 동일한 StatusEffect 를 가진것을 필터링
-                    Map<StatusEffectType, StatusEffect> currentBattleStatusEffects = battleStatus.getStatus().getStatusEffects();
-                    return currentBattleStatusEffects.size() < 2 &&
-                            currentBattleStatusEffects.get(inputStatusEffects.keySet().iterator().next()) != null;
+                            // 각 battleStatus 중 단일 StatusEffect 로 이루어지면서 입력된 status 와 동일한 StatusEffect 를 가진것을 필터링
+                            Map<StatusEffectType, StatusEffect> currentBattleStatusEffects = battleStatus.getStatus().getStatusEffects();
+                            return currentBattleStatusEffects.size() < 2 &&
+                                    currentBattleStatusEffects.get(inputStatusEffects.keySet().iterator().next()) != null;
                         }
                 ).findFirst(); // 동일 StatusEffect 끼리는 중첩 안됨 (단일 이펙트로 구성된 스테이터스의 경우)
     }
@@ -259,7 +275,6 @@ public class StatusUtil {
                 .filter(battleStatus -> statusNames.stream()
                         .anyMatch(name -> name.equals(battleStatus.getStatus().getName()))
                 ).forEach(battleStatus -> {
-                    log.info("battleStatusinLEvelup = {}", battleStatus);
                     battleStatus.addLevel(level);
                 });
     }

@@ -5,7 +5,6 @@ import com.gbf.granblue_simulator.controller.request.insert.character.AbilityReq
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.asset.Asset;
 import com.gbf.granblue_simulator.domain.move.prop.status.*;
 import com.gbf.granblue_simulator.repository.actor.CharacterRepository;

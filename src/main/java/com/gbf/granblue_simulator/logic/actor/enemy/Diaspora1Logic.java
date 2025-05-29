@@ -6,11 +6,8 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
@@ -23,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.stream.IntStream;
 
 @Component
 @RequiredArgsConstructor
@@ -41,28 +37,6 @@ public class Diaspora1Logic implements EnemyLogic {
     private final ActorRepository actorRepository;
 
     /**
-     * 보스의 공격 타겟 결정후 반환 (전체공격의 경우 partyMembers 그대로 사용하면 됨)
-     * 적용효과 : 감싸기
-     *
-     * @param hitCount
-     * @param partyMembers
-     * @return
-     */
-    protected List<BattleActor> getTargets(boolean isAllTarget, int hitCount, List<BattleActor> partyMembers) {
-        // 감싸기 효과 적용 확인
-        Optional<BattleStatus> substituteEffect = statusUtil.getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
-        return substituteEffect
-                .map(battleStatus -> isAllTarget ?
-                        Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor()) : // 전체타겟인 경우 전원분 감싸기 id
-                        Collections.nCopies(hitCount, battleStatus.getBattleActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
-                .orElseGet(() -> isAllTarget ?
-                        partyMembers :
-                        IntStream.range(0, hitCount)
-                                .mapToObj(i -> partyMembers.get((int) (Math.random() * partyMembers.size())))
-                                .toList());
-    }
-
-    /**
      * 스테이터스 효과는 한번만 들어가므로 중복제거
      *
      * @param targets
@@ -76,12 +50,12 @@ public class Diaspora1Logic implements EnemyLogic {
     public ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers) {
         Move attackMove = actorLogicUtil.determineAttackMove(mainActor);
         // 타겟
-        List<BattleActor> targets = getTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
+        List<BattleActor> targets = actorLogicUtil.getEnemyAttackTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
         List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
         // 차지턴
-        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType());
+        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
 
         return enemyLogicResultMapper.attackToResult(mainActor, partyMembers, attackMove, damageLogicResult, targetOrders);
     }
@@ -103,16 +77,15 @@ public class Diaspora1Logic implements EnemyLogic {
         Omen omen = standByMove.getOmen();
         Move chargeAttack = enemy.getActor().getMoves().get(standByMove.getType().getChargeAttackType());
         // 타겟
-        List<BattleActor> targets = getTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
+        List<BattleActor> targets = actorLogicUtil.getEnemyAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
         List<BattleActor> statusTargets = getStatusTargets(targets);
         List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack);
         // 스테이터스
         SetStatusResult setStatusResult = setStatusLogic.setRandomStatusFromMove(mainActor, mainActor, statusTargets, chargeAttack);
-        // 차지턴 (차지어택의 경우 초기화, 아니면 그대로)
-        if (omen.getOmenType() == OmenType.CHARGE_ATTACK)
-            chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType());
+        // 차지턴
+        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType(), omen.getOmenType());
         // 스탠바이 초기화
         enemy.setNextStandbyType(null);
         return enemyLogicResultMapper.toResult(mainActor, partyMembers, chargeAttack, damageLogicResult, targetOrders, setStatusResult);
@@ -163,7 +136,7 @@ public class Diaspora1Logic implements EnemyLogic {
         if (enemy.getNextStandbyType() != null) {
             Move standbyMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
             Omen standbyOmen = standbyMove.getOmen();
-            Integer processedOmenValue = processOmen(enemy, otherResult);
+            Integer processedOmenValue = omenLogic.processOmen(enemy, otherResult);
             if (processedOmenValue == 0) {
                 // 전조 해제됨
                 Move breakMove = enemy.getActor().getMoves().get(standbyMove.getType().getBreakType());
@@ -233,65 +206,12 @@ public class Diaspora1Logic implements EnemyLogic {
         }
 
         // 전조발생
-        Move standbyMove = determineStandbyMove(enemy);
+        Move standbyMove = omenLogic.determineStandbyMove(enemy);
         if (standbyMove != null) {
             // 전조 발생함
             return List.of(enemyLogicResultMapper.toResultWithOmen(enemy, partyMembers, standbyMove, standbyMove.getOmen()));
         }
         return new ArrayList<>();
-    }
-
-    protected Move determineStandbyMove(BattleEnemy enemy) {
-        Enemy enemyActor = (Enemy) enemy.getActor();
-        Move standby = null;
-        // hp 트리거
-        Optional<Omen> hpTriggerOmen = omenLogic.getTriggeredOmen(enemy, OmenType.HP_TRIGGER);
-
-        if (enemy.getNextStandbyType() != null) {
-            log.info("INCANT ATTACK");
-            // 영창기 (로직내부에서 발동설정)
-            standby = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
-        } else if (hpTriggerOmen.isPresent() && !hpTriggerOmen.get().getTriggerHp().equals(enemy.getLatestTriggeredHp())) {
-            // hp 트리거가 존재하며, 마지막으로 발동한 hp 트리거와 다름
-            log.info("HPTRIGGER rate = {}, target = {}", enemy.calcHpRate(), hpTriggerOmen.get().getTriggerHp());
-            // HP 트리거
-            Omen triggeredOmen = hpTriggerOmen.get();
-            standby = enemy.getActor().getMoves().get(triggeredOmen.getMove().getType());
-            enemy.setNextStandbyType(standby.getType());
-            enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp());
-        } else if (enemy.getChargeGauge() >= enemy.getMaxChargeGauge()) {
-            log.info("CHARGEATTACK");
-            // 차지어택
-            Optional<Omen> triggeredOmenOptional = omenLogic.getTriggeredOmen(enemy, OmenType.CHARGE_ATTACK);
-            if (triggeredOmenOptional.isPresent()) {
-                standby = enemy.getActor().getMoves().get(triggeredOmenOptional.get().getMove().getType());
-                enemy.setNextStandbyType(standby.getType());
-            }
-        }
-        log.info("\n\n determineStandbyMove, hprate = {}, move = {}, chargeTurn = {}, maxCT = {}", enemy.calcHpRate(), standby, enemy.getChargeGauge(), enemy.getActor().getMaxChargeGauge());
-        if (standby == null) return null;
-
-        // 스탠바이의 전조 결정
-        List<OmenCancelCond> omenCancelConds = standby.getOmen().getOmenCancelConds();
-        OmenCancelCond omenCancelCond = omenCancelConds.get((int) (Math.random() * omenCancelConds.size()));
-        // 전조 해제 조건 설정
-        enemy.setOmenCancelCondIndex(omenCancelConds.indexOf(omenCancelCond));
-        enemy.setOmenValue(omenCancelCond.getInitValue());
-
-        return standby;
-    }
-
-    // onOtherMove 에서 실행될 전조처리
-    protected Integer processOmen(BattleEnemy enemy, ActorLogicResult otherResult) {
-        Move standbyMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
-        Omen omen = standbyMove.getOmen();
-        OmenCancelCond omenCancelCond = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex());
-        int omenValue = enemy.getOmenValue();
-        Integer processedOmenValue = omenLogic.process(enemy, omenCancelCond, otherResult);
-        log.info("\n\n\nomenvaleu = {} , processedOmenvalue = {}", omenValue, processedOmenValue);
-
-        // REMIND standby 프론트로 넘겨주고 프론트에서 standby 재생중이면 값만 처리하도록
-        return processedOmenValue;
     }
 
     protected List<ActorLogicResult> formChange(BattleActor mainActor, List<BattleActor> partyMembers) {

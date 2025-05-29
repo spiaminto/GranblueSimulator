@@ -4,7 +4,6 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -14,7 +13,6 @@ import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -172,7 +170,7 @@ public class EnemyLogicResultMapper {
                 .partyMemberDispelled(setStatusResult.isPartyMemberDispelled())
 
                 .hasNextMove(nextMoveRequest.hasNextMove())
-                .nextMoveType(nextMoveRequest.getNextMoveType())
+                .nextMove(nextMoveRequest.getNextMoveType())
                 .nextMoveTarget(nextMoveRequest.getNextMoveTarget())
                 .build();
     }

@@ -1,6 +1,5 @@
 package com.gbf.granblue_simulator.domain.move.prop.asset;
 
-import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
 import jakarta.persistence.*;
 import lombok.*;

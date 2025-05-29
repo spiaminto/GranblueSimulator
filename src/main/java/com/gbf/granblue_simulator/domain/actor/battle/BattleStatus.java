@@ -73,4 +73,12 @@ public class BattleStatus {
         this.duration = Math.max(0, this.duration - 1);
         this.updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * 영속인지 확인 (영속은 기본 9999)
+     * @return
+     */
+    public boolean isPerpetual() {
+        return this.duration > 9000;
+    }
 }
