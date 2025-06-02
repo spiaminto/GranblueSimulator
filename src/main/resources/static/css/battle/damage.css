@@ -127,7 +127,7 @@
 }
 
 .ability-damage {
-    z-index: 1;
+    z-index: 10;
     position: relative;
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     font-weight: 600;
@@ -139,6 +139,7 @@
 
 /* 아군 오의 데미지 */
 .charge-attack-damage {
+    z-index: 10;
     position: relative;
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     font-weight: 600;

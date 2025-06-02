@@ -1,26 +1,20 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
-import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
-import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.*;
-import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -43,9 +37,7 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     public ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         DefaultActorLogicResult defaultActorLogicResult = super.defaultAttack(mainActor, enemy, partyMembers);
-        // 공격행동 발생시 서포어비 1 발동
-        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, defaultActorLogicResult.getMove(), defaultActorLogicResult.getDamageLogicResult(), null,
-                NextMoveRequest.of(true, MoveType.FIRST_SUPPORT_ABILITY, StatusTargetType.SELF));
+        return resultMapper.attackToResult(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult());
     }
 
     // 데미지, 1어빌발동, 레코데이션 싱크시 오의배율 극대로 변화
@@ -55,12 +47,16 @@ public class YachimaLogic extends CharacterLogic {
         Double damageRate = statusUtil.hasUniqueStatus(mainActor, "레코데이션 싱크") ? 12.5 : null;
         DefaultActorLogicResult defaultActorLogicResult = super.defaultChargeAttack(mainActor, enemy, partyMembers, damageRate);
         // 1어빌 자동발동
-        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, defaultActorLogicResult.getMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult(),
+        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult(),
                 NextMoveRequest.of(true, MoveType.FIRST_ABILITY, StatusTargetType.SELF));
     }
 
     @Override
     public ActorLogicResult postProcessToPartyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult) {
+        if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId()) && partyMoveResult.getMoveType().getParentType() == MoveType.ATTACK) {
+            // 자신이 일반공격시 서포트 어빌리티 1 발동
+            return firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY));
+        }
         return resultMapper.emptyResult();
     }
 

@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.domain.actor.battle;
 
 import com.gbf.granblue_simulator.domain.actor.Enemy;
+import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,7 +17,10 @@ public class BattleEnemy extends BattleActor {
     private Integer currentForm; // 폼 번호, 초기값 1
 
     @Enumerated(EnumType.STRING)
-    private MoveType nextStandbyType; // 다음 스탠바이, 기본값 null
+    private MoveType currentStandbyType; // 현재 스탠바이, 기본값 null
+
+    @Enumerated(EnumType.STRING)
+    private MoveType nextIncantStandbyType; // 다음 영창기 스탠바이, 영창기는 로직 내부에서 설정해야 하므로 따로 필드 설정
 
     private Integer omenValue; // omen cancel value
     private Integer omenCancelCondIndex; // 랜덤 조건중 인덱스
@@ -36,9 +40,11 @@ public class BattleEnemy extends BattleActor {
         this.currentForm = currentForm;
     }
 
-    public void setNextStandbyType(MoveType nextStandbyType) {
-        this.nextStandbyType = nextStandbyType;
+    public void setCurrentStandbyType(MoveType nextStandbyType) {
+        this.currentStandbyType = nextStandbyType;
     }
+
+    public void setNextIncantStandbyType(MoveType nextIncantStandbyType) { this.nextIncantStandbyType = nextIncantStandbyType; }
 
     public void setOmenValue(Integer omenValue) {
         this.omenValue = omenValue;

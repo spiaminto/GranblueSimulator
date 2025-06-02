@@ -22,13 +22,12 @@ public class SummonLogic {
 
     private final DamageLogic damageLogic;
     private final SetStatusLogic setStatusLogic;
-    private final ActorLogicUtil actorLogicUtil;
     private final CharacterLogicResultMapper resultMapper;
 
 
     public ActorLogicResult processSummon(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move summonMove) {
         // 데미지
-        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, summonMove, summonMove.getDamageRate(), summonMove.getHitCount());
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, summonMove);
         // 스테이터스 적용
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, summonMove.getStatuses());
         // 쿨타임 적용

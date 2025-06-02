@@ -5,6 +5,7 @@ import com.gbf.granblue_simulator.controller.response.EnemyInsertResponse;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.asset.Asset;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;

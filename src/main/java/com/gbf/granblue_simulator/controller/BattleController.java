@@ -9,6 +9,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
@@ -60,8 +61,8 @@ public class BattleController {
         Integer omenValue = null;
         OmenType omenType = null;
         String omenName = null;
-        if (enemy.getNextStandbyType() != null) {
-            Omen omen = enemy.getActor().getMoves().get(enemy.getNextStandbyType()).getOmen();
+        if (enemy.getCurrentStandbyType() != null) {
+            Omen omen = enemy.getActor().getMoves().get(enemy.getCurrentStandbyType()).getOmen();
             omenPrefix = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo(); // TODO 나중에 리팩토링 해야될듯
             omenValue = enemy.getOmenValue();
             omenType = omen.getOmenType();
@@ -76,8 +77,8 @@ public class BattleController {
                 .hpRate(enemy.calcHpRate())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1))
-                .initialMoveType(enemy.getNextStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getNextStandbyType()) // 동적으로
-                .omenActivated(enemy.getNextStandbyType() != null)
+                .initialMoveType(enemy.getCurrentStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getCurrentStandbyType()) // 동적으로
+                .omenActivated(enemy.getCurrentStandbyType() != null)
 
                 .omenPrefix(omenPrefix)
                 .omenValue(omenValue)
@@ -312,44 +313,6 @@ public class BattleController {
         result.put("audio", enemyAudioSrcMap);
 
         return ResponseEntity.ok(result);
-    }
-
-
-    public void init() {
-        Member testMember = memberRepository.findById(1L).orElseThrow();
-
-        //배틀 액터 생성
-        Actor paladinActor = actorRepository.findById(1L).get();
-        Actor yachimaActor = actorRepository.findById(2L).get();
-        Actor diasporaActor = actorRepository.findById(5L).get();
-
-        // 배틀 액터 생성
-        BattleCharacter paladin = BattleCharacter.builder()
-                .name(paladinActor.getName())
-                .member(testMember)
-                .currentOrder(1)
-                .build();
-        paladin.setActor(paladinActor);
-        paladin = battleCharacterRepository.save(paladin);
-        BattleCharacter yachima = BattleCharacter.builder()
-                .name(yachimaActor.getName())
-                .member(testMember)
-                .actor(yachimaActor)
-                .currentOrder(2)
-                .build();
-        yachima.setActor(yachimaActor);
-        yachima = battleCharacterRepository.save(yachima);
-        BattleEnemy diaspora = BattleEnemy.builder()
-                .member(testMember)
-                .name(diasporaActor.getName())
-                .currentOrder(0) // 적이 0
-                .build();
-        diaspora.setActor(diasporaActor);
-        diaspora = battleEnemyRepository.save(diaspora);
-
-        List<BattleActor> partyMembers = List.of(paladin, yachima);
-        BattleActor enemy = diaspora;
-        battleLogic.startBattle(partyMembers, enemy);
     }
 
 
@@ -612,6 +575,43 @@ public class BattleController {
 
 
         return ResponseEntity.ok(responses);
+    }
+
+    public void init() {
+        Member testMember = memberRepository.findById(1L).orElseThrow();
+
+        //배틀 액터 생성
+        Actor paladinActor = actorRepository.findById(1L).get();
+        Actor yachimaActor = actorRepository.findById(2L).get();
+        Actor diasporaActor = actorRepository.findById(5L).get();
+
+        // 배틀 액터 생성
+        BattleCharacter paladin = BattleCharacter.builder()
+                .name(paladinActor.getName())
+                .member(testMember)
+                .currentOrder(1)
+                .build();
+        paladin.setActor(paladinActor);
+        paladin = battleCharacterRepository.save(paladin);
+        BattleCharacter yachima = BattleCharacter.builder()
+                .name(yachimaActor.getName())
+                .member(testMember)
+                .actor(yachimaActor)
+                .currentOrder(2)
+                .build();
+        yachima.setActor(yachimaActor);
+        yachima = battleCharacterRepository.save(yachima);
+        BattleEnemy diaspora = BattleEnemy.builder()
+                .member(testMember)
+                .name(diasporaActor.getName())
+                .currentOrder(0) // 적이 0
+                .build();
+        diaspora.setActor(diasporaActor);
+        diaspora = battleEnemyRepository.save(diaspora);
+
+        List<BattleActor> partyMembers = List.of(paladin, yachima);
+        BattleActor enemy = diaspora;
+        battleLogic.startBattle(partyMembers, enemy);
     }
 
 }

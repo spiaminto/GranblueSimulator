@@ -32,7 +32,6 @@ public class DamageLogic {
     /**
      * 적의 경우 아군과 달리 타겟을 설정한 뒤 모든 타겟에게 데미지가 발생하므로 별도 처리
      * 적의 공격은 배율변화 또는 히트수 변화 없음
-     * 적의 공격의 히트수는
      *
      * @param mainActor    일반적으로 enemy
      * @param targetActors 일반적으로 partyMembers 또는 그의 중복을 포함하여 구성된 targets
@@ -557,8 +556,6 @@ public class DamageLogic {
 
         private final StatusEffectType moveTakenAmplifyDamageUpType;
         private final StatusEffectType moveTakenAmplifyDamageDownType;
-        private final StatusEffectType moveTakenAttackAmplifyDamageUpType;
-        private final StatusEffectType moveTakenAttackAmplifyDamageDownType;
 
         private final Integer takenSupplementalDamageCap = 10000; // 피격 데미지 상승 상한
         private final Double takenAmplifyDamageRateCap = 0.2; // 피격 데미지 업 상한
@@ -577,6 +574,8 @@ public class DamageLogic {
                 .moveSupplementalDamageCap(10000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.2)
+                .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_UP)
+                .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_DOWN)
                 .build());
         baseCapMap.put(ProcessType.ABILITY, BaseCap.builder()
                 .baseSoftCap(30000)
@@ -588,6 +587,8 @@ public class DamageLogic {
                 .moveSupplementalDamageCap(10000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ABILITY_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.3)
+                .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ABILITY_AMPLIFY_DAMAGE_UP)
+                .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_ABILITY_AMPLIFY_DAMAGE_DOWN)
                 .build());
         baseCapMap.put(ProcessType.CHARGE_ATTACK, BaseCap.builder()
                 .baseSoftCap(370000)
@@ -599,6 +600,8 @@ public class DamageLogic {
                 .moveSupplementalDamageCap(20000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_CHARGE_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.5)
+                .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP)
+                .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_DOWN)
                 .build());
         baseCapMap.put(ProcessType.SUMMON, BaseCap.builder() // 기본적으로 소환석은 어빌리티의 공식을 따름
                 .baseSoftCap(30000)

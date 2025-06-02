@@ -50,7 +50,26 @@ public class SetStatusLogic {
     }
 
     /**
-     * Status 리스트를 받아 타겟에 맞춰 BattleStatus 로 set 하는 메인 메서드
+     * Move 를 받아 해당 Move 의 Status 리스트를 타겟에 맞춰 BattleStatus 로 set
+     * Move 에 '랜덤효과 N개 부여' 인 경우 적용하여 set
+     *
+     * @param mainActor    move 사용자 (enemy 도 가능)
+     * @param enemy
+     * @param partyMembers mainActor 를 포함한 전체 파티원
+     * @param move
+     */
+    public SetStatusResult setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
+        List<Status> statuses = move.getStatuses();
+        if (move.getRandomStatusCount() != null && move.getRandomStatusCount() > 0) {
+            // 랜덤효과 N 개 부여
+            Collections.shuffle(statuses);
+            statuses = statuses.subList(0, move.getRandomStatusCount());
+        }
+        return this.applyStatus(mainActor, enemy, partyMembers, statuses, null);
+    }
+
+    /**
+     * Status 리스트를 받아 타겟에 맞춰 BattleStatus 로 set
      *
      * @param mainActor    move 사용자 (enemy 도 가능)
      * @param enemy
@@ -73,25 +92,6 @@ public class SetStatusLogic {
      */
     public SetStatusResult setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, List<Status> statuses, StatusTargetType modifyingTargetType) {
         return this.applyStatus(mainActor, enemy, partyMembers, statuses, modifyingTargetType);
-    }
-
-    /**
-     * Move 를 받아 해당 Move 의 Status 리스트를 타겟에 맞춰 BattleStatus 로 set
-     * Move 에 '랜덤효과 N개 부여' 인 경우에 사용
-     *
-     * @param mainActor    move 사용자 (enemy 도 가능)
-     * @param enemy
-     * @param partyMembers mainActor 를 포함한 전체 파티원
-     * @param move
-     */
-    public SetStatusResult setRandomStatusFromMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move) {
-        List<Status> statuses = move.getStatuses();
-        if (move.getRandomStatusCount() != null && move.getRandomStatusCount() > 0) {
-            // 랜덤효과 N 개 부여
-            Collections.shuffle(statuses);
-            statuses = statuses.subList(0, move.getRandomStatusCount());
-        }
-        return this.applyStatus(mainActor, enemy, partyMembers, statuses, null);
     }
 
     /**
@@ -176,6 +176,8 @@ public class SetStatusLogic {
      * @return BattleStatus
      */
     protected BattleStatus applyStatusToActor(BattleActor mainActor, BattleActor targetActor, Status status) {
+        log.info("[applyStatusToActor] mainActorName = {}, targetActorName = {} , status = {} \n effects = {}",mainActor.getName(), targetActor.getName(), status, status.getStatusEffects());
+
         // 디버프 명중처리
         if (status.getType() == StatusType.DEBUFF || status.getType() == StatusType.DEBUFF_FOR_ALL) {
             BattleStatus missBattleStatus = this.processDebuffResistance(mainActor, targetActor, status);
@@ -188,8 +190,7 @@ public class SetStatusLogic {
         if (updatedBattleStatus != null) return updatedBattleStatus; // 갱신된 기존 효과 반환
 
         // 이펙트 타입 겹침 처리
-        log.info("setStatusEffectType status = {} size = {}", status, status.getStatusEffects().size());
-        if (status.getStatusEffects().size() == 1) {
+        if (status.getStatusEffects().size() == 1 && status.getStatusEffects().get(StatusEffectType.NONE) == null) {
             BattleStatus coveringBattleStatus = statusUtil.getSameEffectTypeStatus(targetActor, status)
                     .map(battleStatus -> this.processDuplicatedEffectStatus(status, battleStatus)).orElseGet(() -> null);
             if (coveringBattleStatus != null) return coveringBattleStatus; // 레벨제의 경우 갱신된 기존 효과, 기존효과가 상위인 경우 No Effect BattleStatus 바로 반환
@@ -274,7 +275,7 @@ public class SetStatusLogic {
      * 발생한 Status 효과량이 우위이면 null 반환 (다음 단계 진행)
      */
     private BattleStatus processDuplicatedEffectStatus(Status status, BattleStatus battleStatus) {
-        log.info("processDuplicatedEffectStatus() status = {}, battleStatus = {}", status, battleStatus);
+        log.info("[processDuplicatedEffectStatus] \n status = {}, \n battleStatus = {}", status, battleStatus);
         if (battleStatus == null || battleStatus.getStatus().getStatusEffects().size() > 1) return null;
         if (status.getMaxLevel() > 0 && battleStatus.getLevel() > 0) {
             // 레벨제 스테이터스, 1렙 이상
@@ -291,7 +292,6 @@ public class SetStatusLogic {
             boolean inputStatusCovering = false; // 입력 스테이터스가 덮어쓰는지 여부
             double inputStatusEffectValue = statusUtil.getFirstStatusEffectValue(status);
             double currentStatusEffectValue = statusUtil.getFirstStatusEffectValue(battleStatus.getStatus());
-            log.info("inputStatusEffectValue = {}, currentStatusEffectValue = {}", inputStatusEffectValue, currentStatusEffectValue);
             inputStatusCovering = inputStatusEffectValue == currentStatusEffectValue ?
                     // 효과량이 같으면 효과시간이 같거나 긴경우 true : 효과량이 다르면 효과량이 큰 경우 true
                     status.getDuration() >= battleStatus.getDuration() : inputStatusEffectValue > currentStatusEffectValue;
@@ -306,7 +306,8 @@ public class SetStatusLogic {
                             .status(Status.builder().type(status.getType()).name("NO EFFECT").effectText("NO EFFECT").build())
                             .level(0)
                             .iconSrc("")
-                            .build();
+                            .build()
+                            .setBattleActor(battleStatus.getBattleActor());
         }
     }
 
@@ -366,6 +367,28 @@ public class SetStatusLogic {
             }
         });
         return partyMemberRemovedBattleStatus;
+    }
+
+    /**
+     * 배틀 스테이터스를 삭제. 참전자 전체 적용 스테이터스 삭제하는 메서드로 수정예정
+     * 일반 제거가 아닌 로직으로 인한 제거에 사용. 소거불가도 이걸로 제거.
+     * @param battleActor
+     * @param battleStatuses
+     */
+    public void removeBattleStatuses(BattleActor battleActor, List<BattleStatus> battleStatuses) {
+        battleStatuses.forEach(battleStatus -> removeBattleStatus(battleActor, battleStatus));
+    }
+
+    /**
+     * 배틀 스테이터스를 삭제. 참전자 전체 적용 스테이터스 삭제하는 메서드로 수정예정
+     * 일반 제거가 아닌 로직으로 인한 제거에 사용. 소거불가도 이걸로 제거.
+     * @param battleActor
+     * @param battleStatus
+     */
+    public void removeBattleStatus(BattleActor battleActor, BattleStatus battleStatus) {
+        if (battleStatus == null) return;
+        battleStatusRepository.delete(battleStatus);
+        battleActor.getBattleStatuses().remove(battleStatus);
     }
 
     /**

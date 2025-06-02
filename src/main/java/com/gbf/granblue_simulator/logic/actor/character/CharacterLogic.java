@@ -3,7 +3,6 @@ package com.gbf.granblue_simulator.logic.actor.character;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
 import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
@@ -15,7 +14,6 @@ import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -71,14 +69,6 @@ public abstract class CharacterLogic {
             case SECOND_ABILITY -> secondAbility(mainActor, enemy, partyMembers, ability);
             case THIRD_ABILITY -> thirdAbility(mainActor, enemy, partyMembers, ability);
             case FOURTH_ABILITY -> fourthAbility(mainActor, enemy, partyMembers, ability);
-            case FIRST_SUPPORT_ABILITY -> firstSupportAbility(mainActor, enemy, partyMembers, ability);
-            case SECOND_SUPPORT_ABILITY -> secondSupportAbility(mainActor, enemy, partyMembers, ability);
-            case THIRD_SUPPORT_ABILITY -> thirdSupportAbility(mainActor, enemy, partyMembers, ability);
-            case FOURTH_SUPPORT_ABILITY -> fourthSupportAbility(mainActor, enemy, partyMembers, ability);
-            case FIFTH_SUPPORT_ABILITY -> fifthSupportAbility(mainActor, enemy, partyMembers, ability);
-            case SIXTH_SUPPORT_ABILITY -> sixthSupportAbility(mainActor, enemy, partyMembers, ability);
-            case SEVENTH_SUPPORT_ABILITY -> seventhSupportAbility(mainActor, enemy, partyMembers, ability);
-            case EIGHTH_SUPPORT_ABILITY -> eighthSupportAbility(mainActor, enemy, partyMembers, ability);
             default -> {
                 log.warn("No Ability Selected");
                 yield resultMapper.emptyResult();
@@ -94,7 +84,7 @@ public abstract class CharacterLogic {
      * @param partyMembers
      * @return DefaultActorLogicResult
      */
-    public DefaultActorLogicResult defaultAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    protected DefaultActorLogicResult defaultAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         // 평타 횟수 (독립시행)
         Move attackMove = mainActor.getActor().getMoves().get(
                 Math.random() < mainActor.getTripleAttackRate() ? MoveType.TRIPLE_ATTACK :
@@ -104,7 +94,7 @@ public abstract class CharacterLogic {
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, attackMove);
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, attackMove.getType());
-        return DefaultActorLogicResult.builder().move(attackMove).damageLogicResult(damageLogicResult).build();
+        return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).build();
     }
 
     /**
@@ -116,7 +106,7 @@ public abstract class CharacterLogic {
      * @param modifiedDamageRate : 변경할 오의 배율 (기본배율 사용시 null)
      * @return DefaultActorLogicResult
      */
-    public DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Double modifiedDamageRate) {
+    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Double modifiedDamageRate) {
         Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT);
         // 오의 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : chargeAttack.getDamageRate();
@@ -126,7 +116,7 @@ public abstract class CharacterLogic {
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, chargeAttack.getStatuses());
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
-        return DefaultActorLogicResult.builder().move(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
 
     /**
@@ -137,7 +127,7 @@ public abstract class CharacterLogic {
      * @param partyMembers
      * @return DefaultActorLogicResult
      */
-    public DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
+    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
         return this.defaultAbility(mainActor, enemy, partyMembers, ability, null, null);
     }
 
@@ -151,7 +141,7 @@ public abstract class CharacterLogic {
      * @param modifiedHitCount : 변경할 히트수 (기본 히트수 사용시 null)
      * @return DefaultActorLogicResult
      */
-    public DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
+    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
         // 데미지 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : ability.getDamageRate();
         // 히트수 변경 확인
@@ -173,7 +163,7 @@ public abstract class CharacterLogic {
                 case FOURTH_ABILITY -> mainActor.setFourthAbilityCoolDown(coolDown);
             }
         }
-        return DefaultActorLogicResult.builder().move(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+        return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
 
     // 가변 오버라이드 (내부사용)

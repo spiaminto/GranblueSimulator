@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
@@ -170,7 +171,7 @@ public class EnemyLogicResultMapper {
                 .partyMemberDispelled(setStatusResult.isPartyMemberDispelled())
 
                 .hasNextMove(nextMoveRequest.hasNextMove())
-                .nextMove(nextMoveRequest.getNextMoveType())
+                .nextMoveType(nextMoveRequest.getNextMoveType())
                 .nextMoveTarget(nextMoveRequest.getNextMoveTarget())
                 .build();
     }

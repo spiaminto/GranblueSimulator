@@ -138,6 +138,19 @@ public class StatusUtil {
     }
 
     /**
+     * 해당 name 을 가진 List<BattleStatus> 반환, contains
+     *
+     * @param battleActor
+     * @param name
+     * @return
+     */
+    public List<BattleStatus> getBattleStatusesByName(BattleActor battleActor, String name) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
+                .toList();
+    }
+
+    /**
      * 해당 name 을 가진 BattleStatus 반환, findfirst, contains
      *
      * @param battleActor
@@ -147,19 +160,6 @@ public class StatusUtil {
     public List<BattleStatus> getBattleStatusByStatusType(BattleActor battleActor, StatusType statusType) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getType() == statusType)
-                .toList();
-    }
-
-    /**
-     * 해당 name 을 가진 List<BattleStatus> 반환, contains
-     *
-     * @param battleActor
-     * @param name
-     * @return
-     */
-    public List<BattleStatus> getUniqueStatuses(BattleActor battleActor, String name) {
-        return battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
                 .toList();
     }
 

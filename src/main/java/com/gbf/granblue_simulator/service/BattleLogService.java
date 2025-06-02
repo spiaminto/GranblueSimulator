@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.service;
 import com.gbf.granblue_simulator.domain.BattleLog;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +21,17 @@ public class BattleLogService {
 
     private final BattleLogRepository battleLogRepository;
 
+    public BattleLog getLatestBattleLog(BattleActor mainActor, StatusTargetType statusTargetType) {
+        Long userId = mainActor.getMember().getUser().getId();
+        Long roomId = mainActor.getMember().getRoom().getId();
+
+
+        return null;
+    }
+
     /**
-     * 파라미터로 주어진 moveType 으로 받은 모든 데미지의 합산을 반환
+     * mainActor 가 파라미터로 주어진 moveType 으로 받은 모든 데미지의 합산을 반환
+     *
      * @param mainActor
      * @param moveType
      * @return
@@ -30,7 +40,7 @@ public class BattleLogService {
         Long userId = mainActor.getMember().getUser().getId();
         Long roomId = mainActor.getMember().getRoom().getId();
         int damageSum = 0;
-        int additionalDamageSum =0;
+        int additionalDamageSum = 0;
 
         List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndUserIdAndMainActorIdNot(roomId, userId, mainActor.getId());
 //        battleLogs.forEach(b -> log.info("battleLog = {}", b));

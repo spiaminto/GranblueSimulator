@@ -94,10 +94,12 @@ async function processResponseMoves(responseResults) {
             case MoveType.ROOT:
                 if (moveType === MoveType.FORM_CHANGE) {
                     await processFormChange(response);
+                } else {
+                    console.log('[processResponseMoves] invalid type]', moveType)
                 }
                 break;
             default:
-                console.log('invalid type', parentMoveType);
+                console.log('[processResponseMoves] invalid type]', moveType)
         }
     }
 

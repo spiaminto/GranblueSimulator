@@ -1,194 +1,78 @@
 package com.gbf.granblue_simulator.logic.actor.enemy;
 
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.logic.actor.ActorLogicUtil;
+import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
-import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.service.BattleLogService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
-public class Diaspora1Logic implements EnemyLogic {
+public class Diaspora1Logic extends EnemyLogic {
 
-    private final StatusUtil statusUtil;
-    private final ActorLogicUtil actorLogicUtil;
-    private final DamageLogic damageLogic;
-    private final EnemyLogicResultMapper enemyLogicResultMapper;
-    private final ChargeGaugeLogic chargeGaugeLogic;
-    private final SetStatusLogic setStatusLogic;
-    private final BattleLogService battleLogService;
-    private final OmenLogic omenLogic;
-    private final ActorRepository actorRepository;
-
-    /**
-     * 스테이터스 효과는 한번만 들어가므로 중복제거
-     *
-     * @param targets
-     * @return
-     */
-    protected List<BattleActor> getStatusTargets(List<BattleActor> targets) {
-        return targets.stream().distinct().toList();
+    public Diaspora1Logic(StatusUtil statusUtil, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository) {
+        super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
     }
 
     @Override
-    public ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers) {
-        Move attackMove = actorLogicUtil.determineAttackMove(mainActor);
-        // 타겟
-        List<BattleActor> targets = actorLogicUtil.getEnemyAttackTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
-        // 데미지
-        DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
-        List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
-        // 차지턴
-        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
-
-        return enemyLogicResultMapper.attackToResult(mainActor, partyMembers, attackMove, damageLogicResult, targetOrders);
-    }
-
-    @Override
-    public ActorLogicResult secondAbility(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult thirdAbility(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
-        BattleEnemy enemy = (BattleEnemy) mainActor;
-        Move standByMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
-        Omen omen = standByMove.getOmen();
-        Move chargeAttack = enemy.getActor().getMoves().get(standByMove.getType().getChargeAttackType());
-        // 타겟
-        List<BattleActor> targets = actorLogicUtil.getEnemyAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
-        List<BattleActor> statusTargets = getStatusTargets(targets);
-        List<Integer> targetOrders = targets.stream().map(BattleActor::getCurrentOrder).toList();
-        // 데미지
-        DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack);
-        // 스테이터스
-        SetStatusResult setStatusResult = setStatusLogic.setRandomStatusFromMove(mainActor, mainActor, statusTargets, chargeAttack);
-        // 차지턴
-        chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType(), omen.getOmenType());
-        // 스탠바이 초기화
-        enemy.setNextStandbyType(null);
-        return enemyLogicResultMapper.toResult(mainActor, partyMembers, chargeAttack, damageLogicResult, targetOrders, setStatusResult);
-    }
-
-    @Override
-    public ActorLogicResult firstSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult postProcessOtherMove(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult postProcessEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers) {
-        return null;
-    }
-
-    @Override
-    public ActorLogicResult onBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
+    public List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
         setStatusLogic.initStatus(mainActor);
 
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility.getStatuses());
 
-        return enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult);
+        return List.of(resultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
     }
 
     @Override
-    public List<ActorLogicResult> onOtherMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult otherResult) {
-        BattleEnemy enemy = (BattleEnemy) mainActor;
-        Enemy enemyActor = (Enemy) enemy.getActor();
+    public ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers) {
+        // TEST
+//         processBattleStart(mainActor, partyMembers);
+
+        DefaultActorLogicResult attackResult = defaultAttack(mainActor, partyMembers);
+        List<Integer> targetOrders = attackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
+        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders);
+    }
+
+    @Override
+    public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
+        BattleEnemy mainEnemy = (BattleEnemy) mainActor;
+        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType()));
+        List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
+        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult());
+    }
+
+    @Override
+    public List<ActorLogicResult> postProcessToPartyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult otherResult) {
         List<ActorLogicResult> results = new ArrayList<>();
 
-        // 전조처리
-        if (enemy.getNextStandbyType() != null) {
-            Move standbyMove = enemy.getActor().getMoves().get(enemy.getNextStandbyType());
-            Omen standbyOmen = standbyMove.getOmen();
-            Integer processedOmenValue = omenLogic.processOmen(enemy, otherResult);
-            if (processedOmenValue == 0) {
-                // 전조 해제됨
-                Move breakMove = enemy.getActor().getMoves().get(standbyMove.getType().getBreakType());
-                enemy.setNextStandbyType(null);
-                if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) enemy.setChargeGauge(0);
-                results.add(enemyLogicResultMapper.toResultWithOmen(mainActor, partyMembers, breakMove, standbyOmen));
-            } else {
-                // 전조 갱신됨
-                results.add(enemyLogicResultMapper.toResultWithOmen(mainActor, partyMembers, standbyMove, standbyMove.getOmen()));
-            }
+        if (!otherResult.getDamages().isEmpty()) {
+            // 적의 행동에 데미지 발생시 서포어비 1
+            results.add(firstSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY), otherResult));
         }
 
-
-        // 서포어비 1,2
-        List<BattleStatus> activateStatuses = statusUtil.getUniqueStatuses(mainActor, "활성");
-        if (!activateStatuses.isEmpty()) {
-            // 활성 버프 붙어있음
-            // 서포어비2 - 활성레벨 최고레벨(10) 잇을 시 다음 행동을 긴급회복시스템으로 변화
-            activateStatuses.stream()
-                    .filter(battleStatus -> battleStatus.getLevel().equals(battleStatus.getStatus().getMaxLevel()))
-                    .findFirst()
-                    .ifPresent(battleStatus -> enemy.setNextStandbyType(MoveType.STANDBY_D));
-
-            // 서포어비1 - 타 활성레벨 최고레벨과 관계없이 활성레벨링 자체는 독립적으로 수행
-            List<Integer> damages = otherResult.getDamages();
-            MoveType otherMoveType = otherResult.getMoveType();
-            if (!damages.isEmpty()) { // 적의 행동에 데미지 발생
-                String matchingStatusName = // 적의 공격 타입에 따른 스테이터스 매칭
-                        otherMoveType.getParentType() == MoveType.ATTACK ? "알파" :
-                                otherMoveType.getParentType() == MoveType.ABILITY ? "베타" :
-                                        otherMoveType.getParentType() == MoveType.CHARGE_ATTACK ? "감마" : "해당 스테이터스 없음";
-                if (!matchingStatusName.equals("해당 스테이터스 없음")) { // 공격, 어빌리티, 오의가 아니면 패스
-                    Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveType);
-                    // 타입에 따라 매칭된 배틀 스테이터스 (활성 버프는 3개가 세트로 전투시작시 달림 사라질때도 동시에 사라짐)
-                    BattleStatus matchedBattleStatus = activateStatuses.stream()
-                            .filter(battleStatus -> battleStatus.getStatus().getName().contains(matchingStatusName))
-                            .findFirst().orElseThrow(() -> new IllegalStateException("해당 이름의 BattleStatus가 없습니다. statusName: " + matchingStatusName));
-                    log.info("otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
-                    // 입은 데미지에 비례해 매칭된 배틀스테이터스 레벨 상승
-                    int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
-                    if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
-                        int increasingLevel = levelFromTakenDamage - matchedBattleStatus.getLevel();
-                        SetStatusResult setStatusResult = null;
-                        for (int i = 1; i <= increasingLevel; i++) {
-                            // 증가량 만큼 스테이터스 set (레벨상승), 결과는 마지막것만 사용
-                            setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
-                        }
-                        Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-                        // 결과에 추가
-                        results.add(enemyLogicResultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
-                    }
-                }
+        // 전조처리
+        DefaultActorLogicResult omenResult = this.defaultOmen(mainActor, otherResult);
+        if (omenResult.getResultMove() != null) {
+            results.add(resultMapper.toResultWithOmen(mainActor, partyMembers, omenResult.getResultMove(), omenResult.getResultOmen()));
+            // 자신의 긴급회복모드 전조 중단시 폼 체인지
+            if (omenResult.getResultMove().getType() == MoveType.BREAK_D) {
+                results.addAll(formChange(mainActor, partyMembers));
             }
         }
 
@@ -196,26 +80,95 @@ public class Diaspora1Logic implements EnemyLogic {
     }
 
     @Override
-    public List<ActorLogicResult> onTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
-        BattleEnemy enemy = (BattleEnemy) mainActor;
+    public List<ActorLogicResult> postProcessToEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult enemyResult) {
+        return Collections.emptyList();
+    }
 
-        // 폼체인지 (hp 95%이하), 다음 폼의 전조를 우선발생시키기 위해 전조보다 먼저실행
-        if (mainActor.calcHpRate() <= 99) {
-            List<ActorLogicResult> formChangeResults = formChange(mainActor, partyMembers);
-            return formChangeResults;
-        }
+    @Override
+    public List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
+        BattleEnemy enemy = (BattleEnemy) mainActor;
+        List<ActorLogicResult> results = new ArrayList<>();
+
+        // 서포어비 2
+        secondSupportAbility(mainActor, partyMembers, null, null);
 
         // 전조발생
-        Move standbyMove = omenLogic.determineStandbyMove(enemy);
-        if (standbyMove != null) {
-            // 전조 발생함
-            return List.of(enemyLogicResultMapper.toResultWithOmen(enemy, partyMembers, standbyMove, standbyMove.getOmen()));
+        omenLogic.determineStandbyMove(enemy).ifPresent(standby ->
+                results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen())));
+        return results;
+    }
+
+    @Override
+    // 자신이 입은 일반공격 / 어빌리티 / 오의 데미지의 누적값이 N 에 도달시 자신의 알파 / 베타 / 감마 레벨 증가
+    protected ActorLogicResult firstSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        MoveType otherMoveParentType = otherResult.getMoveType().getParentType();
+        String matchingStatusName =
+                otherMoveParentType == MoveType.ATTACK ? "알파" :
+                        otherMoveParentType == MoveType.ABILITY ? "베타" :
+                                otherMoveParentType == MoveType.CHARGE_ATTACK ? "감마" : "해당 스테이터스 없음";
+        if (!matchingStatusName.equals("해당 스테이터스 없음")) {
+            // 해당 공격 타입 누적데미지 합과 증가시킬 스테이터스
+            Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveParentType);
+            BattleStatus matchedBattleStatus = statusUtil.getBattleStatusByName(mainActor, matchingStatusName).orElse(null);
+            if (matchedBattleStatus == null) {
+                // 해당 스테이터스가 제거됨 (긴급수복모드 등)
+                log.info("[firstSupportAbility] matchedBattleStatus is null, matchingStatusName = {}", matchingStatusName);
+                return resultMapper.emptyResult();
+            }
+            // log.info("[firstSupportAbility] otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
+            int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
+            if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
+                // 스테이터스 레벨 상승 - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
+                SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
+                resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
+            }
         }
-        return new ArrayList<>();
+        return resultMapper.emptyResult();
+    }
+
+    @Override
+    // 어느 하나의 활성 레벨이 최고레벨이 된 턴 종료시 긴급 수복 모드 발생 및 타 활성레벨 제거 (동일 레벨의 경우 이전 순서 우선)
+    protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        BattleEnemy mainEnemy = (BattleEnemy) mainActor;
+        List<BattleStatus> activateStatuses = new ArrayList<>(statusUtil.getBattleStatusesByName(mainActor, "활성"));
+        if (!activateStatuses.isEmpty()) {
+            activateStatuses.stream()
+                    .filter(battleStatus -> battleStatus.getLevel().equals(battleStatus.getStatus().getMaxLevel()))
+                    .findFirst()
+                    .ifPresent(battleStatus -> {
+                        // 전환할 활성 남기고 제거
+                        activateStatuses.remove(battleStatus);
+                        setStatusLogic.removeBattleStatuses(mainActor, activateStatuses);
+                        // 긴급수복모드 발동
+                        mainEnemy.setNextIncantStandbyType(MoveType.STANDBY_D);
+                    });
+        }
+        return resultMapper.emptyResult();
+    }
+
+    @Override
+    // 긴급 수복모드 종료시 자신에게 남아있는 활성레벨에 맞는 모드로 전환
+    protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        // 현재 활성 제거
+        BattleStatus currentActivateStatus = statusUtil.getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
+        String currentActivateStatusType = currentActivateStatus.getStatus().getName().substring(4, 6); // 활성 『알파』 에서 알파만 남김. 일단 구리지만 이렇게.
+        setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
+        
+        // 2회차 전조부터 붙어있는 긴급 수복모드 제거
+        BattleStatus recoveryStatus = statusUtil.getBattleStatusByName(mainActor, "긴급 회복 시스템").orElse(null);
+        setStatusLogic.removeBattleStatus(mainActor, recoveryStatus);
+
+        // 활성 효과에 맞는 모드 적용
+        Status modeStatus = statusUtil.getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusType);
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(modeStatus));
+
+        return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }
 
     protected List<ActorLogicResult> formChange(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy enemy = (BattleEnemy) mainActor;
+        // 서포트어빌리티 3 모드전환 발동
+        ActorLogicResult thirdSupportAbilityResult = thirdSupportAbility(mainActor, partyMembers, enemy.getActor().getMoves().get(MoveType.THIRD_SUPPORT_ABILITY), null);
         // 폼체인지 무브
         Move formChangeMove = mainActor.getActor().getMoves().get(MoveType.FORM_CHANGE);
         // 다음 폼 및 폼체인지 입장 무브
@@ -225,13 +178,14 @@ public class Diaspora1Logic implements EnemyLogic {
         // 다음 폼으로 set
         mainActor.setActor(diaspora2);
         enemy.setCurrentForm(2);
-        // 영창기 스킵 (현재 사양상 영창기는 스킵)
-        enemy.setNextStandbyType(null);
+        // 폼 체인지 이전에 발생한 영창기를 중단 (폼 체인지 후 전조 갱신함)
+        enemy.setNextIncantStandbyType(null);
 
-        // 폼체인지 / 엔트리 결과 반환
+        // 폼체인지 / 엔트리 / 모드전환 결과 반환
         List<ActorLogicResult> results = new ArrayList<>();
-        results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeMove));
-        results.add(enemyLogicResultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeEntryMove));
+        results.add(resultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeMove));
+        results.add(resultMapper.toResultMoveOnly(mainActor, partyMembers, formChangeEntryMove));
+        results.add(thirdSupportAbilityResult);
         return results;
     }
 }

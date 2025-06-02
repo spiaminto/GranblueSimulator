@@ -13,8 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Component
 @Transactional
@@ -37,13 +37,13 @@ public class PaladinLogic extends CharacterLogic {
     @Override
     public ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         DefaultActorLogicResult defaultActorLogicResult = super.defaultAttack(mainActor, enemy, partyMembers);
-        return resultMapper.attackToResult(mainActor, enemy, partyMembers, defaultActorLogicResult.getMove(), defaultActorLogicResult.getDamageLogicResult());
+        return resultMapper.attackToResult(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult());
     }
 
     @Override // 아군 전체 스트렝스, 베리어
     public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         DefaultActorLogicResult defaultActorLogicResult = super.defaultChargeAttack(mainActor, enemy, partyMembers, null);
-        return resultMapper.toResult(mainActor, enemy, partyMembers, defaultActorLogicResult.getMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult());
+        return resultMapper.toResult(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult());
     }
 
     @Override
@@ -58,7 +58,7 @@ public class PaladinLogic extends CharacterLogic {
 
     @Override
     public List<ActorLogicResult> processTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        return null;
+        return Collections.emptyList();
     }
 
     @Override // 아군전체 데미지 컷 // TODO 참전자 스테이터스 적용

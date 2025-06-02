@@ -11,5 +11,11 @@ public interface BattleLogRepository extends JpaRepository<BattleLog, Long> {
 
     List<BattleLog> findAllByRoomIdAndUserId(Long roomId, Long userId);
 
+    /**
+     * 직전의 배틀로그를 가져옴
+     * @return
+     */
+    BattleLog findFirstByRoomIdAndUserIdAndMainActorIdNotOrderByIdDesc(Long roomId, Long userId, Long actorId);
+
     List<BattleLog> findAllByRoomIdAndUserIdAndMainActorIdNot(Long roomId, Long userId, Long actorId);
 }

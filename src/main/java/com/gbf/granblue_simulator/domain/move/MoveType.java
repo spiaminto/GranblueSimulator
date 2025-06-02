@@ -65,6 +65,8 @@ public enum MoveType {
         SIXTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "sixth-support-ability"),
         SEVENTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "seventh-support-ability"),
         EIGHTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "eighth-support-ability"),
+        NINTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "ninth-support-ability"),
+        TENTH_SUPPORT_ABILITY(SUPPORT_ABILITY, "tenth-support-ability"),
 
     CHARGE_ATTACK(ROOT, "charge-attack"),
         CHARGE_ATTACK_DEFAULT(CHARGE_ATTACK, "charge-attack-default"),
