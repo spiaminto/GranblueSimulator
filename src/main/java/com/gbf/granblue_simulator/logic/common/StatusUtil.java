@@ -83,15 +83,15 @@ public class StatusUtil {
     }
 
     /**
-     * name 이름의 고유 스테이터스 가졌는지 확인 (equals)
+     * name 이름의 battleStatus 가졌는지 확인 (contains)
      *
      * @param battleActor
      * @param name
      * @return 가졌으면 true
      */
-    public boolean hasUniqueStatus(BattleActor battleActor, String name) {
+    public boolean hasBattleStatus(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
-                .anyMatch(battleStatus -> name.equals(battleStatus.getStatus().getName()));
+                .anyMatch(battleStatus -> battleStatus.getStatus().getName().contains(name));
     }
 
     /**
@@ -214,7 +214,6 @@ public class StatusUtil {
                         .comparing((BattleStatus battleStatus) -> battleStatus.getStatus().getStatusEffects().get(statusEffectType).getValue()) // StatusEffect.value 높은쪽
                         .thenComparing(BattleStatus::getCreatedAt))// BattleStatus.createdAt 가 더 최근인쪽
                 ;
-
     }
 
 
@@ -250,34 +249,6 @@ public class StatusUtil {
         return matchedBattleStatus.filter(battleStatus -> battleStatus.getLevel() >= level).isPresent();
     }
 
-
-    /**
-     * battleActors 전원의 names 로 받은 스테이터스의 레벨을 level 만큼 증가
-     *
-     * @param battleActors
-     * @param level        증가량 (목표 값이 아님)
-     * @param names        가변인자
-     */
-    public void addUniqueStatusLevelAll(List<BattleActor> battleActors, int level, String... names) {
-        battleActors.forEach(battleActor -> addUniqueStatusLevel(battleActor, level, names));
-    }
-
-    /**
-     * battleActor 의 names 로 받은 스테이터스의 레벨을 level 만큼 증가
-     *
-     * @param battleActor
-     * @param level       증가량 (목표 값이 아님)
-     * @param names       가변인자
-     */
-    public void addUniqueStatusLevel(BattleActor battleActor, int level, String... names) {
-        List<String> statusNames = Arrays.stream(names).toList();
-        battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> statusNames.stream()
-                        .anyMatch(name -> name.equals(battleStatus.getStatus().getName()))
-                ).forEach(battleStatus -> {
-                    battleStatus.addLevel(level);
-                });
-    }
 
 
     //    public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(BattleActor battleActor) {

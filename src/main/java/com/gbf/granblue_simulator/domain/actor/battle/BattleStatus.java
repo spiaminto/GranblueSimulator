@@ -44,16 +44,25 @@ public class BattleStatus {
         return this;
     }
 
+    /**
+     * 자신의 level 을 1 증가
+     * 일반적인 setStatusLogic 을 타서 레벨이 증가할 경우 사용
+     */
     public void increaseLevel() {
         this.level = Math.min(this.status.getMaxLevel(), this.level + 1);
-        // 레벨이 10 이상일경우 버그남. 레벨은 무조건 9 까지. <- 이제 src 배열로 저장하니까 상관없지 않나?
-        this.iconSrc = this.status.getIconSrcs().get(level - 1);
+        this.iconSrc = this.status.getIconSrcs().get(level - 1); // 아이콘이 없으면 에러남
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void addLevel(int level) {
+    /**
+     * 들어온 level 값 만큼 자신의 level 을 추가 및 아이콘 url 갱신
+     * 이 메서드는 주로 사용자에게 반환 결과 없이 임의로 레벨을 조작할때 사용함.
+     * @param level
+     * @param updateIcon 아이콘 url 갱신여부
+     */
+    public void addLevel(int level, boolean updateIcon) {
         this.level = Math.min(this.status.getMaxLevel(), this.level + level);
-        this.iconSrc = this.status.getIconSrcs().get(level - 1);
+        this.iconSrc = updateIcon ? this.status.getIconSrcs().get(level - 1) : this.iconSrc;
         this.updatedAt = LocalDateTime.now();
     }
 

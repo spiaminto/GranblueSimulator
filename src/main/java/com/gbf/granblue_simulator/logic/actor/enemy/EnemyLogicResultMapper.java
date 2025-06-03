@@ -36,7 +36,7 @@ public class EnemyLogicResultMapper {
      * @return
      */
     public ActorLogicResult toResultMoveOnly(BattleActor mainActor, List<BattleActor> partyMembers, Move move) {
-        return map(mainActor, partyMembers, move, null, null, null, NextMoveRequest.of(false, null, null), null);
+        return map(mainActor, partyMembers, move, null, null, null, null, null, false, false);
     }
 
     /**
@@ -49,7 +49,7 @@ public class EnemyLogicResultMapper {
      * @return
      */
     public ActorLogicResult toResultWithOmen(BattleActor mainActor, List<BattleActor> partyMembers, Move move, Omen omen) {
-        return map(mainActor, partyMembers, move, null, null, null, NextMoveRequest.of(false, null, null), omen);
+        return map(mainActor, partyMembers, move, null, null, null, null, omen, false, false);
     }
 
     /**
@@ -59,8 +59,8 @@ public class EnemyLogicResultMapper {
      * @param move
      * @return
      */
-    public ActorLogicResult attackToResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders) {
-        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, null, NextMoveRequest.of(false, null, null), null);
+    public ActorLogicResult attackToResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, MoveType nextMovetype) {
+        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, null, nextMovetype, null, false, false);
     }
 
     /**
@@ -71,30 +71,36 @@ public class EnemyLogicResultMapper {
      * @return
      */
     public ActorLogicResult toResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, SetStatusResult statusResult) {
-        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, NextMoveRequest.of(false, null, null), null);
+        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, null, null, false, false);
     }
 
     /**
-     * 기본 결과 맵핑 + 후행동
+     * 데미지와 스테이터스와 후행동이 발생하는 결과 맵핑
      * @param mainActor
      * @param partyMembers
      * @param move
-     * @param damageLogicResult
-     * @param damageTargetOrders
-     * @param setStatusResult
-     * @param nextMoveRequest
      * @return
      */
-    public ActorLogicResult toResultWithNextMove(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest) {
-        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, setStatusResult, NextMoveRequest.of(false, null, null), null);
+    public ActorLogicResult toResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, SetStatusResult statusResult, MoveType nextMoveType) {
+        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, nextMoveType, null, false, false);
     }
 
-    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest, Omen omen) {
+    /**
+     * 데미지와 스테이터스가 발생하는 기본결과 맵핑
+     * @param mainActor
+     * @param partyMembers
+     * @param move
+     * @return
+     */
+    public ActorLogicResult toResultWithEffect(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, SetStatusResult statusResult, boolean powerUp, boolean ctMax) {
+        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, null, null, powerUp, ctMax);
+    }
+
+    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, MoveType nextMoveType, Omen omen, boolean powerUp, boolean ctMax) {
         List<BattleActor> allActors = new ArrayList<>(partyMembers);
         allActors.addFirst(mainActor); // 순서 유지
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
         if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
-        if (nextMoveRequest == null) nextMoveRequest = NextMoveRequest.of(false, null, null); // 후행동이 없을경우 기본객체 생성
 
         int hitCount = move.getHitCount() == null ? 0 : move.getHitCount(); // 적은 공격횟수가 가변인경우가 없음
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
@@ -144,9 +150,11 @@ public class EnemyLogicResultMapper {
 
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
+                .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
-
+                .targetActorId(partyMembers.getFirst().getActor().getId()) // 적의 경우 타겟id 는 일단 아군 주인공으로 고정
                 .moveType(move.getType())
+
                 .hps(hps)
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
@@ -170,9 +178,11 @@ public class EnemyLogicResultMapper {
                 .enemyDispelled(setStatusResult.isEnemyDispelled())
                 .partyMemberDispelled(setStatusResult.isPartyMemberDispelled())
 
-                .hasNextMove(nextMoveRequest.hasNextMove())
-                .nextMoveType(nextMoveRequest.getNextMoveType())
-                .nextMoveTarget(nextMoveRequest.getNextMoveTarget())
+                .nextMoveType(nextMoveType)
+
+                .enemyPowerUp(powerUp)
+                .enemyCtMax(ctMax)
+
                 .build();
     }
 

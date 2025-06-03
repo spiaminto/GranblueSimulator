@@ -68,6 +68,10 @@ video {
     z-index: 10;
 }
 
+.global-video.enemy-video {
+    z-index: 10;
+}
+
 .global-video.enemy-charge-attack-start {
     width: 105%;
     height: 120%;

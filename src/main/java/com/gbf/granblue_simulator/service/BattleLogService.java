@@ -33,25 +33,26 @@ public class BattleLogService {
      * mainActor 가 파라미터로 주어진 moveType 으로 받은 모든 데미지의 합산을 반환
      *
      * @param mainActor
-     * @param moveType
+     * @param moveParentType
      * @return
      */
-    public Integer getTakenDamageSumByMoveType(BattleActor mainActor, MoveType moveType) {
+    public Integer getTakenDamageSumByMoveType(BattleActor mainActor, MoveType moveParentType) {
         Long userId = mainActor.getMember().getUser().getId();
         Long roomId = mainActor.getMember().getRoom().getId();
         int damageSum = 0;
         int additionalDamageSum = 0;
 
-        List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndUserIdAndMainActorIdNot(roomId, userId, mainActor.getId());
-//        battleLogs.forEach(b -> log.info("battleLog = {}", b));
+        log.info("moveType = {}", moveParentType);
+        List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndUserIdAndTargetActorId(roomId, userId, mainActor.getActor().getId());
+        battleLogs.forEach(b -> log.info("[battleLogService] battleLog = {}", b));
         damageSum = battleLogs.stream()
-                .filter(battleLog -> battleLog.getMoveType().getParentType() == moveType.getParentType())
+                .filter(battleLog -> battleLog.getMoveType().getParentType() == moveParentType)
                 .mapToInt(battleLog -> battleLog.getDamages().stream()
                         .mapToInt(Integer::intValue).sum())
                 .sum();
-        if (moveType.getParentType() == MoveType.ATTACK) {
+        if (moveParentType == MoveType.ATTACK) {
             additionalDamageSum = battleLogs.stream()
-                    .filter(battleLog -> battleLog.getMoveType().getParentType() == moveType.getParentType())
+                    .filter(battleLog -> battleLog.getMoveType().getParentType() == moveParentType)
                     .map(battleLog -> Arrays.stream(battleLog.getAdditionalDamages())
                             .map(Arrays::asList)
                             .flatMap(List::stream)

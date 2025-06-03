@@ -7,7 +7,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
@@ -25,13 +25,16 @@ import java.util.Objects;
 @Slf4j
 public class Diaspora1Logic extends EnemyLogic {
 
-    public Diaspora1Logic(StatusUtil statusUtil, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository) {
+    private final CalcStatusLogic calcStatusLogic;
+
+    public Diaspora1Logic(StatusUtil statusUtil, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic) {
         super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
+        this.calcStatusLogic = calcStatusLogic;
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
-        setStatusLogic.initStatus(mainActor);
+        calcStatusLogic.initStatus(mainActor);
 
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility.getStatuses());
@@ -46,7 +49,7 @@ public class Diaspora1Logic extends EnemyLogic {
 
         DefaultActorLogicResult attackResult = defaultAttack(mainActor, partyMembers);
         List<Integer> targetOrders = attackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders);
+        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders, attackResult.getNextMoveType());
     }
 
     @Override
@@ -54,7 +57,7 @@ public class Diaspora1Logic extends EnemyLogic {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType()));
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult());
+        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
     }
 
     @Override
@@ -120,7 +123,7 @@ public class Diaspora1Logic extends EnemyLogic {
             if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
                 // 스테이터스 레벨 상승 - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
-                resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
+                resultMapper.toResultWithEffect(mainActor, partyMembers, ability, null, null, setStatusResult, true, false);
             }
         }
         return resultMapper.emptyResult();

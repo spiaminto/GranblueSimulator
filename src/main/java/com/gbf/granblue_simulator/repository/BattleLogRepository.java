@@ -17,5 +17,5 @@ public interface BattleLogRepository extends JpaRepository<BattleLog, Long> {
      */
     BattleLog findFirstByRoomIdAndUserIdAndMainActorIdNotOrderByIdDesc(Long roomId, Long userId, Long actorId);
 
-    List<BattleLog> findAllByRoomIdAndUserIdAndMainActorIdNot(Long roomId, Long userId, Long actorId);
+    List<BattleLog> findAllByRoomIdAndUserIdAndTargetActorId(Long roomId, Long userId, Long actorId);
 }

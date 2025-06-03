@@ -103,6 +103,7 @@ public class OmenLogic {
             case DEBUFF_COUNT -> {
                 int debuffCount = otherResult.getAddedBattleStatusesList().stream()
                         .flatMap(battleStatuses -> battleStatuses.stream()
+                                .filter(battleStatus -> !battleStatus.getStatus().getName().equals("MISS"))
                                 .map(battleStatus -> battleStatus.getStatus().getType()))
                         .filter(type -> type == StatusType.DEBUFF || type == StatusType.DEBUFF_FOR_ALL)
                         .toList().size();

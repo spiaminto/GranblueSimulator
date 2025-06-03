@@ -19,6 +19,10 @@ public class CalcStatusLogic {
 
     private final StatusUtil statusUtil;
 
+    /**
+     * 전투 시작시 스탯 갱신
+     * @param battleActor
+     */
     public void initStatus(BattleActor battleActor) {
         Map<StatusEffectType, List<StatusEffect>> statusEffects = statusUtil.getStatusEffectMap(battleActor);
 

@@ -5,8 +5,10 @@ import io.hypersistence.utils.hibernate.type.array.IntArrayType;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -25,9 +27,8 @@ public class BattleLog {
     private Long userId;
     private Long roomId;
 
-    private Long mainActorId; // 행동주체
-
-    private Long targetActorId; // 행동 타겟
+    private Long mainActorId; // 행동주체 Actor.id
+    private Long targetActorId; // 행동 타겟 Actor.id , BattleActor.id 는 종료후에 확인 불가능 하므로 Actor.id 로 저장
 
     @Enumerated(EnumType.STRING)
     private MoveType moveType;
@@ -53,5 +54,8 @@ public class BattleLog {
     @Type(ListArrayType.class)
     @Column(name = "status_effect_types", columnDefinition = "text[]")
     private List<String> statusEffectTypes; // StatusEffectType
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
 
 }

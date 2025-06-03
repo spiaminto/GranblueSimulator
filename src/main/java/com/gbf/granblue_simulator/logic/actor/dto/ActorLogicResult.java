@@ -19,7 +19,9 @@ public class ActorLogicResult {
 
     // 필수
     private Long mainBattleActorId;
+    private Long mainActorId; // battleActor.actor.id
     private int mainBattleActorOrder;
+    private Long targetActorId; // 적의 현재 폼을 확인하기 위해 사용
     private MoveType moveType;
 
     // 프론트 갱신용
@@ -59,6 +61,10 @@ public class ActorLogicResult {
     @Builder.Default
     private List<Integer> enemyAttackTargetOrders = new ArrayList<>(); // 적의 특수기 공격타겟 currentOrder
     private boolean isAllTarget;
+    
+    // 적 글로벌 효과 사용여부
+    private boolean enemyPowerUp;
+    private boolean enemyCtMax;
 
     @Accessors(fluent = true)
     private boolean hasNextMove; // 후행동

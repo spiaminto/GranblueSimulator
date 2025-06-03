@@ -399,6 +399,8 @@ public class BattleController {
                         .abilityCoolDowns(result.getAbilityCooldowns())
                         .isEnemyDispelled(result.isEnemyDispelled())
                         .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .isEnemyPowerUp(result.isEnemyPowerUp())
+                        .isEnemyCtMax(result.isEnemyCtMax())
                         .build()
         ).toList();
         responses.forEach(response -> log.info("response: {}", response));
@@ -480,6 +482,8 @@ public class BattleController {
                         .abilityCoolDowns(result.getAbilityCooldowns())
                         .isEnemyDispelled(result.isEnemyDispelled())
                         .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .isEnemyPowerUp(result.isEnemyPowerUp())
+                        .isEnemyCtMax(result.isEnemyCtMax())
                         .build()
         ).toList();
         responses.forEach(response -> log.info("response: {}", response));

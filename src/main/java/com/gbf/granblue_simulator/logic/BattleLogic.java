@@ -55,13 +55,15 @@ public class BattleLogic {
         List<ActorLogicResult> progressTurnResults = new ArrayList<>();
         progressTurnResults.addAll(processAttack(enemy, partyMembers)); // 아군의 공격 추가
         progressTurnResults.addAll(processEnemyAttack(enemy, partyMembers)); // 적의 공격 추가
-        progressTurnResults.addAll(processTurnEnd(enemy, partyMembers)); // 턴종 처리 추가
-        progressTurnResults = progressTurnResults.stream()
-                .filter(result -> !result.getMoveType().isNone()).toList();
-        progressTurnResults.forEach(result -> log.info("progressTurnResult: {}", result));
 
         setStatusLogic.progressBattleStatus(enemy, partyMembers); // 배틀 스테이터스 남은 턴수 진행
         partyMembers.forEach(BattleActor::progressAbilityCoolDown); // 배틀 액터 쿨다운 진행
+
+        progressTurnResults.addAll(processTurnEnd(enemy, partyMembers)); // 턴종 처리 추가
+        progressTurnResults = progressTurnResults.stream()
+                .filter(result -> !result.getMoveType().isNone()).toList();
+
+        progressTurnResults.forEach(result -> log.info("progressTurnResult: {}", result));
 
         return progressTurnResults;
     }
@@ -168,12 +170,10 @@ public class BattleLogic {
 
         // 후행동
         MoveType nextMoveType = attackResult.getNextMoveType(); // 후행동 타입
-        if (attackResult.hasNextMove()) {
+        if (nextMoveType != null) {
             // 적은 현재 후행동으로 ATTACK 만 함, 후행동으로 후행동이 발생하지 않음
             if (!nextMoveType.equals(MoveType.ATTACK)) throw new IllegalArgumentException("[processEnemyAttack] Invalid next move type = " + nextMoveType);
             ActorLogicResult nextMoveResult = enemyLogic.processAttack(mainActor, partyMembers);
-            saveBattleLog(nextMoveResult);
-            results.add(nextMoveResult);
             // 반응
             results.addAll(postProcessToMove(mainActor, partyMembers, enemy, nextMoveResult));
         }
@@ -290,7 +290,8 @@ public class BattleLogic {
                         .roomId(mainActor.getMember().getRoom().getId())
                         .userId(mainActor.getMember().getUser().getId())
                         .moveType(logicResult.getMoveType())
-                        .mainActorId(mainActor.getId())
+                        .mainActorId(logicResult.getMainActorId())
+                        .targetActorId(logicResult.getTargetActorId())
                         .hitCount(logicResult.getTotalHitCount())
                         .damages(damages)
                         .damageElementTypes(damageElementTypes)

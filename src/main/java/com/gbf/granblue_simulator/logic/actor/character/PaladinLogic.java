@@ -3,12 +3,9 @@ package com.gbf.granblue_simulator.logic.actor.character;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
-import com.gbf.granblue_simulator.logic.common.DamageLogic;
-import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
-import com.gbf.granblue_simulator.logic.common.StatusUtil;
+import com.gbf.granblue_simulator.logic.common.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,13 +18,16 @@ import java.util.List;
 @Slf4j
 public class PaladinLogic extends CharacterLogic {
 
-    public PaladinLogic(StatusUtil statusUtil, CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic) {
+    private final CalcStatusLogic calcStatusLogic;
+
+    public PaladinLogic(StatusUtil statusUtil, CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
         super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+        this.calcStatusLogic = calcStatusLogic;
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        setStatusLogic.initStatus(mainActor);
+        calcStatusLogic.initStatus(mainActor);
         // 전투 시작시 서포어비 1, 2 발동
         return List.of(
                 firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY)),

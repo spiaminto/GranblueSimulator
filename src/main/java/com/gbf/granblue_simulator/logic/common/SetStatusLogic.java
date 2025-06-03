@@ -30,24 +30,6 @@ public class SetStatusLogic {
     private final ChargeGaugeLogic chargeGaugeLogic;
     private final CalcStatusLogic calcStatusLogic;
 
-    /**
-     * 첫 init
-     *
-     * @param battleActor
-     */
-    public void initStatus(BattleActor battleActor) {
-        calcStatusLogic.initStatus(battleActor);
-    }
-
-    /**
-     * 외부에서 스테이터스값을 동기화 할때 사용
-     * TODO 나중에 정리하고 없애기
-     *
-     * @param battleActor
-     */
-    public void syncStatus(BattleActor battleActor) {
-        calcStatusLogic.syncStatus(battleActor);
-    }
 
     /**
      * Move 를 받아 해당 Move 의 Status 리스트를 타겟에 맞춰 BattleStatus 로 set
@@ -367,6 +349,37 @@ public class SetStatusLogic {
             }
         });
         return partyMemberRemovedBattleStatus;
+    }
+
+    /**
+     * battleActor 의 battleStatus 중 statusIds 에 해당하는 모든 스테이터스의 레벨을 level 만큼 증가
+     * 사용자에게 결과 반환 없이 임의로 레벨 조작시 사용
+     *
+     * @param battleActor  증가시킬 대상
+     * @param level        증가량 (목표 값이 아님)
+     * @param updateIcons  아이콘 업데이트 여부 (현재 각각 지정은 미구현)
+     * @param statusIds    증가시킬 battleStatus 의 statusId
+     */
+    public void addBattleStatusesLevel(BattleActor battleActor, int level, boolean updateIcons, Long... statusIds) {
+        for (Long statusId : statusIds)
+            this.addBattleStatusLevel(battleActor, level, updateIcons, statusId);
+    }
+
+    /**
+     * battleActor 의 battleStatus 중 statusId 에 해당하는 스테이터스의 레벨을 level 만큼 증가
+     * 사용자에게 결과 반환 없이 임의로 레벨 조작시 사용
+     *
+     * @param battleActor
+     * @param level       증가량 (목표 값이 아님)
+     * @param updateIcon  아이콘 업데이트 여부
+     * @param statusId    증가할 battleStatus 의 원본 status
+     */
+    public void addBattleStatusLevel(BattleActor battleActor, int level, boolean updateIcon, Long statusId) {
+        battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getId().equals(statusId))
+                .findFirst()
+                .ifPresent(battleStatus -> battleStatus.addLevel(level, updateIcon));
+        calcStatusLogic.syncStatus(battleActor); // 갱신
     }
 
     /**

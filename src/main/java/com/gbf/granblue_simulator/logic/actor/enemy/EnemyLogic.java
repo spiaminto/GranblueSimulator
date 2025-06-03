@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.logic.actor.DefaultActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
@@ -114,7 +114,9 @@ public abstract class EnemyLogic {
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
-        return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).build();
+        // 후행동 확인
+        MoveType nextMoveType = statusUtil.hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
+        return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).nextMoveType(nextMoveType).build();
     }
 
     /**
@@ -141,7 +143,9 @@ public abstract class EnemyLogic {
         // 스탠바이 초기화
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         mainEnemy.setCurrentStandbyType(null);
-        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).build();
+        // 후행동 확인 (적은 후행동 통상공격만)
+        MoveType nextMoveType = statusUtil.hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
+        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).nextMoveType(nextMoveType).build();
     }
 
     /**

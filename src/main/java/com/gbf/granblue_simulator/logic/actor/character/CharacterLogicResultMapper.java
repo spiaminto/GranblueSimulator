@@ -112,9 +112,11 @@ public class CharacterLogicResultMapper {
 
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
+                .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
-
+                .targetActorId(enemy.getActor().getId())
                 .moveType(move.getType())
+
                 .hps(hps)
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
