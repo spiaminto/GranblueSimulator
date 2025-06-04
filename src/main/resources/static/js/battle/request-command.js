@@ -77,10 +77,10 @@ async function processResponseMoves(responseResults) {
         switch (parentMoveType) {
             case MoveType.SUPPORT_ABILITY:
             case MoveType.ABILITY:
-                await processAbility(response);
+                charOrder !== 0 ? await processAbility(response) : await processEnemyAbility(response);
                 break;
             case MoveType.ATTACK:
-                charOrder !== 0 ? await processCharacterAttack(response) : await processEnemyAttack(response);
+                charOrder !== 0 ? await processAttack(response) : await processEnemyAttack(response);
                 break;
             case MoveType.CHARGE_ATTACK:
                 charOrder !== 0 ? await processChargeAttack(response) : await processEnemyChargeAttack(response);
@@ -142,29 +142,6 @@ async function preloadNextEnemyVideo() {
         'data-standby-move-class': 'none'
     })
     $videoContainer.append($enemyNextVideoContainer);
-
-    // $.each(videoMap, function (src, classList) {
-    //     // classList가 배열이 아니라면 배열로 변환
-    //     // if (!Array.isArray(classList)) classList = [classList];
-    //
-    //     // 기본 클래스
-    //     let baseClasses = 'hidden enemy-video';
-    //     // 추가 클래스
-    //     let extraClasses = classList.join(' ');
-    //
-    //     // video 태그 생성
-    //     let $video = $('<video>', {
-    //         'class': baseClasses + (extraClasses ? ' ' + extraClasses : ''),
-    //         'muted': true,
-    //         'playsinline': true,
-    //         'data-move-type': classList.join(' '),
-    //         'src': src,
-    //         'preload': 'auto' // 강제로드
-    //     });
-    //     $video.hasClass('idle') ? $video.attr('loop', true) : null; // idle loop 추가
-    //
-    //     $enemyNextVideoContainer.append($video);
-    // });
 
     const videoPromises = Object.entries(videoMap).map(([src, classList]) => {
         return new Promise((resolve, reject) => {
@@ -322,7 +299,7 @@ function processEnemyBreak(breakResponse) {
     let chargeGauges = breakResponse.chargeGauges;
 
     // 적 비디오 컨테이너에 스탠바이 상태 해제
-    $('.enemy-video-container').data('standby-move-class', MoveType.NONE.className);
+    $('.enemy-video-container').attr('data-standby-move-class', MoveType.NONE.className);
 
     // 차지턴 갱신
     syncEnemyChargeTurn(chargeGauges);
@@ -359,8 +336,6 @@ function processEnemyBreak(breakResponse) {
         console.log('BREAK done', breakType);
         resolve();
     }, totalEndTime));
-
-    // TODO 전조해제
 
 }
 

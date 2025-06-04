@@ -140,12 +140,14 @@ public class BattleLogic {
             // 후행동
             for (BattleActor nextMoveActor : nextMoveActors) {
                 CharacterLogic nextCharacterLogic = characterLogicMap.get(nextMoveActor.getActor().getNameEn() + "Logic");
+                nextMoveResult = moveResult; // CHECK 나중에 로직 재확인해
+                nextMoveType = nextMoveResult.getNextMoveType();
                 while (nextMoveResult.hasNextMove()) {
-                    nextMoveResult = switch (nextMoveType.getParentType()) {
-                        case ATTACK, CHARGE_ATTACK ->
-                                nextCharacterLogic.processAttack(nextMoveActor, enemy, partyMembers, nextMoveType);
-                        case ABILITY ->
-                                nextCharacterLogic.processAbility(nextMoveActor, enemy, partyMembers, nextMoveType);
+                    nextMoveResult = switch (nextMoveType) {
+                        case ATTACK ->
+                                nextCharacterLogic.processNormalAttack(nextMoveActor, enemy, partyMembers);
+                        case CHARGE_ATTACK ->
+                                nextCharacterLogic.processChargeAttack(nextMoveActor, enemy, partyMembers);
                         default -> throw new IllegalArgumentException("[processAbility] Invalid next move type = " + nextMoveType);
                     };
                     // 반응

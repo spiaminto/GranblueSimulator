@@ -4,66 +4,47 @@ class AudioPlayer {
         this.buffers = [];
     }
 
-    async loadSound(url, delay = 0) {
-        const response = await fetch(url);
+    async loadSound(src) {
+        const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-        this.buffers.push({ buffer: audioBuffer, delay: delay});
+        this.buffers.push(audioBuffer);
     }
 
-    /**
-     * 여러개 동시할당 (객체리터럴)
-     * @param audioInfos = [{ url: urlValue, delay: delayValue(ms) }, ...] or ['url1', 'url2', ...]
-     * @returns {Promise<void>}
-     */
-    async loadSounds(audioInfos) {
-        // console.log('audioInfos = ', audioInfos)
-        if (typeof audioInfos[0] === 'string') { // 첫 원소 배열
-            if (audioInfos[0].length === 1) { // 단일 url
-                const loadPromise = this.loadSound(audioInfos);
-                await loadPromise;
-                return;
-            }
-            // url 문자열 배열
-            const loadPromises = audioInfos.map(url => this.loadSound(url));
-            await Promise.all(loadPromises);
-        } else if (typeof audioInfos[0] === 'object') { // 첫원소 오브젝트 ({url, delay})
-            const loadPromises = audioInfos.map(({url, delay = 0}) => this.loadSound(url, delay));
+    async loadSounds(audioSrcs) {
+        console.log('[AudioPlayer.loadSounds] audioSrcs = ', audioSrcs);
+        if (audioSrcs.length > 0) {
+            const loadPromises = audioSrcs.map(src => this.loadSound(src));
             await Promise.all(loadPromises);
         } else {
-            throw new Error('[AudioPlayer.loadSounds] invalid audioInfos = ' + audioInfos);
+            console.log('[AudioPlayer.loadSounds] invalid audioSrcs = ', audioSrcs);
         }
-        // console.log('loadSounds audioPlayer.buffers = ', this.buffers);
     }
 
     playSound(index) {
         // console.log('play sound index = ', index);
         if (index < 0 || index >= this.buffers.length) {
-            console.error(`Invalid audio index: ${index}`);
+            console.error(`[AudioPlayer.playSound] Invalid audio index: ${index}`);
             return;
         }
         const audioBuffer = this.buffers[index];
         if (!audioBuffer) {
-            console.error(`Invalid audio Buffer: ${audioBuffer}`)
+            console.error(`[AudioPlayer.playSound] Invalid audio Buffer: ${audioBuffer}`)
         }
         const source = this.audioContext.createBufferSource();
-        source.buffer = audioBuffer.buffer;
+        source.buffer = audioBuffer;
         source.connect(this.audioContext.destination);
         source.start(0);
     }
 
     /**
-     *  모든 사운드를 동시에 재생 (딜레이있으면 딜레이적용)
+     *  모든 사운드를 동시에 재생
      */
     playAllSounds() {
-        // console.log('play all sounds', this.buffers);
+        // console.log('[AudioPlayer.playAllSounds] play all sounds', this.buffers);
         this.buffers.forEach((audioBuffer, index) => {
-            if (audioBuffer.delay === 0) {
-                this.playSound(index);
-            } else {
-                setTimeout(() => this.playSound(index), audioBuffer.delay);
-            }
+            this.playSound(index);
         })
     }
 }

@@ -58,6 +58,28 @@ public abstract class CharacterLogic {
                 attack(mainActor, enemy, partyMembers);
     }
 
+    /**
+     * 통상 공격을 수행 (후행동)
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @return
+     */
+    public ActorLogicResult processNormalAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return attack(mainActor, enemy, partyMembers);
+    }
+
+    /**
+     * 오의를 수행 (후행동)
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @return
+     */
+    public ActorLogicResult processChargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return chargeAttack(mainActor, enemy, partyMembers);
+    }
+
     // 어빌리티 수행
     public ActorLogicResult processAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, MoveType moveType) {
         Move ability = mainActor.getActor().getMoves().get(moveType);

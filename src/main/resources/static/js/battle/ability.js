@@ -20,16 +20,21 @@ function processAbility(responseAbilityData) {
     let hasBuff = addedBuffStatusesList[charOrder].length > 0 || addedBuffStatusesList[0].length > 0;
     let hasDebuff = addedDebuffStatusesList[charOrder].length > 0 || addedDebuffStatusesList[0].length > 0;
 
-    // 준비
+    // 준비 - 아군
     let partySelector = '.party-' + charOrder;
     let abilityMotionVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.motion');
     let abilityEffectVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.effect');
     let idleMotionVideo = $('.party-video-container ' + partySelector + ' .' + MoveType.IDLE.className);
-
-    //TODO 나중에 분리
-    let isEnemyPowerUp = abilityData.enemyPowerUp;
-    let isEnemyCtMax = abilityData.enemyCtMax;
-
+    let abilityEffectDuration = abilityEffectVideo.length > 0 ? abilityEffectVideo.get(0).duration * 1000 - 100 : 0; // 어빌리티 이펙트 재생 길이, seconds to milliseconds, 영상 딜레이 100ms 보
+    // 준비 - 적
+    let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
+    let idleMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
+    let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
+    let damagedMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
+    let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
+    // 준비 - 오디오
     let audioPlayers = new Map();
     audioPlayers.set('char', new AudioPlayer());
     audioPlayers.set('enemy', new AudioPlayer());
@@ -37,191 +42,67 @@ function processAbility(responseAbilityData) {
     let charAudioPlayer = audioPlayers.get('char');
 
 // EFFECT 시작
-// 오디오 재생
-    let audioInfos = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(element => ({
-        url: $(element).attr('src'),
-        delay: $(element).data('delay') || 0
-    }));
-    if (audioInfos.length > 0)
-        charAudioPlayer.loadSounds(audioInfos).then(() => {
-            charAudioPlayer.playAllSounds();
-        });
+    // 오디오 재생
+    let audioSrcs = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(audio => audio.src);
+    charAudioPlayer.loadSounds(audioSrcs).then(() => charAudioPlayer.playAllSounds());
 
-    //TODO 나중에 분리
-    if (isEnemyPowerUp) {
-        let glAudioInfos = $('.global-audio-container .enemy-power-up').toArray().map(element => ({
-            url: $(element).attr('src'),
-            delay: $(element).data('delay') || 0
+    // 아군 이펙트, 모션 재생
+    if (abilityEffectVideo) {
+        playVideo(abilityEffectVideo, abilityMotionVideo, idleMotionVideo);
+    }
+
+    // 데미지 삽입
+    let $abilityDamageWrapper = $('.ability-damage-wrapper');
+    abilityDamages.forEach(function (damage, damageIndex) {
+        $abilityDamageWrapper.prepend($('<div>', {
+            class: 'ability-damage ability-damage-' + damageIndex + ' element-type-' + elementType.toLowerCase(),
+            text: damage,
+            'data-text': damage
         }));
-        if (glAudioInfos.length > 0)
-            charAudioPlayer.loadSounds(glAudioInfos).then(() => {charAudioPlayer.playAllSounds();});
-    }
-
-
-    // 데미지 채우기
-    abilityDamages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(), text: item, 'data-text': item}));
     })
-
-    // 어빌리티 영상 종료 이후 버프 / 버프 작업 위해 delay 계산용 어빌리티 재생길이 구함
-    let abilityDuration = abilityEffectVideo.length > 0 ? abilityEffectVideo.get(0).duration * 1000 - 100 : 0; // 어빌리티 이펙트 재생 길이, seconds to milliseconds, 영상 딜레이 100ms 보정
-    // 어빌리티의 히트에 따른 데미지 표시 및 모션 딜레이를 반복하기 위해 필요
-    let abilityHitDuration = abilityDuration > 0 ? abilityDuration / abilityHitCount : 0;
-
-// 데미지표시, 적 피격모션 재생 (히트수 만큼 반복)
-    let abilityHitPlayCount = 0;
-    if (abilityHitCount > 0) {
-        // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
-        let idleMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
-        let damagedMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
-        // 클래스로 비디오 찾기
-        let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
-        let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
-
-        // 히트수만큼 실행
-        let abilityHitProcessInterval = setInterval(function () {
-            // idle 숨기고 damaged 재생
-            !$enemyIdleVideo.hasClass('hidden') && $enemyIdleVideo.addClass('hidden'); // idle 숨김 (인터벌 전에 숨기면 플리커)
-            let enemyDamagedVideoElement = $enemyDamagedVideo.removeClass('hidden').get(0);
-            enemyDamagedVideoElement.currentTime = 0; // 빼면 부자연스러워짐
-            enemyDamagedVideoElement.play();
-
+    // 데미지 마다 표시, 적 피격 모션 재생
+    let damageShowClass = abilityDamages.length > 2 ? 'multiple-damage-show' : 'damage-show'
+    abilityDamages.forEach(function (damage, damageIndex, damageArray) {
+        let startDelay = abilityEffectDuration / damageArray.length * damageIndex;
+        if (damageIndex === 0) {
+            $enemyIdleVideo.addClass('hidden').get(0).pause()
+            $enemyIdleVideo.get(0).currentTime = 0;
+            $enemyDamagedVideo.removeClass('hidden');
+        }
+        setTimeout(function () {
+            // 피격 비디오 연속재생의 경우 idle 과 교차재생하면 부자연스러워 지므로 연속재생후 마지막에 되돌림
+            $enemyDamagedVideo.get(0).currentTime = 0; // 빼면 부자연스러워짐
+            $enemyDamagedVideo.get(0).play();
             // 데미지 표시
-            $('.ability-damage-wrapper .ability-damage-' + abilityHitPlayCount).fadeTo(10, 1).delay(600).fadeTo(400, 0);
-
-            if (++abilityHitPlayCount >= abilityHitCount) {
-                // 어빌리티 히트수만큼 재생 완료했으면 모션 정상화, 어빌리티 데미지 전체 제거 후 인터벌 클리어
-                $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
-                $enemyDamagedVideo.addClass('hidden');
+            $('.ability-damage-wrapper .ability-damage-' + damageIndex).addClass(damageShowClass);
+            if (damageIndex >= damageArray.length - 1) { // 마지막
+                // 적 모션 정상화
                 setTimeout(function () {
-                    $('.ability-damage-wrapper').children().remove();
-                }, 1000);
-                clearInterval(abilityHitProcessInterval);
+                    $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
+                    $enemyDamagedVideo.addClass('hidden');
+                }, 200) // 막타에 대한 대기 (임의길이)
+                // 마지막 데미지 페이드 아웃시 전체 제거
+                setTimeout(function () {
+                    $abilityDamageWrapper.empty()
+                }, 1000); // 바지막 데미지 페이드 아웃 대기
             }
-        }, abilityHitDuration);
-    }
-
-// 아군 어빌리티 이펙트 및 모션 재생 (오디오 속도가 느리므로, 100ms 정도 딜레이 걸고 재생
-    setTimeout(function () {
-        if (abilityMotionVideo.length < 1 || abilityEffectVideo.length < 1) return; // 서폿어빌은 모션 없으므로 바로리턴
-        idleMotionVideo.addClass('hidden'); // idle 모션 숨김
-        abilityMotionVideo.removeClass('hidden').get(0).play();
-        abilityEffectVideo.removeClass('hidden').get(0).play();
-
-        // 끝나고 모션 정상화
-        $(abilityMotionVideo).one('ended', function () {
-            $(this).addClass('hidden');
-            idleMotionVideo.removeClass('hidden');
-        });
-
-        // 보통 이펙트가 더 길어서 이펙트 끝나면 다음시퀀스로
-        $(abilityEffectVideo).one('ended', function () {
-            $(this).addClass('hidden');
-        });
-    }, 100);
-    
-    //TODO 나중에 분리
-    if (isEnemyPowerUp) {
-        abilityDuration = $('.global-video-container .enemy-power-up').get(0).duration * 1000 / 2;
-        $('.global-video-container .enemy-power-up').one('ended', function () {
-            $(this).addClass('hidden');
-        }).removeClass('hidden').get(0).play();
-    }
-
-// 스테이터스 아이콘 갱신 (어빌리티 이펙트 직후 즉시 갱신)
-    setTimeout(function () {
-        currentBattleStatusesList.forEach(function (currentBattleStatuses, actorIndex) {
-            let $statusContainer = $('.status-container.actor-' + actorIndex);
-            $statusContainer.find('.status').remove(); // 스테이터스 비움
-            currentBattleStatuses.forEach(function (status, index) {
-                // 어빌리티 패널에 갱신된 스테이터스 추가
-                let $statusInfo = $('<div>', {class: 'status status', 'data-status-type': status.type})
-                    .append(
-                        $('<img>', {
-                            src: status.imageSrc,
-                            class: 'status-icon' + (status.imageSrc.length < 1 ? ' none-icon' : '')
-                        }),
-                        $('<div>', {class: 'status-name d-none', text: status.name}),
-                        $('<div>', {class: 'status-info-text d-none', text: status.statusText}),
-                        $('<div>', {class: 'status-duration d-none', text: status.duration})
-                    );
-                $statusContainer.append($statusInfo);
-            })
-        });
-    }, abilityDuration);
-
-// BUFF 버프처리 시작
-    // 버프 이펙트 요소 내용 채우고 페이드 걸기
-    let longestBuffDelay = 0;
-    addedBuffStatusesList.forEach(function (addedBuffStatuses, actorIndex) { // [[적][아군][아군][아군][아군]]
-        addedBuffStatuses.forEach(function (buffStatus, buffIndex) {
-            let $effectContainer = $('.status-effect-container.actor-' + actorIndex);
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + buffIndex})
-                .append(
-                    $('<img>', {src: buffStatus.imageSrc, class: buffStatus.imageSrc.length < 1 ? 'none-icon' : ''}),
-                    $('<span>', {class: 'status-effect-text', text: buffStatus.effectText})
-                );
-            $effectContainer.prepend($statusEffect);
-
-            // 페이드 길이 1100 + index * 50 , 3번째 길이 1250
-            let additionalStartDelay = buffIndex / 3 >= 1 ? 1250 + 100 : 0; // 3개 이상일경우 딜레이 추가 (3번째가 사라지는 시간 + 안전마진)
-            let removeDelay = (1100 * (Math.floor(buffIndex / 3) + 1)) + (50 * buffIndex) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
-            longestBuffDelay = Math.max(longestBuffDelay, additionalStartDelay + removeDelay);
-
-            setTimeout(() => {
-                // 하나하나 페이드
-                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
-            }, abilityDuration + additionalStartDelay + (buffIndex * 50))
-            setTimeout(() => {
-                // 버프 스테이터스 3개단위 종료시 한꺼번에 삭제
-                $statusEffect.remove();
-            }, abilityDuration + additionalStartDelay + removeDelay);
-        });
+        }, startDelay);
     });
-    let buffEndTime = abilityDuration + longestBuffDelay;
 
-// DEBUFF 디버프 처리 시작
-    // 디버프 이펙트 요소 내용 채우고 페이드 걸기
-    let debuffStartDelay = hasDebuff ? abilityDuration + 1000 : abilityDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = 0;
-    addedDebuffStatusesList.forEach(function (addedDebuffStatuses, actorIndex) { // [1번째 캐릭] [2번째 캐릭]...
-        addedDebuffStatuses.forEach(function (debuffStatus, buffIndex) {
-            if (debuffStatus.type === 'DISPEL') { // 디스펠의 경우 별도처리
-                return;
-            }
+    // 스테이터스 아이콘 갱신
+    processStatusIconSync(currentBattleStatusesList, abilityEffectDuration);
 
-            let $effectContainer = $('.status-effect-container.actor-' + actorIndex);
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + buffIndex})
-                .append(
-                    $('<img>', {
-                        src: debuffStatus.imageSrc,
-                        class: debuffStatus.imageSrc.length < 1 ? 'none-icon' : ''
-                    }),
-                    $('<span>', {class: 'status-effect-text', text: debuffStatus.effectText})
-                );
-            $effectContainer.prepend($statusEffect);
+    // 버프 이펙트 처리
+    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, abilityEffectDuration);
+    let buffEndTime = abilityEffectDuration + longestBuffDelay;
 
-            // 페이드 길이 1100 + index * 50 , 3번째 길이 1250
-            let additionalStartDelay = buffIndex / 3 >= 1 ? 1250 + 100 : 0; // 3개 이상일경우 딜레이 추가 (3번째가 사라지는 시간 + 안전마진)
-            let removeDelay = (1100 * (Math.floor(buffIndex / 3) + 1)) + (50 * buffIndex) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
-            longestDebuffDelay = Math.max(longestDebuffDelay, additionalStartDelay + removeDelay);
-
-            setTimeout(() => {
-                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
-            }, debuffStartDelay + additionalStartDelay + (buffIndex * 50))
-            setTimeout(() => {
-                $statusEffect.remove();
-            }, debuffStartDelay + additionalStartDelay + removeDelay);
-        });
-    });
+    // 디버프 이펙트 처리
+    let debuffStartDelay = hasDebuff ? abilityEffectDuration + longestBuffDelay : abilityEffectDuration; // 버프 없으면 즉시시작
+    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
     let debuffEndTime = debuffStartDelay + longestDebuffDelay;
-    // 디버프 이펙트 처리 끝
 
-    let totalEndTime = Math.max(abilityDuration + 100, buffEndTime, debuffEndTime);
-    console.log('totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
+    let totalEndTime = Math.max(abilityEffectDuration + 100, buffEndTime, debuffEndTime);
+    console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', abilityEffectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
 
     return new Promise(resolve => setTimeout(function () {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
@@ -232,211 +113,142 @@ function processAbility(responseAbilityData) {
 
 
 function processEnemyAbility(responseAbilityData) {
+    // 변수초기화
     let abilityData = responseAbilityData;
-    let charOrder = responseAbilityData.charOrder;
-    let moveType = MoveType.byName(responseAbilityData.moveType);
-    let abilityOrder = moveType === MoveType.FIRST_ABILITY ? 1 : moveType === MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
-    let abilityHitCount = abilityData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
-    let abilityDamages = abilityData.damages;
-    let elementType = abilityData.elementTypes[0];
+    let charOrder = abilityData.charOrder;
+    let partySelector = '.party-' + charOrder
+    let moveType = MoveType.byName(abilityData.moveType);
+    let abilityHitCount = abilityData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
+    let damages = abilityData.damages;
+    let elementTypes = abilityData.elementTypes;
     let chargeGauges = abilityData.chargeGauges;
     let hps = abilityData.hps;
     let hpRates = abilityData.hpRates;
+    // 적 한정
+    let targetOrders = abilityData.enemyAttackTargetOrders;
+    let isAllTarget = abilityData.allTarget; // 전체공격여부
+    let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
+    let isEnemyPowerUp = abilityData.enemyPowerUp;
+    let isEnemyCtMax = abilityData.enemyCtMax;
+
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
+    addedBuffStatusesList
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = abilityData.battleStatusList;
-    // 아군(시전자) 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList[charOrder].length > 0 || addedBuffStatusesList[0].length > 0;
-    let hasDebuff = addedDebuffStatusesList[charOrder].length > 0 || addedDebuffStatusesList[0].length > 0;
+    // 아군 또는 적 에게 버프와 디버프 있는지 확인
+    let hasBuff = addedBuffStatusesList.some(arr => arr.length > 0);
+    let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
 
-    // 준비
-    let partySelector = '.party-' + charOrder;
-    let abilityMotionVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.motion');
-    let abilityEffectVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.effect');
-    let idleMotionVideo = $('.party-video-container ' + partySelector + ' .' + MoveType.IDLE.className);
+    // 준비 - 적
+    let $abilityVideo = $('.enemy-video-container .' + moveType.className);
+    let abilityDuration = $abilityVideo.get(0).duration * 1000 - 100;
+    let abilityHitDuration = abilityDuration / abilityHitCount; // 히트당 길이는 데미지 표시용 1000ms 제외
+    let $idleDefaultVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className); // 차지어택 종료후 idle_default
+    let $standByIdleVideo = $('.enemy-video-container video:not(.hidden)');
+    let audioSelector =
+        isEnemyPowerUp ? '.global-audio-container .enemy-power-up' :
+            isEnemyCtMax ? '.global-audio-container .enemy-ct-max ' : '.enemy-audio-container .' + moveType.className;
+    console.log('ready', $abilityVideo, $idleDefaultVideo)
 
-    let audioPlayers = new Map();
-    audioPlayers.set('char', new AudioPlayer());
-    audioPlayers.set('enemy', new AudioPlayer());
-    audioPlayers.set('global', new AudioPlayer());
-    let charAudioPlayer = audioPlayers.get('char');
+// EFFECT 이펙트 시작
 
-// EFFECT 시작
-// 오디오 재생
-    let audioInfos = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(element => ({
-        url: $(element).attr('src'),
-        delay: $(element).data('delay') || 0
-    }));
-    if (audioInfos.length > 0)
-        charAudioPlayer.loadSounds(audioInfos).then(() => {
-            charAudioPlayer.playAllSounds();
-        });
+    // 오디오 재생
+    let enemyAudioPlayer = new AudioPlayer();
+    let audioSrcs = $(audioSelector).toArray().map(element => element.src);
+    enemyAudioPlayer.loadSounds(audioSrcs).then(() => {
+        enemyAudioPlayer.playAllSounds();
+    });
 
-
-    // 데미지 채우기
-    abilityDamages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(), text: item, 'data-text': item}));
-    })
-
-    // 어빌리티 영상 종료 이후 버프 / 버프 작업 위해 delay 계산용 어빌리티 재생길이 구함
-    let abilityDuration = abilityEffectVideo.length > 0 ? abilityEffectVideo.get(0).duration * 1000 - 100 : 0; // 어빌리티 이펙트 재생 길이, seconds to milliseconds, 영상 딜레이 100ms 보정
-    // 어빌리티의 히트에 따른 데미지 표시 및 모션 딜레이를 반복하기 위해 필요
-    let abilityHitDuration = abilityDuration > 0 ? abilityDuration / abilityHitCount : 0;
-
-// 데미지표시, 적 피격모션 재생 (히트수 만큼 반복)
-    let abilityHitPlayCount = 0;
-    if (abilityHitCount > 0) {
-        // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
-        let idleMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
-        let damagedMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
-        // 클래스로 비디오 찾기
-        let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
-        let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
-
-        // 히트수만큼 실행
-        let abilityHitProcessInterval = setInterval(function () {
-            // idle 숨기고 damaged 재생
-            !$enemyIdleVideo.hasClass('hidden') && $enemyIdleVideo.addClass('hidden'); // idle 숨김 (인터벌 전에 숨기면 플리커)
-            let enemyDamagedVideoElement = $enemyDamagedVideo.removeClass('hidden').get(0);
-            enemyDamagedVideoElement.currentTime = 0; // 빼면 부자연스러워짐
-            enemyDamagedVideoElement.play();
-
-            // 데미지 표시
-            $('.ability-damage-wrapper .ability-damage-' + abilityHitPlayCount).fadeTo(10, 1).delay(600).fadeTo(400, 0);
-
-            if (++abilityHitPlayCount >= abilityHitCount) {
-                // 어빌리티 히트수만큼 재생 완료했으면 모션 정상화, 어빌리티 데미지 전체 제거 후 인터벌 클리어
-                $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
-                $enemyDamagedVideo.addClass('hidden');
-                setTimeout(function () {
-                    $('.ability-damage-wrapper').children().remove();
-                }, 1000);
-                clearInterval(abilityHitProcessInterval);
-            }
-        }, abilityHitDuration);
+    //TODO 나중에 분리
+    if (isEnemyPowerUp) {
+        abilityDuration = $('.global-video-container .enemy-power-up').get(0).duration * 1000 / 2;
+        $('.global-video-container .enemy-power-up').one('ended', function () {
+            $(this).addClass('hidden');
+        }).removeClass('hidden').get(0).play();
     }
 
-// 아군 어빌리티 이펙트 및 모션 재생 (오디오 속도가 느리므로, 100ms 정도 딜레이 걸고 재생
-    setTimeout(function () {
-        if (abilityMotionVideo.length < 1 || abilityEffectVideo.length < 1) return; // 서폿어빌은 모션 없으므로 바로리턴
-        idleMotionVideo.addClass('hidden'); // idle 모션 숨김
-        abilityMotionVideo.removeClass('hidden').get(0).play();
-        abilityEffectVideo.removeClass('hidden').get(0).play();
+    // TODO 아군 피격 보이스 재생
 
-        // 끝나고 모션 정상화
-        $(abilityMotionVideo).one('ended', function () {
-            $(this).addClass('hidden');
-            idleMotionVideo.removeClass('hidden');
+
+    // 적 서포트 어빌리티 이펙트 재생
+    if (isEnemyPowerUp || isEnemyCtMax) {
+        let videoSelector = isEnemyPowerUp ? '.global-audio-container .enemy-power-up' : '.global-audio-container .enemy-ct-max';
+        let $effectVideo = $(videoSelector);
+        abilityDuration = $effectVideo.get(0).duration; // 이펙트 길이로 갱신
+        playVideo($effectVideo);
+    } else {
+        playVideo($abilityVideo, null, $standByIdleVideo);
+    }
+
+    //  데미지 마다 반복
+    console.log('[processEnemyAbility] targetOrder = ', targetOrders, 'isAllTarget =', isAllTarget);
+    damages.every(function (damage, damageIndex) {
+        let effectDelay = isAllTarget ?
+            abilityHitDuration : // 전체공격인 경우 이펙트 종료후 1회만 데미지 발생
+            abilityHitDuration * damageIndex; // 단일 타겟의 경우 공격
+        let targetOrder = isAllTarget ? targetOrders[damageIndex % targetOrders.length] : targetOrders[damageIndex]; // 데미지가 발생한 타겟순서, 전체타겟의 경우 1,2,3,4 만옴
+        console.log('targetorder', targetOrder, 'effectdelay', effectDelay);
+
+        if (isAllTargetSubstituted && damageIndex % targetOrders.length !== 0) {
+            // 전체공격 이면서 감싸기 && 데미지가 해당 타수의 첫번째가 아닌경우 ex) targetOrders = [1, 1, 1, 1, 1, 1, 1, 1] 전체공격, 타겟 4명, 타수2회, 조건 진입은 index 가 1, 2, 3, 5, 6, 7
+            let $attackDamage = $('.enemy-damage-wrapper .enemy-attack-damage.actor-' + targetOrder);
+            $attackDamage.text(Number.parseInt($attackDamage.text()) + damage);
+            let $additionalDamages = $attackDamage.find('.additional-damage:first');
+            $additionalDamages.text(Number.parseInt($additionalDamages));
+            return true; // 이후 처리 무시 (모션)
+        }
+
+        // 데미지 채우기 및 표시
+        let $attackDamage = $('<div>', {
+            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
+            text: damage
         });
+        $attackDamage.appendTo($('.enemy-damage-wrapper'))
+            .delay(effectDelay + 100 * damageIndex) // 이전 캐릭터보다 100ms 씩 딜레이
+            .fadeTo(10, 1).delay(400)
+            .fadeTo(400, 0, function () {
+                $(this).remove();
+            });
 
-        // 보통 이펙트가 더 길어서 이펙트 끝나면 다음시퀀스로
-        $(abilityEffectVideo).one('ended', function () {
-            $(this).addClass('hidden');
-        });
-    }, 100);
+        // 아군의 피격 이펙트 재생
+        let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);
+        let $targetDamagedVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.DAMAGED.className);
+        setTimeout(function () {
+            $targetDamagedVideo.removeClass('hidden').get(0).play(); // 재생할때 순서별로 약간씩 딜레이 100 추가
+            $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
 
-// 스테이터스 아이콘 갱신 (어빌리티 이펙트 직후 즉시 갱신)
-    setTimeout(function () {
-        currentBattleStatusesList.forEach(function (currentBattleStatuses, actorIndex) {
-            let $statusContainer = $('.status-container.actor-' + actorIndex);
-            $statusContainer.find('.status').remove(); // 스테이터스 비움
-            currentBattleStatuses.forEach(function (status, index) {
-                // 어빌리티 패널에 갱신된 스테이터스 추가
-                let $statusInfo = $('<div>', {class: 'status status', 'data-status-type': status.type})
-                    .append(
-                        $('<img>', {
-                            src: status.imageSrc,
-                            class: 'status-icon' + (status.imageSrc.length < 1 ? ' none-icon' : '')
-                        }),
-                        $('<div>', {class: 'status-name d-none', text: status.name}),
-                        $('<div>', {class: 'status-info-text d-none', text: status.statusText}),
-                        $('<div>', {class: 'status-duration d-none', text: status.duration})
-                    );
-                $statusContainer.append($statusInfo);
-            })
-        });
-    }, abilityDuration);
+            // 아군 피격 모션을 idle 로 되돌림
+            setTimeout(function () {
+                $targetIdleVideo.removeClass('hidden');
+                $targetDamagedVideo.addClass('hidden');
+            }, isAllTarget ? 500 : abilityHitDuration - 100); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨, 전체공격이면 500ms 만
+        }, effectDelay + 100 * damageIndex);
 
-// BUFF 버프처리 시작
-    // 버프 이펙트 요소 내용 채우고 페이드 걸기
-    let longestBuffDelay = 0;
-    addedBuffStatusesList.forEach(function (addedBuffStatuses, actorIndex) { // [[적][아군][아군][아군][아군]]
-        addedBuffStatuses.forEach(function (buffStatus, buffIndex) {
-            let $effectContainer = $('.status-effect-container.actor-' + actorIndex);
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + buffIndex})
-                .append(
-                    $('<img>', {src: buffStatus.imageSrc, class: buffStatus.imageSrc.length < 1 ? 'none-icon' : ''}),
-                    $('<span>', {class: 'status-effect-text', text: buffStatus.effectText})
-                );
-            $effectContainer.prepend($statusEffect);
-
-            // 페이드 길이 1100 + index * 50 , 3번째 길이 1250
-            let additionalStartDelay = buffIndex / 3 >= 1 ? 1250 + 100 : 0; // 3개 이상일경우 딜레이 추가 (3번째가 사라지는 시간 + 안전마진)
-            let removeDelay = (1100 * (Math.floor(buffIndex / 3) + 1)) + (50 * buffIndex) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
-            longestBuffDelay = Math.max(longestBuffDelay, additionalStartDelay + removeDelay);
-
-            setTimeout(() => {
-                // 하나하나 페이드
-                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
-            }, abilityDuration + additionalStartDelay + (buffIndex * 50))
-            setTimeout(() => {
-                // 버프 스테이터스 3개단위 종료시 한꺼번에 삭제
-                $statusEffect.remove();
-            }, abilityDuration + additionalStartDelay + removeDelay);
-        });
+        return true;
     });
+
+    // 스테이터스 아이콘 갱신
+    processStatusIconSync(currentBattleStatusesList, abilityDuration);
+
+    // 버프 이펙트 처리
+    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, abilityDuration);
     let buffEndTime = abilityDuration + longestBuffDelay;
 
-// DEBUFF 디버프 처리 시작
-    // 디버프 이펙트 요소 내용 채우고 페이드 걸기
-    let debuffStartDelay = hasDebuff ? abilityDuration + 1000 : abilityDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = 0;
-    addedDebuffStatusesList.forEach(function (addedDebuffStatuses, actorIndex) { // [1번째 캐릭] [2번째 캐릭]...
-        addedDebuffStatuses.forEach(function (debuffStatus, buffIndex) {
-            if (debuffStatus.type === 'DISPEL') { // 디스펠의 경우 별도처리
-                return;
-            }
-
-            let $effectContainer = $('.status-effect-container.actor-' + actorIndex);
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + buffIndex})
-                .append(
-                    $('<img>', {
-                        src: debuffStatus.imageSrc,
-                        class: debuffStatus.imageSrc.length < 1 ? 'none-icon' : ''
-                    }),
-                    $('<span>', {class: 'status-effect-text', text: debuffStatus.effectText})
-                );
-            $effectContainer.prepend($statusEffect);
-
-            // 페이드 길이 1100 + index * 50 , 3번째 길이 1250
-            let additionalStartDelay = buffIndex / 3 >= 1 ? 1250 + 100 : 0; // 3개 이상일경우 딜레이 추가 (3번째가 사라지는 시간 + 안전마진)
-            let removeDelay = (1100 * (Math.floor(buffIndex / 3) + 1)) + (50 * buffIndex) // 페이드 딜레이 * 횟수 + 어빌리티 갯수만큼 딜레이
-            longestDebuffDelay = Math.max(longestDebuffDelay, additionalStartDelay + removeDelay);
-
-            setTimeout(() => {
-                $statusEffect.fadeTo(100, 1).delay(600).fadeTo(400, 0);
-            }, debuffStartDelay + additionalStartDelay + (buffIndex * 50))
-            setTimeout(() => {
-                $statusEffect.remove();
-            }, debuffStartDelay + additionalStartDelay + removeDelay);
-        });
-    });
+    // 디버프 이펙트 처리
+    let debuffStartDelay = hasDebuff ? abilityDuration + longestBuffDelay : abilityDuration; // 버프 없으면 즉시시작
+    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
     let debuffEndTime = debuffStartDelay + longestDebuffDelay;
-    // 디버프 이펙트 처리 끝
 
     let totalEndTime = Math.max(abilityDuration + 100, buffEndTime, debuffEndTime);
-    console.log('totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
+    console.log('[processEnemyAbility] totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
 
     return new Promise(resolve => setTimeout(function () {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 500));
+    }, totalEndTime + 100));
 }

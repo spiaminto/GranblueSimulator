@@ -1,5 +1,4 @@
-function processCharacterAttack(responseAttackData) {
-
+function processAttack(responseAttackData) {
     // 변수초기화
     let attackData = responseAttackData;
     let charOrder = attackData.charOrder;
@@ -15,9 +14,18 @@ function processCharacterAttack(responseAttackData) {
     let hps = attackData.hps;
     let hpRates = attackData.hpRates;
 
-    // 준비
-    let $attackMotionVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className);
-    let $idleMotionVideo = $('.party-video-container ' + partySelector + ' .' + MoveType.IDLE.className);
+    // 준비 - 아군
+    let $attackEffectVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className);
+    let $idleVideo = $('.party-video-container ' + partySelector + ' .' + MoveType.IDLE.className);
+    let attackDuration = $attackEffectVideo.get(0).duration * 1000;
+    // 준비 - 적
+    let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
+    let idleMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
+    let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
+    let damagedMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
+    let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
 
 // EFFECT 이펙트 시작
     // 오디오 재생
@@ -28,94 +36,62 @@ function processCharacterAttack(responseAttackData) {
     });
 
     // 아군 일반공격 이펙트 재생
-    $idleMotionVideo.addClass('hidden'); // idle 모션 숨김
-    $attackMotionVideo.removeClass('hidden').get(0).play();
-
-    // 끝나고 모션 정상화
-    $attackMotionVideo.one('ended', function () {
-        $(this).addClass('hidden');
-        $idleMotionVideo.removeClass('hidden');
-    });
+    playVideo($attackEffectVideo, null, $idleVideo);
 
     // 데미지 채우기
-    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper actor-'+ charOrder});
+    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper actor-' + charOrder});
     damages.forEach(function (damage, attackIndex) {
-        let $attackDamage = $('<div>', {class: 'attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase(), text: damage}); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
+        let $attackDamage = $('<div>', {
+            class: 'attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase(),
+            text: damage
+        }); // 서로 데미지가 겹칠수 있어 actor-1 로 구분
         if (additionalDamages[attackIndex]) {
             additionalDamages[attackIndex].forEach(function (additionalDamage, additionalIndex) {
                 // 공격 타수마다 맞게 추격 붙여줌
-                $attackDamage.append($('<div>', {class: 'additional-damage element-type-' + elementType.toLowerCase(), text: additionalDamage}));
+                $attackDamage.append($('<div>', {
+                    class: 'additional-damage element-type-' + elementType.toLowerCase(),
+                    text: additionalDamage
+                }));
             })
         }
         $attackDamageWrapper.append($attackDamage).prependTo($('#damageContainer'));
     })
 
-    // 일반공격 이펙트 길이
-    let attackDuration = $attackMotionVideo.get(0).duration * 1000 - 100; // ms 변환 및 100ms 영상보정
-    let attackHitDuration = attackDuration / attackHitCount;
-
-    console.log('attackhitcount', attackHitCount)
-
     // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
-    let attackHitPlayCount = 0;
-    if (attackHitCount > 0) {
-        // 적 idle 및 damaged 모션 클래스 찾기
-        let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
-        let idleMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
-        console.log('===========================================================================')
-        console.log('standbyMoveClassName', standbyMoveClassName, 'idleMoveClassName', idleMoveClassName);
-        let damagedMoveClassName = standbyMoveClassName === 'none' ?
-            MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
-        // 클래스로 비디오 찾기
-        let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
-        let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
-
-        console.log('video', $enemyDamagedVideo, $enemyDamagedVideo)
-
-        let attackHitProcessInterval = null;
-        let hitIntervalCallback = function () {
-            // idle 숨기고 damaged 재생
-            !$enemyIdleVideo.hasClass('hidden') && $enemyIdleVideo.addClass('hidden'); // idle 숨김 (인터벌 전에 숨기면 플리커)
-            let enemyDamagedVideoElement = $enemyDamagedVideo.removeClass('hidden').get(0);
-            enemyDamagedVideoElement.currentTime = 0; // 빼면 부자연스러워짐
-            enemyDamagedVideoElement.play();
-
+    damages.forEach(function (damage, index) {
+        let startDelay = attackDuration / (damages.length + 1) * index;
+        setTimeout(function () {
+            // 적 피격 이펙트 재생
+            playVideo($enemyDamagedVideo, null, $enemyIdleVideo);
             // 데미지 표시
-            let $attackDamage = $('.attack-damage-wrapper.actor-' + charOrder + ' .attack-damage').eq(attackHitPlayCount);
-            console.log('attack damage', $attackDamage.get(0).outerHTML);
-            $attackDamage.fadeTo(10, 1).delay(600).fadeTo(400, 0);
-            console.log('playcount, hitocunt', attackHitPlayCount, attackHitCount)
-
-            if (++attackHitPlayCount >= attackHitCount) {
+            let $damage = $('.attack-damage-wrapper.actor-' + charOrder + ' .attack-damage').eq(index);
+            $damage.addClass('damage-show');
+            // 추가데미지 표시
+            $damage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
-                    // 히트수만큼 재생 완료했으면 모션 정상화, 데미지 전체 제거 후 인터벌 클리어
-                    $enemyIdleVideo.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
-                    $enemyDamagedVideo.addClass('hidden');
+                    $(additionalDamage).show().addClass('damage-show'); // 추가데미지는 부모와의 fadeIn 겹침을 피하기 위해 display none 설정되어있음
+                }, index + 100);
+            });
 
-                    setTimeout(function () {
-                        // 페이드 아웃후 데미지 제거
-                        $('.attack-damage-wrapper.actor-' + charOrder).remove();
-                    }, 1000);
-                    clearInterval(attackHitProcessInterval);
-                }, enemyDamagedVideoElement.duration * 1000 + 100); // 마지막 enemyDamagedVideoElement.play() 가 씹히는걸 방지
+            if (index >= damages.length - 1) {
+                // 데미지 제거 (3번째까지, 후행동 공격은 제거하지 않도록
+                setTimeout(function () {
+                    $('.attack-damage-wrapper.actor-' + charOrder).slice(0, 3).remove();
+                }, 1000); // 마지막 데미지 페이드아웃 딜레이 대기
             }
+        }, startDelay)
+    })
 
-        }
-        hitIntervalCallback(); // 첫번째 즉시실행
-        attackHitProcessInterval = attackHitPlayCount < attackHitCount ? setInterval(hitIntervalCallback, attackHitDuration + 50) : null;
-    }
+    // 일반공격후 스테이터스 갱신은 현재 없음.
 
     let totalEndTime = attackDuration;
-    console.log("total = " + totalEndTime)
+    console.log("[processAttack] total = " + totalEndTime)
     // 최종종료
     return new Promise(resolve => setTimeout(function () {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
     }, totalEndTime + 500));
-
-    // 현재 일반공격의 스테이터스 갱신은 없음
 }
 
 
@@ -199,7 +175,10 @@ function processEnemyAttack(responseAttackData) {
         if (additionalDamages[damageIndex]) {
             additionalDamages[damageIndex].forEach(function (additionalDamage, additionalIndex) {
                 // 공격 타수마다 맞게 추격 붙여줌
-                $attackDamage.append($('<div>', {class: 'damage additional-damage' + ' element-type-' + elementTypes[damageIndex].toLowerCase(), text: additionalDamage}));
+                $attackDamage.append($('<div>', {
+                    class: 'damage additional-damage' + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
+                    text: additionalDamage
+                }));
             })
         }
         $attackDamage.delay(effectDelay) // 각 공격 종료 다음에 데미지가 나와야함
