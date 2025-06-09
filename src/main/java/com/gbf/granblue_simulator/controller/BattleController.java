@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.response.CharacterInfo;
 import com.gbf.granblue_simulator.controller.response.EnemyInfo;
+import com.gbf.granblue_simulator.controller.response.EnemyVideoInfo;
 import com.gbf.granblue_simulator.controller.response.SummonInfo;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
@@ -19,6 +20,7 @@ import com.gbf.granblue_simulator.repository.RoomRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
 import com.gbf.granblue_simulator.repository.actor.*;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -176,11 +178,11 @@ public class BattleController {
 
         Map<String, String> firstCharacterAudioSrcMap = new HashMap<>();
         firstCharacterMoves.forEach(move -> {
-            firstCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            firstCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
             String voiceAudioSrc = move.getAsset().getVoiceAudioSrc();
             if (voiceAudioSrc != null && !voiceAudioSrc.isEmpty()) {
                 // 현재 보이스는 없을 수 있음 TODO 향후 모두 존재하도록 변경 예정
-                firstCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+                firstCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " voice");
             }
         });
         firstCharacterAudioSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
@@ -206,18 +208,18 @@ public class BattleController {
 
         Map<String, String> secondCharacterAudioSrcMap = new HashMap<>();
         secondCharacterMoves.forEach(move -> {
-            secondCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+            secondCharacterAudioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
             String voiceAudioSrc = move.getAsset().getVoiceAudioSrc();
             if (voiceAudioSrc != null && !voiceAudioSrc.isEmpty()) {
                 // 현재 보이스는 없을 수 있음 TODO 향후 모두 존재하도록 변경 예정
-                secondCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName());
+                secondCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " voice");
             }
         });
         model.addAttribute("secondCharacterAudioSrcMap", secondCharacterAudioSrcMap);
 
         // 적의 effectVideo 를 key = effectVideoSrc, value = [MoveType.parentType.className, MoveType.className1 , ...] 인 Map 으로 변환
         // ex) 같은 effectVideoSrc (standby-1.webm) 을 가지는 STAND_BY_A, STAND_BY_D 의 경우 value 를 [standby, standby-a, standby-d] 로 묶는다.
-        Map<String, List<String>> enemyVideoSrcMap = new HashMap<>();
+        Map<String, EnemyVideoInfo> enemyVideoSrcMap = new HashMap<>();
         enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
                 .collect(Collectors.groupingBy(
                         move -> move.getAsset().getEffectVideoSrc(),
@@ -228,8 +230,12 @@ public class BattleController {
                                             .map(move -> move.getType().getClassName())
                                             .toList());
                                     String parentClassName = moves.getFirst().getType().getParentType().getClassName();
+                                    Integer hitEffectDelay = moves.getFirst().getAsset().getEffectHitDelay();
                                     classNames.add(parentClassName);
-                                    return classNames;
+                                    return EnemyVideoInfo.builder()
+                                            .effectHitDelay(hitEffectDelay)
+                                            .classNames(classNames)
+                                            .build();
                                 }
                         )
                 )));

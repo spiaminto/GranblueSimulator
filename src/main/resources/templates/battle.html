@@ -23,11 +23,9 @@
   <link href="/static/css/battle/ability-rail.css" rel="stylesheet">
   <link href="/static/css/battle/battle-member-present.css" rel="stylesheet">
   <style>
-
       .container-bg {
           z-index: -100;
       }
-
 
   </style>
   <script src="https://code.jquery.com/jquery.min.js"></script>
@@ -36,7 +34,6 @@
   <script src="/static/js/battle/common.js"></script>
   <script src="/static/js/battle/process-turn.js"></script>
   <script src="/static/js/battle/attack.js"></script>
-  <script src="/static/js/battle/enemy.js"></script>
   <script src="/static/js/battle/ability.js"></script>
   <script src="/static/js/battle/audio-player.js"></script>
   <script src="/static/js/battle/ability-rail.js"></script>
@@ -57,7 +54,6 @@
           $('.menu-button-wrapper button').on('click', {formChangeResponse: "hello"}, processEnemyChargeAttackPreEffect);
 
 
-
           // 테스트용 흔들기
           function triggerShake() {
               let $videoContainer = $('#videoContainer');
@@ -68,7 +64,6 @@
                   $videoContainer.removeClass('shake-right-effect');
               }, 200);
           }
-
 
           // 소환석 창 크기 조정
           // let resizeTimer;
@@ -230,45 +225,6 @@
               };
           }
 
-          // stanby 등 깜빡이는 영상은 이걸로 해결
-          // const videos = document.querySelectorAll(".enemy-video.idle:not(.idle-default)");
-          // videos.forEach(video => video.addEventListener('timeupdate', refreshVideo))
-          // function refreshVideo() {
-          //     console.log('timeUpdate', this.currentTime)
-          //     this.loop = false;
-          //     if (this.currentTime >= this.duration - 0.3) {
-          //         this.currentTime = 0;
-          //         this.play();
-          //     }
-          // }
-
-          // 평타 모션 속도조정
-          // $('.motion-attack').each(function (index, item) {
-          //     $(item).prop('playbackRate', '0.9');
-          // })
-
-          // 오디오 뮤트 해제
-          // $('audio').each(function (index, item) {
-          //     console.log("unmute " + item.muted + " to " + !item.muted)
-          //     console.log(item);
-          //     item.muted = !item.muted;
-          //     item.muted = false;
-          //     console.log(item);
-          //     $(item).prop('muted', false);
-          //     console.log(item);
-          // })
-
-          // 어빌리티 duratinon 로드를 위해 미리 재생 및 data-duration 추가
-          // $('.motion-ability').each(function (index, item) {
-          //     let abilityVideo = $(this).get(0);
-          //     abilityVideo.play();
-          //     abilityVideo.addEventListener('durationchange', function () {
-          //         let duration = abilityVideo.duration;
-          //         this.dataset.duration = duration;
-          //     })
-          // })
-
-
       });
   </script>
   <link rel="stylesheet" href="../static/css/battle/ability.css">
@@ -384,12 +340,13 @@
 
       <div class="enemy-video-container" th:data-phase="${enemyInfo.getPhase()}"
            th:data-initial-move-class="${enemyInfo.initialMoveType.className}"
-           th:data-standby-move-class="${enemyInfo.initialMoveType.parentType.className.equals('standby') ? enemyInfo.initialMoveType.className : 'none'}"
-      >
+           th:data-standby-move-class="${enemyInfo.initialMoveType.parentType.className.equals('standby') ? enemyInfo.initialMoveType.className : 'none'}">
         <video class="hidden enemy-video" muted playsinline preload="auto"
-               th:each="entry : ${enemyVideoSrcMap}" th:data-move-type="${entry}"
+               th:each="entry : ${enemyVideoSrcMap}"
+               th:data-move-type="${entry}"
                th:src="${entry.key}"
-               th:classappend="${#strings.listJoin(entry.value, ' ')}">
+               th:data-effect-hit-delay="${entry.value.effectHitDelay}"
+               th:classappend="${#strings.listJoin(entry.value.classNames, ' ')}">
         </video>
       </div>
       <div class="party-video-container">
@@ -419,19 +376,6 @@
 
 
       <div class="global-video-container">
-        <!--        <audio class='party-global-audio ability-start-se' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
-        <!--               muted="muted"></audio>-->
-        <!--        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
-        <!--               muted="muted"></audio>-->
-        <!--        <audio class='party-global-audio ability' src="/static/assets/audio/se/gl/ability/gl-ability-start.mp3"-->
-        <!--               muted="muted"></audio>-->
-        <!--        <video muted playsinline-->
-        <!--               class="party party-global hidden motion-none-idle motion-buff"-->
-        <!--               src="/static/assets/mov/gl/gl-buff-motion-0.webm"-->
-        <!--               width="100%">-->
-        <!--        </video>-->
-
-
         <video muted playsinline
                class="global-video hidden enemy-video enemy-charge-attack-start"
                src="/static/assets/video/gl/enemy-charge-attack-start.webm"
@@ -442,33 +386,40 @@
                src="/static/assets/video/gl/enemy-power-up.webm"
                width="100%">
         </video>
+        <video muted playsinline
+               class="global-video hidden enemy-video enemy-ct-max"
+               src="/static/assets/video/gl/enemy-ct-max.webm"
+               width="100%">
+        </video>
       </div>
       <div class="global-audio-container">
         <audio class="audio enemy-charge-attack-start"
                src="/static/assets/audio/gl/enemy-charge-attack-start.mp3"></audio>
         <audio class="audio enemy-power-up"
                src="/static/assets/audio/gl/enemy-power-up.mp3"></audio>
+        <audio class="audio enemy-ct-max"
+               src="/static/assets/audio/gl/enemy-ct-max.mp3"></audio>
       </div>
 
-    </div>
+    </div> <!-- #videoContainer -->
 
     <!-- 적 피격 데미지 -->
     <div id="damageContainer" class="battle-canvas">
       <!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
-      <!--              <div class="attack-damage-wrapper actor-1">-->
-      <!--                <div class="damage attack-damage element-type-water " style="opacity: 1">123123-->
-      <!--                  <div class="damage additional-damage element-type-water " style="opacity: 0.99">22222</div>-->
-      <!--                  <div class="damage additional-damage element-type-water ">33333</div>-->
-      <!--                </div>-->
-      <!--                <div class="damage attack-damage">234234-->
-      <!--                  <div class="damage additional-damage" >44444</div>-->
-      <!--                  <div class="damage additional-damage">55555</div>-->
-      <!--                </div>-->
-      <!--                <div class="damage attack-damage">345345-->
-      <!--                  <div class="damage additional-damage">66666</div>-->
-      <!--                  <div class="damage additional-damage">77777</div>-->
-      <!--                </div>-->
-      <!--              </div>-->
+      <!--      <div class="attack-damage-wrapper actor-2">-->
+      <!--        <div class="attack-damage actor-2 element-type-water damage-show">23906</div>-->
+      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">23906-->
+      <!--          <div class="additional-damage element-type-water damage-show">4780</div>-->
+      <!--        </div>-->
+      <!--        <div class="attack-damage actor-2 element-type-water damage-show">24034</div>-->
+      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">24034-->
+      <!--          <div class="additional-damage element-type-water damage-show">4816</div>-->
+      <!--        </div>-->
+      <!--        <div class="attack-damage actor-2 element-type-water damage-show">24087</div>-->
+      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">24087-->
+      <!--          <div class="additional-damage element-type-water damage-show">4787</div>-->
+      <!--        </div>-->
+      <!--      </div>-->
 
       <!-- max 12, 10에서 컷-->
       <div class="ability-damage-wrapper">
@@ -480,12 +431,22 @@
         <!--      <div class="charge-attack-damage">1000000</div>-->
       </div>
 
-      <div class="enemy-damage-wrapper">
-        <!--      <div class="damage enemy-attack-damage actor-1">123123-->
-        <!--        <div class="damage additional-damage">22222</div>-->
-        <!--        <div class="damage additional-damage">33333</div>-->
-        <!--      </div>-->
-      </div>
+
+<!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
+<!--      <div class="enemy-damage-wrapper actor-1">-->
+<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
+<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
+<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
+<!--        </div>-->
+<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
+<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
+<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
+<!--        </div>-->
+<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
+<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
+<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
+<!--        </div>-->
+<!--      </div>-->
 
     </div>
 

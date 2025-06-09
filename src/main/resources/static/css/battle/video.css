@@ -13,29 +13,34 @@ video {
 
 .party-video {
     position: absolute;
-    width:77%;
+    width:80%;
+}
+
+.party-video.attack.motion {
+    width: 100%;
+    z-index: 1;
 }
 
 .party-video-container .party-1 video {
-    top: 8%;
+    top: 6%;
     right: 3%;
     z-index: -4;
 }
 
 .party-video-container .party-2 video {
-    top: 21%;
+    top: 19%;
     right: -10%;
     z-index: -3;
 }
 
 .party-video-container .party-3 video {
-    top: 34%;
+    top: 32%;
     right: 3%;
     z-index: -2;
 }
 
 .party-video-container .party-4 video {
-    top: 47%;
+    top: 45%;
     right: -10%;
     z-index: -1;
 }
@@ -45,7 +50,7 @@ video {
 }
 
 .party-video-container .effect:not(.damaged) {
-    width: 100%;
+    width: 99%;
     top: 5%;
     left: 0;
     z-index: 2;

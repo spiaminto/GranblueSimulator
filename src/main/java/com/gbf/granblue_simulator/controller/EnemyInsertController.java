@@ -265,6 +265,7 @@ public class EnemyInsertController {
         Asset chargeAttackAsset = Asset.builder()
                 .effectVideoSrc(request.getEffectVideoSrc())
                 .seAudioSrc(request.getSeAudioSrc())
+                .effectHitDelay(request.getEffectHitDelay())
                 .move(chargeAttack)
                 .build();
         chargeAttackAsset = assetRepository.save(chargeAttackAsset);

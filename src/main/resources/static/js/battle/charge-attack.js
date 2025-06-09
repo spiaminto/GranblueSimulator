@@ -51,21 +51,22 @@ async function processChargeAttack(responseChargeAttackData) {
         class: 'charge-attack-damage element-type-' + elementType.toLowerCase(),
         text: damages[0]
     }));
-    // 이펙트 재생
-    $chargeAttackVideo.one('ended', function () {
+    // 이펙트 종료 직전부터 데미지, 피격이펙트 재생
+    let chargeAttackEffectHitDelay = chargeAttackDuration - 250; // 히트 시점을 끝나기 0.25초전으로
+    setTimeout(function () {
         // 적 피격 이펙트 재생
         playVideo($enemyDamagedVideo, null, $enemyIdleVideo);
-        // 화면 흔들기 (right down)
-        $('#videoContainer').addClass('shake-effect');
+        // 화면 흔들기
+        $('#videoContainer').addClass('push-left-down-effect');
         setTimeout(function () {
-            $('#videoContainer').removeClass('shake-effect');
+            $('#videoContainer').removeClass('push-left-down-effect');
         }, 150);
         // 데미지 표시 및 제거
         $('.charge-attack-damage-wrapper .charge-attack-damage').addClass('damage-show');
         setTimeout(function () {
             $('.charge-attack-damage-wrapper').empty();
         }, 1000);
-    });
+    }, chargeAttackEffectHitDelay);
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
@@ -90,15 +91,14 @@ async function processChargeAttack(responseChargeAttackData) {
 }
 
 async function processEnemyChargeAttackPreEffect() {
-    $('.global-video-container .enemy-charge-attack-start').one('ended', function () {
-        $(this).addClass('hidden');
-    }).removeClass('hidden').get(0).play();
+    let $chargeAttackPreEffectVideo = $('.global-video-container .enemy-charge-attack-start');
+    playVideo($chargeAttackPreEffectVideo, null, null);
     $('.global-audio-container .enemy-charge-attack-start').get(0).play();
 
     return new Promise(resolve => setTimeout(function () {
-        console.log('=================enemy chargeattack preffect done');
+        console.log('[processEnemyChargeAttackPreEffect] DONE');
         resolve();
-    }, 1000));
+    }, $chargeAttackPreEffectVideo.get(0).duration * 1000));
 }
 
 async function processEnemyChargeAttack(responseChargeAttackData) {
@@ -110,6 +110,8 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     let moveType = MoveType.byName(chargeAttackData.moveType);
     let chargeAttackHitCount = chargeAttackData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
     let damages = chargeAttackData.damages;
+    let additionalDamages = chargeAttackData.additionalDamages;
+    let hitCount = damages.length;
     let elementTypes = chargeAttackData.elementTypes;
     let chargeGauges = chargeAttackData.chargeGauges;
     let hps = chargeAttackData.hps;
@@ -117,7 +119,7 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     // 적 한정
     let targetOrders = chargeAttackData.enemyAttackTargetOrders;
     let isAllTarget = chargeAttackData.allTarget; // 전체공격여부
-    let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
+    let uniqueTargetOrders = [...new Set(targetOrders)];
 
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
@@ -133,82 +135,18 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
 
     // 준비
     let $chargeAttackVideo = $('.enemy-video-container .' + moveType.className);
+    let effectHitDelay = Number($chargeAttackVideo.attr('data-effect-hit-delay')); // 이펙트 시작 ~ 데미지 표시 까지 딜레이
+    let chargeAttackDuration = $chargeAttackVideo.get(0).duration * 1000;
+    let chargeAttackHitDuration = (chargeAttackDuration - effectHitDelay) / hitCount; // 1타가 사용할 길이
     let $idleDefaultVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className); // 차지어택 종료후 idle_default
-    let $standByIdleVideo = $('.enemy-video-container video:not(.hidden)');
-    console.log('ready', $chargeAttackVideo, $idleDefaultVideo)
-
-// EFFECT 이펙트 시작
-
-    // 오디오 재생
-    let enemyAudioPlayer = new AudioPlayer();
-    let audioSrcs = $('.enemy-audio-container .' + moveType.className).map(() => $(this).attr('src'));
-    enemyAudioPlayer.loadSounds(audioSrcs).then(() => enemyAudioPlayer.playAllSounds());
-
-    // TODO 아군 피격 보이스 재생
-
-    // 적 오의 이펙트 재생 (오디오 속도가 느리므로, 100ms 정도 딜레이 걸고 재생
-    setTimeout(function () {
-        $standByIdleVideo.addClass('hidden').get(0).pause(); // standby idle 모션 숨김
-        $chargeAttackVideo.removeClass('hidden').one('ended', function () {
-            $(this).addClass('hidden');
-            $idleDefaultVideo.removeClass('hidden').get(0).play(); // default idle 로 변경
-            // 데미지 엘리먼트 제거
-            setTimeout(function () {
-                $('.enemy-damage-wrapper').children().remove();
-            }, 1000);
-        }).get(0).play();
-    }, 100);
-
-    // 적 오의 길이 및 히트당 길이
-    let chargeAttackDuration = $chargeAttackVideo.get(0).duration * 1000 - 100;
-    let chargeAttackHitDuration = chargeAttackDuration / chargeAttackHitCount; // 히트당 길이는 데미지 표시용 1000ms 제외
-
-    //  데미지 마다 반복
-    console.log(targetOrders, isAllTarget)
-    damages.every(function (damage, damageIndex) {
-        let effectDelay = isAllTarget ?
-            chargeAttackHitDuration : // 오의가 전체공격인 경우 이펙트 종료후 1회만 데미지 발생
-            chargeAttackHitDuration * damageIndex; // 단일 타겟의 경우 공격
-        let targetOrder = isAllTarget ? targetOrders[damageIndex % targetOrders.length] : targetOrders[damageIndex]; // 데미지가 발생한 타겟순서, 전체타겟의 경우 1,2,3,4 만옴
-        console.log('targetorder', targetOrder, 'effectdelay', effectDelay);
-
-        if (isAllTargetSubstituted && damageIndex % targetOrders.length !== 0) {
-            // 전체공격 이면서 감싸기 && 데미지가 해당 타수의 첫번째가 아닌경우 ex) targetOrders = [1, 1, 1, 1, 1, 1, 1, 1] 전체공격, 타겟 4명, 타수2회, 조건 진입은 index 가 1, 2, 3, 5, 6, 7
-            let $attackDamage = $('.enemy-damage-wrapper .enemy-attack-damage.actor-' + targetOrder);
-            $attackDamage.text(Number.parseInt($attackDamage.text()) + damage);
-            let $additionalDamages = $attackDamage.find('.additional-damage:first');
-            $additionalDamages.text(Number.parseInt($additionalDamages));
-            return true; // 이후 처리 무시 (모션)
-        }
-
-        // 데미지 채우기 및 표시
-        let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
-            text: damage
-        });
-        $attackDamage.delay(effectDelay + 100 * damageIndex) // 2번부터 앞캐릭보다 100ms 딜레이 추가
-            .fadeTo(10, 1).delay(400).fadeTo(400, 0).appendTo($('.enemy-damage-wrapper'));
-
-        // 아군의 피격 이펙트 재생
-        let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);
-        let $targetDamagedVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.DAMAGED.className);
-        setTimeout(function () {
-            $targetDamagedVideo.removeClass('hidden').get(0).play(); // 재생할때 순서별로 약간씩 딜레이 100 추가
-            $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
-
-            // 아군 피격 모션을 idle 로 되돌림
-            setTimeout(function () {
-                $targetIdleVideo.removeClass('hidden');
-                $targetDamagedVideo.addClass('hidden');
-            }, isAllTarget ? 500 : chargeAttackHitDuration - 100); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨, 전체공격이면 500ms 만
-        }, effectDelay + 100 * damageIndex);
-
-        return true;
-    });
+    let standbyIdleClassName = MoveType.byClassName($('.enemy-video-container').attr('data-standby-move-class')).getIdleType().className;
+    let $standbyIdleVideo = $('.enemy-video-container .' + standbyIdleClassName);
+    // 준비 - 아군
+    let $partyDamagedVideos = $('.party-video-container .' + MoveType.DAMAGED.className); // 문서순서 = order 순서
+    let $partyIdleVideos = $('.party-video-container .' + MoveType.IDLE.className);
 
     // 적 비디오 컨테이너에 스탠바이 상태 해제
     $('.enemy-video-container').attr('data-standby-move-class', MoveType.NONE.className);
-
     // 전조 컨테이너 deActivate
     setTimeout(function () {
         $(".omen-container").removeClass('activated')
@@ -216,6 +154,67 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
             .find('.omen-prefix').text('')
             .find('.omen-value').text('');
     }, chargeAttackDuration);
+
+// EFFECT 이펙트 시작
+    // 오디오 재생
+    let audioSrc = $('.enemy-audio-container .' + moveType.className).attr('src');
+    let audioPlayer = new AudioPlayer();
+    audioPlayer.loadSound(audioSrc).then(() => {
+        audioPlayer.playAllSounds();
+    });
+
+    // 적 일반공격 이펙트 재생 (스탠바이 -> 차지어택 -> idle Default순)
+    $standbyIdleVideo.addClass('hidden').get(0).pause(); // 스탠바이 정지, 숨김
+    playVideo($chargeAttackVideo, null, $idleDefaultVideo);
+
+    // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
+    let $appendedEnemyDamageWrappers = [];
+    uniqueTargetOrders.forEach(targetOrder => {
+        $appendedEnemyDamageWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + targetOrder}).appendTo($('#damageContainer')));
+    })
+    //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
+    damages.forEach(function (damage, index) {
+        let startDelay = isAllTarget ? 0 : chargeAttackHitDuration * index; // 오의는 전체공격시 1타뿐이므로 0 (+ efectHitDelay)
+        let targetOrder = isAllTarget ? targetOrders[index % targetOrders.length] : targetOrders[index];
+        // 데미지 삽입
+        let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
+        let $attackDamage = $('<div>', {
+            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
+            text: damage
+        });
+        let $additionalDamage = $('<div>', {
+            class: 'damage enemy-additional-damage-wrapper actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
+            text: damage
+        }).append((additionalDamages[index] || []).map(additionalDamage =>  // 추격이 존재하면 붙임
+            $('<div>', {
+                class: 'damage additional-damage' + ' element-type-' + elementTypes[index].toLowerCase(),
+                text: additionalDamage
+            })
+        ))
+        $enemyDamageWrapper.append($attackDamage, $additionalDamage);
+
+        setTimeout(function () {
+            // console.log('[processEnemyChargeAttack] index = ', index, ' startDelay = ', startDelay, ' effectHitDelay = ', effectHitDelay);
+            // 데미지 표시
+            $attackDamage.addClass('enemy-damage-show');
+            // 추가데미지 표시
+            $additionalDamage.children().each(function (index, additionalDamage) {
+                setTimeout(function () {
+                    $(additionalDamage).addClass('enemy-damage-show');
+                }, index + 100);
+            });
+            // 아군 피격 재생
+            playVideo($partyDamagedVideos.eq(targetOrder - 1), null, $partyIdleVideos.eq(targetOrder - 1));
+            // 마지막 공격시 종료후 데미지 삭제.
+            if (index >= damages.length - 1) {
+                setTimeout(function () {
+                    $appendedEnemyDamageWrappers.forEach(function (wrapper) {
+                        $(wrapper).remove();
+                    })
+                }, 1000);
+            }
+        }, startDelay + effectHitDelay)
+    })
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
@@ -236,5 +235,5 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 500)); // 오의는 처리가 좀 늦음
+    }, totalEndTime + 100));
 }

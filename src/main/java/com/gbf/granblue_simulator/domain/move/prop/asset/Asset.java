@@ -21,8 +21,11 @@ public class Asset {
     private String voiceAudioSrc;
 
     private String effectVideoSrc;
+    @Builder.Default
+    private Integer effectHitDelay = 0; // 이펙트 ~ 히트 까지 간격(ms). 이 딜레이 이후로 피격이펙트 표시 (일부 적의 오의)
     private String motionVideoSrc;
-    private boolean motionVideoFull;
+    @Builder.Default
+    private boolean motionVideoFull = false;
 
     private String iconImageSrc; // 어빌리티 아이콘, 소환석 포트레잇 및 기타
 

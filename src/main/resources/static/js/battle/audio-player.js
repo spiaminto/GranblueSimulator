@@ -47,4 +47,15 @@ class AudioPlayer {
             this.playSound(index);
         })
     }
+
+    /**
+     * (추격이 있는) 평타 사운드 재생
+     */
+    playAttackSounds() {
+        this.buffers.forEach((audioBuffer, index) => {
+            index <= 1 ? // 0 : voice, 1 ~ effect
+                this.playSound(index) :
+                setTimeout(() => this.playSound(index), (index - 1) * 100);
+        })
+    }
 }

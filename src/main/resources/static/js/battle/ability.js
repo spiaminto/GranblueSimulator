@@ -34,17 +34,12 @@ function processAbility(responseAbilityData) {
     let damagedMoveClassName = standbyMoveClassName === 'none' ?
         MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
     let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
-    // 준비 - 오디오
-    let audioPlayers = new Map();
-    audioPlayers.set('char', new AudioPlayer());
-    audioPlayers.set('enemy', new AudioPlayer());
-    audioPlayers.set('global', new AudioPlayer());
-    let charAudioPlayer = audioPlayers.get('char');
 
 // EFFECT 시작
     // 오디오 재생
+    let audioPlayer = new AudioPlayer();
     let audioSrcs = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(audio => audio.src);
-    charAudioPlayer.loadSounds(audioSrcs).then(() => charAudioPlayer.playAllSounds());
+    audioPlayer.loadSounds(audioSrcs).then(() => audioPlayer.playAllSounds());
 
     // 아군 이펙트, 모션 재생
     if (abilityEffectVideo) {
@@ -108,7 +103,7 @@ function processAbility(responseAbilityData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 500));
+    }, totalEndTime + 100));
 }
 
 
@@ -120,6 +115,7 @@ function processEnemyAbility(responseAbilityData) {
     let moveType = MoveType.byName(abilityData.moveType);
     let abilityHitCount = abilityData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
     let damages = abilityData.damages;
+    let additionalDamages = abilityData.additionalDamages;
     let elementTypes = abilityData.elementTypes;
     let chargeGauges = abilityData.chargeGauges;
     let hps = abilityData.hps;
@@ -127,15 +123,13 @@ function processEnemyAbility(responseAbilityData) {
     // 적 한정
     let targetOrders = abilityData.enemyAttackTargetOrders;
     let isAllTarget = abilityData.allTarget; // 전체공격여부
-    let isAllTargetSubstituted = isAllTarget && targetOrders.every(target => target === targetOrders[0]) // 전체공격, 모든타겟 동일한경우
     let isEnemyPowerUp = abilityData.enemyPowerUp;
     let isEnemyCtMax = abilityData.enemyCtMax;
-
+    let uniqueTargetOrders = [...new Set(targetOrders)];
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
-    addedBuffStatusesList
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = abilityData.battleStatusList;
@@ -144,92 +138,88 @@ function processEnemyAbility(responseAbilityData) {
     let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
 
     // 준비 - 적
-    let $abilityVideo = $('.enemy-video-container .' + moveType.className);
-    let abilityDuration = $abilityVideo.get(0).duration * 1000 - 100;
-    let abilityHitDuration = abilityDuration / abilityHitCount; // 히트당 길이는 데미지 표시용 1000ms 제외
-    let $idleDefaultVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className); // 차지어택 종료후 idle_default
-    let $standByIdleVideo = $('.enemy-video-container video:not(.hidden)');
-    let audioSelector =
-        isEnemyPowerUp ? '.global-audio-container .enemy-power-up' :
-            isEnemyCtMax ? '.global-audio-container .enemy-ct-max ' : '.enemy-audio-container .' + moveType.className;
-    console.log('ready', $abilityVideo, $idleDefaultVideo)
+    let $abilityVideo =
+        isEnemyPowerUp ? $('.global-video-container .enemy-power-up') :
+            isEnemyCtMax ? $('.global-video-container .enemy-ct-max') :
+                $('.enemy-video-container .' + moveType.className);
+    let effectHitDelay = Number($abilityVideo.attr('data-effect-hit-delay')); // 이펙트 시작 ~ 데미지 표시 까지 딜레이
+    let abilityDuration = $abilityVideo.get(0).duration * 1000;
+    abilityDuration = $abilityVideo.hasClass('global-video') ? abilityDuration / 2 : abilityDuration; // 글로벌 이펙트의 경우 길이 반감
+    let abilityHitDuration = (abilityDuration - effectHitDelay) / abilityHitCount; // 히트당 길이는 데미지 표시용 1000ms 제외
+    let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
+    let idleMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
+    let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
+    // 준비 - 아군
+    let $partyDamagedVideos = $('.party-video-container .' + MoveType.DAMAGED.className); // 문서순서 = order 순서
+    let $partyIdleVideos = $('.party-video-container .' + MoveType.IDLE.className);
 
 // EFFECT 이펙트 시작
 
     // 오디오 재생
     let enemyAudioPlayer = new AudioPlayer();
+    let audioSelector =
+        isEnemyPowerUp ? '.global-audio-container .enemy-power-up' :
+            isEnemyCtMax ? '.global-audio-container .enemy-ct-max ' : '.enemy-audio-container .' + moveType.className;
     let audioSrcs = $(audioSelector).toArray().map(element => element.src);
     enemyAudioPlayer.loadSounds(audioSrcs).then(() => {
         enemyAudioPlayer.playAllSounds();
     });
 
-    //TODO 나중에 분리
-    if (isEnemyPowerUp) {
-        abilityDuration = $('.global-video-container .enemy-power-up').get(0).duration * 1000 / 2;
-        $('.global-video-container .enemy-power-up').one('ended', function () {
-            $(this).addClass('hidden');
-        }).removeClass('hidden').get(0).play();
-    }
+    // 이펙트 재생
+    let $playIdleVideo = isEnemyPowerUp || isEnemyCtMax ? null : $enemyIdleVideo; // 적 파워업 또는 CTMAX 의 경우 이펙트만 재생
+    playVideo($abilityVideo, null, $playIdleVideo);
 
-    // TODO 아군 피격 보이스 재생
-
-
-    // 적 서포트 어빌리티 이펙트 재생
-    if (isEnemyPowerUp || isEnemyCtMax) {
-        let videoSelector = isEnemyPowerUp ? '.global-audio-container .enemy-power-up' : '.global-audio-container .enemy-ct-max';
-        let $effectVideo = $(videoSelector);
-        abilityDuration = $effectVideo.get(0).duration; // 이펙트 길이로 갱신
-        playVideo($effectVideo);
-    } else {
-        playVideo($abilityVideo, null, $standByIdleVideo);
-    }
-
-    //  데미지 마다 반복
-    console.log('[processEnemyAbility] targetOrder = ', targetOrders, 'isAllTarget =', isAllTarget);
-    damages.every(function (damage, damageIndex) {
-        let effectDelay = isAllTarget ?
-            abilityHitDuration : // 전체공격인 경우 이펙트 종료후 1회만 데미지 발생
-            abilityHitDuration * damageIndex; // 단일 타겟의 경우 공격
-        let targetOrder = isAllTarget ? targetOrders[damageIndex % targetOrders.length] : targetOrders[damageIndex]; // 데미지가 발생한 타겟순서, 전체타겟의 경우 1,2,3,4 만옴
-        console.log('targetorder', targetOrder, 'effectdelay', effectDelay);
-
-        if (isAllTargetSubstituted && damageIndex % targetOrders.length !== 0) {
-            // 전체공격 이면서 감싸기 && 데미지가 해당 타수의 첫번째가 아닌경우 ex) targetOrders = [1, 1, 1, 1, 1, 1, 1, 1] 전체공격, 타겟 4명, 타수2회, 조건 진입은 index 가 1, 2, 3, 5, 6, 7
-            let $attackDamage = $('.enemy-damage-wrapper .enemy-attack-damage.actor-' + targetOrder);
-            $attackDamage.text(Number.parseInt($attackDamage.text()) + damage);
-            let $additionalDamages = $attackDamage.find('.additional-damage:first');
-            $additionalDamages.text(Number.parseInt($additionalDamages));
-            return true; // 이후 처리 무시 (모션)
-        }
-
-        // 데미지 채우기 및 표시
+    // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
+    let $appendedEnemyDamageWrappers = [];
+    uniqueTargetOrders.forEach(targetOrder => {
+        $appendedEnemyDamageWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + targetOrder}).appendTo($('#damageContainer')));
+    })
+    //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
+    damages.forEach(function (damage, index) {
+        let startDelay = isAllTarget ? 0 : abilityHitDuration * index; // 오의는 전체공격시 1타뿐이므로 0 (+ efectHitDelay)
+        let targetOrder = isAllTarget ?
+            targetOrders[index % targetOrders.length] :
+            targetOrders[index];
+        // 데미지 삽입
+        let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
         let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[damageIndex].toLowerCase(),
+            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
             text: damage
         });
-        $attackDamage.appendTo($('.enemy-damage-wrapper'))
-            .delay(effectDelay + 100 * damageIndex) // 이전 캐릭터보다 100ms 씩 딜레이
-            .fadeTo(10, 1).delay(400)
-            .fadeTo(400, 0, function () {
-                $(this).remove();
-            });
+        let $additionalDamage = $('<div>', {
+            class: 'damage enemy-additional-damage-wrapper actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
+            text: damage
+        }).append((additionalDamages[index] || []).map(additionalDamage =>  // 추격이 존재하면 붙임
+            $('<div>', {
+                class: 'damage additional-damage' + ' element-type-' + elementTypes[index].toLowerCase(),
+                text: additionalDamage
+            })
+        ))
+        $enemyDamageWrapper.append($attackDamage, $additionalDamage);
 
-        // 아군의 피격 이펙트 재생
-        let $targetIdleVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.IDLE.className);
-        let $targetDamagedVideo = $('.party-video-container .party-' + targetOrder + ' .' + MoveType.DAMAGED.className);
+        // 데미지 표시
         setTimeout(function () {
-            $targetDamagedVideo.removeClass('hidden').get(0).play(); // 재생할때 순서별로 약간씩 딜레이 100 추가
-            $targetIdleVideo.addClass('hidden'); // idle 보일경우 숨김
-
-            // 아군 피격 모션을 idle 로 되돌림
-            setTimeout(function () {
-                $targetIdleVideo.removeClass('hidden');
-                $targetDamagedVideo.addClass('hidden');
-            }, isAllTarget ? 500 : abilityHitDuration - 100); // 이건 이미 이펙트별 딜레이가 적용되어잇으로 공격 횟수별로 걸어주면 됨, 전체공격이면 500ms 만
-        }, effectDelay + 100 * damageIndex);
-
-        return true;
-    });
+            // 데미지 및 표시
+            $attackDamage.addClass('enemy-damage-show');
+            // 추가데미지 표시
+            $additionalDamage.children().each(function (index, additionalDamage) {
+                setTimeout(function () {
+                    $(additionalDamage).addClass('enemy-damage-show');
+                }, index + 100);
+            });
+            // 아군 피격 재생
+            playVideo($partyDamagedVideos.eq(targetOrder - 1), null, $partyIdleVideos.eq(targetOrder - 1));
+            // 마지막 공격시 종료후 데미지 삭제.
+            if (index >= damages.length - 1) {
+                setTimeout(function () {
+                    $appendedEnemyDamageWrappers.forEach(function (wrapper) {
+                        $(wrapper).remove();
+                    })
+                }, 1000);
+            }
+        }, startDelay + effectHitDelay)
+    })
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, abilityDuration);

@@ -20,6 +20,7 @@ public class EnemyChargeAttackRequest {
     private Integer randomStatusCount;
     private String effectVideoSrc;
     private String seAudioSrc;
+    private Integer effectHitDelay;
 
     private List<ChargeAttackStatus> statuses;
 
