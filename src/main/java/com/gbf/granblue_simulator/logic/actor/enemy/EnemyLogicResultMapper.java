@@ -155,6 +155,8 @@ public class EnemyLogicResultMapper {
                 .targetActorId(partyMembers.getFirst().getActor().getId()) // 적의 경우 타겟id 는 일단 아군 주인공으로 고정
                 .moveType(move.getType())
 
+                .currentTurn(mainActor.getMember().getCurrentTurn())
+
                 .hps(hps)
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
@@ -170,6 +172,7 @@ public class EnemyLogicResultMapper {
                 .isAllTarget(move.isAllTarget())
 
                 .totalHitCount(totalHitCount)
+                .attackMultiHitCount(damageLogicResult.getAttackMultiHitCount()) // 현재 적은 난격적용없으므로 1로 고정
                 .damages(damageLogicResult.getDamages())
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())

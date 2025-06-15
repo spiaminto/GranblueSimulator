@@ -8,6 +8,7 @@ import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.repository.actor.BattleEnemyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -25,37 +25,56 @@ import java.util.Optional;
 public class OmenLogic {
 
     /**
-     * 다음 전조를 결정
+     * 결정된 전조를 set
+     * @param enemy
+     * @param standby
+     * @return
+     */
+    public Move setStandbyMove(BattleEnemy enemy, Move standby) {
+        return setSanddbyMove(enemy, standby, null);
+    }
+
+    /**
+     * 결정된 전조를 set, 전조 해제 초기값 변경시 사용
+     * @param enemy
+     * @param standby
+     * @param modifiedInitialValue : 변경할 전조 해제 초기값
+     * @return
+     */
+    public Move setSanddbyMove(BattleEnemy enemy, Move standby, Integer modifiedInitialValue) {
+        if(standby == null) return null;
+        Omen omen = standby.getOmen();
+        enemy.setCurrentStandbyType(standby.getType());
+        if (omen.getOmenType() == OmenType.HP_TRIGGER) enemy.setLatestTriggeredHp(enemy.calcHpRate()); // 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
+
+        List<OmenCancelCond> omenCancelConds = omen.getOmenCancelConds();
+        OmenCancelCond omenCancelCond = omenCancelConds.get((int) (Math.random() * omenCancelConds.size()));
+        enemy.setOmenCancelCondIndex(omenCancelConds.indexOf(omenCancelCond));
+
+        Integer initialValue = modifiedInitialValue == null ? omenCancelCond.getInitValue() : modifiedInitialValue;
+        enemy.setOmenValue(initialValue);
+        return standby;
+    }
+
+    /**
+     * 다음 전조를 결정.
      *
      * @param enemy
      * @return Optional Move 전조.
      */
     public Optional<Move> determineStandbyMove(BattleEnemy enemy) {
         Move standby = null;
-        if (enemy.getNextIncantStandbyType() != null) {
-            // 영창기 : 로직 내부에서 설정된 다음 영창기를 발동
-            standby = enemy.getActor().getMoves().get(enemy.getNextIncantStandbyType());
-            enemy.setCurrentStandbyType(enemy.getNextIncantStandbyType());
-            log.info("[determineStandbyMove] INCANT_ATTACK, nextIncantStandbyType = {}", enemy.getNextIncantStandbyType());
-        } else {
-            // HP 트리거, CT기 : 트리거 조건을 확인하여 발동 
-            standby = this.getTriggeredOmen(enemy).map(
-                    triggeredOmen -> {
-                        Move triggeredStandby = triggeredOmen.getMove();
-                        enemy.setCurrentStandbyType(triggeredStandby.getType());
-                        if (triggeredOmen.getOmenType() == OmenType.HP_TRIGGER)
-                            enemy.setLatestTriggeredHp(triggeredOmen.getTriggerHp()); // 이전에 실행된 HP 트리거가 재실행 되지않도록 하기 위한 필드
-                        log.info("[determineStandbyMove] HP_TRIGGER OR CHARGE_ATTACK hpRate = {}, hpTriggerRate = {}, ct = {}, ctMax = {}", enemy.calcHpRate(), triggeredOmen.getTriggerHp(), enemy.getChargeGauge(), enemy.getMaxChargeGauge());
-                        return triggeredStandby;
-                    }).orElse(null);
-        }
-        if (standby != null) {
-            // 전조 있을시, 전조 해제조건 결정 (랜덤) 및 set
-            List<OmenCancelCond> omenCancelConds = standby.getOmen().getOmenCancelConds();
-            OmenCancelCond omenCancelCond = omenCancelConds.get((int) (Math.random() * omenCancelConds.size()));
-            enemy.setOmenCancelCondIndex(omenCancelConds.indexOf(omenCancelCond));
-            enemy.setOmenValue(omenCancelCond.getInitValue());
-        }
+        // 우선순위대로 전조를 결정
+        Omen triggeredOmen = null;
+        // 영창기 : 로직 내부에서 설정된 다음 영창기 존재시 발동
+        triggeredOmen = enemy.getNextIncantStandbyType() != null ? enemy.getActor().getMoves().get(enemy.getNextIncantStandbyType()).getOmen() : null;
+        // HP 트리거 : 발동 가능한 HP 트리거 확인 후 발동
+        triggeredOmen = triggeredOmen == null ? this.getValidHpTrigger(enemy).orElse(null) : triggeredOmen;
+        // 차지어택 : 차지게이지, HP 확인 후 발동
+        triggeredOmen = triggeredOmen == null ? this.getValidChargeAttack(enemy).orElse(null) : triggeredOmen;
+        log.info("[determineStandbyMove] nextIncantStandbyType = {}, hpRate = {}, ct = {}, ctMax = {}, triggeredOmen = {}", enemy.getNextIncantStandbyType(), enemy.calcHpRate(), enemy.getChargeGauge(), enemy.getMaxChargeGauge(), triggeredOmen);
+
+        standby = triggeredOmen != null ? triggeredOmen.getMove() : null;
         return Optional.ofNullable(standby);
     }
 
@@ -65,14 +84,37 @@ public class OmenLogic {
      * @param enemy
      * @return Omen HpTrigger or ChargeAttack
      */
-    protected Optional<Omen> getTriggeredOmen(BattleEnemy enemy) {
+    protected Optional<Omen> getValidHpTrigger(BattleEnemy enemy) {
+        double hpRate = enemy.calcHpRate();
+        double latestTriggeredHp = enemy.getLatestTriggeredHp();
         return enemy.getActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
                 .map(Move::getOmen)
-                .filter(omen -> enemy.calcHpRate() <= omen.getTriggerHp()) // 현 HP 에서 발생가능한 CT기 + HP트리거
-                .filter(omen -> !(omen.getOmenType() == OmenType.HP_TRIGGER && omen.getTriggerHp() >= enemy.getLatestTriggeredHp())) // HP 트리거중 이전 발동햇던 HP 트리거들 제거
-                .filter(omen -> !(omen.getOmenType() == OmenType.CHARGE_ATTACK && enemy.getChargeGauge() < enemy.getMaxChargeGauge())) // 차지어택 불가능할시 차지어택 제거
-                .min(Comparator.comparing(Omen::getTriggerHp).thenComparing(Omen::getOmenType)); // triggerHp, OmenType ordinal 오름차순으로 정렬 (HP 트리거 우선) CHECK OmenType ordinal 순서로 정렬함
+                .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER) // HP_TRIGGER만
+                // triggerHps 중 "아직 발동하지 않았고, 현재 HP 이하"인 값이 하나라도 있으면 통과
+                .filter(omen ->
+                        omen.getTriggerHps().stream()
+                                .anyMatch(triggerHp -> hpRate <= triggerHp && triggerHp < latestTriggeredHp)
+                )
+                // 트리거 가능한 HP 중 가장 높은 값들 뽑은뒤, 그중 제일 작은값을 고름 
+                // hpRate 가 39, latestTriggeredHP 가 60 일때 {50, 40}(=40) 과 {60, 45, 30}(=45) 중 {50, 40} 을 고름
+                .min(Comparator.comparing(omen ->
+                        omen.getTriggerHps().stream()
+                                .filter(triggerHp -> triggerHp >= hpRate && triggerHp < latestTriggeredHp)
+                                .min(Integer::compareTo)
+                                .orElse(Integer.MAX_VALUE)
+                ));
+    }
+
+    protected Optional<Omen> getValidChargeAttack(BattleEnemy enemy) {
+        if (enemy.getChargeGauge() < enemy.getMaxChargeGauge()) return Optional.empty();
+        double hpRate = enemy.calcHpRate();
+        return enemy.getActor().getMoves().values().stream()
+                .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
+                .map(Move::getOmen)
+                .filter(omen -> omen.getOmenType() == OmenType.CHARGE_ATTACK)
+                .filter(omen -> hpRate <= omen.getTriggerHps().getFirst()) // CT기는 트리거 1개
+                .max(Comparator.comparing(omen -> omen.getTriggerHps().getFirst()));
     }
 
     // onOtherMove 에서 실행될 전조처리

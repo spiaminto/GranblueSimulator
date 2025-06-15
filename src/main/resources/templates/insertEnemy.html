@@ -232,12 +232,14 @@
 
 <h2>attack</h2>
 <div class="attack-input-wrapper">
-  <p> isAllTarget 필요한경우 수정해야함 </p>
   <form id="attackInputForm">
     <div>enemyId</div>
     <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
     <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
 
     <h3>single</h3>
     <div>asset.effectVideo.src</div>
@@ -290,8 +292,8 @@
     <div>type: HIT_COUNT, ... / presentInfo: value 를 @ 로 대체한 적 체력 밑에 보여줄 문구</div>
     <textarea rows="3" class="form-control mb-2" type="text" name="omen.cancelConditions" placeholder=""></textarea>
 
-    <div>omen.triggerHp HP 트리거용 HP 비율</div>
-    <input class="form-control mb-2" type="number" name="omen.triggerHp" placeholder="">
+    <div>omen.triggerHp HP 트리거용 HP 비율 {90, 80, 70, ...}, CT기도 1개 입력해야함. 영창기는 100 </div>
+    <input class="form-control mb-2" type="text" name="omen.triggerHps" placeholder="">
 
     <div>asset.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="standbyEffectVideoSrc" placeholder="">
@@ -371,6 +373,8 @@
     <input class="form-control mb-2" type="text" name="type" placeholder="">
     <div>info 오의 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
     <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
     <div>damageRate 오의 히트수 (정수)</div>
@@ -467,6 +471,8 @@
     <input class="form-control mb-2" type="text" name="name" placeholder="">
     <div>info: 어빌리티 설명 텍스트 -> 현재 사용하지 않음</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
     <div>damageRate: 데미지 배율</div>
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
     <div>damageConstant: 데미지 고정값 (없으면 0)</div>
@@ -568,6 +574,8 @@
     <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
     <div>removable 소거불가, 해제불가, 회복불가 여부, 소거불가이면 false 가능이면 true</div>
     <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="" value="true">
+    <div>isResistible 필중여부, 필중이면 false 필중 아니면 true</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].isResistible" placeholder="" value="true">
 
 
     <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>

@@ -21,6 +21,7 @@ public class EnemyChargeAttackRequest {
     private String effectVideoSrc;
     private String seAudioSrc;
     private Integer effectHitDelay;
+    private String isAllTarget;
 
     private List<ChargeAttackStatus> statuses;
 
@@ -33,6 +34,7 @@ public class EnemyChargeAttackRequest {
         private String statusText;
         private Integer duration;
         private String removable;
+        private String isResistible;
         private String iconSrcs; // 엔터로 구분되는 src 들
 
 

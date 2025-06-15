@@ -19,6 +19,7 @@ public class EnemyAbilityRequest {
     private Integer hitCount;
     private Integer coolDown;
     private String duration;
+    private String isAllTarget;
 
 
     private String iconSrc;
@@ -40,6 +41,7 @@ public class EnemyAbilityRequest {
         private String statusText;
         private Integer duration;
         private String removable;
+        private String isResistible;
         private String iconSrcs;
 
         private String statusEffects; // type, value \n

@@ -44,7 +44,7 @@ public class BattleLogService {
 
         log.info("moveType = {}", moveParentType);
         List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndUserIdAndTargetActorId(roomId, userId, mainActor.getActor().getId());
-        battleLogs.forEach(b -> log.info("[battleLogService] battleLog = {}", b));
+//        battleLogs.forEach(b -> log.info("[battleLogService] battleLog = {}", b));
         damageSum = battleLogs.stream()
                 .filter(battleLog -> battleLog.getMoveType().getParentType() == moveParentType)
                 .mapToInt(battleLog -> battleLog.getDamages().stream()

@@ -2,40 +2,43 @@ class AudioPlayer {
     constructor() {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.buffers = [];
+        this.bufferCache = new Map(); // {src : string, audioBuffer : audioBuffer}
     }
 
     async loadSound(src) {
+        if (src == null || src === '') return;
+        if (this.bufferCache.has(src)) {
+            console.log('[AudioPlayer.loadSound] cache Hit src = ', src)
+            this.buffers.push(this.bufferCache.get(src));
+            return;
+        }
         const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
         this.buffers.push(audioBuffer);
+        this.bufferCache.set(src, audioBuffer);
     }
 
     async loadSounds(audioSrcs) {
         console.log('[AudioPlayer.loadSounds] audioSrcs = ', audioSrcs);
         if (audioSrcs.length > 0) {
-            const loadPromises = audioSrcs.map(src => this.loadSound(src));
-            await Promise.all(loadPromises);
+            for (const src of audioSrcs) {
+                await this.loadSound(src); // 원래 비동기로 했는데 캐시 생성해서 순차실행으로 변경
+            }
         } else {
             console.log('[AudioPlayer.loadSounds] invalid audioSrcs = ', audioSrcs);
         }
     }
 
-    playSound(index) {
-        // console.log('play sound index = ', index);
-        if (index < 0 || index >= this.buffers.length) {
-            console.error(`[AudioPlayer.playSound] Invalid audio index: ${index}`);
-            return;
-        }
-        const audioBuffer = this.buffers[index];
+    playSound(audioBuffer, delay = 0) {
         if (!audioBuffer) {
             console.error(`[AudioPlayer.playSound] Invalid audio Buffer: ${audioBuffer}`)
         }
         const source = this.audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(this.audioContext.destination);
-        source.start(0);
+        source.start(this.audioContext.currentTime + delay / 1000); // 단위가 s 단위라 ms 로 보내서 1000 으로 나눔
     }
 
     /**
@@ -43,19 +46,28 @@ class AudioPlayer {
      */
     playAllSounds() {
         // console.log('[AudioPlayer.playAllSounds] play all sounds', this.buffers);
-        this.buffers.forEach((audioBuffer, index) => {
-            this.playSound(index);
-        })
+        this.buffers.forEach((audioBuffer) => this.playSound(audioBuffer))
     }
 
     /**
-     * (추격이 있는) 평타 사운드 재생
+     * 평타 사운드 재생
+     * [보이스][이펙트][이펙트][이펙트][이펙트]...
+     * @param attackHitCount 공격 행동의 히트카운트 (데미지 갯수)
+     * @param attackMultiHitCount 난격타수 (난격 n회)
+     * @param attackDelay 계산된 본 공격 타수당 딜레이 (난격에 의해 크게 좌우되므로 입력받기로)
      */
-    playAttackSounds() {
+    playAttackSounds(attackHitCount, attackMultiHitCount, attackDelay) {
         this.buffers.forEach((audioBuffer, index) => {
-            index <= 1 ? // 0 : voice, 1 ~ effect
-                this.playSound(index) :
-                setTimeout(() => this.playSound(index), (index - 1) * 100);
+            if (index === 0) {
+                // 보이스
+                this.playSound(audioBuffer);
+            } else {
+                // 이펙트
+                let attackIndex = Math.floor((index - 1) / attackMultiHitCount);
+                let multiHitIndex = (index - 1) % attackMultiHitCount;
+                let totalDelay = (attackIndex * attackDelay) + (multiHitIndex * 115);
+                this.playSound(audioBuffer, totalDelay);
+            }
         })
     }
 }

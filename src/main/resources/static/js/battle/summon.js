@@ -53,11 +53,12 @@ function processSummon(responseSummonData) {
     let addedBattleStatusesList = summonData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = summonData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = summonData.battleStatusList;
-    // 아군(시전자) 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList[charOrder].length > 0 || addedBuffStatusesList[0].length > 0;
-    let hasDebuff = addedDebuffStatusesList[charOrder].length > 0 || addedDebuffStatusesList[0].length > 0;
 
     // 준비
     let partySelector = '.party-' + charOrder;
@@ -121,14 +122,10 @@ function processSummon(responseSummonData) {
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, summonEffectDuration);
 
-    /// 버프 이펙트 처리
-    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, summonEffectDuration);
-    let buffEndTime = summonEffectDuration + longestBuffDelay;
-
+    // 버프 이펙트 처리
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, summonEffectDuration);
     // 디버프 이펙트 처리
-    let debuffStartDelay = hasDebuff ? summonEffectDuration + longestBuffDelay : summonEffectDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
-    let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = Math.max(summonEffectDuration, buffEndTime, debuffEndTime);
     console.log('[processSummon] totalTime', totalEndTime, 'abilityDuration ', summonEffectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);

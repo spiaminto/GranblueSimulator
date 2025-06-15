@@ -42,6 +42,7 @@ public class Status {
     private Integer duration; // 효과시간
     @Accessors(fluent = true)
     private boolean removable; // 소거불가, 해제불가, 회복불가
+    private boolean resistible; // 필중인지 확인
 
     @OneToMany(mappedBy = "status") @MapKey(name = "type") @Builder.Default
     Map<StatusEffectType, StatusEffect> statusEffects = new LinkedHashMap<>();

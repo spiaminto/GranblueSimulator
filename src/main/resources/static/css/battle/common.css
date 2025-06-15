@@ -144,14 +144,14 @@ body .font-xxsm {
 /* 왼쪽 아래로 밀기 - 공격 */
 @keyframes push-left-down {
     0% { transform: translate(0, 0); }
-    50% { transform: translate(-2px, 2px); }
+    50% { transform: translate(-1px, 0px); }
     100% { transform: translate(0, 0); }
 }
 
 /* 오른쪽 아래로 밀기 - 피격 */
 @keyframes push-right-down {
     0% { transform: translate(0, 0); }
-    50% { transform: translate(2px, 2px); }
+    50% { transform: translate(1px, 0px); }
     100% { transform: translate(0, 0); }
 }
 
@@ -176,3 +176,5 @@ body .font-xxsm {
     animation: push-right-down 0.1s ease-out;
     animation-iteration-count: 1;
 }
+
+

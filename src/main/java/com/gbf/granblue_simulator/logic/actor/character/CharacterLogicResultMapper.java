@@ -117,6 +117,8 @@ public class CharacterLogicResultMapper {
                 .targetActorId(enemy.getActor().getId())
                 .moveType(move.getType())
 
+                .currentTurn(mainActor.getMember().getCurrentTurn())
+
                 .hps(hps)
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
@@ -124,6 +126,7 @@ public class CharacterLogicResultMapper {
                 .removedBattleStatusesList(removedStatusList)
 
                 .totalHitCount(totalHitCount)
+                .attackMultiHitCount(damageLogicResult.getAttackMultiHitCount())
                 .damages(damageLogicResult.getDamages())
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())

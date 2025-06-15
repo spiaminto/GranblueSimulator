@@ -62,7 +62,18 @@ public class BattleStatus {
      */
     public void addLevel(int level, boolean updateIcon) {
         this.level = Math.min(this.status.getMaxLevel(), this.level + level);
-        this.iconSrc = updateIcon ? this.status.getIconSrcs().get(level - 1) : this.iconSrc;
+        this.iconSrc = updateIcon ? this.status.getIconSrcs().get(this.level - 1) : this.iconSrc;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 들어온 level 값 만큼 자신의 level 을 감소 및 url 갱신
+     * @param level
+     * @param updateIcon
+     */
+    public void subtractLevel(int level, boolean updateIcon) {
+        this.level = Math.max(0, this.level - level);
+        this.iconSrc = updateIcon && this.level > 0 ? this.status.getIconSrcs().get(this.level - 1) : this.iconSrc;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -76,6 +87,14 @@ public class BattleStatus {
     public void resetDuration() {
         this.duration = this.status.getDuration();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 스테이터스 효과시간을 연장
+     * @param duration 연장할 턴 수
+     */
+    public void addDuration(int duration) {
+        this.duration += duration;
     }
 
     public void decreaseDuration() {

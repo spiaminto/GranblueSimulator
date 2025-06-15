@@ -64,11 +64,6 @@ public class Diaspora1Logic extends EnemyLogic {
     public List<ActorLogicResult> postProcessToPartyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult otherResult) {
         List<ActorLogicResult> results = new ArrayList<>();
 
-        if (!otherResult.getDamages().isEmpty()) {
-            // 적의 행동에 데미지 발생시 서포어비 1
-            results.add(firstSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY), otherResult));
-        }
-
         // 전조처리
         DefaultActorLogicResult omenResult = this.defaultOmen(mainActor, otherResult);
         if (omenResult.getResultMove() != null) {
@@ -79,11 +74,19 @@ public class Diaspora1Logic extends EnemyLogic {
             }
         }
 
+        if (!otherResult.getDamages().isEmpty()) {
+            // 적의 행동에 데미지 발생시 서포어비 1
+            results.add(firstSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY), otherResult));
+        }
         return results;
     }
 
     @Override
     public List<ActorLogicResult> postProcessToEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult enemyResult) {
+        // 자신의 자괴인자 STANDBY_B 가 해제됬을시 서포어비 5 발동 -> 자괴인자 레벨 감소
+        if (enemyResult.getMoveType() == MoveType.BREAK_B) {
+            return List.of(fifthSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.SECOND_SUPPORT_ABILITY), enemyResult));
+        }
         return Collections.emptyList();
     }
 
@@ -92,12 +95,22 @@ public class Diaspora1Logic extends EnemyLogic {
         BattleEnemy enemy = (BattleEnemy) mainActor;
         List<ActorLogicResult> results = new ArrayList<>();
 
+        // TEST 서포어비 4
+        results.add(fourthSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FOURTH_SUPPORT_ABILITY), null));
+
         // 서포어비 2
         secondSupportAbility(mainActor, partyMembers, null, null);
 
+        // 5의 배수턴 마다 자괴인자 발동
+        if ((mainActor.getMember().getCurrentTurn() + 1) % 5 == 0)
+            setStandbyBEveryFiveTurns(mainActor);
+
         // 전조발생
-        omenLogic.determineStandbyMove(enemy).ifPresent(standby ->
-                results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen())));
+        omenLogic.determineStandbyMove(enemy).ifPresent(standby -> {
+            omenLogic.setStandbyMove(enemy, standby);
+            results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen()));
+        });
+
         return results;
     }
 
@@ -106,9 +119,9 @@ public class Diaspora1Logic extends EnemyLogic {
     protected ActorLogicResult firstSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         MoveType otherMoveParentType = otherResult.getMoveType().getParentType();
         String matchingStatusName =
-                otherMoveParentType == MoveType.ATTACK ? "알파" :
-                        otherMoveParentType == MoveType.ABILITY ? "베타" :
-                                otherMoveParentType == MoveType.CHARGE_ATTACK ? "감마" : "해당 스테이터스 없음";
+                otherMoveParentType == MoveType.ATTACK ? "활성 『알파』" :
+                        otherMoveParentType == MoveType.ABILITY ? "활성 『베타』" :
+                                otherMoveParentType == MoveType.CHARGE_ATTACK ? "활성 『감마』" : "해당 스테이터스 없음";
         if (!matchingStatusName.equals("해당 스테이터스 없음")) {
             // 해당 공격 타입 누적데미지 합과 증가시킬 스테이터스
             Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveParentType);
@@ -123,7 +136,7 @@ public class Diaspora1Logic extends EnemyLogic {
             if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
                 // 스테이터스 레벨 상승 - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
-                resultMapper.toResultWithEffect(mainActor, partyMembers, ability, null, null, setStatusResult, true, false);
+                return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
             }
         }
         return resultMapper.emptyResult();
@@ -150,13 +163,13 @@ public class Diaspora1Logic extends EnemyLogic {
     }
 
     @Override
-    // 긴급 수복모드 종료시 자신에게 남아있는 활성레벨에 맞는 모드로 전환
+    // 긴급 수복모드 종료시 자신에게 남아있는 활성레벨에 맞는 모드로 전환, 자신에게 걸린 모든 디버프 해제
     protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         // 현재 활성 제거
         BattleStatus currentActivateStatus = statusUtil.getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
         String currentActivateStatusType = currentActivateStatus.getStatus().getName().substring(4, 6); // 활성 『알파』 에서 알파만 남김. 일단 구리지만 이렇게.
         setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
-        
+
         // 2회차 전조부터 붙어있는 긴급 수복모드 제거
         BattleStatus recoveryStatus = statusUtil.getBattleStatusByName(mainActor, "긴급 회복 시스템").orElse(null);
         setStatusLogic.removeBattleStatus(mainActor, recoveryStatus);
@@ -165,6 +178,20 @@ public class Diaspora1Logic extends EnemyLogic {
         Status modeStatus = statusUtil.getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusType);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(modeStatus));
 
+        return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
+    }
+
+    @Override // (전투시작시) 자신에게 활성 알파, 베타, 감마 부여
+    protected ActorLogicResult fourthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, ability.getStatuses());
+        return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
+    }
+
+    @Override
+    protected ActorLogicResult fifthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        SetStatusResult setStatusResult = statusUtil.getBattleStatusByName(mainActor, "자괴인자")
+                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
+                .orElse(null);
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }
 
@@ -181,8 +208,8 @@ public class Diaspora1Logic extends EnemyLogic {
         // 다음 폼으로 set
         mainActor.setActor(diaspora2);
         enemy.setCurrentForm(2);
-        // 폼 체인지 이전에 발생한 영창기를 중단 (폼 체인지 후 전조 갱신함)
-        enemy.setNextIncantStandbyType(null);
+        // 폼체인지 후 2페이즈의 인자방출 영창기 등록
+        enemy.setNextIncantStandbyType(MoveType.STANDBY_D);
 
         // 폼체인지 / 엔트리 / 모드전환 결과 반환
         List<ActorLogicResult> results = new ArrayList<>();
@@ -191,6 +218,20 @@ public class Diaspora1Logic extends EnemyLogic {
         results.add(thirdSupportAbilityResult);
         return results;
     }
+
+    // 기타 표시되지 않는 개인 로직 ======================================================================
+
+    /**
+     * 턴 종료시 5의 배수턴마다 자괴인자가 발동 (스테이터스로 표시)
+     *
+     * @param mainActor
+     */
+    protected void setStandbyBEveryFiveTurns(BattleActor mainActor) {
+        BattleEnemy battleEnemy = (BattleEnemy) mainActor;
+        if (battleEnemy.getNextIncantStandbyType() == null) // 긴급회복시스템 (STANDBY_D) 가 더 우선
+            battleEnemy.setNextIncantStandbyType(MoveType.STANDBY_B);
+    }
+
 }
 
 

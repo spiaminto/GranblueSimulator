@@ -30,7 +30,6 @@ public class SetStatusLogic {
     private final ChargeGaugeLogic chargeGaugeLogic;
     private final CalcStatusLogic calcStatusLogic;
 
-
     /**
      * Move 를 받아 해당 Move 의 Status 리스트를 타겟에 맞춰 BattleStatus 로 set
      * Move 에 '랜덤효과 N개 부여' 인 경우 적용하여 set
@@ -66,10 +65,10 @@ public class SetStatusLogic {
      * Status 리스트를 받아 타겟에 맞춰 BattleStatus 로 set 하며, StatusTargetType modifyingTargetType 을 추가로 받아 Status.targetType 대신 사용
      * 주로 SELF 스테이터스의 효과를 PARTY_MEMBERS 로 전체화 할때 사용한다.
      *
-     * @param mainActor    move 사용자 (enemy 도 가능)
+     * @param mainActor           move 사용자 (enemy 도 가능)
      * @param enemy
-     * @param partyMembers mainActor 를 포함한 전체 파티원
-     * @param statuses     Move.statuses 또는 임의의 Status
+     * @param partyMembers        mainActor 를 포함한 전체 파티원
+     * @param statuses            Move.statuses 또는 임의의 Status
      * @param modifyingTargetType 기존 Status.targetType 대신 사용할 타겟 타입
      */
     public SetStatusResult setStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, List<Status> statuses, StatusTargetType modifyingTargetType) {
@@ -80,6 +79,7 @@ public class SetStatusLogic {
      * 스테이터스를 적용하는 메인로직
      * 여기서 타겟을 정한 뒤 타겟별로 applyStatusToActor 를 실행해 발생한 Status 를 BattleStatus 로 변환하여 리스트에 담는다.
      * 디스펠 처리와 스테이터스 및 스텟 재계산 처리도 함.
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -107,12 +107,22 @@ public class SetStatusLogic {
 
         // Actor 별 적용된 Status 에 대한 후처리 ========================================
         // 아군에 대한 적의 디스펠 처리
-        List<List<BattleStatus>> partyMemberRemovedBattleStatus = processEnemyDispel(partyMembers);
-        boolean isPartyMemberDispelled = !partyMemberRemovedBattleStatus.isEmpty();
-
+        List<List<BattleStatus>> partyDispelledStatusesList = processEnemyDispel(partyMembers);
+        boolean isPartyMemberDispelled = !partyDispelledStatusesList.isEmpty();
         // 적에 대한 아군 메인캐릭터의 디스펠 처리 (원본도 디스펠 처리가 늦음)
-        List<BattleStatus> enemyRemovedBattleStatus = processMainActorDispel(enemy);
-        boolean enemyDispelled = !enemyRemovedBattleStatus.isEmpty();
+        List<BattleStatus> enemyDispelledStatuses = processMainActorDispel(enemy);
+        boolean enemyDispelled = !enemyDispelledStatuses.isEmpty();
+
+        // 적의 클리어 처리
+        List<BattleStatus> enemyClearedBattleStatuses = processEnemyClear(enemy); // 클리어된 디버프
+        // 아군의 클리어 처리
+        List<List<BattleStatus>> partyClearedStatusesList = processPartyMembersClear(partyMembers);
+
+        // 디스펠된 버프 + 클리어된 디버프
+        enemyDispelledStatuses.addAll(enemyClearedBattleStatuses);
+        partyDispelledStatusesList.forEach(
+                memberDispelledStatuses -> memberDispelledStatuses.addAll(partyClearedStatusesList.get(partyDispelledStatusesList.indexOf(memberDispelledStatuses)))
+        );
 
         // 스텟 재계산
         partyMembers.forEach(calcStatusLogic::syncStatus);
@@ -122,13 +132,13 @@ public class SetStatusLogic {
         // ============================================================================
 
         // 로깅
-        partyMemberAddedBattleStatus.forEach(addedStatuses -> log.info("addedStatuses = {}", addedStatuses));
+//        partyMemberAddedBattleStatus.forEach(addedStatuses -> log.info("partyMemberIndex = {}, addedStatuses = {}", partyMemberAddedBattleStatus.indexOf(addedStatuses), addedStatuses));
 
         return SetStatusResult.builder()
                 .enemyAddedStatuses(enemyAddedBattleStatus)
-                .enemyRemovedStatuses(enemyRemovedBattleStatus)
+                .enemyRemovedStatuses(enemyDispelledStatuses)
                 .partyMemberAddedStatuses(partyMemberAddedBattleStatus)
-                .partyMemberRemovedStatuses(partyMemberRemovedBattleStatus)
+                .partyMemberRemovedStatuses(partyDispelledStatusesList)
                 .partyMemberDispelled(isPartyMemberDispelled)
                 .enemyDispelled(enemyDispelled)
                 .build();
@@ -140,8 +150,10 @@ public class SetStatusLogic {
             case SELF -> resultTargets.add(mainActor);
             case ENEMY -> resultTargets.add(enemy);
             case PARTY_MEMBERS -> resultTargets.addAll(partyMembers);
-            case ALL_PLAYERS -> {}
-            case NEXT_CHARACTER -> {}
+            case ALL_PLAYERS -> {
+            }
+            case NEXT_CHARACTER -> {
+            }
             default -> throw new IllegalArgumentException("getTargets() Invalid target type: " + targetType);
         }
         return resultTargets;
@@ -152,13 +164,13 @@ public class SetStatusLogic {
      * 처리 결과에 따라 기존 BattleStatus, Miss BattleStatus, No Effect BattleStatus, 새로운 BattleStatus 를 반환하며
      * 새로 발생한 BattleStatus 의 경우 DB 에 저장한다.
      *
-     * @param mainActor 스테이터스를 발생시킨 대상
+     * @param mainActor   스테이터스를 발생시킨 대상
      * @param targetActor 스테이터스를 받은 대상
-     * @param status 발생한 스테이터스
+     * @param status      발생한 스테이터스
      * @return BattleStatus
      */
     protected BattleStatus applyStatusToActor(BattleActor mainActor, BattleActor targetActor, Status status) {
-        log.info("[applyStatusToActor] mainActorName = {}, targetActorName = {} , status = {} \n effects = {}",mainActor.getName(), targetActor.getName(), status, status.getStatusEffects());
+        log.info("[applyStatusToActor] mainActorName = {}, targetActorName = {} , \n status = {} \n effects = {}", mainActor.getName(), targetActor.getName(), status, status.getStatusEffects());
 
         // 디버프 명중처리
         if (status.getType() == StatusType.DEBUFF || status.getType() == StatusType.DEBUFF_FOR_ALL) {
@@ -175,7 +187,8 @@ public class SetStatusLogic {
         if (status.getStatusEffects().size() == 1 && status.getStatusEffects().get(StatusEffectType.NONE) == null) {
             BattleStatus coveringBattleStatus = statusUtil.getSameEffectTypeStatus(targetActor, status)
                     .map(battleStatus -> this.processDuplicatedEffectStatus(status, battleStatus)).orElseGet(() -> null);
-            if (coveringBattleStatus != null) return coveringBattleStatus; // 레벨제의 경우 갱신된 기존 효과, 기존효과가 상위인 경우 No Effect BattleStatus 바로 반환
+            if (coveringBattleStatus != null)
+                return coveringBattleStatus; // 레벨제의 경우 갱신된 기존 효과, 기존효과가 상위인 경우 No Effect BattleStatus 바로 반환
         }
 
         // 오의 게이지 업(반드시 하나의 StatusEffect 로 구성됨) 별도처리
@@ -205,6 +218,7 @@ public class SetStatusLogic {
      * @return 디버프 명중에 실패할 경우 MISS BattleStatus 반환, 명중하면 null (다음단계진행)
      */
     private BattleStatus processDebuffResistance(BattleActor mainActor, BattleActor targetActor, Status status) {
+        if (!status.isResistible()) return null; // 필중
         // 약체 명중 처리
         Double deBuffSuccessRate = mainActor.getDeBuffSuccessRate(); // 기본 약체명중 + 약체명중UP - 약체명중 DOWN (하한 0 상한 X)
         Double deBuffResistRate = targetActor.getDeBuffResistRate(); // 타겟 기본 약체내성 + 약체내성UP - 약체내성 DOWN (하한 -0.99 상한 x)
@@ -301,10 +315,10 @@ public class SetStatusLogic {
      */
     private List<BattleStatus> processMainActorDispel(BattleActor enemy) {
         List<BattleStatus> enemyRemovedBattleStatus = new ArrayList<>();
-        List<BattleStatus> enemyDispelBattleStatuses = statusUtil.getBattleStatusByStatusType(enemy, StatusType.DISPEL);
+        List<BattleStatus> enemyDispelBattleStatuses = statusUtil.getBattleStatuesByStatusType(enemy, StatusType.DISPEL);
         if (!enemyDispelBattleStatuses.isEmpty()) {
             // 디스펠 부여됨
-            BattleStatus enemyDispelBattleStatus = enemyDispelBattleStatuses.getFirst(); // 디스펠 중첩안됨.
+            BattleStatus enemyDispelBattleStatus = enemyDispelBattleStatuses.getFirst(); // 디스펠은 행동당 1회씩
             // 디스펠 효과적용
             List<BattleStatus> dispelledBattleStatus = enemy.getBattleStatuses().stream()
                     .filter(status -> status.getStatus().getType() == StatusType.BUFF && status.getStatus().removable())
@@ -314,8 +328,42 @@ public class SetStatusLogic {
             enemyRemovedBattleStatus.addAll(dispelledBattleStatus);
             enemy.getBattleStatuses().removeAll(dispelledBattleStatus);
             battleStatusRepository.deleteAll(dispelledBattleStatus);
+            enemy.getBattleStatuses().remove(enemyDispelBattleStatus);
             battleStatusRepository.delete(enemyDispelBattleStatus);
         }
+
+        //TODO BUFF_FOR_ALL 디스펠시 참전자 대상 처리
+        return enemyRemovedBattleStatus;
+    }
+
+    /**
+     * enemy 에게 부여된 BattleStatus 중 StatusType.CLEAR 또는 CLEAR_FOR_ALL 이 있는지 확인후 처리
+     *
+     * @param enemy
+     * @return
+     */
+    private List<BattleStatus> processEnemyClear(BattleActor enemy) {
+        List<BattleStatus> enemyRemovedBattleStatus = new ArrayList<>();
+        List<BattleStatus> enemyClearStatuses = statusUtil.getBattleStatuesByStatusType(enemy, StatusType.CLEAR);
+        List<BattleStatus> enemyClearForAllStatuses = statusUtil.getBattleStatuesByStatusType(enemy, StatusType.CLEAR_FOR_ALL);
+        BattleStatus clearStatus = // 클리어는 행동당 1회씩
+                !enemyClearStatuses.isEmpty() ? enemyClearStatuses.getFirst() :
+                        !enemyClearForAllStatuses.isEmpty() ? enemyClearForAllStatuses.getFirst() : null;
+        if (clearStatus != null) {
+            // 클리어 효과적용
+            List<BattleStatus> clearedBattleStatuses = enemy.getBattleStatuses().stream()
+                    .filter(status -> status.getStatus().getType().isDebuff() && status.getStatus().removable())
+                    .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
+                    .limit(clearStatus.getStatus().getStatusEffects().get(StatusEffectType.ACT_CLEAR).getValue().longValue())
+                    .toList(); // 해제될 디버프 (클리어의 value 값 갯수만큼만 최근에 추가된 디버프부터 해제함)
+            enemyRemovedBattleStatus.addAll(clearedBattleStatuses);
+            enemy.getBattleStatuses().removeAll(clearedBattleStatuses);
+            battleStatusRepository.deleteAll(clearedBattleStatuses);
+            enemy.getBattleStatuses().remove(clearStatus);
+            battleStatusRepository.delete(clearStatus);
+        }
+
+        //TODO CLEAR_FOR_ALL 적용시 참전자 대상 처리
         return enemyRemovedBattleStatus;
     }
 
@@ -328,23 +376,28 @@ public class SetStatusLogic {
     private List<List<BattleStatus>> processEnemyDispel(List<BattleActor> partyMembers) {
         List<List<BattleStatus>> partyMemberRemovedBattleStatus = IntStream.range(0, 4).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
         partyMembers.forEach(partyMember -> {
-            List<BattleStatus> dispelBattleStatuses = statusUtil.getBattleStatusByStatusType(partyMember, StatusType.DISPEL);
+            List<BattleStatus> dispelBattleStatuses = statusUtil.getBattleStatuesByStatusType(partyMember, StatusType.DISPEL);
             if (!dispelBattleStatuses.isEmpty()) {
                 // 디스펠 부여됨
-                List<BattleStatus> dispelGuardBattleStatues = statusUtil.getBattleStatusByStatusType(partyMember, StatusType.DISPEL_GUARD);
+                BattleStatus dispelBattleStatus = dispelBattleStatuses.getFirst(); // 디스펠은 행동당 1회씩
+                List<BattleStatus> dispelGuardBattleStatues = statusUtil.getBattleStatuesByStatusType(partyMember, StatusType.DISPEL_GUARD);
                 if (!dispelGuardBattleStatues.isEmpty()) {
                     // 디스펠 가드가 있으면 디스펠 무효
+                    BattleStatus dispelGuardBattleStatus = dispelGuardBattleStatues.getFirst(); // 디스펠 가드는 중첩불가
                     partyMemberRemovedBattleStatus.get(partyMember.getCurrentOrder() - 1).addAll(dispelGuardBattleStatues); // 결과에 추가
-                    battleStatusRepository.deleteAll(dispelBattleStatuses); // 디스펠 삭제
-                    battleStatusRepository.deleteAll(dispelGuardBattleStatues); // 디스펠가드 삭제
+                    partyMember.getBattleStatuses().removeAll(List.of(dispelGuardBattleStatus, dispelBattleStatus));
+                    battleStatusRepository.delete(dispelBattleStatus); // 디스펠 삭제
+                    battleStatusRepository.delete(dispelGuardBattleStatus); // 디스펠가드 삭제
                 } else {
                     // 디스펠 효과 적용
                     List<BattleStatus> dispelledBattleStatus = partyMember.getBattleStatuses().stream()
                             .filter(status -> status.getStatus().getType() == StatusType.BUFF && status.getStatus().removable())
                             .toList(); // 소거될 버프 (소거 가능한 버프 전체 소거)
                     partyMemberRemovedBattleStatus.get(partyMember.getCurrentOrder() - 1).addAll(dispelledBattleStatus); // 순서에 맞게 결과에 추가
+                    partyMember.getBattleStatuses().removeAll(dispelledBattleStatus);
                     battleStatusRepository.deleteAll(dispelledBattleStatus); // 디스펠 된 배틀 스테이터스 삭제
-                    battleStatusRepository.deleteAll(dispelBattleStatuses); // 디스펠 자체 삭제
+                    partyMember.getBattleStatuses().remove(dispelBattleStatus);
+                    battleStatusRepository.delete(dispelBattleStatus); // 디스펠 자체 삭제
                 }
             }
         });
@@ -352,13 +405,46 @@ public class SetStatusLogic {
     }
 
     /**
+     * partyMembers 각각에 부여된 BattleStatus 중 StatusType.CLEAR 또는 StatusType.CLEAR_FOR_ALL 이있는지 확인후 있으면 처리
+     *
+     * @param partyMembers
+     * @return partyMembers 에서 지워진 BattleStatus 를 order 에 맞게 넣은 리스트 (기본값 빈 리스트 4개 를 묶는 2차원 리스트)
+     */
+    private List<List<BattleStatus>> processPartyMembersClear(List<BattleActor> partyMembers) {
+        List<List<BattleStatus>> partyMemberRemovedBattleStatus = IntStream.range(0, 4).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
+        partyMembers.forEach(partyMember -> {
+
+            List<BattleStatus> clearBattleStatuses = statusUtil.getBattleStatuesByStatusType(partyMember, StatusType.CLEAR);
+            List<BattleStatus> clearForAllBattleStatuses = statusUtil.getBattleStatuesByStatusType(partyMember, StatusType.CLEAR_FOR_ALL);
+            BattleStatus clearStatus = // 클리어는 행동당 1회씩
+                    !clearBattleStatuses.isEmpty() ? clearBattleStatuses.getFirst() :
+                            !clearForAllBattleStatuses.isEmpty() ? clearForAllBattleStatuses.getFirst() : null;
+            if (clearStatus != null) {
+                // 클리어 효과 적용
+                List<BattleStatus> clearedBattleStatuses = partyMember.getBattleStatuses().stream()
+                        .filter(status -> status.getStatus().getType().isDebuff() && status.getStatus().removable())
+                        .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
+                        .limit(clearStatus.getStatus().getStatusEffects().get(StatusEffectType.ACT_CLEAR).getValue().longValue())
+                        .toList(); // 해제될 디버프 (클리어의 value 값 갯수만큼만 최근에 추가된 디버프부터 해제함)
+                partyMemberRemovedBattleStatus.get(partyMember.getCurrentOrder() - 1).addAll(clearedBattleStatuses); // 순서에 맞게 결과에 추가
+                partyMember.getBattleStatuses().removeAll(clearedBattleStatuses);
+                battleStatusRepository.deleteAll(clearedBattleStatuses); // 클리어 된 배틀 스테이터스 삭제
+                partyMember.getBattleStatuses().remove(clearStatus);
+                battleStatusRepository.delete(clearStatus); // 클리어 자체 삭제
+            }
+        });
+        return partyMemberRemovedBattleStatus;
+    }
+
+
+    /**
      * battleActor 의 battleStatus 중 statusIds 에 해당하는 모든 스테이터스의 레벨을 level 만큼 증가
      * 사용자에게 결과 반환 없이 임의로 레벨 조작시 사용
      *
-     * @param battleActor  증가시킬 대상
-     * @param level        증가량 (목표 값이 아님)
-     * @param updateIcons  아이콘 업데이트 여부 (현재 각각 지정은 미구현)
-     * @param statusIds    증가시킬 battleStatus 의 statusId
+     * @param battleActor 증가시킬 대상
+     * @param level       증가량 (목표 값이 아님)
+     * @param updateIcons 아이콘 업데이트 여부 (현재 각각 지정은 미구현)
+     * @param statusIds   증가시킬 battleStatus 의 statusId
      */
     public void addBattleStatusesLevel(BattleActor battleActor, int level, boolean updateIcons, Long... statusIds) {
         for (Long statusId : statusIds)
@@ -383,8 +469,58 @@ public class SetStatusLogic {
     }
 
     /**
+     * battleActor 의 battleStatus 중 statusId 에 해당하는 스테이터스의 레벨을 level 만큼 감소
+     * 레벨 감소의 경우 사용자에게 감소정보를 노출해야하기 때문에 SetStatusResult 를 반환
+     *
+     * @param battleActor
+     * @param level        감소량 (목표 값이 아님)
+     * @param updateIcon   아이콘 업데이트 여부
+     * @param battleStatus 레벨이 감소할 battleStatus
+     * @return setStatusResult
+     */
+    public SetStatusResult subtractBattleStatusLevel(BattleActor battleActor, int level, boolean updateIcon, BattleStatus battleStatus) {
+        List<BattleStatus> enemyAddedBattleStatuses = new ArrayList<>();
+        List<List<BattleStatus>> partyAddedBattleStatuses = IntStream.range(0, 4).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
+
+        battleStatus.subtractLevel(level, updateIcon);
+
+        if (battleStatus.getLevel() <= 0) {
+            battleStatusRepository.delete(battleStatus);
+            battleActor.getBattleStatuses().remove(battleStatus);
+        } else if (battleActor.isEnemy()) enemyAddedBattleStatuses.add(battleStatus);
+        else partyAddedBattleStatuses.get(battleActor.getCurrentOrder() - 1).add(battleStatus);
+
+        calcStatusLogic.syncStatus(battleActor); // 갱신
+        return SetStatusResult.builder()
+                .partyMemberAddedStatuses(partyAddedBattleStatuses)
+                .enemyAddedStatuses(enemyAddedBattleStatuses)
+                .build();
+    }
+
+    /**
+     * 배틀 스테이터스들의 효과를 모두 같은 duration 만큼 연장
+     *
+     * @param battleStatuses
+     * @param duration
+     */
+    public void extendBattleStatuses(List<BattleStatus> battleStatuses, Integer duration) {
+        battleStatuses.forEach(battleStatus -> this.extendBattleStatus(battleStatus, duration));
+    }
+
+    /**
+     * 배틀 스테이터스의 효과를 duration 만큼 연장
+     *
+     * @param battleStatus
+     * @param duration
+     */
+    public void extendBattleStatus(BattleStatus battleStatus, Integer duration) {
+        battleStatus.addDuration(duration);
+    }
+
+    /**
      * 배틀 스테이터스를 삭제. 참전자 전체 적용 스테이터스 삭제하는 메서드로 수정예정
      * 일반 제거가 아닌 로직으로 인한 제거에 사용. 소거불가도 이걸로 제거.
+     *
      * @param battleActor
      * @param battleStatuses
      */
@@ -395,13 +531,14 @@ public class SetStatusLogic {
     /**
      * 배틀 스테이터스를 삭제. 참전자 전체 적용 스테이터스 삭제하는 메서드로 수정예정
      * 일반 제거가 아닌 로직으로 인한 제거에 사용. 소거불가도 이걸로 제거.
+     *
      * @param battleActor
      * @param battleStatus
      */
     public void removeBattleStatus(BattleActor battleActor, BattleStatus battleStatus) {
         if (battleStatus == null) return;
-        battleStatusRepository.delete(battleStatus);
         battleActor.getBattleStatuses().remove(battleStatus);
+        battleStatusRepository.delete(battleStatus);
     }
 
     /**

@@ -8,6 +8,7 @@ public class EnemyAttackRequest {
 
     private Long enemyId;
     private ElementType elementType;
+    private boolean isAllTarget;
 
     // move - attack
     private String singleAttackSeAudioSrc;

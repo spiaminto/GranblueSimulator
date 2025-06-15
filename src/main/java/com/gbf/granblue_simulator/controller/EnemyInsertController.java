@@ -97,6 +97,7 @@ public class EnemyInsertController {
                 .type(MoveType.SINGLE_ATTACK)
                 .info("single attack")
                 .hitCount(1)
+                .isAllTarget(request.isAllTarget())
                 .actor(enemy)
                 .build();
         moveRepository.save(singleAttack);
@@ -113,6 +114,7 @@ public class EnemyInsertController {
                 .type(MoveType.DOUBLE_ATTACK)
                 .info("double attack")
                 .hitCount(2)
+                .isAllTarget(request.isAllTarget())
                 .actor(enemy)
                 .build();
         moveRepository.save(doubleAttack);
@@ -129,6 +131,7 @@ public class EnemyInsertController {
                 .type(MoveType.TRIPLE_ATTACK)
                 .info("triple attack")
                 .hitCount(3)
+                .isAllTarget(request.isAllTarget())
                 .actor(enemy)
                 .build();
         moveRepository.save(tripleAttack);
@@ -221,7 +224,10 @@ public class EnemyInsertController {
                 .name(request.getOmen().getName())
                 .omenType(OmenType.valueOf(request.getOmen().getType()))
                 .info(request.getOmen().getInfo())
-                .triggerHp(request.getOmen().getTriggerHp())
+                .triggerHps(Arrays.stream(request.getOmen().getTriggerHps().split(","))
+                                .map(String::trim)
+                                .map(Integer::parseInt)
+                                .toList())
                 .move(standby)
                 .build();
         omenRepository.save(omen);
@@ -253,6 +259,7 @@ public class EnemyInsertController {
                 .info(request.getInfo())
                 .elementType(request.getElementType())
                 .hitCount(request.getHitCount())
+                .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
                 .randomStatusCount(request.getRandomStatusCount())
                 .damageRate(request.getDamageRate() + 0.0)
                 .damageConstant(request.getDamageConstant())
@@ -284,6 +291,7 @@ public class EnemyInsertController {
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -321,6 +329,7 @@ public class EnemyInsertController {
                 .damageRate(request.getDamageRate())
                 .damageConstant(request.getDamageConstant())
                 .hitCount(request.getHitCount())
+                .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
                 .coolDown(request.getCoolDown())
                 .duration(request.getDuration())
                 .damageRate(null)
@@ -351,6 +360,7 @@ public class EnemyInsertController {
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();

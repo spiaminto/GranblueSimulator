@@ -170,6 +170,7 @@ public class InsertController {
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
@@ -237,6 +238,7 @@ public class InsertController {
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();
@@ -301,6 +303,7 @@ public class InsertController {
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(summonFinal)
                     .build();

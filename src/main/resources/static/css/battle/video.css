@@ -21,6 +21,10 @@ video {
     z-index: 1;
 }
 
+.party-video.charge-attack.motion {
+    z-index: 1;
+}
+
 .party-video-container .party-1 video {
     top: 6%;
     right: 3%;

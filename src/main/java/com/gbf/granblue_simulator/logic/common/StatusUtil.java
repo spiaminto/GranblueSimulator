@@ -51,10 +51,9 @@ public class StatusUtil {
     public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(BattleActor battleActor) {
         return this.getFlatStatusEffectStream(battleActor)
                 .collect(Collectors.groupingBy(
-                        StatusEffect::getType,
-                        mapping(Function.identity(), collectingAndThen(
-                                toList(), list -> list != null ? list : new ArrayList<>()
-                        )))
+                                StatusEffect::getType,
+                                mapping(Function.identity(), toList())
+                        )
                 );
     }
 
@@ -151,13 +150,13 @@ public class StatusUtil {
     }
 
     /**
-     * 해당 name 을 가진 BattleStatus 반환, findfirst, contains
+     * 해당 name 을 가진 BattleStatus 반환, contains
      *
      * @param battleActor
      * @param statusType
      * @return
      */
-    public List<BattleStatus> getBattleStatusByStatusType(BattleActor battleActor, StatusType statusType) {
+    public List<BattleStatus> getBattleStatuesByStatusType(BattleActor battleActor, StatusType statusType) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getType() == statusType)
                 .toList();
@@ -248,7 +247,6 @@ public class StatusUtil {
                 .findFirst();
         return matchedBattleStatus.filter(battleStatus -> battleStatus.getLevel() >= level).isPresent();
     }
-
 
 
     //    public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(BattleActor battleActor) {

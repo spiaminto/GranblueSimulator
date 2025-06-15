@@ -176,6 +176,13 @@ public class BattleActor {
     }
 
     /**
+     * 특정 스테이터스를 필중으로 만들기 위해 setStatus 에서 사용
+     */
+    public void setDebuffSuccessRateMax() {
+        this.deBuffSuccessRate = 9999.0;
+    }
+
+    /**
      * 어빌리티 쿨타임 진행
      */
     public void progressAbilityCoolDown() {

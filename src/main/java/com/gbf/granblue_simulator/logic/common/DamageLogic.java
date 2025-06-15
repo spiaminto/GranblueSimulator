@@ -29,6 +29,10 @@ public class DamageLogic {
     private final StatusUtil statusUtil;
     private final Map<ProcessType, BaseCap> baseCapMap = new HashMap<>();
 
+    public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
+        return processEnemy(mainActor, targetActors, move, null);
+    }
+
     /**
      * 적의 경우 아군과 달리 타겟을 설정한 뒤 모든 타겟에게 데미지가 발생하므로 별도 처리
      * 적의 공격은 배율변화 또는 히트수 변화 없음
@@ -38,16 +42,22 @@ public class DamageLogic {
      * @param move
      * @return DamageLogicResult: List<BattleActor> targetActors 와 동일순서, 1대1 대응하는 데미지결과
      */
-    public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
+    public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move, Double modifiedDamageRate) {
         ProcessType processType = determineProcessType(move.getType());
+
+        ElementType elementType = move.getElementType();
+        double damageRate = modifiedDamageRate == null ? move.getDamageRate() : modifiedDamageRate;
+        int damageConstant = move.getDamageConstant() != null ? move.getDamageConstant() : 0;
 
         List<Integer> resultDamages = new ArrayList<>();
         List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
         List<ElementType> damageElementTypes = new ArrayList<>();
+        int attackMultiHitCount = 1;
         int index = 0;
         do {
             for (BattleActor targetActor : targetActors) {
-                GetDamageResult getDamageResult = getEnemyDamage(mainActor, targetActor, processType, move);
+                GetDamageResult getDamageResult = getEnemyDamage(mainActor, targetActor, processType, elementType, damageRate, damageConstant);
+                attackMultiHitCount = getDamageResult.getAttackMultiHitCount();
                 if (getDamageResult.getDamages().size() > 1)
                     throw new IllegalStateException("적의 공격 데미지가 1회 초과로 발생하였습니다. size = " + getDamageResult.getDamages().size());
 
@@ -74,6 +84,7 @@ public class DamageLogic {
                 .damages(resultDamages)
                 .additionalDamages(resultAdditionalDamages)
                 .elementTypes(damageElementTypes)
+                .attackMultiHitCount(attackMultiHitCount)
                 .build();
     }
 
@@ -98,10 +109,8 @@ public class DamageLogic {
         return processType;
     }
 
-    protected GetDamageResult getEnemyDamage(BattleActor mainActor, BattleActor target, ProcessType processType, Move move) {
-        double damageRate = move.getDamageRate();
-        int damageConstant = move.getDamageConstant() != null ? move.getDamageConstant() : 0;
-        ElementType moveElementType = move.getElementType() != ElementType.RANDOM ? move.getElementType() : ElementType.getRandomElementType();
+    protected GetDamageResult getEnemyDamage(BattleActor mainActor, BattleActor target, ProcessType processType, ElementType moveElementType, double damageRate, int damageConstant) {
+        log.info("========== [getEnemyDamage] start calc enemy damage mainActorName = {}, targetName = {}", mainActor.getName(), target.getName());
 
         // 무속성 고정 데미지 일경우 즉시반환
         if (moveElementType == ElementType.NONE && damageConstant > 0)
@@ -111,38 +120,39 @@ public class DamageLogic {
                     .additionalDamages(Collections.emptyList())
                     .build();
 
+        int hitCount = 1; // 적의 공격은 1회 1히트가 원칙
+        int attackMultiHitCount = 1; // 현재 적은 난격효과를 적용하지 않음
         Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
         Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = statusUtil.getStatusEffectMap(mainActor);
 
         // 전처리
-        int mainActorAtk = mainActor.getAtk();
-        mainActorAtk = applyCriticalToAtk(mainActor.getCriticalRate(), mainActor.getCriticalDamageRate(), mainActorAtk);
-        mainActorAtk = applyElementTypeAdjustment(moveElementType, target.getElementType(), mainActorAtk);
-        double damage = atkToDamage(mainActorAtk, damageRate);
-        // 본 처리
+        double damage = atkToDamage(mainActor.getAtk(), damageRate);
+        damage = applyElementTypeAdjustment(moveElementType, target.getElementType(), damage);
+        damage = applyCriticalRate(mainActor.getCriticalRate(), mainActor.getCriticalDamageRate(), damage);
         damage = applyDef(target, damage);
-        damage = applyDamageCut(targetStatusMap, damage);
         damage = applyDamageCap(processType, mainActorStatusMap, damageRate, damage);
-        damage = applyDamageFix(targetStatusMap, damage);
+
         List<Double> additionalDamages = applyAdditionalDamage(mainActorStatusMap, damage);
 
         DamageDto damageDto = DamageDto.builder()
                 .damage(damage)
                 .additionalDamages(additionalDamages)
-                .hitCount(1) // 적의 공격은 한 타겟당 1타격이 원칙
                 .build();
 
         // 후처리
         damageDto = applyAmplifyAndSupplementalDamage(processType, mainActorStatusMap, targetStatusMap, damageDto);
-        damageDto = applyExDamageCap(processType, damageDto);
+        damageDto = applyDamageFix(targetStatusMap, damageDto);
+        damageDto = applyDamageCut(targetStatusMap, damageDto);
+        damageDto = applyExDamageCap(processType, damageDto, hitCount);
         // 최종처리
-        damageDto = applyHitCountAndRandom(damageDto);
+        damageDto = applyHitCountAndRandom(damageDto, hitCount, attackMultiHitCount);
 
-        log.info("=========enemy damage calc finished, processType = {} damage = {}", processType, damageDto);
+        log.info("========== [getEnemyDamage] enemy damage calc finished, mainActorName = {}, targetName = {}, processType = {} damageDto = {}, moveElementType = {}", mainActor.getName(), target.getName(), processType, damageDto, moveElementType);
         return GetDamageResult.builder()
                 .damages(damageDto.getResultDamages())
                 .additionalDamages(damageDto.getResultAdditionalDamages())
                 .elementTypes(List.of(moveElementType))
+                .attackMultiHitCount(attackMultiHitCount)
                 .build();
     }
 
@@ -189,76 +199,56 @@ public class DamageLogic {
         boolean isEnemyHpZero = targetActor.getHp() == 0;
 
         return DamageLogicResult.builder()
+                .elementTypes(damageElementTypes)
                 .damages(damages)
                 .additionalDamages(additionalDamages)
-                .elementTypes(damageElementTypes)
+                .attackMultiHitCount(getDamageResult.getAttackMultiHitCount())
                 .isEnemyHpZero(isEnemyHpZero)
                 .build();
     }
 
     protected GetDamageResult getDamage(BattleActor mainActor, BattleActor target, ProcessType processType, ElementType moveElementType, double damageRate, int hitCount) {
+        log.info("========== [getDamage] start calc party damage mainActorName = {}, targetName = {}", mainActor.getName(), target.getName());
         Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
         Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = statusUtil.getStatusEffectMap(mainActor);
+        int attackMultiHitCount = 1; // 난격 효과시 통상공격 갯수 (효과 있으면 2부터 시작)
+        List<Double> additionalDamages = new ArrayList<>(); // 추격
 
         // 전처리
-        int mainActorAtk = mainActor.getAtk();
-        mainActorAtk = applyCriticalToAtk(mainActor.getCriticalRate(), mainActor.getCriticalDamageRate(), mainActorAtk);
-        mainActorAtk = applyElementTypeAdjustment(moveElementType, target.getElementType(), mainActorAtk);
-        double damage = atkToDamage(mainActorAtk, damageRate);
-        // 본 처리
+        double damage = atkToDamage(mainActor.getAtk(), damageRate);
+        damage = applyElementTypeAdjustment(moveElementType, target.getElementType(), damage);
+        damage = applyCriticalRate(mainActor.getCriticalRate(), mainActor.getCriticalDamageRate(), damage);
         damage = applyDef(target, damage);
-        damage = applyDamageCut(targetStatusMap, damage);
         damage = applyDamageCap(processType, mainActorStatusMap, damageRate, damage);
-        damage = applyDamageFix(targetStatusMap, damage);
-        List<Double> additionalDamages = new ArrayList<>();
+
         if (processType == ProcessType.ATTACK) {
-            // 통상공격이면 추격 적용
+            // 통상공격이면 난격, 추격 적용
+            List<StatusEffect> attackMultiHitEffects = mainActorStatusMap.getOrDefault(StatusEffectType.ATTACK_MULTI_HIT, Collections.emptyList());
+            attackMultiHitCount = attackMultiHitEffects.isEmpty() ? 1 : attackMultiHitEffects.getFirst().getValue().intValue();
+            damage = applyAttackMultiHit(damage, attackMultiHitCount);
             additionalDamages = applyAdditionalDamage(mainActorStatusMap, damage);
         }
 
         DamageDto damageDto = DamageDto.builder()
                 .damage(damage)
                 .additionalDamages(additionalDamages)
-                .hitCount(hitCount)
                 .build();
 
         // 후처리
         damageDto = applyAmplifyAndSupplementalDamage(processType, mainActorStatusMap, targetStatusMap, damageDto);
-        damageDto = applyExDamageCap(processType, damageDto);
+        damageDto = applyDamageFix(targetStatusMap, damageDto);
+        damageDto = applyDamageCut(targetStatusMap, damageDto);
+        damageDto = applyExDamageCap(processType, damageDto, hitCount);
         // 최종처리
-        damageDto = applyHitCountAndRandom(damageDto);
+        damageDto = applyHitCountAndRandom(damageDto, hitCount, attackMultiHitCount);
 
-        log.info("=========damage calc finished, processType = {} damage = {}", processType, damageDto);
+        log.info("==========[getDamage] party damage calc finished, mainActorName = {}, targetActorName = {}, processType = {} damageDto = {}, attackMultiHitCount = {} elementTypes = {}", mainActor.getName(), target.getName(), processType, damageDto, attackMultiHitCount, moveElementType);
         return GetDamageResult.builder()
                 .elementTypes(List.of(moveElementType))
                 .damages(damageDto.getResultDamages())
                 .additionalDamages(damageDto.getResultAdditionalDamages())
+                .attackMultiHitCount(attackMultiHitCount)
                 .build();
-    }
-
-    /**
-     * 전처리 - 크리티컬 적용
-     */
-    protected int applyCriticalToAtk(double criticalRate, double criticalDamageRate, int atk) {
-        int result = (int) (atk * (Math.random() < criticalRate ? 1 + criticalDamageRate : 1));
-
-//        log.info("[applyCritical] criticalRate = {} criticalDamageRAte = {}, atk = {}", criticalRate, criticalDamageRate, atk);
-        return result;
-    }
-
-    /**
-     * 전처리 - 유리속성 보정
-     */
-    protected int applyElementTypeAdjustment(ElementType moveElementType, ElementType targetElementType, int atk) {
-        log.info("[applyElementTypeAdjustment] moveElementType = {}, targetElementType = {}, atk = {}", moveElementType, targetElementType, atk);
-        if (moveElementType.isAdvantageTo(targetElementType)) {
-            atk = (int) (atk * 1.5);
-        } else if (moveElementType.isDisadvantageTo(targetElementType)) {
-            atk = (int) (atk * 0.75);
-        } else {
-            // 무상성시 1배율
-        }
-        return atk;
     }
 
     /**
@@ -268,8 +258,33 @@ public class DamageLogic {
      * @return
      */
     protected double atkToDamage(int atk, double damageRate) {
-        log.info("[atkToDamage] atk = {}, damageRate = {}", atk, damageRate);
+        log.info("[atkToDamage] atk = {}, resultDamage = {},  damageRate = {}", atk, atk * damageRate, damageRate);
         return atk * damageRate;
+    }
+
+    /**
+     * 전처리 - 크리티컬 적용
+     */
+    protected double applyCriticalRate(double criticalRate, double criticalDamageRate, double damage) {
+        double resultDamage = damage * (Math.random() < criticalRate ? 1 + criticalDamageRate : 1);
+        log.info("[applyCritical] damage = {}, resultDamage = {},  criticalRate = {} criticalDamageRAte = {}",damage, resultDamage, criticalRate, criticalDamageRate);
+        return resultDamage;
+    }
+
+    /**
+     * 전처리 - 유리속성 보정
+     */
+    protected double applyElementTypeAdjustment(ElementType moveElementType, ElementType targetElementType, double damage) {
+        double resultDamage = 0;
+        if (moveElementType.isAdvantageTo(targetElementType)) {
+            resultDamage = damage * 1.5;
+        } else if (moveElementType.isDisadvantageTo(targetElementType)) {
+            resultDamage = damage * 0.75;
+        } else {
+            resultDamage = damage; // 무상성시 1배율
+        }
+        log.info("[applyElementTypeAdjustment] damage = {}, resultDamage = {}, moveElementType = {}, targetElementType = {}", damage, resultDamage, moveElementType, targetElementType);
+        return resultDamage;
     }
 
     /**
@@ -280,25 +295,10 @@ public class DamageLogic {
      * @return
      */
     protected double applyDef(BattleActor target, double damage) {
-        log.info("[applyDef] targetDef = {}", target.getDef());
         Integer targetDef = target.getDef();
-        return damage / targetDef;
-    }
-
-    /**
-     * 본처리 - 데미지에 데미지컷 적용
-     *
-     * @param statusEffects
-     * @param damage
-     * @return
-     */
-    protected double applyDamageCut(Map<StatusEffectType, List<StatusEffect>> statusEffects, double damage) {
-        List<StatusEffect> damageCutEffects = statusEffects.get(StatusEffectType.TAKEN_DAMAGE_CUT);
-        double damageCutRate = getSum(damageCutEffects);
-        // 상한 하한 처리
-        damageCutRate = Math.min(damageCutRate, 1.0); // 상한 100% 하한 X
-        log.info("[applyDamageCut] damageCutRate = {}", damageCutRate);
-        return damage * (1 - damageCutRate);
+        double resultDamage = damage / targetDef;
+        log.info("[applyDef] damage = {}, resultDamage = {}, targetDef = {}", damage, resultDamage, targetDef);
+        return resultDamage;
     }
 
     /**
@@ -310,6 +310,7 @@ public class DamageLogic {
      */
     protected double applyDamageCap(ProcessType type, Map<StatusEffectType, List<StatusEffect>> statusEffects, double damageRate, double damage) {
         BaseCap baseCap = baseCapMap.get(type);
+        double resultDamage = 0;
 
         // 데미지 상한 상승, 행동별 데미지 상한 상승 버프 수치 합산
         List<StatusEffect> damageCapEffects = statusEffects.get(StatusEffectType.DAMAGE_CAP_UP);
@@ -327,33 +328,28 @@ public class DamageLogic {
         damageHardCap = type == ProcessType.ABILITY ? damageHardCap * damageRate : damageHardCap;
 
         if (damage > damageSoftCap) {
-            damage = (damageSoftCap + (damage - damageSoftCap) * baseCap.getSoftCapApplyRate());
-            if (damage > damageHardCap) {
-                damage = (damageHardCap + (damage - damageHardCap) * baseCap.getHardCapApplyRate());
+            resultDamage = (damageSoftCap + (damage - damageSoftCap) * baseCap.getSoftCapApplyRate());
+            if (resultDamage > damageHardCap) {
+                resultDamage = (damageHardCap + (resultDamage - damageHardCap) * baseCap.getHardCapApplyRate());
             }
+        } else {
+            resultDamage = damage;
         }
 
-        log.info("[applyDamageCap] damageCapRate = {}, moveDamageCapRate = {}, damage = {}", damageCapRate, moveDamageCapRate, damage);
-        return damage;
+        log.info("[applyDamageCap] damage = {}, resultDamage = {}, damageCapRate = {}, moveDamageCapRate = {}",damage, resultDamage, damageCapRate, moveDamageCapRate);
+        return resultDamage;
     }
 
     /**
-     * 본처리 - 받는 데미지 고정 적용
-     * 공격력 상승, 공격력 업 보다 이전에 처리.
+     * 난격 적용 (난격 효과에 따른 데미지 감소 적용. 히트수는 히트수 적용에서 적용함)
      *
-     * @param statusEffects
      * @param damage
      * @return
      */
-    protected double applyDamageFix(Map<StatusEffectType, List<StatusEffect>> statusEffects, double damage) {
-        List<StatusEffect> takenDamageFixEffects = statusEffects.get(StatusEffectType.TAKEN_DAMAGE_FIX);
-        // 배율계산이 아니라 대입이기 때문에 효과없을시 바로 반환
-        if (takenDamageFixEffects == null || takenDamageFixEffects.isEmpty()) return damage;
-
-        double takenDamageFixPoint = getSum(takenDamageFixEffects);
-        takenDamageFixPoint = Math.max(takenDamageFixPoint, 1); // 상한 x, 하한 1
-        damage = Math.min(damage, takenDamageFixPoint);
-        return damage;
+    protected double applyAttackMultiHit(double damage, int attackMultiHitCount) {
+        double resultDamage = attackMultiHitCount > 1 ? damage / attackMultiHitCount : damage;
+        log.info("[applyAttackMultiHit] damage = {}, resultDamage = {}, attackMultiHitCount = {}", damage, resultDamage, attackMultiHitCount);
+        return resultDamage;
     }
 
     /**
@@ -415,27 +411,71 @@ public class DamageLogic {
         double amplifyDamageRate = totalAmplifyDamageRate + totalMoveAmplifyDamageRate;
 
         double damage = damageDto.getDamage();
+        double resultDamage = 0;
         List<Double> additionalDamages = damageDto.getAdditionalDamages();
 
         if (type == ProcessType.ATTACK) {
             //통상공격의 경우 공격력 업 적용 후 공격력 상승 적용
-            damage = damage * (1 + amplifyDamageRate) + supplementalDamage;
+            resultDamage = damage * (1 + amplifyDamageRate) + supplementalDamage;
             additionalDamages = additionalDamages.stream().map(additionalDamage -> additionalDamage * (1 + amplifyDamageRate) + supplementalDamage).toList();
         } else {
             // 어빌리티와 오의의 경우 공격력 상승 적용 후 공격력 업 적용
-            damage = (damage + supplementalDamage) * (1 + amplifyDamageRate);
+            resultDamage =(damage + supplementalDamage) * (1 + amplifyDamageRate);
             // 추격 없음
         }
 
         // 요다메에 의한 데미지가 음수일경우 0으로 보정
-        damage = Math.max(damage, 0);
+        resultDamage = Math.max(resultDamage, 0);
         additionalDamages = additionalDamages.stream().map(additionalDamage -> Math.max(additionalDamage, 0)).toList();
 
-        log.info("[applyAmplifyAndSupplementalDamage] damage = {}, supplementalDamage = {}, amplifyDamageRate = {}", damage, supplementalDamage, amplifyDamageRate);
+        log.info("[applyAmplifyAndSupplementalDamage] damage = {}, resultDamage = {}, supplementalDamage = {}, amplifyDamageRate = {}", damage, resultDamage, supplementalDamage, amplifyDamageRate);
         return DamageDto.builder()
-                .damage(damage)
+                .damage(resultDamage)
                 .additionalDamages(additionalDamages)
-                .hitCount(damageDto.getHitCount())
+                .build();
+    }
+
+    /**
+     * 후처리 - 받는 데미지 고정 적용
+     *
+     * @param statusEffects
+     * @param damageDto
+     * @return
+     */
+    protected DamageDto applyDamageFix(Map<StatusEffectType, List<StatusEffect>> statusEffects, DamageDto damageDto) {
+        List<StatusEffect> takenDamageFixEffects = statusEffects.get(StatusEffectType.TAKEN_DAMAGE_FIX);
+        if (takenDamageFixEffects == null || takenDamageFixEffects.isEmpty())
+            return damageDto; // 배율계산이 아니라 대입이기 때문에 효과없을시 바로 반환
+        final double takenDamageFixPoint = Math.max(getSum(takenDamageFixEffects), 0); // 상한 x, 하한 0
+
+        double resultDamage = Math.min(damageDto.getDamage(), takenDamageFixPoint);
+        List<Double> resultAdditionalDamages = damageDto.getAdditionalDamages().stream().map(additionalDamage -> Math.min(additionalDamage, takenDamageFixPoint)).toList();
+
+        log.info("[applyDamageFix] damage = {}, resultDamage = {}, damageFixPoint = {}", damageDto.getDamage(), resultDamage, takenDamageFixPoint);
+        return DamageDto.builder()
+                .damage(resultDamage)
+                .additionalDamages(resultAdditionalDamages)
+                .build();
+    }
+
+    /**
+     * 후처리 - 데미지에 데미지컷 적용
+     *
+     * @param statusEffects
+     * @param damageDto
+     * @return
+     */
+    protected DamageDto applyDamageCut(Map<StatusEffectType, List<StatusEffect>> statusEffects, DamageDto damageDto) {
+        List<StatusEffect> damageCutEffects = statusEffects.get(StatusEffectType.TAKEN_DAMAGE_CUT);
+        final double damageCutRate = Math.min(getSum(damageCutEffects), 1.0); // 상한 100% 하한 X
+
+        double resultDamage = damageDto.getDamage() * (1 - damageCutRate);
+        List<Double> resultAdditionalDamages = damageDto.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage * (1 - damageCutRate)).toList();
+
+        log.info("[applyDamageCut] damage = {}, resultDamage = {}, damageCutRate = {}", damageDto.getDamage(), resultDamage, damageCutRate);
+        return DamageDto.builder()
+                .damage(resultDamage)
+                .additionalDamages(resultAdditionalDamages)
                 .build();
     }
 
@@ -445,11 +485,11 @@ public class DamageLogic {
      *
      * @return
      */
-    protected DamageDto applyExDamageCap(ProcessType type, DamageDto damageDto) {
+    protected DamageDto applyExDamageCap(ProcessType type, DamageDto damageDto, int hitCount) {
         double damage = damageDto.getDamage();
+        double resultDamage = 0;
         List<Double> additionalDamages = damageDto.getAdditionalDamages();
-        Integer hitCount = damageDto.getHitCount();
-        if (hitCount < 1) throw new IllegalArgumentException("[applyExDamageCap], hitCount = " + hitCount);
+        if (hitCount < 1) throw new IllegalArgumentException("[applyExDamageCap], hitCount less than 1 , hitCount = " + hitCount);
         BaseCap baseCap = baseCapMap.get(type);
         Integer exDamageCap = baseCap.getExDamageCap();
         double exDamageCapApplyRate = baseCap.getExDamageCapApplyRate();
@@ -458,13 +498,18 @@ public class DamageLogic {
             //어빌리티의 경우 타수별 데미지 합산 후 대데미지 감쇠 후 1타 데미지 반환
             double totalDamage = damage * hitCount;
             if (totalDamage > exDamageCap) {
-                damage = (exDamageCap + (totalDamage - exDamageCap) * exDamageCapApplyRate) / hitCount;
+                resultDamage = (exDamageCap + (totalDamage - exDamageCap) * exDamageCapApplyRate) / hitCount;
+            } else {
+                resultDamage = damage;
             }
         } else {
             // 통상공격, 오의는 그냥 일괄 대데미지 감쇠적용
             if (damage > exDamageCap) {
-                damage = (exDamageCap + (damage - exDamageCap) * exDamageCapApplyRate);
+                resultDamage = (exDamageCap + (damage - exDamageCap) * exDamageCapApplyRate);
+            } else {
+                resultDamage = damage;
             }
+
             // 추격
             additionalDamages = additionalDamages.stream().map(additionalDamage -> {
                 if (additionalDamage > exDamageCap) {
@@ -475,39 +520,39 @@ public class DamageLogic {
             }).toList();
         }
 
+        log.info("[applyExDamageCap] damage = {}, hitCount = {}, resultDamage = {}, type = {}", damage, hitCount, resultDamage, type);
         return DamageDto.builder()
-                .damage(damage)
+                .damage(resultDamage)
                 .additionalDamages(additionalDamages)
-                .hitCount(hitCount)
                 .build();
     }
 
     /**
      * 최종처리 - 공격 횟수에 따라 데미지 갯수를 늘리고, 난수를 곱해 최종 resultDamage 완성
+     * 난수에 의한 변화치는 -5% ~ +5%
      *
      * @param damageDto
      * @return
      */
-    protected DamageDto applyHitCountAndRandom(DamageDto damageDto) {
-        Integer hitCount = damageDto.getHitCount();
+    protected DamageDto applyHitCountAndRandom(DamageDto damageDto, int hitCount, int attackMultiHitCount) {
         double inputDamage = damageDto.getDamage();
-        List<Integer> damages = new ArrayList<>(Collections.nCopies(hitCount, inputDamage)).stream()
-                .map(damage -> (int) (damage * (1 - Math.random() / 100)))
+        List<Integer> damages = new ArrayList<>(Collections.nCopies(hitCount * attackMultiHitCount, inputDamage)).stream()
+                .map(damage -> (int) (damage * (1 + (Math.random() * 0.1 - 0.05))))
                 .toList();
 
         List<List<Integer>> additionalDamages = new ArrayList<>();
         if (!damageDto.getAdditionalDamages().isEmpty()) {
-            for (int i = 0; i < hitCount; i++) {
+            for (int i = 0; i < hitCount * attackMultiHitCount; i++) {
                 additionalDamages.add(damageDto.getAdditionalDamages().stream()
-                        .map(additionalDamage -> (int) (additionalDamage * (1 - Math.random() / 100)))
+                        .map(additionalDamage -> (int) (additionalDamage * (1 + (Math.random() * 0.1 - 0.05))))
                         .toList());
             }
         }
 
+        log.info("[applyHitCountAndRandom] hitCount = {}, attackMultiHitCount = {}", hitCount, attackMultiHitCount);
         return DamageDto.builder()
                 .resultDamages(damages)
                 .resultAdditionalDamages(additionalDamages)
-                .hitCount(hitCount)
                 .build();
     }
 
@@ -623,9 +668,10 @@ public class DamageLogic {
         private double damage;
         @Builder.Default
         private List<Double> additionalDamages = new ArrayList<>();
+
         private List<Integer> resultDamages;
         private List<List<Integer>> resultAdditionalDamages;
-        private Integer hitCount;
+
         private ProcessType type;
     }
 

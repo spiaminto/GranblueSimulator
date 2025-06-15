@@ -22,7 +22,7 @@ public class EnemyStandbyInsertRequest {
 
         private String cancelConditions; // {type, presentInfo, initValue \n}
 
-        private Integer triggerHp;
+        private String triggerHps;
 
     }
 

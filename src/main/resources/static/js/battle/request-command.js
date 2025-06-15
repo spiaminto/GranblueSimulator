@@ -1,7 +1,6 @@
 function requestAbility(charOrder, abilityOrder) {
     // console.log('[processAbility] start process charOrder = ' + charOrder + 'abilityOrder = ' + abilityOrder);
 
-    // TODO 통신
     let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
     let memberId = $('#memberInfo').data('member-id');
     let roomId = $('#roomInfo').data('room-id');
@@ -51,7 +50,12 @@ function requestTurnProgress() {
         success: function (response) {
             let responseResults = response;
             console.log(responseResults);
-            processResponseMoves(responseResults); // TODO 나중에 파라미터 수정할것
+            processResponseMoves(responseResults).then(function () {
+                // 턴 갱신
+                let $turnValue = $('.turn-indicator .turn-value');
+                let turnValue = $turnValue.text();
+                $turnValue.text(++turnValue);
+            })
         },
         error: function (error) {
             console.error('Error:', error);
@@ -203,33 +207,33 @@ function processFormChange(formChangeResponse) {
     let $idleDefaultVideo = $enemyVideoContainer.find('.idle-default');
     let $formChangeEntryVideo = $enemyVideoContainerNext.find('.form-change-entry');
     let $formChangeEntryAudio = $enemyAudioContainerNext.find('.form-change-entry');
+    let $nextIdleDefaultVideo = $enemyVideoContainerNext.find('.idle-default');
 
+    $formChangeVideo.removeClass('hidden').get(0)?.play();
+    $enemyAudioContainer.find('.form-change').get(0)?.play();
+    $idleDefaultVideo.addClass('hidden');
     $formChangeVideo.one('ended', function () {
         // 폼체인지 끝나면 폼체인지 엔트리
+        $formChangeEntryVideo.removeClass('hidden').get(0)?.play();
+        $formChangeEntryAudio.get(0)?.play();
         $(this).addClass('hidden');
         $formChangeEntryVideo.one('ended', function () {
             // 폼체인지 엔트리 끝나면 idle-default
-            $enemyVideoContainerNext.find('.idle-default').removeClass('hidden').get(0).play();
+            $nextIdleDefaultVideo.removeClass('hidden').get(0)?.play();
             $(this).addClass('hidden');
-            // 적 이전 폼 컨테이너 전체 제거
+            // 적 이전 폼 컨테이너 제거, 다음 폼 컨테이너의 next 제거
             $enemyVideoContainer.remove();
             $enemyAudioContainer.remove();
-            // 다음 폼 컨테이너 next 제거
             $enemyVideoContainerNext.attr('class', 'enemy-video-container');
             $enemyAudioContainerNext.attr('class', 'enemy-audio-container');
         })
-        $formChangeEntryVideo.removeClass('hidden').get(0)?.play();
-        $formChangeEntryAudio.removeClass('hidden').get(0)?.play();
     })
-    $idleDefaultVideo.addClass('hidden');
-    $formChangeVideo.removeClass('hidden').get(0)?.play();
-    $enemyAudioContainer.find('.form-change').get(0)?.play();
 
     let totalEndTime = $formChangeVideo.get(0).duration * 1000 + $formChangeEntryVideo.get(0).duration * 1000 + 100;
     return new Promise(resolve => setTimeout(function () {
         console.log('FORM_CHANGE and FORM_CHANGE_ENTRY done', formChangeResponse.moveType);
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 200));
 
 }
 
@@ -271,22 +275,21 @@ function processEnemyStandBy(standbyResponse) {
     // 오디오 재생
     let audioPlayer = new AudioPlayer();
     let audioSrc = $('.enemy-audio-container').find('.' + moveType.className).attr('src');
-    audioPlayer.loadSound(audioSrc, 0).then(() => {
+    audioPlayer.loadSound(audioSrc).then(() => {
         audioPlayer.playAllSounds();
     })
     // 비디오 재생
-    $enemyDefaultIdleVideo.addClass('hidden');
-    $enemyStandByVideo.removeClass('hidden').one('ended', function () {
-        // 스탠바이 종료되면 스탠바이idle 로 전환
-        $enemyStandByIdleVideo.removeClass('hidden').get(0).play();
-        $enemyStandByVideo.addClass('hidden');
-    }).get(0).play();
+
+    let enemyDefaultIdleVideoElement = $enemyDefaultIdleVideo.addClass('hidden').get(0);
+    enemyDefaultIdleVideoElement.pause();
+    enemyDefaultIdleVideoElement.currentTime = 0;
+    playVideo($enemyStandByVideo, null, $enemyStandByIdleVideo);
 
     let totalEndTime = $enemyStandByVideo.get(0).duration * 1000 + 100;
     return new Promise(resolve => setTimeout(function () {
         console.log('STANDBY done', moveType, standByIdleType);
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 200));
 
 }
 
@@ -313,17 +316,15 @@ function processEnemyBreak(breakResponse) {
     // 오디오 재생
     let audioPlayer = new AudioPlayer();
     let audioSrc = $('.enemy-audio-container').find('.' + breakType.className).attr('src');
-    audioPlayer.loadSound(audioSrc, 0).then(() => {
+    audioPlayer.loadSound(audioSrc).then(() => {
         audioPlayer.playAllSounds();
     })
 
     // 비디오 재생
-    $enemyStandByIdleVideo.addClass('hidden').get(0).pause();
-    $enemyBreakVideo.removeClass('hidden').one('ended', function () {
-        // 브레이크 끝나면 idle_default 로 복귀
-        $enemyIdleDefaultVideo.removeClass('hidden').get(0).play();
-        $(this).addClass('hidden');
-    }).get(0).play();
+    let enemyStandbyIdleVideoElement = $enemyStandByIdleVideo.addClass('hidden').get(0);
+    enemyStandbyIdleVideoElement.pause();
+    enemyStandbyIdleVideoElement.currentTime = 0;
+    playVideo($enemyBreakVideo, null, $enemyIdleDefaultVideo);
 
     // 화면 흔들기
     $('#videoContainer').addClass('shake-left-effect');
@@ -335,7 +336,7 @@ function processEnemyBreak(breakResponse) {
     return new Promise(resolve => setTimeout(function () {
         console.log('BREAK done', breakType);
         resolve();
-    }, totalEndTime));
+    }, totalEndTime + 200));
 
 }
 

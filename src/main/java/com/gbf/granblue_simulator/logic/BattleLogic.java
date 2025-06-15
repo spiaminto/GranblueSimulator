@@ -63,6 +63,8 @@ public class BattleLogic {
         progressTurnResults = progressTurnResults.stream()
                 .filter(result -> !result.getMoveType().isNone()).toList();
 
+        enemy.getMember().increaseTurn(); // 기준턴 증가
+
         progressTurnResults.forEach(result -> log.info("progressTurnResult: {}", result));
 
         return progressTurnResults;
@@ -112,7 +114,8 @@ public class BattleLogic {
                             nextCharacterLogic.processAttack(mainActor, enemy, partyMembers, nextMoveType);
                     case ABILITY ->
                             nextCharacterLogic.processAbility(mainActor, enemy, partyMembers, nextMoveType); // 어빌리티, 서포트 어빌리티
-                    default -> throw new IllegalArgumentException("[processAttack] Invalid next move type = " + nextMoveType);
+                    default ->
+                            throw new IllegalArgumentException("[processAttack] Invalid next move type = " + nextMoveType);
                 };
                 // 반응
                 results.addAll(postProcessToMove(mainActor, partyMembers, enemy, nextMoveResult));
@@ -144,11 +147,11 @@ public class BattleLogic {
                 nextMoveType = nextMoveResult.getNextMoveType();
                 while (nextMoveResult.hasNextMove()) {
                     nextMoveResult = switch (nextMoveType) {
-                        case ATTACK ->
-                                nextCharacterLogic.processNormalAttack(nextMoveActor, enemy, partyMembers);
+                        case ATTACK -> nextCharacterLogic.processNormalAttack(nextMoveActor, enemy, partyMembers);
                         case CHARGE_ATTACK ->
                                 nextCharacterLogic.processChargeAttack(nextMoveActor, enemy, partyMembers);
-                        default -> throw new IllegalArgumentException("[processAbility] Invalid next move type = " + nextMoveType);
+                        default ->
+                                throw new IllegalArgumentException("[processAbility] Invalid next move type = " + nextMoveType);
                     };
                     // 반응
                     results.addAll(postProcessToMove(nextMoveActor, partyMembers, enemy, nextMoveResult));
@@ -174,7 +177,8 @@ public class BattleLogic {
         MoveType nextMoveType = attackResult.getNextMoveType(); // 후행동 타입
         if (nextMoveType != null) {
             // 적은 현재 후행동으로 ATTACK 만 함, 후행동으로 후행동이 발생하지 않음
-            if (!nextMoveType.equals(MoveType.ATTACK)) throw new IllegalArgumentException("[processEnemyAttack] Invalid next move type = " + nextMoveType);
+            if (!nextMoveType.equals(MoveType.ATTACK))
+                throw new IllegalArgumentException("[processEnemyAttack] Invalid next move type = " + nextMoveType);
             ActorLogicResult nextMoveResult = enemyLogic.processAttack(mainActor, partyMembers);
             // 반응
             results.addAll(postProcessToMove(mainActor, partyMembers, enemy, nextMoveResult));
@@ -201,7 +205,8 @@ public class BattleLogic {
      * 적의 반응에 대한 아군의 반응은 미구현
      * 아군의 반응에 대해서는 아군 전체가 재귀로 반응함.
      * 아군의 아군에 대한 반응의 경우, 이전 행동한 아군 본인이 처음으로 반응하도록 순서변경
-     * @param mainActor : 이전 행동의 실행주체 (적, 아군 모두)
+     *
+     * @param mainActor         : 이전 행동의 실행주체 (적, 아군 모두)
      * @param partyMembers
      * @param enemy
      * @param beforeLogicResult
@@ -229,6 +234,15 @@ public class BattleLogic {
         }
         saveBattleLogAll(enemyPostProcessResult);
         results.addAll(enemyPostProcessResult);
+
+        // 적의 반응에 대한 반응 CHECK 현재 BREAK 상태를 감지하여 사용. 나중에 사용례가 늘어날경우 리팩토링
+        enemyPostProcessResult.stream()
+                .filter(result -> result.getMoveType().getParentType() == MoveType.BREAK)
+                .findFirst().ifPresent(result -> {
+                    List<ActorLogicResult> enemyAdditionalPostProcessResult = enemyLogic.postProcessToEnemyMove(enemy, partyMembers, result);
+                    saveBattleLogAll(enemyAdditionalPostProcessResult);
+                    results.addAll(enemyAdditionalPostProcessResult);
+                });
 
         for (BattleActor partyMember : modifiedPartyMembers != null ? modifiedPartyMembers : partyMembers) {
             CharacterLogic partyMemberLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
@@ -291,6 +305,7 @@ public class BattleLogic {
                 BattleLog.builder()
                         .roomId(mainActor.getMember().getRoom().getId())
                         .userId(mainActor.getMember().getUser().getId())
+                        .currentTurn(logicResult.getCurrentTurn())
                         .moveType(logicResult.getMoveType())
                         .mainActorId(logicResult.getMainActorId())
                         .targetActorId(logicResult.getTargetActorId())

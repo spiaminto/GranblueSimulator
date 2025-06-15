@@ -27,4 +27,11 @@ public class Member {
     @OneToMany(mappedBy = "member")
     private List<BattleActor> battleActors;
 
+    @Builder.Default
+    private Integer currentTurn = 1; // 현재 자신의 턴, 1부터 시작
+
+    public void increaseTurn() {
+        this.currentTurn++;
+    }
+
 }

@@ -13,16 +13,18 @@ async function processChargeAttack(responseChargeAttackData) {
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = chargeAttackData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
-    addedBuffStatusesList
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = chargeAttackData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = chargeAttackData.battleStatusList;
-    // 아군(시전자) 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList.some(arr => arr.length > 0);
-    let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
 
     // 준비 - 아군
-    let $chargeAttackVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className);
+    let $chargeAttackVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.effect');
+    let $chargeAttackMotionVideo = $('.party-video-container ' + partySelector + ' .' + moveType.className + '.motion');
+    $chargeAttackMotionVideo = $chargeAttackMotionVideo.length <= 0 ? null : $chargeAttackMotionVideo; // 주인공은 모션 이펙트 분리, 나머지는 통합
     let $idleMotionVideo = $('.party-video-container ' + partySelector + ' .' + MoveType.IDLE.className);
     let chargeAttackDuration = $chargeAttackVideo.get(0).duration * 1000 - 100 + 1000; // 아군 오의 이펙트 종료 후 데미지 표시를 위해 + 1000
     // 준비 - 적
@@ -44,7 +46,7 @@ async function processChargeAttack(responseChargeAttackData) {
     });
 
     // 아군 오의 이펙트 재생
-    playVideo($chargeAttackVideo, null, $idleMotionVideo);
+    playVideo($chargeAttackVideo, $chargeAttackMotionVideo, $idleMotionVideo);
 
     // 데미지 채우기
     $('.charge-attack-damage-wrapper').append($('<div>', {
@@ -72,13 +74,9 @@ async function processChargeAttack(responseChargeAttackData) {
     processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
 
     // 버프 이펙트 처리
-    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, chargeAttackDuration);
-    let buffEndTime = chargeAttackDuration + longestBuffDelay;
-
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, chargeAttackDuration + 500);
     // 디버프 이펙트 처리
-    let debuffStartDelay = hasDebuff ? chargeAttackDuration + longestBuffDelay : chargeAttackDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
-    let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = Math.max(chargeAttackDuration, buffEndTime, debuffEndTime);
     console.log('[processChargeAttack] chargeAttackDuration ', chargeAttackDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
@@ -87,7 +85,7 @@ async function processChargeAttack(responseChargeAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 500));
+    }, totalEndTime + 200));
 }
 
 async function processEnemyChargeAttackPreEffect() {
@@ -108,7 +106,7 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     let charOrder = chargeAttackData.charOrder;
     let partySelector = '.party-' + charOrder
     let moveType = MoveType.byName(chargeAttackData.moveType);
-    let chargeAttackHitCount = chargeAttackData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
+    let totalHitCount = chargeAttackData.totalHitCount; // 히트수 (피격모션, 데미지 표시관련)
     let damages = chargeAttackData.damages;
     let additionalDamages = chargeAttackData.additionalDamages;
     let hitCount = damages.length;
@@ -125,13 +123,13 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = chargeAttackData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
-    addedBuffStatusesList
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = chargeAttackData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = chargeAttackData.battleStatusList;
-    // 아군 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList.some(arr => arr.length > 0);
-    let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
 
     // 준비
     let $chargeAttackVideo = $('.enemy-video-container .' + moveType.className);
@@ -220,13 +218,9 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
 
     // 버프 이펙트 처리
-    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, chargeAttackDuration);
-    let buffEndTime = chargeAttackDuration + longestBuffDelay;
-
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, chargeAttackDuration + 500);
     // 디버프 이펙트 처리
-    let debuffStartDelay = hasDebuff ? chargeAttackDuration + longestBuffDelay : chargeAttackDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
-    let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = Math.max(chargeAttackDuration + 100, buffEndTime, debuffEndTime);
     console.log('[processEnemyChargeAttack] chargeAttackDuration ', chargeAttackDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
@@ -235,5 +229,5 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 100));
+    }, totalEndTime + 200));
 }

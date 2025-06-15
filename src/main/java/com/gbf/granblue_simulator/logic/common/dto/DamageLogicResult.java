@@ -4,18 +4,21 @@ import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
+@Getter
 @Builder
 public class DamageLogicResult {
     @Builder.Default
-    private final List<Integer> damages = new ArrayList<>();
+    private List<Integer> damages = new ArrayList<>();
     @Builder.Default
-    private final List<List<Integer>> additionalDamages = new ArrayList<>();
+    private List<List<Integer>> additionalDamages = new ArrayList<>();
     @Builder.Default
-    private final List<ElementType> elementTypes = new ArrayList<>();
-    private final boolean isEnemyHpZero;
+    private List<ElementType> elementTypes = new ArrayList<>();
+    private boolean isEnemyHpZero;
+    @Builder.Default
+    private Integer attackMultiHitCount = 1;
 }

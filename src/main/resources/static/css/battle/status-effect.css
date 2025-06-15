@@ -1,7 +1,9 @@
 /* 공통 */
 .status-effect {
+    position: relative;
     opacity: 0; /* display: none 으로 하면 역순으로 fadeIn() 할때 레이아웃 드득거림 */
     text-wrap: nowrap;
+    color: white;
 }
 
 /* 적 */
@@ -20,17 +22,15 @@
 
 .status-effect-container.enemy .status-effect img {
     display: inline-block;
-    vertical-align: bottom;
     width: 16%;
     max-width: 40px;
 }
 
 .status-effect-container.enemy .status-effect-text {
     font-size: 18px;
+    margin-left: -3px;
     font-weight: bold;
-    color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
-    text-indent: -16px;
 }
 
 .status-effect-text.none-icon {
@@ -51,15 +51,14 @@
 
 .status-effect-container.party .status-effect img {
     display: inline-block;
-    vertical-align: bottom;
     width: 13%;
     max-width: 35px;
 }
 
 .status-effect-container.party .status-effect-text {
     font-size: 16px;
+    margin-left: -2px;
     font-weight: bold;
-    color: white;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
 }
 
@@ -82,4 +81,58 @@
 .status-effect-container.actor-4 {
     top: 81%;
     right: 3%;
+}
+
+.status-removed {
+    animation: status-removed 1.1s linear forwards;
+    /*animation: damage-pop 1s cubic-bezier(.71,.55,.62,1.57) forwards;*/
+}
+
+@keyframes status-removed {
+    0% {
+        opacity: 0;
+        transform: scale(1);
+    }
+    5% {
+        opacity: 1;
+        transform: scale(1.3);
+    }
+    25% {
+        opacity: 1;
+        transform: scale(1.0);
+    }
+    80% {
+        opacity: 1;
+        color: gray;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+.status-effect.status-removed-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    pointer-events: none; /* 클릭 방지 */
+    transform-origin: center center;
+
+}
+
+.status-effect.status-removed-effect.active {
+    animation: status-removed-effect 0.1s linear forwards;
+}
+
+@keyframes status-removed-effect {
+    0% {
+        transform: scale(0.3);
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(2.3);
+        opacity: 0;
+    }
 }

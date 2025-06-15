@@ -236,7 +236,8 @@
       <div class="sound-button-wrapper top-menu-button-wrapper">
         <button type="button" class="btn btn-light">sound</button>
       </div>
-      <div class="turn-indicator"><span>1</span><span> turn</span></div>
+      <div class="turn-indicator"><span class="turn-value"
+                                        th:text="${member.getCurrentTurn()}">1</span><span> turn</span></div>
       <div class="time-indicator"><i class="bi bi-stopwatch me-1"></i>12:34</div>
       <div class="menu-button-wrapper top-menu-button-wrapper">
         <button type="button" class="btn btn-light">Menu</button>
@@ -399,27 +400,68 @@
                src="/static/assets/audio/gl/enemy-power-up.mp3"></audio>
         <audio class="audio enemy-ct-max"
                src="/static/assets/audio/gl/enemy-ct-max.mp3"></audio>
+        <audio class="audio status-removed"
+               src="/static/assets/audio/gl/gl-status-removed.mp3"></audio>
       </div>
 
     </div> <!-- #videoContainer -->
 
     <!-- 적 피격 데미지 -->
     <div id="damageContainer" class="battle-canvas">
-      <!--     일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
-      <!--      <div class="attack-damage-wrapper actor-2">-->
-      <!--        <div class="attack-damage actor-2 element-type-water damage-show">23906</div>-->
-      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">23906-->
-      <!--          <div class="additional-damage element-type-water damage-show">4780</div>-->
-      <!--        </div>-->
-      <!--        <div class="attack-damage actor-2 element-type-water damage-show">24034</div>-->
-      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">24034-->
-      <!--          <div class="additional-damage element-type-water damage-show">4816</div>-->
-      <!--        </div>-->
-      <!--        <div class="attack-damage actor-2 element-type-water damage-show">24087</div>-->
-      <!--        <div class="additional-damage-wrapper actor-2 element-type-water">24087-->
-      <!--          <div class="additional-damage element-type-water damage-show">4787</div>-->
-      <!--        </div>-->
-      <!--      </div>-->
+      <!--           일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
+<!--      <div class="attack-damage-wrapper actor-2">-->
+<!--        <div class="attack-damage actor-2 element-type-water attack-damage-0 damage-show">36372</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water additional-damage-wrapper-0">36372-->
+<!--          <div class="additional-damage element-type-water damage-show">15241</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17938</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-1 damage-show">36231</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-1">36231-->
+<!--          <div class="additional-damage element-type-water damage-show">15300</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17797</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-2 damage-show">36473</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-2">36473-->
+<!--          <div class="additional-damage element-type-water damage-show">15289</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17911</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-3 damage-show">36473</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-2">36473-->
+<!--          <div class="additional-damage element-type-water damage-show">15289</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17911</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water attack-damage-1 damage-show">36238</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water additional-damage-wrapper-1">36238-->
+<!--          <div class="additional-damage element-type-water damage-show">15291</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17837</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-1">36326</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-1">36326-->
+<!--          <div class="additional-damage element-type-water">15158</div>-->
+<!--          <div class="additional-damage element-type-water">17857</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-2">36296</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-2">36296-->
+<!--          <div class="additional-damage element-type-water">15236</div>-->
+<!--          <div class="additional-damage element-type-water">17790</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water attack-damage-2 damage-show">36299</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water additional-damage-wrapper-2">36299-->
+<!--          <div class="additional-damage element-type-water damage-show">15257</div>-->
+<!--          <div class="additional-damage element-type-water damage-show">17903</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-1">36508</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-1">36508-->
+<!--          <div class="additional-damage element-type-water">15295</div>-->
+<!--          <div class="additional-damage element-type-water">17823</div>-->
+<!--        </div>-->
+<!--        <div class="attack-damage actor-2 element-type-water multi-attack-damage-2">36403</div>-->
+<!--        <div class="additional-damage-wrapper actor-2 element-type-water multi-attack-additional-damage-wrapper-2">36403-->
+<!--          <div class="additional-damage element-type-water">15176</div>-->
+<!--          <div class="additional-damage element-type-water">17916</div>-->
+<!--        </div>-->
+<!--      </div>-->
+
 
       <!-- max 12, 10에서 컷-->
       <div class="ability-damage-wrapper">
@@ -432,28 +474,33 @@
       </div>
 
 
-<!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
-<!--      <div class="enemy-damage-wrapper actor-1">-->
-<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
-<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
-<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
-<!--        </div>-->
-<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
-<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
-<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
-<!--        </div>-->
-<!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
-<!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
-<!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
-<!--        </div>-->
-<!--      </div>-->
+      <!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
+      <!--      <div class="enemy-damage-wrapper actor-1">-->
+      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
+      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
+      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
+      <!--        </div>-->
+      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
+      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
+      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
+      <!--        </div>-->
+      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
+      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
+      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
+      <!--        </div>-->
+      <!--      </div>-->
 
     </div>
 
     <!--적 피격 버프 디버프-->
     <div class="status-effect-container actor-0 enemy"></div>
     <!-- 아군 피격 버프 디버프 -->
-    <div class="status-effect-container actor-1 party"></div>
+    <div class="status-effect-container actor-1 party">
+      <!--      <div class="status-effect status-effect-0" style="opacity: 0;">-->
+      <!--        <img src="/static/assets/img/ch/yachima/status-ability-1.png" class="">-->
+      <!--        <span class="status-effect-text">추격 (A)</span>-->
+      <!--      </div>-->
+    </div>
     <div class="status-effect-container actor-2 party"></div>
     <div class="status-effect-container actor-3 party"></div>
     <div class="status-effect-container actor-4 party"></div>
@@ -505,44 +552,10 @@
 
         <!-- 더미 -->
         <div class="battle-portrait">
-          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-          <div class="hp-gauge-wrapper">
-            <div class="hp-gauge">
-              <div class="hp-gauge-value"><span class="value">123</span></div>
-              <div class="progress" role="progressbar">
-                <div class="progress-bar bg-danger" style="width: 50%"></div>
-              </div>
-            </div>
-          </div>
-          <div class="charge-gauge-wrapper">
-            <div class="charge-gauge">
-              <div class="charge-gauge-value"><span class="value">50</span>%
-              </div>
-              <div class="progress" role="progressbar">
-                <div class="progress-bar bg-warning" style="width: 50%"></div>
-              </div>
-            </div>
-          </div>
+          <img src="/static/assets/img/gl/ch-empty.jpg">
         </div>
         <div class="battle-portrait">
-          <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-          <div class="hp-gauge-wrapper">
-            <div class="hp-gauge">
-              <div class="hp-gauge-value"><span class="value">123</span></div>
-              <div class="progress" role="progressbar">
-                <div class="progress-bar bg-danger" style="width: 50%"></div>
-              </div>
-            </div>
-          </div>
-          <div class="charge-gauge-wrapper">
-            <div class="charge-gauge">
-              <div class="charge-gauge-value"><span class="value">50</span>%
-              </div>
-              <div class="progress" role="progressbar">
-                <div class="progress-bar bg-warning" style="width: 50%"></div>
-              </div>
-            </div>
-          </div>
+          <img src="/static/assets/img/gl/ch-empty.jpg">
         </div>
       </div>
 

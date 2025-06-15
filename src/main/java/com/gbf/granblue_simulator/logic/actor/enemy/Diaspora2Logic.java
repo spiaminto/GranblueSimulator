@@ -41,7 +41,12 @@ public class Diaspora2Logic extends EnemyLogic {
     @Override
     public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
-        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType()));
+        Move chargeAttack = mainActor.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        Double damageRate =
+                chargeAttack.getType() == MoveType.STANDBY_B ? getChargeAttackBDamageRate(mainActor) : // 허수몽핵
+                        chargeAttack.getType() == MoveType.STANDBY_D ? getChargeAttackDDamageRate(mainActor) : // 인자방출
+                                chargeAttack.getDamageRate(); // 기본배율
+        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, chargeAttack, damageRate);
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
         return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
     }
@@ -61,6 +66,16 @@ public class Diaspora2Logic extends EnemyLogic {
 
     @Override
     public List<ActorLogicResult> postProcessToEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult enemyResult) {
+        // 자신의 이성임계가 해제됬을시 서포어비 2 발동 -> 임계도달 레벨 감소
+        if (enemyResult.getMoveType() == MoveType.BREAK_C) {
+            return List.of(secondSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.SECOND_SUPPORT_ABILITY), enemyResult));
+        }
+        
+        // 인자 방출 발동시 자괴인자 레벨에 따라 가드불가 연장, 자괴인자 삭제 (결과 반환 없음)
+        if (enemyResult.getMoveType() == MoveType.CHARGE_ATTACK_D) {
+            afterChargeAttackD(mainActor, partyMembers);
+        }
+
         return Collections.emptyList();
     }
 
@@ -72,9 +87,16 @@ public class Diaspora2Logic extends EnemyLogic {
         // 서포어비 1
         results.add(firstSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY), null));
 
+        // 5턴마다 영창기 이성임계 발동
+        if ((mainActor.getMember().getCurrentTurn() + 1) % 5 == 0)
+            setStandbyCEveryFiveTurn(mainActor);
+
         // 전조발생
-        omenLogic.determineStandbyMove(enemy).ifPresent(standby ->
-                results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen())));
+        omenLogic.determineStandbyMove(enemy).ifPresent(standby -> {
+            Integer initValue = standby.getType() == MoveType.STANDBY_B ? getStandbyBOmenInitValue(enemy) : null;
+            omenLogic.setSanddbyMove(enemy, standby, initValue);
+            results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen()));
+        });
 
         return results;
     }
@@ -108,6 +130,87 @@ public class Diaspora2Logic extends EnemyLogic {
             }
         }
         return resultMapper.emptyResult();
+    }
+
+    @Override // 자신의 전조 이성임계(STANDBY_C)가 해제될 경우 자신의 임계 도달 레벨 감소
+    protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+        SetStatusResult setStatusResult = statusUtil.getBattleStatusByName(mainActor, "임계 도달")
+                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
+                .orElse(null);
+        return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
+    }
+
+    // 기타 표시되지 않는 개인 로직 ======================================================================
+
+    /**
+     * 턴 종료시 5의 배수턴마다 이성임계가 발동 (스테이터스로 표시)
+     *
+     * @param mainActor
+     */
+    protected void setStandbyCEveryFiveTurn(BattleActor mainActor) {
+        BattleEnemy battleEnemy = (BattleEnemy) mainActor;
+        if (battleEnemy.getNextIncantStandbyType() == null) // STANDBY_D 가 더 우선
+            battleEnemy.setNextIncantStandbyType(MoveType.STANDBY_C);
+    }
+
+    /**
+     * 허수몽핵 (STANDBY_B) 의 경우 임계 도달 레벨에 비례해 해제조건 강화
+     *
+     * @param mainActor
+     * @return
+     */
+    protected Integer getStandbyBOmenInitValue(BattleActor mainActor) {
+        return statusUtil.getBattleStatusByName(mainActor, "임계 도달").map(
+                battleStatus -> 2500000 * (1 + battleStatus.getLevel())
+        ).orElse(2500000);
+    }
+
+    /**
+     * 허수몽핵 (CHARGE_ATTACK_B) 의 경우 임계 도달 레벨에 비례해 데미지 배율 강화
+     *
+     * @param mainActor
+     * @return
+     */
+    protected Double getChargeAttackBDamageRate(BattleActor mainActor) {
+        return statusUtil.getBattleStatusByName(mainActor, "임계 도달").map(
+                battleStatus -> 10.0 * (1 + battleStatus.getLevel())
+        ).orElse(10.0);
+    }
+
+    /**
+     * 인자방출 (CHARGE_ATTACK_D) 의 경우 자괴인자 레벨에 비례해 데미지 배율 강화
+     *
+     * @param mainActor
+     * @return
+     */
+    protected Double getChargeAttackDDamageRate(BattleActor mainActor) {
+        return statusUtil.getBattleStatusByName(mainActor, "자괴인자").map(
+                battleStatus -> 5.0 * (1 + battleStatus.getLevel())
+        ).orElse(5.0);
+    }
+
+    /**
+     * 인자방출 후 자신의 자괴인자를 삭제, 자괴인자 레벨에 비례해 파티멤버의 가드불가 효과 연장
+     *
+     * @param mainActor
+     * @param partyMembers
+     * @return
+     */
+    protected void afterChargeAttackD(BattleActor mainActor, List<BattleActor> partyMembers) {
+        statusUtil.getBattleStatusByName(mainActor, "자괴인자").ifPresent(
+                battleStatus -> {
+                    // 효과 연장
+                    partyMembers.forEach(
+                            partyMember -> statusUtil.getBattleStatusByName(partyMember, "가드불가").ifPresent(
+                                    guardDisabledStatus -> setStatusLogic.extendBattleStatus(guardDisabledStatus, battleStatus.getLevel() * 2)
+                            )
+                    );
+                    // 자괴 인자 삭제
+                    setStatusLogic.removeBattleStatus(mainActor, battleStatus);
+                }
+        );
+
+
     }
 }
 

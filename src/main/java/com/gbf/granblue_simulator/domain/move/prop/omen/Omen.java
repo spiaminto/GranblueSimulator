@@ -1,8 +1,10 @@
 package com.gbf.granblue_simulator.domain.move.prop.omen;
 
 import com.gbf.granblue_simulator.domain.move.Move;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +26,10 @@ public class Omen {
     private OmenType omenType;
     
     private String info; // 전조 설명
-    private Integer triggerHp; // HP트리거와 차지어택이 의 경우 현재 ENEMY 의 HP 가 이 값보다 작은경우 발동
+
+    @Type(ListArrayType.class)
+    @Column(name = "triggerHps", columnDefinition = "integer[]")
+    private List<Integer> triggerHps = new ArrayList<>(); // HP트리거와 차지어택이 의 경우 현재 ENEMY 의 HP 가 이 값보다 작은경우 발동
 
     @OneToMany(mappedBy = "omen")
     private List<OmenCancelCond> omenCancelConds = new ArrayList<>();

@@ -53,7 +53,7 @@ public abstract class EnemyLogic {
     // 오의
     protected abstract ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers);
 
-    // 아군이 ~ 할때 효과 (적은 기본적으로 전조 처리가 있기 때문에 1개 이상 반환)
+    // 아군이 ~ 할때 효과 (적은 기본적으로 전조 처리가 있기 때문에 1개 이상 반환, 로직 작성시 전조처리를 우선할것)
     public abstract List<ActorLogicResult> postProcessToPartyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult);
 
     // 적이 ~ 할때 효과
@@ -119,6 +119,10 @@ public abstract class EnemyLogic {
         return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).nextMoveType(nextMoveType).build();
     }
 
+    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby) {
+        return defaultChargeAttack(mainActor, partyMembers, standby, null);
+    }
+
     /**
      * 기본적인 오의 처리
      * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 스테이터스 추가 -> 오의게이지 갱신
@@ -128,12 +132,12 @@ public abstract class EnemyLogic {
      * @param standby      : 현재 발동중인 전조 - 실행할 오의 결정에 필요
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby) {
+    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby, Double modifiedDamageRate) {
         Move chargeAttack = mainActor.getActor().getMoves().get(standby.getType().getChargeAttackType());
         // 타겟설정
         List<BattleActor> targets = getAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
         // 데미지 계산
-        DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack);
+        DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack, modifiedDamageRate);
         // 스테이터스 타겟 설정 (중복제거)
         List<BattleActor> statusTargets = targets.stream().distinct().toList();
         // 스테이터스 적용
@@ -143,6 +147,7 @@ public abstract class EnemyLogic {
         // 스탠바이 초기화
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         mainEnemy.setCurrentStandbyType(null);
+        mainEnemy.setNextIncantStandbyType(null);
         // 후행동 확인 (적은 후행동 통상공격만)
         MoveType nextMoveType = statusUtil.hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
         return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).nextMoveType(nextMoveType).build();
@@ -199,29 +204,32 @@ public abstract class EnemyLogic {
      * 기본적인 전조 갱신
      * 전조 상태확인 -> 전조 해제 값 계산 -> 전조 해제 결과값 enemy 에 set -> 브레이크 여부판단 -> 최종무브 리턴
      * 전조 연산 자체는 omenLogic 으로 넘기며, 전조 값 연산 결과가 0 인경우 브레이크를 아닌경우 전조를 그대로 반환
+     *
      * @param mainActor
      * @param otherResult
      * @return 전조 또는 브레이크 (발생중인 전조 없으면 null)
      */
     protected DefaultActorLogicResult defaultOmen(BattleActor mainActor, ActorLogicResult otherResult) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
-        if (mainEnemy.getCurrentStandbyType() == null) return DefaultActorLogicResult.builder().resultMove(null).build(); // 발생중인 전조 없음
+        if (mainEnemy.getCurrentStandbyType() == null)
+            return DefaultActorLogicResult.builder().resultMove(null).build(); // 발생중인 전조 없음
         Move resultMove = null;
         Omen resultOmen = null;
-            Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
-            Omen standbyOmen = standby.getOmen();
-            // 전조 연산
-            Integer processedOmenValue = omenLogic.processOmen(mainEnemy, otherResult);
-            if (processedOmenValue == 0) {
-                // 전조 중단 (브레이크)
-                resultMove = mainEnemy.getActor().getMoves().get(standby.getType().getBreakType());
-                resultOmen = standby.getOmen();
-                mainEnemy.setCurrentStandbyType(null);
-                if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) mainEnemy.setChargeGauge(0);
-            } else {
-                resultMove = standby;
-                resultOmen = standby.getOmen();
-            }
+        Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        Omen standbyOmen = standby.getOmen();
+        // 전조 연산
+        Integer processedOmenValue = omenLogic.processOmen(mainEnemy, otherResult);
+        if (processedOmenValue == 0) {
+            // 전조 중단 (브레이크)
+            resultMove = mainEnemy.getActor().getMoves().get(standby.getType().getBreakType());
+            resultOmen = standby.getOmen();
+            mainEnemy.setCurrentStandbyType(null);
+            mainEnemy.setNextIncantStandbyType(null);
+            if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) mainEnemy.setChargeGauge(0);
+        } else {
+            resultMove = standby;
+            resultOmen = standby.getOmen();
+        }
         return DefaultActorLogicResult.builder().resultMove(resultMove).resultOmen(resultOmen).build();
     }
 

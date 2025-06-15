@@ -24,6 +24,8 @@ public class ActorLogicResult {
     private Long targetActorId; // 적의 현재 폼을 확인하기 위해 사용
     private MoveType moveType;
 
+    private Integer currentTurn;
+
     // 프론트 갱신용
     // 0: enemy , 1~: character (index 는 currentOrder)
     @Builder.Default
@@ -45,6 +47,7 @@ public class ActorLogicResult {
 
     // 비필수, 중요
     private int totalHitCount; // 통상공격의 경우 추격까지 모두 더함
+    private int attackMultiHitCount; // 난격시 난격 카운트
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
     private int enemyChargeGauge;

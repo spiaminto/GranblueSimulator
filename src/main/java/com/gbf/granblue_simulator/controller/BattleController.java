@@ -20,7 +20,6 @@ import com.gbf.granblue_simulator.repository.RoomRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
 import com.gbf.granblue_simulator.repository.actor.*;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -37,18 +36,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BattleController {
 
-    private final UserRepository userRepository;
-    private final RoomRepository roomRepository;
     private final MemberRepository memberRepository;
-
     private final BattleCharacterRepository battleCharacterRepository;
-    private final CharacterRepository characterRepository;
-
     private final ActorRepository actorRepository;
     private final BattleActorRepository battleActorRepository;
-    private final BattleLogic battleLogic;
     private final BattleEnemyRepository battleEnemyRepository;
     private final MoveRepository moveRepository;
+
+    private final BattleLogic battleLogic;
 
 
     @GetMapping("/battle")
@@ -126,7 +121,7 @@ public class BattleController {
 
 
         List<SummonInfo> summonInfos = new ArrayList<>();
-        
+
         // 소환석 무브 추가 -> 여기는 value 에 type 지정이 필요하지 않기 때문에 id 로 대체
         List<Long> summonMoveIds = paladin.getSummonMoveIds();
         summonMoveIds.forEach(System.out::println);
@@ -173,7 +168,7 @@ public class BattleController {
                     }
                 }
         );
-        firstCharacterVideoSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
+//        firstCharacterVideoSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
         model.addAttribute("firstCharacterVideoSrcMap", firstCharacterVideoSrcMap);
 
         Map<String, String> firstCharacterAudioSrcMap = new HashMap<>();
@@ -185,7 +180,7 @@ public class BattleController {
                 firstCharacterAudioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " voice");
             }
         });
-        firstCharacterAudioSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
+//        firstCharacterAudioSrcMap.forEach((key, value) -> log.info("key = {}, value = {}", key, value));
         model.addAttribute("firstCharacterAudioSrcMap", firstCharacterAudioSrcMap);
 
 
@@ -222,7 +217,7 @@ public class BattleController {
         Map<String, EnemyVideoInfo> enemyVideoSrcMap = new HashMap<>();
         enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
                 .collect(Collectors.groupingBy(
-                        move -> move.getAsset().getEffectVideoSrc(),
+                        move -> move.getAsset().getEffectVideoSrc() != null ? move.getAsset().getEffectVideoSrc() : "",
                         Collectors.collectingAndThen(
                                 Collectors.toList(),
                                 moves -> {
@@ -281,7 +276,7 @@ public class BattleController {
         Map<String, List<String>> enemyVideoSrcMap = new HashMap<>();
         enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
                 .collect(Collectors.groupingBy(
-                        move -> move.getAsset().getEffectVideoSrc(),
+                        move -> move.getAsset().getEffectVideoSrc() != null ? move.getAsset().getEffectVideoSrc() : "",
                         Collectors.collectingAndThen(
                                 Collectors.toList(),
                                 moves -> {
@@ -324,7 +319,7 @@ public class BattleController {
 
     @PostMapping("/api/ability")
     @ResponseBody
-    public ResponseEntity<List<AbilityResponse>> ability(@RequestBody AbilityRequest abilityRequest) {
+    public ResponseEntity<List<BattleResponse>> ability(@RequestBody AbilityRequest abilityRequest) {
         log.info("abilityRequest: {}", abilityRequest);
 
         long memberId = abilityRequest.getMemberId();
@@ -346,13 +341,14 @@ public class BattleController {
 
         List<ActorLogicResult> results = battleLogic.processAbility(mainCharacter, battleEnemy, partyMembers, moveId);
 
-        List<AbilityResponse> responses = results.stream().map(result ->
-                AbilityResponse.builder()
+        List<BattleResponse> responses = results.stream().map(result ->
+                BattleResponse.builder()
                         .charOrder(result.getMainBattleActorOrder())
                         .moveType(result.getMoveType())
                         .damages(result.getDamages())
                         .elementTypes(result.getDamageElementTypes())
-                        .hitCount(result.getTotalHitCount())
+                        .totalHitCount(result.getTotalHitCount())
+                        .attackMultiHitCount(result.getAttackMultiHitCount())
                         .additionalDamages(result.getAdditionalDamages())
                         .hps(result.getHps())
                         .hpRates(result.getHpRates())
@@ -417,7 +413,7 @@ public class BattleController {
 
     @PostMapping("/api/turn-progress")
     @ResponseBody
-    public ResponseEntity<List<AbilityResponse>> turnProgress(@RequestBody TurnProgressRequest turnProgressRequest) {
+    public ResponseEntity<List<BattleResponse>> turnProgress(@RequestBody TurnProgressRequest turnProgressRequest) {
         log.info("turnProgressRequest: {}", turnProgressRequest);
         long memberId = turnProgressRequest.getMemberId();
 
@@ -427,13 +423,14 @@ public class BattleController {
 
         List<ActorLogicResult> turnProgressResults = battleLogic.progressTurn(enemy, partyMembers);
 
-        List<AbilityResponse> responses = turnProgressResults.stream().map(result ->
-                AbilityResponse.builder()
+        List<BattleResponse> responses = turnProgressResults.stream().map(result ->
+                BattleResponse.builder()
                         .charOrder(result.getMainBattleActorOrder())
                         .moveType(result.getMoveType())
                         .damages(result.getDamages())
                         .elementTypes(result.getDamageElementTypes())
-                        .hitCount(result.getTotalHitCount())
+                        .totalHitCount(result.getTotalHitCount())
+                        .attackMultiHitCount(result.getAttackMultiHitCount())
                         .additionalDamages(result.getAdditionalDamages())
                         .hps(result.getHps())
                         .hpRates(result.getHpRates())
@@ -500,7 +497,7 @@ public class BattleController {
 
     @PostMapping("/api/summon")
     @ResponseBody
-    public ResponseEntity<List<AbilityResponse>> summon(@RequestBody SummonRequest summonRequest) {
+    public ResponseEntity<List<BattleResponse>> summon(@RequestBody SummonRequest summonRequest) {
         log.info("summonRequest: {}", summonRequest);
 
         long memberId = summonRequest.getMemberId();
@@ -519,14 +516,15 @@ public class BattleController {
 
         List<ActorLogicResult> results = battleLogic.processSummon(mainCharacter, battleEnemy, partyMembers, summonMoveId);
 
-        List<AbilityResponse> responses = results.stream().map(result ->
-                AbilityResponse.builder()
+        List<BattleResponse> responses = results.stream().map(result ->
+                BattleResponse.builder()
                         .charOrder(result.getMainBattleActorOrder())
                         .moveType(result.getMoveType())
                         .summonId(summonMoveId)
                         .damages(result.getDamages())
                         .elementTypes(result.getDamageElementTypes())
-                        .hitCount(result.getTotalHitCount())
+                        .totalHitCount(result.getTotalHitCount())
+                        .attackMultiHitCount(result.getAttackMultiHitCount())
                         .additionalDamages(result.getAdditionalDamages())
                         .hps(result.getHps())
                         .hpRates(result.getHpRates())

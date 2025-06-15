@@ -76,6 +76,9 @@ public enum StatusEffectType {
     ADDITIONAL_DAMAGE_U, // 추격 Unique(별)항
     ADDITIONAL_DAMAGE_W, // 추격 Weapon 항
 
+    // 난격 [횟수 2 ~ 6] random_attack, flurry, attack_multi_hit 중 고민중
+    ATTACK_MULTI_HIT,
+
     // 명중률 [가산배율]
     HIT_ACCURACY_UP,
     HIT_ACCURACY_DOWN,
@@ -108,6 +111,8 @@ public enum StatusEffectType {
     // 방어 특수
     IMMORTAL, // 불사신 효과 [버틸 횟수 1]
     SUBSTITUTE, // 감싸기 [우선순위 1 or 2] -> value 가 클수록 우선순위 높음
+    GUARD_DISABLED, // 방어불가 [1]
+
 
     // 체력
     MAX_HP_DOWN, // 최대 체력 감소 [감소배율]
@@ -126,6 +131,7 @@ public enum StatusEffectType {
 
     // 즉시변경류
     ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~]
+    ACT_CLEAR, // 클리어 [클리어 횟수 1 ~ 99]
     ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
 
     // 후 행동류 (재행동류 제외)

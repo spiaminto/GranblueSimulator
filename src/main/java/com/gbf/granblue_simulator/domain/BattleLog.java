@@ -27,6 +27,8 @@ public class BattleLog {
     private Long userId;
     private Long roomId;
 
+    private Integer currentTurn;
+
     private Long mainActorId; // 행동주체 Actor.id
     private Long targetActorId; // 행동 타겟 Actor.id , BattleActor.id 는 종료후에 확인 불가능 하므로 Actor.id 로 저장
 

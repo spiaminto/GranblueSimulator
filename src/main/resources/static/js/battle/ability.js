@@ -3,7 +3,7 @@ function processAbility(responseAbilityData) {
     let charOrder = responseAbilityData.charOrder;
     let moveType = MoveType.byName(responseAbilityData.moveType);
     let abilityOrder = moveType === MoveType.FIRST_ABILITY ? 1 : moveType === MoveType.SECOND_ABILITY ? 2 : MoveType.THIRD_ABILITY ? 3 : -1;
-    let abilityHitCount = abilityData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
+    let abilityHitCount = abilityData.totalHitCount;
     let abilityDamages = abilityData.damages;
     let elementType = abilityData.elementTypes[0];
     let chargeGauges = abilityData.chargeGauges;
@@ -14,11 +14,12 @@ function processAbility(responseAbilityData) {
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = abilityData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = abilityData.battleStatusList;
-    // 아군(시전자) 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList[charOrder].length > 0 || addedBuffStatusesList[0].length > 0;
-    let hasDebuff = addedDebuffStatusesList[charOrder].length > 0 || addedDebuffStatusesList[0].length > 0;
 
     // 준비 - 아군
     let partySelector = '.party-' + charOrder;
@@ -38,11 +39,11 @@ function processAbility(responseAbilityData) {
 // EFFECT 시작
     // 오디오 재생
     let audioPlayer = new AudioPlayer();
-    let audioSrcs = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(audio => audio.src);
+    let audioSrcs = $('.party-audio-container ' + partySelector + ' .' + moveType.className).toArray().map(audio => $(audio).attr('src'));
     audioPlayer.loadSounds(audioSrcs).then(() => audioPlayer.playAllSounds());
 
     // 아군 이펙트, 모션 재생
-    if (abilityEffectVideo) {
+    if (abilityEffectVideo.length) {
         playVideo(abilityEffectVideo, abilityMotionVideo, idleMotionVideo);
     }
 
@@ -87,14 +88,13 @@ function processAbility(responseAbilityData) {
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, abilityEffectDuration);
 
-    // 버프 이펙트 처리
-    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, abilityEffectDuration);
-    let buffEndTime = abilityEffectDuration + longestBuffDelay;
+    // 어빌리티는 타수가 많을경우 데미지 표시길이만큼 딜레이 보정
+    abilityEffectDuration = abilityEffectDuration += abilityHitCount * 50;
 
+    // 버프 이펙트 처리
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, abilityEffectDuration);
     // 디버프 이펙트 처리
-    let debuffStartDelay = hasDebuff ? abilityEffectDuration + longestBuffDelay : abilityEffectDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
-    let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = Math.max(abilityEffectDuration + 100, buffEndTime, debuffEndTime);
     console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', abilityEffectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
@@ -103,7 +103,7 @@ function processAbility(responseAbilityData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 100));
+    }, totalEndTime + 200));
 }
 
 
@@ -113,7 +113,7 @@ function processEnemyAbility(responseAbilityData) {
     let charOrder = abilityData.charOrder;
     let partySelector = '.party-' + charOrder
     let moveType = MoveType.byName(abilityData.moveType);
-    let abilityHitCount = abilityData.hitCount; // 히트수 (피격모션, 데미지 표시관련)
+    let abilityHitCount = abilityData.totalHitCount; // 히트수 (피격모션, 데미지 표시관련)
     let damages = abilityData.damages;
     let additionalDamages = abilityData.additionalDamages;
     let elementTypes = abilityData.elementTypes;
@@ -131,11 +131,12 @@ function processEnemyAbility(responseAbilityData) {
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
     let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = abilityData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
     // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let currentBattleStatusesList = abilityData.battleStatusList;
-    // 아군 또는 적 에게 버프와 디버프 있는지 확인
-    let hasBuff = addedBuffStatusesList.some(arr => arr.length > 0);
-    let hasDebuff = addedDebuffStatusesList.some(arr => arr.length > 0);
 
     // 준비 - 적
     let $abilityVideo =
@@ -143,7 +144,7 @@ function processEnemyAbility(responseAbilityData) {
             isEnemyCtMax ? $('.global-video-container .enemy-ct-max') :
                 $('.enemy-video-container .' + moveType.className);
     let effectHitDelay = Number($abilityVideo.attr('data-effect-hit-delay')); // 이펙트 시작 ~ 데미지 표시 까지 딜레이
-    let abilityDuration = $abilityVideo.get(0).duration * 1000;
+    let abilityDuration = $abilityVideo.attr('src') ? $abilityVideo.get(0).duration * 1000 : 0;
     abilityDuration = $abilityVideo.hasClass('global-video') ? abilityDuration / 2 : abilityDuration; // 글로벌 이펙트의 경우 길이 반감
     let abilityHitDuration = (abilityDuration - effectHitDelay) / abilityHitCount; // 히트당 길이는 데미지 표시용 1000ms 제외
     let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
@@ -161,14 +162,16 @@ function processEnemyAbility(responseAbilityData) {
     let audioSelector =
         isEnemyPowerUp ? '.global-audio-container .enemy-power-up' :
             isEnemyCtMax ? '.global-audio-container .enemy-ct-max ' : '.enemy-audio-container .' + moveType.className;
-    let audioSrcs = $(audioSelector).toArray().map(element => element.src);
+    let audioSrcs = $(audioSelector).toArray().map(element => $(element).attr('src'));
     enemyAudioPlayer.loadSounds(audioSrcs).then(() => {
         enemyAudioPlayer.playAllSounds();
     });
 
     // 이펙트 재생
     let $playIdleVideo = isEnemyPowerUp || isEnemyCtMax ? null : $enemyIdleVideo; // 적 파워업 또는 CTMAX 의 경우 이펙트만 재생
-    playVideo($abilityVideo, null, $playIdleVideo);
+    if ($abilityVideo.length && $abilityVideo.attr('src')) {
+        playVideo($abilityVideo, null, $playIdleVideo);
+    }
 
     // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
     let $appendedEnemyDamageWrappers = [];
@@ -225,13 +228,9 @@ function processEnemyAbility(responseAbilityData) {
     processStatusIconSync(currentBattleStatusesList, abilityDuration);
 
     // 버프 이펙트 처리
-    let longestBuffDelay = processBuffEffect(addedBuffStatusesList, abilityDuration);
-    let buffEndTime = abilityDuration + longestBuffDelay;
-
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, abilityDuration);
     // 디버프 이펙트 처리
-    let debuffStartDelay = hasDebuff ? abilityDuration + longestBuffDelay : abilityDuration; // 버프 없으면 즉시시작
-    let longestDebuffDelay = processDebuffEffect(addedDebuffStatusesList, debuffStartDelay);
-    let debuffEndTime = debuffStartDelay + longestDebuffDelay;
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = Math.max(abilityDuration + 100, buffEndTime, debuffEndTime);
     console.log('[processEnemyAbility] totalTime', totalEndTime, 'abilityDuration ', abilityDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
@@ -240,5 +239,5 @@ function processEnemyAbility(responseAbilityData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log(moveType.name + ' done');
         resolve();
-    }, totalEndTime + 100));
+    }, totalEndTime + 200));
 }

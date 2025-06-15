@@ -38,6 +38,7 @@ public class AbilityRequest {
         private String statusText;
         private Integer duration;
         private String removable;
+        private String isResistible;
         private String iconSrcs;
 
         private String statusEffects; // type, value \n

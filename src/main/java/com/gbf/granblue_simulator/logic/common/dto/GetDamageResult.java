@@ -12,4 +12,5 @@ public class GetDamageResult {
     private List<ElementType> elementTypes;
     private List<Integer> damages;
     private List<List<Integer>> additionalDamages;
+    private Integer attackMultiHitCount;
 }
