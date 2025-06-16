@@ -119,21 +119,30 @@ public abstract class EnemyLogic {
         return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).nextMoveType(nextMoveType).build();
     }
 
+    /**
+     * 기본적인 오의 처리
+     * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 스테이터스 추가 -> 오의게이지 갱신
+     * @param mainActor
+     * @param partyMembers
+     * @param standby
+     * @return
+     */
     protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby) {
-        return defaultChargeAttack(mainActor, partyMembers, standby, null);
+        return defaultChargeAttack(mainActor, partyMembers, standby, mainActor.getActor().getMoves().get(standby.getType().getChargeAttackType()), null);
     }
 
     /**
-     * 기본적인 오의 처리
+     * 기본적인 오의 처리 (배율 수정)
      * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 스테이터스 추가 -> 오의게이지 갱신
      *
      * @param mainActor
      * @param partyMembers
-     * @param standby      : 현재 발동중인 전조 - 실행할 오의 결정에 필요
+     * @param standby 오의(전조) 타입 조회를 위해 필요
+     * @param chargeAttack
+     * @param modifiedDamageRate
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby, Double modifiedDamageRate) {
-        Move chargeAttack = mainActor.getActor().getMoves().get(standby.getType().getChargeAttackType());
+    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby, Move chargeAttack, Double modifiedDamageRate) {
         // 타겟설정
         List<BattleActor> targets = getAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
         // 데미지 계산

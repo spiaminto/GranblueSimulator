@@ -153,7 +153,26 @@
     background: rgba(0, 0, 0, 0.5);
 }
 
-/* 서브커맨드 */
+/* 추가(advanced) 커맨드*/
+.advanced-command-container {
+    padding: 5px 15px;
+}
+
+.advanced-command-container .guard-button-wrapper {
+    display: flex;
+}
+
+.guard-button-wrapper .guard-button {
+    width: 70px;
+    margin-right: 3px;
+    text-align: center;
+}
+
+.guard-button img {
+    width: 90%;
+}
+
+/* 서브 커맨드 */
 .sub-command-container {
     color: white;
     display: flex;

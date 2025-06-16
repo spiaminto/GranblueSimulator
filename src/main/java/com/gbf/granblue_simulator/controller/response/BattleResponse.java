@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller;
+package com.gbf.granblue_simulator.controller.response;
 
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -44,6 +44,7 @@ public class BattleResponse {
     private Integer omenValue;
     private String omenCancelCondInfo;
     private String omenName;
+    private String omenInfo;
 
     private Long summonId; // 소환석 사용시 반환
 

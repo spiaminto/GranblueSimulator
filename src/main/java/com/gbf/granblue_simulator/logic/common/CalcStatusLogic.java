@@ -123,16 +123,16 @@ public class CalcStatusLogic {
                 * (1 + uniqueRate)
         ;
 
-        battleActor.setAtkRate(atkRate);
-        battleActor.setStrengthRate(strengthRate);
-        battleActor.setJammedRate(jammedRate);
-        battleActor.setAtkUniqueRate(uniqueRate);
+//        battleActor.setAtkRate(atkRate);
+//        battleActor.setStrengthRate(strengthRate);
+//        battleActor.setJammedRate(jammedRate);
+//        battleActor.setAtkUniqueRate(uniqueRate);
         battleActor.setAtk((int) atk);
         return 0;
     }
 
     /**
-     * 방어업, 베리어, 감싸기
+     * 방어업
      * 피격데미지 계열은 데미지 로직에서 연산
      *
      * @param battleActor
@@ -144,21 +144,16 @@ public class CalcStatusLogic {
         // 방어인항
         double defUpRate = getSum(statusEffects.get(StatusEffectType.DEF_UP));
         double defDownRate = getSum(statusEffects.get(StatusEffectType.DEF_DOWN));
-        // 베리어
-        int barrier = (int) getSum(statusEffects.get(StatusEffectType.BARRIER));
-        // 감싸기 (1, 2 가 들어오며 2가 우선순위 더 높음)
-        double substitute = getValue(statusEffects.get(StatusEffectType.SUBSTITUTE));
 
         // 상한 하한 처리
         double defRate = Math.max(defUpRate - defDownRate, -0.5); // 방어령 상승 X, 하한 -50%
-        // 베리어 X
-        // 감싸기 X
+        
+        // 데미지컷, 데미지고정, 피격데미지 감소는 DamageLogic 에서, 감싸기는 적 로직에서 연산
 
         def = (double) battleActor.getActor().getBaseDefencePoint()
                 * (1 + defRate)
         ;
 
-        battleActor.setBarrier(barrier);
         battleActor.setDef((int) def);
         return 0;
     }
@@ -176,7 +171,6 @@ public class CalcStatusLogic {
                 * (1 + hpWeaponRate)
                 * (1 + maxHpDownRate);
 
-        battleActor.setMaxHpRate(maxHpDownRate);
         battleActor.setMaxHp((int) maxHp);
         if (battleActor.getHp() == null) battleActor.setHp((int) maxHp); // 첫 초기화
         return 0;
@@ -329,7 +323,6 @@ public class CalcStatusLogic {
         battleActor.setMaxChargeGauge(battleActor.getActor().getMaxChargeGauge());
         battleActor.setChargeGauge(0);
         battleActor.setMaxHp(battleActor.getHp());
-        battleActor.setDamageCapRate(0.0);
 
         battleActor.setFirstAbilityCoolDown(0);
         battleActor.setSecondAbilityCoolDown(0);

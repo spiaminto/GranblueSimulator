@@ -41,12 +41,13 @@ public class Diaspora2Logic extends EnemyLogic {
     @Override
     public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
-        Move chargeAttack = mainActor.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        Move standby = mainActor.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        Move chargeAttack = mainActor.getActor().getMoves().get(mainEnemy.getCurrentStandbyType().getChargeAttackType());
         Double damageRate =
-                chargeAttack.getType() == MoveType.STANDBY_B ? getChargeAttackBDamageRate(mainActor) : // 허수몽핵
-                        chargeAttack.getType() == MoveType.STANDBY_D ? getChargeAttackDDamageRate(mainActor) : // 인자방출
+                chargeAttack.getType() == MoveType.CHARGE_ATTACK_B ? getChargeAttackBDamageRate(mainActor) : // 허수몽핵
+                        chargeAttack.getType() == MoveType.CHARGE_ATTACK_D ? getChargeAttackDDamageRate(mainActor) : // 인자방출
                                 chargeAttack.getDamageRate(); // 기본배율
-        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, chargeAttack, damageRate);
+        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, standby, chargeAttack, damageRate);
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
         return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
     }

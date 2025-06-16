@@ -55,7 +55,8 @@ public class Diaspora1Logic extends EnemyLogic {
     @Override
     public ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
-        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType()));
+        Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, standby);
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
         return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
     }

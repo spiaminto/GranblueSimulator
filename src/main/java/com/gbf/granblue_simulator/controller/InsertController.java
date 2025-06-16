@@ -57,10 +57,11 @@ public class InsertController {
         // idle
         Move idle = Move.builder()
                 .type(MoveType.IDLE_DEFAULT)
+                .name("idle")
                 .info("idle")
                 .elementType(character.getElementType())
-                .damageRate(null)
-                .coolDown(null)
+                .damageRate(0.0)
+                .coolDown(0)
                 .duration(null)
                 .actor(character)
                 .build();
@@ -72,9 +73,28 @@ public class InsertController {
                 .build();
         idleAsset = assetRepository.save(idleAsset);
 
+        // guard
+        Move guard = Move.builder()
+                .type(MoveType.GUARD)
+                .name("guard")
+                .info("guard")
+                .elementType(character.getElementType())
+                .damageRate(0.0)
+                .coolDown(0)
+                .duration(null)
+                .actor(character)
+                .build();
+        moveRepository.save(guard);
+
+        Asset guardAsset = Asset.builder()
+                .move(guard)
+                .build();
+        guardAsset = assetRepository.save(guardAsset);
+
         // single attack
         Move singleAttack = Move.builder()
                 .type(MoveType.SINGLE_ATTACK)
+                .name("single-attack")
                 .info("single attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
@@ -94,6 +114,7 @@ public class InsertController {
         // double attack
         Move doubleAttack = Move.builder()
                 .type(MoveType.DOUBLE_ATTACK)
+                .name("double-attack")
                 .info("double attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
@@ -113,6 +134,7 @@ public class InsertController {
         // triple attack
         Move tripleAttack = Move.builder()
                 .type(MoveType.TRIPLE_ATTACK)
+                .name("triple-attack")
                 .info("triple attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)

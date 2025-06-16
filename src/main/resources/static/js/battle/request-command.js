@@ -1,3 +1,54 @@
+/**
+ * 가드 요청
+ * @param charOrder 가드 누른 캐릭터
+ * @param type 가드타입 (SELF, PARTY_MEMBERS)
+ */
+function requestGuard(charOrder, type) {
+    console.log('[requestGuard] charOrder = ', charOrder, ' type = ', type);
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+    let memberId = $('#memberInfo').data('member-id');
+    let roomId = $('#roomInfo').data('room-id');
+    $.ajax({
+        url: '/api/guard',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            characterId: characterId,
+            charOrder: charOrder,
+            memberId: memberId,
+            roomId: roomId,
+            targetType: type
+        }),
+        async: false,
+        success: function (response) {
+            console.log(response);
+            processGuard(response);
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+}
+
+function processGuard(response) {
+    console.log('[processGuard] response = ', response);
+    let isGuardActivated = response.guardActivated; //
+    response.guardResults.forEach(function (guardResult) {
+        if (guardResult.guardOn) {
+            $('.guard-status-wrapper .guard-status.party-' + guardResult.currentOrder).addClass('guard-on');
+        } else {
+            $('.guard-status-wrapper .guard-status.party-' + guardResult.currentOrder).removeClass('guard-on');
+        }
+    });
+
+    let audioPlayer = new AudioPlayer();
+    let src = isGuardActivated ? $('.global-audio-container .guard-on').attr('src') : $('.global-audio-container .guard-off').attr('src');
+    audioPlayer.loadSound(src).then(() => {
+        audioPlayer.playAllSounds();
+    })
+}
+
+
 function requestAbility(charOrder, abilityOrder) {
     // console.log('[processAbility] start process charOrder = ' + charOrder + 'abilityOrder = ' + abilityOrder);
 
@@ -25,7 +76,7 @@ function requestAbility(charOrder, abilityOrder) {
         success: function (response) {
             responseResults = response;
             console.log(responseResults);
-            processResponseMoves(responseResults, abilityOrder);
+            processResponseMoves(responseResults);
         },
         error: function (response) {
             console.log(response);
@@ -55,6 +106,8 @@ function requestTurnProgress() {
                 let $turnValue = $('.turn-indicator .turn-value');
                 let turnValue = $turnValue.text();
                 $turnValue.text(++turnValue);
+                // 가드해제
+                $('.guard-status-wrapper .guard-status').removeClass('guard-on');
             })
         },
         error: function (error) {
@@ -96,10 +149,13 @@ async function processResponseMoves(responseResults) {
                 await processEnemyBreak(response);
                 break;
             case MoveType.ROOT:
-                if (moveType === MoveType.FORM_CHANGE) {
-                    await processFormChange(response);
-                } else {
-                    console.log('[processResponseMoves] invalid type]', moveType)
+                switch (moveType) {
+                    case MoveType.FORM_CHANGE:
+                        await processFormChange(response); break;
+                    case MoveType.GUARD:
+                        break; // 가드시 아무것도 안함
+                    default:
+                        console.log('[processResponseMoves ROOT] invalid type]', moveType)
                 }
                 break;
             default:
@@ -244,6 +300,7 @@ function processEnemyStandBy(standbyResponse) {
     console.log(omenType)
     let omenName = standbyResponse.omenName;
     let omenValue = standbyResponse.omenValue;
+    let omenInfo = standbyResponse.omenInfo;
     let omenCancelCondInfo = standbyResponse.omenCancelCondInfo;
     let $omenContainerTop = $('.omen-container-top.enemy');
     let $omenContainerBottom = $('.omen-container-bottom.enemy');
@@ -265,7 +322,8 @@ function processEnemyStandBy(standbyResponse) {
     $omenContainerTop.addClass('activated')
         .find('.omen-text').addClass(omenType.className)
         .find('.omen-prefix').text(omenCancelCondInfo).end()
-        .find('.omen-value').text(omenValue);
+        .find('.omen-value').text(omenValue)
+        .find('.omen-info').text(omenInfo);
 
     $omenContainerBottom.addClass('activated')
         .find('.omen-text').addClass(omenType.className)
@@ -311,7 +369,8 @@ function processEnemyBreak(breakResponse) {
     $(".omen-container").removeClass('activated')
         .find('.omen-text').removeClass(omenType.className)
         .find('.omen-prefix').text('')
-        .find('.omen-value').text('');
+        .find('.omen-value').text('')
+        .find('.omen-info').text('');
 
     // 오디오 재생
     let audioPlayer = new AudioPlayer();

@@ -53,6 +53,7 @@ public abstract class CharacterLogic {
      */
     public ActorLogicResult processAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, MoveType moveType) {
         boolean readyChargeAttack = mainActor.getChargeGauge() >= mainActor.getActor().getMaxChargeGauge();
+        if (mainActor.isGuardOn()) return defaultGuard(mainActor, enemy, partyMembers);
         return moveType == MoveType.CHARGE_ATTACK_DEFAULT || readyChargeAttack ?
                 chargeAttack(mainActor, enemy, partyMembers) :
                 attack(mainActor, enemy, partyMembers);
@@ -183,6 +184,10 @@ public abstract class CharacterLogic {
             }
         }
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+    }
+
+    protected ActorLogicResult defaultGuard(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        return resultMapper.toResult(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.GUARD), null, null);
     }
 
     // 가변 오버라이드 (내부사용)

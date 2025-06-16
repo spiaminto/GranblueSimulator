@@ -45,6 +45,7 @@ public class DamageLogic {
     public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move, Double modifiedDamageRate) {
         ProcessType processType = determineProcessType(move.getType());
 
+        log.info("[processEnemy] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
         ElementType elementType = move.getElementType();
         double damageRate = modifiedDamageRate == null ? move.getDamageRate() : modifiedDamageRate;
         int damageConstant = move.getDamageConstant() != null ? move.getDamageConstant() : 0;
@@ -296,8 +297,9 @@ public class DamageLogic {
      */
     protected double applyDef(BattleActor target, double damage) {
         Integer targetDef = target.getDef();
+        targetDef = target.isGuardOn() ? targetDef * 10 : targetDef;
         double resultDamage = damage / targetDef;
-        log.info("[applyDef] damage = {}, resultDamage = {}, targetDef = {}", damage, resultDamage, targetDef);
+        log.info("[applyDef] damage = {}, resultDamage = {}, targetDef = {}, isGuardOn = {}", damage, resultDamage, targetDef, target.isGuardOn());
         return resultDamage;
     }
 

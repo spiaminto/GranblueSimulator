@@ -110,6 +110,7 @@ const MoveType = {
     FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'ROOT', className: 'phase-change-entry'},
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
     DEAD: {name: 'DEAD', parentType: 'ROOT', className: 'dead'},
+    GUARD: {name: 'GUARD', parentType: 'ROOT', className: 'guard'},
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };

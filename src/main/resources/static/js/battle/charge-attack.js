@@ -199,7 +199,7 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
             $additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
                     $(additionalDamage).addClass('enemy-damage-show');
-                }, index + 100);
+                }, (index + 1) * 100);
             });
             // 아군 피격 재생
             playVideo($partyDamagedVideos.eq(targetOrder - 1), null, $partyIdleVideos.eq(targetOrder - 1));

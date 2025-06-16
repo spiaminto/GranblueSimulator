@@ -1,9 +1,10 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.response.CharacterInfo;
-import com.gbf.granblue_simulator.controller.response.EnemyInfo;
-import com.gbf.granblue_simulator.controller.response.EnemyVideoInfo;
-import com.gbf.granblue_simulator.controller.response.SummonInfo;
+import com.gbf.granblue_simulator.controller.request.AbilityRequest;
+import com.gbf.granblue_simulator.controller.request.GuardRequest;
+import com.gbf.granblue_simulator.controller.request.SummonRequest;
+import com.gbf.granblue_simulator.controller.request.TurnProgressRequest;
+import com.gbf.granblue_simulator.controller.response.*;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
@@ -15,10 +16,12 @@ import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import com.gbf.granblue_simulator.repository.MemberRepository;
-import com.gbf.granblue_simulator.repository.RoomRepository;
-import com.gbf.granblue_simulator.repository.UserRepository;
-import com.gbf.granblue_simulator.repository.actor.*;
+import com.gbf.granblue_simulator.repository.actor.ActorRepository;
+import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
+import com.gbf.granblue_simulator.repository.actor.BattleCharacterRepository;
+import com.gbf.granblue_simulator.repository.actor.BattleEnemyRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Guard;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -58,12 +62,14 @@ public class BattleController {
         Integer omenValue = null;
         OmenType omenType = null;
         String omenName = null;
+        String omenInfo = null;
         if (enemy.getCurrentStandbyType() != null) {
             Omen omen = enemy.getActor().getMoves().get(enemy.getCurrentStandbyType()).getOmen();
             omenPrefix = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo(); // TODO 나중에 리팩토링 해야될듯
             omenValue = enemy.getOmenValue();
             omenType = omen.getOmenType();
             omenName = omen.getName();
+            omenInfo = omen.getInfo();
         }
 
         EnemyInfo enemyInfo = EnemyInfo.builder()
@@ -81,6 +87,8 @@ public class BattleController {
                 .omenValue(omenValue)
                 .omenType(omenType)
                 .omenName(omenName)
+                .omenInfo(omenInfo)
+
                 .build();
         model.addAttribute("enemyInfo", enemyInfo);
 
@@ -357,6 +365,7 @@ public class BattleController {
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())
                         .omenName(result.getOmenName())
+                        .omenInfo(result.getOmenInfo())
                         .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
                                 .map(battleStatuses ->
                                         battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
@@ -440,6 +449,7 @@ public class BattleController {
                         .omenType(result.getOmenType())
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                        .omenInfo(result.getOmenInfo())
                         .chargeGauges(result.getChargeGauges())
                         .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
                                 .map(battleStatuses ->
@@ -533,6 +543,7 @@ public class BattleController {
                         .omenValue(result.getOmenValue())
                         .omenCancelCondInfo(result.getOmenCancelCondInfo())
                         .omenName(result.getOmenName())
+                        .omenInfo(result.getOmenInfo())
                         .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
                                 .map(battleStatuses ->
                                         battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
@@ -583,6 +594,26 @@ public class BattleController {
 
 
         return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/api/guard")
+    @ResponseBody
+    public ResponseEntity<GuardResponse> guard(@RequestBody GuardRequest guardRequest) {
+        log.info("guard request: {}", guardRequest);
+        long memberId = guardRequest.getMemberId();
+        long characterId = guardRequest.getCharacterId();
+
+        List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
+        List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
+        BattleActor mainCharacter = partyMembers.stream().filter(battleCharacter -> battleCharacter.getId().equals(characterId)).findFirst().orElseThrow();
+
+        List<GuardResult> guardResults = battleLogic.processGuard(mainCharacter, partyMembers, guardRequest.getTargetType());
+        boolean guardActivated = mainCharacter.isGuardOn(); // 메인 캐릭터 가드여부 따로 전달
+        GuardResponse guardResponse = GuardResponse.builder()
+                .isGuardActivated(guardActivated)
+                .guardResults(guardResults)
+                .build();
+        return ResponseEntity.ok(guardResponse);
     }
 
     public void init() {

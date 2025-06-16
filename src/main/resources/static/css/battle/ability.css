@@ -211,6 +211,24 @@
     border-bottom: 1px #7aaaaa solid;
 }
 
+.status-info.incant-attack {
+    background-color: rgba(100, 30, 70, 0.8);
+    border-top: solid 1px rgb(200, 60, 140);
+    border-bottom: solid 1px rgb(200, 60, 140);
+}
+
+.status-info.hp-trigger {
+    background-color: rgba(100, 100, 100, 0.8);
+    border-top: solid 1px rgb(200, 200, 200);
+    border-bottom: solid 1px rgb(200, 200, 200);
+}
+
+.status-info.charge-attack {
+    background-color: rgba(100, 100, 30, 0.8);
+    border-top: solid 1px rgb(200, 200, 60);
+    border-bottom: solid 1px rgb(200, 200, 60);
+}
+
 .status-modal-button {
     display: none;
 }

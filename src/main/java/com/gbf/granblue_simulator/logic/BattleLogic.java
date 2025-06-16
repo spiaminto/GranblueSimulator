@@ -7,11 +7,15 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
+import com.gbf.granblue_simulator.logic.common.StatusUtil;
+import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
@@ -21,10 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -41,6 +43,7 @@ public class BattleLogic {
     private final BattleActorRepository battleActorRepository;
     private final BattleLogRepository battleLogRepository;
     private final SetStatusLogic setStatusLogic;
+    private final StatusUtil statusUtil;
 
     public void startBattle(List<BattleActor> partyMembers, BattleActor enemy) {
         partyMembers.forEach(partyMember -> {
@@ -74,6 +77,7 @@ public class BattleLogic {
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
         // 아군 턴종 처리
         partyMembers.forEach(partyMember -> {
+            if (partyMember.isGuardOn()) partyMember.toggleGuard(); // 가드 off
             CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
             turnEndResults.addAll(characterLogic.processTurnEnd(partyMember, enemy, partyMembers));
         });
@@ -195,6 +199,39 @@ public class BattleLogic {
         // 반응
         results.addAll(postProcessToMove(mainActor, partyMembers, enemy, result));
         return results;
+    }
+
+    /**
+     * 가드 상태 변경후 반환
+     *
+     * @param mainActor
+     * @param partyMembers
+     * @param targetType
+     * @return Map<currentOrder::String, isGuardOn::String> '1' : 'true', ... 파티원 전체
+     */
+    public List<GuardResult> processGuard(BattleActor mainActor, List<BattleActor> partyMembers, StatusTargetType targetType) {
+        if (targetType == StatusTargetType.SELF) {
+            List<StatusEffect> guardDisabledStatusEffects = statusUtil.getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
+            if (guardDisabledStatusEffects == null) {
+                mainActor.toggleGuard();
+            }
+        } else if (targetType == StatusTargetType.PARTY_MEMBERS) {
+            boolean mainActorIsGuardOn = mainActor.isGuardOn(); // 파티전체의 경우, 가드 누른 캐릭터와 동일한 상태의 가드만 토글
+            partyMembers.forEach(partyMember -> {
+                        List<StatusEffect> guardDisabledStatusEffects = statusUtil.getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
+                        if (guardDisabledStatusEffects == null && partyMember.isGuardOn() == mainActorIsGuardOn) {
+                            partyMember.toggleGuard();
+                        }
+                    }
+            );
+        }
+
+        return partyMembers.stream().map(partyMember ->
+                GuardResult.builder()
+                        .currentOrder(partyMember.getCurrentOrder())
+                        .isGuardOn(partyMember.isGuardOn())
+                        .build()
+        ).toList();
     }
 
     /**

@@ -85,6 +85,8 @@ public enum MoveType {
 
     SUMMON(ROOT, "summon"), // 소환
 
+    GUARD(ROOT, "guard"), // 가드
+
     ETC(ROOT, "etc"),
     
     // NULL 대응

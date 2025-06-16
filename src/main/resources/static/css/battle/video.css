@@ -4,11 +4,11 @@ video {
 
 .enemy-video {
     position: absolute;
-    z-index: -10;
+    z-index: -1;
 }
 
-.enemy-video-container video:is(.attack, .charge-attack, .standby, .idle) {
-    z-index: 0;
+.enemy-video.attack, .enemy-video.charge-attack, .enemy-video.standby, .enemy-video.break {
+    z-index: 10;
 }
 
 .party-video {
@@ -28,25 +28,25 @@ video {
 .party-video-container .party-1 video {
     top: 6%;
     right: 3%;
-    z-index: -4;
+    z-index: -5;
 }
 
 .party-video-container .party-2 video {
     top: 19%;
     right: -10%;
-    z-index: -3;
+    z-index: -4;
 }
 
 .party-video-container .party-3 video {
     top: 32%;
     right: 3%;
-    z-index: -2;
+    z-index: -3;
 }
 
 .party-video-container .party-4 video {
     top: 45%;
     right: -10%;
-    z-index: -1;
+    z-index: -2;
 }
 
 .party-video-container .motion {
@@ -110,4 +110,90 @@ video {
 .waiting-video {
     width: 100%;
 }
+
+.global-image-container {
+    position: absolute;
+    width: 100%;
+}
+
+.guard-status-wrapper {
+    width: 100%;
+    position: relative;
+}
+
+.guard-status img {
+    width: 100%;
+}
+
+.guard-status-wrapper .guard-status {
+    position: absolute;
+    width: 55px;
+    z-index: 1;
+    opacity: 0;
+}
+
+.guard-status-wrapper .guard-status.effect {
+    border-radius: 50%;
+    margin: 15px 15px;
+    z-index: 0;
+    width: 30px;
+    height: 30px;
+    box-shadow: 0 0 10px 13px rgba(255,255,255,0.6); /* x, y, blur, spread, color */
+}
+
+.guard-status-wrapper .guard-status.guard-on {
+    animation: guard-on-effect 0.5s forwards;
+}
+
+.guard-status-wrapper .guard-status.effect.guard-on {
+    animation: guard-status-effect 1.5s infinite alternate;
+}
+
+.guard-status-wrapper .guard-status.party-1 {
+    top: 160px;
+    right: 60px;
+}
+.guard-status-wrapper .guard-status.party-2 {
+    top: 215px;
+    right: 15px;
+}
+.guard-status-wrapper .guard-status.party-3 {
+    top: 265px;
+    right: 60px;
+}
+.guard-status-wrapper .guard-status.party-4 {
+    top: 315px;
+    right: 15px
+}
+
+@keyframes guard-on-effect {
+    0% {
+        opacity: 0;
+        transform: scale(1);
+    }
+    3% {
+        opacity: 1;
+        transform: scale(1.3);
+    }
+    20% {
+        transform: scale(1.0);
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes guard-status-effect {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+
+
+
+
 

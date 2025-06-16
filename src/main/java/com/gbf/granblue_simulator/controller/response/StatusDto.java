@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller;
+package com.gbf.granblue_simulator.controller.response;
 
 import lombok.Builder;
 import lombok.Data;
