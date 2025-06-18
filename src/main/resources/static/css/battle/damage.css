@@ -58,7 +58,7 @@
 
 .attack-damage {
     position: absolute;
-    z-index: 10;
+    z-index: 29;
     opacity: 0;
     font-weight: 600;
     font-size: 50px;
@@ -117,35 +117,35 @@
     position: absolute;
     top: -40%;
     left: 30%;
-    z-index: 9;
+    z-index: 28;
 }
 
 .additional-damage:nth-child(2) {
     position: absolute;
     top: -80%;
     left: 35%;
-    z-index: 8;
+    z-index: 27;
 }
 
 .additional-damage:nth-child(3) {
     position: absolute;
     top: -120%;
     left: 40%;
-    z-index:7;
+    z-index:26;
 }
 
 .additional-damage:nth-child(4) {
     position: absolute;
     top: -160%;
     left: 45%;
-    z-index: 6;
+    z-index: 25;
 }
 
 .additional-damage:nth-child(5) {
     position: absolute;
     top: -210%;
     left: 50%;
-    z-index: 5;
+    z-index: 24;
 }
 
 /* 아군 어빌리티 데미지 */
@@ -159,7 +159,7 @@
 }
 
 .ability-damage {
-    z-index: 10;
+    z-index: 29;
     position: relative;
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     font-weight: 600;
@@ -171,9 +171,9 @@
 
 /* 아군 오의 데미지 */
 .charge-attack-damage {
-    z-index: 10;
+    z-index: 29;
     position: relative;
-    opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
+    opacity: 0; /* display none 하면 동적으로 요소 넣9을떄마다 중앙위치가 변경되어 opacity 로 조절 */
     font-weight: 600;
     font-size: 45px;
     line-height: 45px;
@@ -194,7 +194,7 @@
 
 .enemy-attack-damage {
     position: absolute;
-    z-index: 11; /* 폰트 외곽선 가리기 */
+    z-index: 29;
     opacity: 0;
     font-weight: 600;
     font-size: 25px;
@@ -234,7 +234,7 @@
 .enemy-additional-damage-wrapper {
     position: absolute;
     visibility: hidden;
-    z-index: 10;
+    z-index: 28;
     font-weight: 600;
     font-size: 25px;
     line-height: 25px;

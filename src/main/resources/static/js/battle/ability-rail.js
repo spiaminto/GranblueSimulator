@@ -14,9 +14,18 @@ $(function () {
         }
     })
 
+    $('.fatal-chain-gauge-wrapper').on('click', function () {
+        openAbilityInfoModal($(this));
+    })
+
     function openAbilityInfoModal($abilityIcon) {
         let iconSrc = $abilityIcon.find('img').attr('src');
         let abilityInfoText = $abilityIcon.find('.ability-info-text').text();
+        let isFatalChain = abilityInfoText === '';
+        if (isFatalChain) {
+            // 페이탈 체인
+            abilityInfoText = $($abilityIcon).find('.fatal-chain-gauge-info').text();
+        }
         let isNotReady = $abilityIcon.find('.ability-overlay').hasClass('not-ready');
         // 모달에 내용 채우기
         $('#abilityInfoModal').find('.ability-info-icon').attr('src', iconSrc).end()
@@ -28,7 +37,10 @@ $(function () {
         })
         $('#abilityInfoModal .use-ability-button').one('click', function () {
             $('#abilityInfoModal .close-ability-info-modal-button').click();
-            processAbilityClick($abilityIcon);
+            if (isFatalChain)
+                requestFatalChain($abilityIcon.find('.fatal-chain-gauge-info').attr('data-fatal-chain-move-id'));
+            else
+                processAbilityClick($abilityIcon);
         });
         $('.ability-info-modal-button').click();
     }
@@ -43,7 +55,6 @@ $(function () {
 
         // DEV 개발중에는 어빌리티 오버레이에 상관없이 실행
         // if ($abilityIcon.find('.ability-overlay').hasClass('not-ready')) return false;
-
 
         let charOrder = $abilityIcon.closest('.ability-panel').data('characterOrder');
         let abilityOrder = $abilityIcon.data('abilityOrder');

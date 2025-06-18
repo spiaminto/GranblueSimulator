@@ -6,7 +6,7 @@
     /*background-color: transparent;*/
     padding: 5px 15px;
     width: 390px;
-    height: 210px;
+    height: 185px;
     background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
     background-size: 3px;
 
@@ -14,7 +14,7 @@
 
 .ability-panel {
     position: relative;
-    height: 210px;
+    height: 185px;
     justify-content: space-between;
     color: white;
 
@@ -63,12 +63,13 @@
 
 .ability-battle-portrait {
     top: 0;
-    width: 70px;
+    width: 66px;
+    height: 140px;
     position: relative;
 }
 
 .ability-battle-portrait img {
-    width: 70px;
+    height: 100%;
 }
 
 .ability-icon {
@@ -118,7 +119,7 @@
     position: absolute;
     overflow: hidden;
     width: 100%;
-    top: 150px;
+    top: 143px;
 
     padding: 0 4px;
     border-radius: 5px;
@@ -282,7 +283,7 @@
 
 .ability-back-button-wrapper {
     position: absolute;
-    z-index: 1;
+    z-index: 99;
     bottom: 5px;
     left: 5px;
 }

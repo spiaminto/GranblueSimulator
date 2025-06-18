@@ -41,6 +41,7 @@ public enum StatusEffectType {
     TAKEN_SUPPLEMENTAL_DAMAGE_UP, // 피격 데미지 증가 [감소수치]
     // 피격 데미지 업
     TAKEN_AMPLIFY_DAMAGE_UP, // 피격 데미지 업 [상승배율]
+    TAKEN_AMPLIFY_DAMAGE_UP_UNIQUE, // 피격 데미지 업 별항 [상승배율]
     TAKEN_AMPLIFY_DAMAGE_DOWN, // 피격 데미지 다운 [감소배율]
     TAKEN_ATTACK_AMPLIFY_DAMAGE_UP, // 피격 일반공격 데미지 업 [상승배율]
     TAKEN_ATTACK_AMPLIFY_DAMAGE_DOWN, // 피격 일반공격 데미지 다운 [감소배율]

@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.domain.ElementType;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -11,6 +12,8 @@ import java.util.List;
 public class GetDamageResult {
     private List<ElementType> elementTypes;
     private List<Integer> damages;
-    private List<List<Integer>> additionalDamages;
-    private Integer attackMultiHitCount;
+    @Builder.Default
+    private List<List<Integer>> additionalDamages = new ArrayList<>();
+    @Builder.Default
+    private Integer attackMultiHitCount = 1;
 }

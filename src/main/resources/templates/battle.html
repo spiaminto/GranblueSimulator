@@ -51,7 +51,8 @@
           container.style.transformOrigin = 'top left';
 
           // 테스트용
-          $('.menu-button-wrapper button').on('click', {formChangeResponse: "hello"}, processEnemyChargeAttackPreEffect);
+          $('.menu-button-wrapper button').on('click',{}, flashVideo);
+
 
 
           // 테스트용 흔들기
@@ -384,6 +385,18 @@
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
+
+          <!-- TEST ================================================= -->
+          <!--          <video class="party-video attack " loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/yachima/triple-attack.webm"-->
+          <!--          ></video>-->
+          <!--          <video class="party-video attack for-test" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/gl/hauhet.webm"-->
+          <!--                 ></video>-->
+          <!--          <video class="party-video attack for-test" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/gl/hauhet1.webm">-->
+          <!--          </video>-->
+
         </div>
         <div class="party-2">
           <video class="hidden party-video" muted playsinline preload="auto"
@@ -405,6 +418,11 @@
 
       <div class="global-video-container">
         <video muted playsinline
+               class="global-video hidden fatal-chain-video"
+               src="" th:src="${fatalChainInfo.effectVideoSrc}"
+               width="100%">
+        </video>
+        <video muted playsinline
                class="global-video hidden enemy-video enemy-charge-attack-start"
                src="/static/assets/video/gl/enemy-charge-attack-start.webm"
                width="100%">
@@ -421,6 +439,9 @@
         </video>
       </div>
       <div class="global-audio-container">
+        <audio class="audio fatal-chain-audio"
+        src="" th:src="${fatalChainInfo.seAudioSrc}"></audio>
+
         <audio class="audio enemy-charge-attack-start"
                src="/static/assets/audio/gl/enemy-charge-attack-start.mp3"></audio>
         <audio class="audio enemy-power-up"
@@ -610,6 +631,9 @@
         <div class="battle-portrait">
           <img src="/static/assets/img/gl/ch-empty.jpg">
         </div>
+        <div class="battle-portrait">
+          <img src="/static/assets/img/gl/ch-empty.jpg">
+        </div>
       </div>
 
 
@@ -740,8 +764,19 @@
           <img class="guard-img" src="/static/assets/img/gl/ui-guard-off.png" alt="guard-image">
         </div>
       </div>
+      <div class="fatal-chain-gauge-wrapper">
+        <div class="fatal-chain-gauge-label">FC</div>
+        <div class="progress fatal-chain-gauge" role="progressbar">
+          <div class="progress-bar bg-warning" style="width: 10%"
+               th:style="${'width: ' + fatalChainInfo.gaugeValue + '%'}"></div>
+          <div class="fatal-chain-gauge-value"><span class="value" th:text="${fatalChainInfo.gaugeValue}">10</span>%
+          </div>
+        </div>
+        <div class="fatal-chain-gauge-info" th:text="${fatalChainInfo.name + ' : ' + fatalChainInfo.info}"
+             th:data-fatal-chain-move-id="${fatalChainInfo.id}">info
+        </div>
+      </div>
     </div>
-
 
     <div class="sub-command-container">
       <button type="button" class="btn btn-outline-success">회복</button>

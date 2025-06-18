@@ -1,15 +1,25 @@
+
+
 video {
     width: 100%;
 }
 
 .enemy-video {
     position: absolute;
-    z-index: -1;
+    z-index: 5;
 }
 
 .enemy-video.attack, .enemy-video.charge-attack, .enemy-video.standby, .enemy-video.break {
     z-index: 10;
 }
+
+/* 아군 ============================================================== */
+
+.party-video-container .party-video.for-test {
+    width: 125%;
+    right: 0;
+}
+
 
 .party-video {
     position: absolute;
@@ -17,69 +27,70 @@ video {
 }
 
 .party-video.attack.motion {
-    width: 100%;
-    z-index: 1;
+    width: 100%; /* 주인공 공격모션 크기 보정 */
 }
 
-.party-video.charge-attack.motion {
-    z-index: 1;
+
+.party-video.motion:not(.idle) {
+    z-index: 10;
 }
 
 .party-video-container .party-1 video {
     top: 6%;
     right: 3%;
-    z-index: -5;
+    z-index: 1;
 }
 
 .party-video-container .party-2 video {
     top: 19%;
     right: -10%;
-    z-index: -4;
+    z-index: 2;
 }
 
 .party-video-container .party-3 video {
     top: 32%;
     right: 3%;
-    z-index: -3;
+    z-index: 3;
 }
 
 .party-video-container .party-4 video {
     top: 45%;
     right: -10%;
-    z-index: -2;
+    z-index: 4;
 }
 
-.party-video-container .motion {
-    z-index: 1;
-}
-
-.party-video-container .effect:not(.damaged) {
+.party-video-container.attack.effect {
     width: 99%;
     top: 5%;
     left: 0;
-    z-index: 2;
 }
+
+.party-video-container .effect:not(.damaged) {
+    z-index: 11;
+    width: 100%;
+    top: 0;
+    left: 0;
+}
+
 
 .summon-video {
     position: absolute;
-    z-index: -1;
+    z-index: -100; /* 숨겨져 있을땐 맨 뒤로 */
 }
 
 .summon-video:not(.hidden) {
     z-index: 100;
 }
 
+
 .global-video {
     position: absolute;
 }
 
 .global-video:not(.hidden) {
-    z-index: 10;
+    z-index: 11;
 }
 
-.global-video.enemy-video {
-    z-index: 10;
-}
 
 .global-video.enemy-charge-attack-start {
     width: 105%;
@@ -88,10 +99,15 @@ video {
     left: -5%;
 }
 
+.global-video .fatal-chain-video {
+    width: 100%;
+    height: 100%;
+    z-index: 11;
+}
+
 .hidden {
     visibility: hidden;
 }
-
 
 #videoContainer .full-size {
     width: 100%;
@@ -102,7 +118,7 @@ video {
 .waiting-video-container {
     position: absolute;
     visibility: hidden;
-    z-index: 10;
+    z-index: 999;
     width: 90px;
     top: 70px;
 }
@@ -128,7 +144,7 @@ video {
 .guard-status-wrapper .guard-status {
     position: absolute;
     width: 55px;
-    z-index: 1;
+    z-index: 11;
     opacity: 0;
 }
 

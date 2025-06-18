@@ -4,6 +4,7 @@
     opacity: 0; /* display: none 으로 하면 역순으로 fadeIn() 할때 레이아웃 드득거림 */
     text-wrap: nowrap;
     color: white;
+    z-index: 39;
 }
 
 /* 적 */

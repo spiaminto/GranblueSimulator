@@ -87,6 +87,8 @@ public enum MoveType {
 
     GUARD(ROOT, "guard"), // 가드
 
+    FATAL_CHAIN(ROOT, "fatal-chain"), // 페이탈 체인
+
     ETC(ROOT, "etc"),
     
     // NULL 대응

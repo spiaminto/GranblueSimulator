@@ -1,9 +1,6 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.request.AbilityRequest;
-import com.gbf.granblue_simulator.controller.request.GuardRequest;
-import com.gbf.granblue_simulator.controller.request.SummonRequest;
-import com.gbf.granblue_simulator.controller.request.TurnProgressRequest;
+import com.gbf.granblue_simulator.controller.request.*;
 import com.gbf.granblue_simulator.controller.response.*;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
@@ -125,9 +122,21 @@ public class BattleController {
         List<CharacterInfo> characterInfos = List.of(paladinInfo, yachimaInfo);
         model.addAttribute("characterInfos", characterInfos);
 
+        // 페이탈 체인 인포
+        Long fatalChainMoveId = paladin.getFatalChainMoveId();
+        FatalChainInfo fatalChainInfo = moveRepository.findById(fatalChainMoveId).map(move ->
+                FatalChainInfo.builder()
+                        .id(move.getId())
+                        .name(move.getName())
+                        .info(move.getInfo())
+                        .gaugeValue(paladin.getFatalChainGauge())
+                        .effectVideoSrc(move.getAsset().getEffectVideoSrc())
+                        .seAudioSrc(move.getAsset().getSeAudioSrc())
+                        .build()
+        ).orElseGet(() -> FatalChainInfo.builder().name("없음").build());
+        model.addAttribute("fatalChainInfo", fatalChainInfo);
+
         // 소환석 인포
-
-
         List<SummonInfo> summonInfos = new ArrayList<>();
 
         // 소환석 무브 추가 -> 여기는 value 에 type 지정이 필요하지 않기 때문에 id 로 대체
@@ -531,6 +540,90 @@ public class BattleController {
                         .charOrder(result.getMainBattleActorOrder())
                         .moveType(result.getMoveType())
                         .summonId(summonMoveId)
+                        .damages(result.getDamages())
+                        .elementTypes(result.getDamageElementTypes())
+                        .totalHitCount(result.getTotalHitCount())
+                        .attackMultiHitCount(result.getAttackMultiHitCount())
+                        .additionalDamages(result.getAdditionalDamages())
+                        .hps(result.getHps())
+                        .hpRates(result.getHpRates())
+                        .chargeGauges(result.getChargeGauges())
+                        .omenType(result.getOmenType())
+                        .omenValue(result.getOmenValue())
+                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                        .omenName(result.getOmenName())
+                        .omenInfo(result.getOmenInfo())
+                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
+                                .map(battleStatuses ->
+                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                                .map(battleStatus ->
+                                                        StatusDto.builder()
+                                                                .type(battleStatus.getStatus().getType().name())
+                                                                .name(battleStatus.getStatus().getName())
+                                                                .imageSrc(battleStatus.getIconSrc())
+                                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                                .duration(battleStatus.getDuration())
+                                                                .build()
+                                                ).toList()
+                                ).toList())
+                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
+                                .map(battleStatuses -> battleStatuses.stream()
+                                        .map(battleStatus ->
+                                                StatusDto.builder()
+                                                        .type(battleStatus.getStatus().getType().name())
+                                                        .name(battleStatus.getStatus().getName())
+                                                        .imageSrc(battleStatus.getIconSrc())
+                                                        .effectText(battleStatus.getStatus().getEffectText())
+                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .duration(battleStatus.getDuration())
+                                                        .build())
+                                        .toList()
+                                ).toList())
+                        .abilityCoolDowns(result.getAbilityCooldowns())
+                        .isEnemyDispelled(result.isEnemyDispelled())
+                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
+                        .build()
+        ).toList();
+        responses.forEach(response -> log.info("response: {}", response));
+
+
+        return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/api/fatal-chain")
+    @ResponseBody
+    public ResponseEntity<List<BattleResponse>> fatalChain(@RequestBody FatalChainRequest fatalChainRequest) {
+        log.info("fatalChainRequest: {}", fatalChainRequest);
+        Long memberId = fatalChainRequest.getMemberId();
+        Long characterId = fatalChainRequest.getCharacterId();
+        Long moveId = fatalChainRequest.getMoveId();
+
+        List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
+        List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
+        BattleActor mainCharacter = partyMembers.stream().filter(battleCharacter -> battleCharacter.getId().equals(characterId)).findFirst().orElseThrow();
+        BattleEnemy enemy = battleEnemyRepository.findByMemberId(memberId).orElseThrow();
+
+        List<ActorLogicResult> results = battleLogic.processFatalChain(mainCharacter, enemy, partyMembers, moveId);
+
+        List<BattleResponse> responses = results.stream().map(result ->
+                BattleResponse.builder()
+                        .charOrder(result.getMainBattleActorOrder())
+                        .moveType(result.getMoveType())
                         .damages(result.getDamages())
                         .elementTypes(result.getDamageElementTypes())
                         .totalHitCount(result.getTotalHitCount())

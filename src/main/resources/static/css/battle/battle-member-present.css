@@ -6,7 +6,7 @@
 }
 
 #partyCommandContainer {
-    height: 145px;
+    height: 150px; /* 140 + 5 + 5 */
     position: relative;
     padding: 5px 15px;
 
@@ -23,25 +23,27 @@
 
 .battle-member-wrapper {
     display: flex;
-    width: 292px;
-    height: 145px;
+    width: 280px;
+    height: 140px;
 }
 
 .battle-portrait {
     position: relative;
-    width: 70px;
+    width: 66px;
+    height: 140px;
     margin-right: 3px;
+    align-self: flex-start;
 }
 
 .battle-portrait img {
-    width: 70px;
+    height: 100%;
 }
 
 .charge-gauge-wrapper {
     position: absolute;
     width: 95%;
     padding: 4px;
-    bottom: 1px;
+    top: 123px;
     left: 0;
 }
 
@@ -49,7 +51,7 @@
     position: absolute;
     width: 95%;
     padding: 4px;
-    bottom: 15px;
+    top: 107px;
     left: 0;
 }
 
@@ -91,15 +93,16 @@
 
 .summon-button-wrapper {
     position: relative;
-    width: 70px;
+    width: 66px;
+    margin-left: auto;
 }
 
 .summon-portrait {
-    width: 70px;
+    height: 140px;
 }
 
 .summon-portrait img{
-    width: 70px;
+    height: 100%;
 }
 
 
@@ -113,11 +116,11 @@
 
 .summon-display-wrapper {
     position: absolute;
-    width: 292px;
+    width: 280px;
 }
 
 .summon-collapse {
-    width: 292px;
+    width: 280px;
 }
 
 .summon-list {
@@ -127,13 +130,14 @@
 
 .summon-list-item {
     float: left;
-    width: 70px;
+    width: 66px;
+    height: 140px;
     margin-right: 3px;
     position: relative;
 }
 
 .summon-list-item img {
-    width: 70px;
+    height: 100%;
 }
 
 .summon-cooldown {
@@ -158,18 +162,60 @@
     padding: 5px 15px;
 }
 
+.advanced-command-container::after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
 .advanced-command-container .guard-button-wrapper {
+    width: 280px;
     display: flex;
+    float: left;
 }
 
 .guard-button-wrapper .guard-button {
-    width: 70px;
+    width: 66px;
     margin-right: 3px;
     text-align: center;
 }
 
 .guard-button img {
     width: 90%;
+}
+
+.fatal-chain-gauge-wrapper{
+    width: 80px;
+    float: right;
+    display: flex;
+    align-items: center;
+}
+
+.fatal-chain-gauge-label {
+    color: white;
+    margin-left: -4px;
+    padding-right: 2px;
+}
+
+.fatal-chain-gauge {
+    width: 100%;
+    position: relative;
+    border-radius: 3px;
+}
+
+.fatal-chain-gauge-value {
+    position: absolute;
+    bottom: 0;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    color: white;
+    top: -3px;
+    right: 3px;
+}
+
+.fatal-chain-gauge-info {
+    display: none;
 }
 
 /* 서브 커맨드 */

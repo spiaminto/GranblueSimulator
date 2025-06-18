@@ -97,6 +97,12 @@ public class BattleActor {
     @Column(name = "summon_cool_downs", columnDefinition = "integer[]")
     private List<Integer> summonCoolDowns;
 
+    // 페이탈체인 id
+    private Long fatalChainMoveId;
+    
+    // 페이탈 체인 게이지
+    private Integer fatalChainGauge;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

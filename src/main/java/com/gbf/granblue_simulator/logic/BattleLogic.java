@@ -201,6 +201,17 @@ public class BattleLogic {
         return results;
     }
 
+    public List<ActorLogicResult> processFatalChain(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
+        Move fatalChain = moveRepository.findById(moveId).orElseThrow();
+        CharacterLogic mainCharacterLogic = characterLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
+
+        List<ActorLogicResult> results = new ArrayList<>();
+        ActorLogicResult result = mainCharacterLogic.processFatalChain(mainActor, enemy, fatalChain);
+        // 반응
+        results.addAll(postProcessToMove(mainActor, partyMembers, enemy, result));
+        return results;
+    }
+
     /**
      * 가드 상태 변경후 반환
      *

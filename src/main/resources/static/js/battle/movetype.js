@@ -111,6 +111,7 @@ const MoveType = {
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
     DEAD: {name: 'DEAD', parentType: 'ROOT', className: 'dead'},
     GUARD: {name: 'GUARD', parentType: 'ROOT', className: 'guard'},
+    FATAL_CHAIN : {name: 'FATAL_CHAIN', parentType: 'ROOT', className: 'fatal-chain'},
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };

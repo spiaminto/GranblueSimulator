@@ -61,7 +61,7 @@ function processAbility(responseAbilityData) {
     abilityDamages.forEach(function (damage, damageIndex, damageArray) {
         let startDelay = abilityEffectDuration / damageArray.length * damageIndex;
         if (damageIndex === 0) {
-            $enemyIdleVideo.addClass('hidden').get(0).pause()
+            $enemyIdleVideo.addClass('hidden').get(0).pause();
             $enemyIdleVideo.get(0).currentTime = 0;
             $enemyDamagedVideo.removeClass('hidden');
         }
@@ -240,4 +240,113 @@ function processEnemyAbility(responseAbilityData) {
         console.log(moveType.name + ' done');
         resolve();
     }, totalEndTime + 200));
+}
+
+function processFatalChain(responseData) {
+    let charOrder = responseData.charOrder;
+    let moveType = MoveType.byName(responseData.moveType);
+    let moveId = responseData.summonId;
+    let totalHitcount = responseData.hitCount; // 어빌리티 히트수 (피격모션, 데미지 표시관련)
+    let damages = responseData.damages;
+    let elementType = responseData.elementTypes[0];
+    let chargeGauges = responseData.chargeGauges;
+    let hps = responseData.hps;
+    let hpRates = responseData.hpRates;
+
+    // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
+    let addedBattleStatusesList = responseData.addedBattleStatusList;
+    let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let addedDebuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+    // 지워진 스테이터스 효과
+    let removedBattleStatusList = responseData.removedBattleStatusList;
+    let removedBuffStatusesList = removedBattleStatusList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+    let removedDebuffStatusesList = removedBattleStatusList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
+    // 갱신된 전체 스테이터스 효과, [[적][아군][아군][아군][아군]]
+    let currentBattleStatusesList = responseData.battleStatusList;
+
+    // 준비
+    let partySelector = '.party-' + charOrder;
+    let $effectVideo = $('.global-video-container .fatal-chain-video');
+    let partyVideoCount = $('.party-video-container>div').length;
+    let $partyEffectVideos = Array.from({length: Number(partyVideoCount)}, (value, index) =>
+        $('.party-video-container .party-' + (index + 1) + ' .ability.motion').eq(0)
+    ); // 페이탈 체인의 경우 아군 전체의 싱글어택 비디오를 재생
+    let $partyIdleVideos = $('.party-video-container .idle');
+    let effectStartDelay = 100; // 파티 공격 ~ 페이탈 체인 이펙트 시작까지 딜레이
+    let effectDuration = $effectVideo.get(0).duration * 1000 + effectStartDelay;
+    let damageHitDelay = effectDuration - 250; // 데미지 히트 딜레이
+    // 준비 - 적
+    let standbyMoveClassName = $('.enemy-video-container').data('standby-move-class');
+    let idleMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
+    let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
+    let damagedMoveClassName = standbyMoveClassName === 'none' ?
+        MoveType.DAMAGED_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getDamagedType().className;
+    let $enemyDamagedVideo = $('.enemy-video-container .' + damagedMoveClassName);
+
+// EFFECT 시작
+// 오디오 재생
+    let audioSrc = $('.global-audio-container .fatal-chain-audio').attr('src');
+    let audioPlayer = new AudioPlayer();
+    audioPlayer.loadSound(audioSrc).then(() => {
+        setTimeout(() => audioPlayer.playAllSounds(), effectStartDelay);
+    });
+
+    // 데미지 채우기 -> 어빌리티 에다가 채움
+    damages.forEach(function (item, index) {
+        $('.ability-damage-wrapper').prepend($('<div>', {
+            class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(),
+            text: item,
+            'data-text': item
+        }));
+    })
+
+    // 파티 전체 공격 재생
+    $partyEffectVideos.forEach(function (partyEffectVideo, index) {
+        playVideo($(partyEffectVideo), null, $partyIdleVideos.eq(index));
+    })
+    // 페이탈 체인 이펙트 재생
+    setTimeout(() => playVideo($effectVideo, null, null), effectStartDelay);
+
+    // 피격 이펙트, 데미지 표시
+    setTimeout(function () {
+        // 적 피격 이펙트 재생
+        playVideo($enemyDamagedVideo, null, $enemyIdleVideo);
+        // 화면 흔들기
+        // $('#videoContainer').addClass('push-left-down-effect');
+        // setTimeout(function () {
+        //     $('#videoContainer').removeClass('push-left-down-effect');
+        // }, 150);
+        // 데미지 표시
+        let damageShowClass = damages.length > 2 ? 'multiple-damage-show' : 'damage-show'
+        let $abilityDamages = $('.ability-damage-wrapper .ability-damage');
+        $abilityDamages.each(function (index, abilityDamage) {
+            setTimeout(function () {
+                $(abilityDamage).addClass(damageShowClass);
+            }, index * 100)
+            if (index >= $abilityDamages.length - 1) {
+                // 마지막에 제거
+                setTimeout(function () {
+                    $abilityDamages.remove();
+                }, 1000);
+            }
+        })
+    }, damageHitDelay);
+
+    // 스테이터스 아이콘 갱신
+    processStatusIconSync(currentBattleStatusesList, effectDuration);
+
+    // 버프 이펙트 처리
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, effectDuration + 500);
+    // 디버프 이펙트 처리
+    let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
+
+    let totalEndTime = Math.max(effectDuration, buffEndTime, debuffEndTime);
+    console.log('[processFatalChain] totalTime', totalEndTime, 'effectDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);
+
+    return new Promise(resolve => setTimeout(function () {
+        syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
+        console.log(moveType.name + ' done');
+        resolve();
+    }, totalEndTime + 100));
 }

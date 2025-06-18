@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.controller;
 import com.gbf.granblue_simulator.controller.request.insert.character.*;
 import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
 import com.gbf.granblue_simulator.controller.response.InsertResponse;
+import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -20,7 +21,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -348,4 +352,97 @@ public class InsertController {
 
         return ResponseEntity.ok(InsertResponse.ok(1L));
     }
+
+//    @RequestMapping("/insert/fatalchain")
+    // for manual insert
+    public void insertFatalChain () {
+        // 소환용 캐릭터 ID = 6 으로 고정됨
+        Character character = characterRepository.findById(6L).orElseThrow();
+        SummonInsertRequest request = new SummonInsertRequest();
+        request.setCharacterId(6L);
+        request.setName("페이탈체인");
+        request.setInfo("적에게 20만 고정데미지, 페이탈 체인 효과 부여");
+        request.setDamageRate(0.0);
+        request.setCoolDown(0);
+        request.setHitCount(1);
+
+        request.setEffectVideoSrc("/static/assets/video/gl/gl-fatal-dark.webm");
+        request.setSeAudioSrc("/static/assets/audio/gl/gl-fatal-dark.mp3");
+        request.setElementType(ElementType.DARK);
+        
+        Move summon = Move.builder()
+                .name(request.getName())
+                .type(MoveType.FATAL_CHAIN)
+                .info(request.getInfo())
+                .elementType(request.getElementType())
+                .damageRate(request.getDamageRate())
+                .coolDown(request.getCoolDown())
+                .hitCount(request.getHitCount())
+                .duration(null)
+                .actor(character)
+                .damageConstant(200000)
+                .build();
+        summon = moveRepository.save(summon);
+
+        Asset summonAsset = Asset.builder()
+                .iconImageSrc(request.getIconSrc())
+                .effectVideoSrc(request.getEffectVideoSrc())
+                .seAudioSrc(request.getSeAudioSrc())
+                .move(summon)
+                .build();
+        summonAsset = assetRepository.save(summonAsset);
+
+        // 스테이터스
+
+        moveRepository.findById(summon.getId()).orElseThrow();
+        SummonInsertRequest.SummonStatus fatalStatus = new SummonInsertRequest.SummonStatus();
+        fatalStatus.setType("DEBUFF");
+        fatalStatus.setName("페이탈체인");
+        fatalStatus.setTargetType("ENEMY");
+        fatalStatus.setMaxLevel(0);
+        fatalStatus.setEffectText("페이탈체인");
+        fatalStatus.setStatusText("받는데미지가 증가한 상태 (별항, 해제불가, 필중)");
+        fatalStatus.setDuration(1);
+        fatalStatus.setRemovable("false");
+        fatalStatus.setIsResistible("false");
+        fatalStatus.setIconSrcs("/static/assets/img/gl/status-fatal-dark.png");
+        fatalStatus.setStatusEffects("TAKEN_AMPLIFY_DAMAGE_UP_UNIQUE, 0.2");
+        request.setStatuses(List.of(fatalStatus));
+
+        final Move summonFinal = summon;
+        request.getStatuses().forEach(status -> {
+            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            // 스테이터스
+            Status statusEntity = Status.builder()
+                    .type(StatusType.valueOf(status.getType()))
+                    .name(status.getName())
+                    .target(StatusTargetType.valueOf(status.getTargetType()))
+                    .maxLevel(status.getMaxLevel())
+                    .effectText(status.getEffectText())
+                    .statusText(status.getStatusText())
+                    .duration(status.getDuration())
+                    .removable(Boolean.parseBoolean(status.getRemovable()))
+                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
+                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .move(summonFinal)
+                    .build();
+            log.info("statusEntity = {}", statusEntity);
+            statusRepository.save(statusEntity);
+
+            // 스테이터스 효과 ("type, value \n ...")
+            status.getStatusEffects().lines().forEach(statusEffect -> {
+                String[] splitStatusEffect = statusEffect.split(",");
+                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
+                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                StatusEffect statusEffectEntity = StatusEffect.builder()
+                        .status(statusEntity)
+                        .type(statusEffectType)
+                        .value(statusEffectValue)
+                        .build();
+                statusEffectRepository.save(statusEffectEntity);
+            });
+        });
+
+    }
+
 }

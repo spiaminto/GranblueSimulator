@@ -1,3 +1,29 @@
+function requestFatalChain(moveId) {
+    console.log('[requestFatalChain] id = ', moveId);
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(0).data('character-id');
+    let memberId = $('#memberInfo').data('member-id');
+    let responseResults = null;
+    $.ajax({
+        url: '/api/fatal-chain',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            memberId: memberId,
+            characterId: characterId,
+            moveId : moveId
+        }),
+        async: false,
+        success: function (response) {
+            responseResults = response;
+            console.log(responseResults);
+            processResponseMoves(responseResults);
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+}
+
 /**
  * 가드 요청
  * @param charOrder 가드 누른 캐릭터
@@ -154,6 +180,8 @@ async function processResponseMoves(responseResults) {
                         await processFormChange(response); break;
                     case MoveType.GUARD:
                         break; // 가드시 아무것도 안함
+                    case MoveType.FATAL_CHAIN:
+                        await processFatalChain(response); break;
                     default:
                         console.log('[processResponseMoves ROOT] invalid type]', moveType)
                 }

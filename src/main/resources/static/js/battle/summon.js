@@ -110,7 +110,7 @@ function processSummon(responseSummonData) {
             setTimeout(function () {
                 $(abilityDamage).addClass(damageShowClass);
             }, index * 100)
-            if (index >= $abilityDamages.length ) {
+            if (index >= $abilityDamages.length - 1) {
                 // 마지막에 제거
                 setTimeout(function () {
                     $abilityDamages.remove();
@@ -123,7 +123,7 @@ function processSummon(responseSummonData) {
     processStatusIconSync(currentBattleStatusesList, summonEffectDuration);
 
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, summonEffectDuration);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, summonEffectDuration + 500);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 

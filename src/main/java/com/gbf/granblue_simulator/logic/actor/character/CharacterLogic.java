@@ -12,7 +12,11 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+
+import static com.gbf.granblue_simulator.domain.move.MoveType.*;
 
 /**
  * 모든 캐릭터로직의 반환값은 null 을 사용하지 않는다.
@@ -42,6 +46,11 @@ public abstract class CharacterLogic {
     public abstract ActorLogicResult postProcessToEnemyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult enemyMoveResult);
     // 턴 종료시 효과
     public abstract List<ActorLogicResult> processTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+
+    // 페이탈 체인 (어빌리티랑 통합 하려다 분리)
+    public ActorLogicResult processFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
+        return defaultFatalChain(mainActor, enemy, fatalChain);
+    }
 
     /**
      * 공격 행동을 수행
@@ -184,6 +193,12 @@ public abstract class CharacterLogic {
             }
         }
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+    }
+
+    public ActorLogicResult defaultFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
+        DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, fatalChain);
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, Collections.emptyList(), fatalChain);
+        return resultMapper.toResult(mainActor, enemy, Collections.emptyList(), fatalChain, damageLogicResult, setStatusResult);
     }
 
     protected ActorLogicResult defaultGuard(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
