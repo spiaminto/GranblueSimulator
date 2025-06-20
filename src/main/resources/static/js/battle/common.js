@@ -140,18 +140,16 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
 
 /**
  * 비디오를 재생하는 메서드
- * effectVideo, motionVideo 의 hidden 클래스 제거, 종료시 hidden 클래스 다시 붙이는 이벤트 리스너 등록, 재생 을 수행
- * idleVideo 가 주어질경우, idleVideo 를 먼저 hidden 추가 후 effectVideo 종료시 idleVideo 에 hidden 제거후 play
+ * effectVideo, motionVideo 는 hidden 없앤 후 재생, 완료후 hidden
+ * idleVideo 는 left-hidden 으로 왼쪽으로 뺀 후 재생 완료후 다시 돌려놓음
  *
- * 적의 경우 IDLE 을 유지한 상태로 이펙트만 별도로 재생해야하는 (POWER UP, CT MAX 및 기타 서포트 어빌리티) 경우가 있어 isEnemyEffectOnly  사용
  * CHECK 여기서 한번 더 분기필요하면 아얘 분리
  * @param $effectVideo
  * @param $motionVideo optional
  * @param $idleVideo optional
- * @param isEnemyEffectOnly boolean, 적에 한해 이펙트만 존재하는지 여부
  */
-function playVideo($effectVideo, $motionVideo, $idleVideo, isEnemyEffectOnly = false) {
-    console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo, ' isEnemyEffectOnly = ', isEnemyEffectOnly)
+function playVideo($effectVideo, $motionVideo, $idleVideo) {
+    console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo)
     if ($effectVideo == null) {
         console.error('effectVideo is null');
     }
@@ -159,85 +157,37 @@ function playVideo($effectVideo, $motionVideo, $idleVideo, isEnemyEffectOnly = f
         console.error('video length is 0'); // 비디오는 있거나, null 이거나 둘중하나
     }
 
-    let idleVideoElement = $idleVideo?.get(0);
-    let effectVideoElement = $effectVideo?.get(0);
-    let motionVideoElement = $motionVideo?.get(0);
-
-    if (motionVideoElement) {
-        motionVideoElement.play();
-        $motionVideo.one('ended', function () {
-            // 모션이 있으면 idle 반드시 존재
-            idleVideoElement.play();
-            $idleVideo.removeClass('hidden');
-            $motionVideo.addClass('hidden');
-        })
+    // 모션 있으면 재생
+    if ($motionVideo) {
+        $motionVideo
+            .one('playing', function () {
+                requestAnimationFrame(function () {
+                    // idleVideo 는 effectVideo 에서 처리
+                    $motionVideo.removeClass('hidden');
+                })
+            }).get(0).play();
     }
 
-    effectVideoElement.play();
-    $effectVideo.one('ended', function () {
-        if (idleVideoElement) {
-            idleVideoElement.play();
-        }
-        $idleVideo?.removeClass('hidden');
-        $effectVideo.addClass('hidden');
-
+    // 이펙트 있으면 재생
+    requestAnimationFrame(function () {
+        $effectVideo.removeClass('hidden');
+        $idleVideo?.addClass('left-hidden').removeClass('hidden');
+        if ($idleVideo) $idleVideo.get(0).currentTime = 0;
+        $idleVideo?.get(0).pause();
     })
-
-    $motionVideo?.removeClass('hidden');
-    $effectVideo?.removeClass('hidden');
-    $idleVideo?.addClass('hidden');
-
-    if (idleVideoElement && !isEnemyEffectOnly) {
-        idleVideoElement.pause();
-        idleVideoElement.currentTime = 0;
-    }
-
-}
-
-/*
-// on ended 기반
-function playVideo($effectVideo, $motionVideo, $idleVideo, isEnemyEffectOnly = false) {
-    let idleVideoExists = $idleVideo && $idleVideo.length > 0;
-    let motionVideoExists = $motionVideo && $motionVideo.length > 0;
-    let effectVideoExists = $effectVideo && $effectVideo.length > 0;
-    console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo, ' isEnemyEffectOnly = ', isEnemyEffectOnly)
-    if (!effectVideoExists) return; // 비정상
-    if (motionVideoExists) {
-        $motionVideo.one('ended', function () {
-            $(this).addClass('hidden');
-            if (idleVideoExists) $idleVideo.removeClass('hidden').get(0).play(); // 모션이 이펙트보다 보통 짧아서 idle 갱신 우선순위 높음
-        }).removeClass('hidden').get(0).play();
-    }
     $effectVideo.one('ended', function () {
-        if (idleVideoExists && !isEnemyEffectOnly) $idleVideo.removeClass('hidden').get(0).play(); // 멈추는 경우가 있어서 play 로 갱신
-        $(this).addClass('hidden'); // 이펙트는 loop 없기 때문에 stop 안함, 깜빡임 방지 딜레이
-    }).removeClass('hidden').get(0).play();
-    if (idleVideoExists && !isEnemyEffectOnly) {
-        let idleVideoElement = $idleVideo.addClass('hidden').get(0);
-        idleVideoElement.pause();
-        idleVideoElement.currentTime = 0;
-    }
-}
-*/
-
-function flashVideo() {
-    let $idleVideo = $('.enemy-video-container .enemy-video.idle-default').eq(0);
-    let $effectVideo = $('.enemy-video.damaged-default').eq(0);
-    setInterval(function () {
-        if ($effectVideo.hasClass('hidden')) {
-            $effectVideo.removeClass('hidden');
-            $effectVideo.get(0).play();
-            $idleVideo.addClass('hidden');
-            $idleVideo.get(0).pause();
-            $idleVideo.get(0).currentTime = 0;
+        if ($idleVideo) {
+            requestAnimationFrame(function () {
+                $idleVideo.removeClass('left-hidden');
+                $idleVideo.get(0).play();
+                requestAnimationFrame(function () {
+                    $effectVideo.addClass('hidden');
+                    $motionVideo?.addClass('hidden');
+                })
+            })
         } else {
+            $motionVideo?.addClass('hidden');
             $effectVideo.addClass('hidden');
-            $effectVideo.get(0).pause();
-            $effectVideo.get(0).currentTime = 0;
-            $idleVideo.removeClass('hidden');
-            $idleVideo.get(0).play();
-
         }
-    }, 50)
-
+    }).get(0).play();
 }

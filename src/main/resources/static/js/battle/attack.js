@@ -27,7 +27,7 @@ function processAttack(responseAttackData) {
     $attackEffectVideo.get(0).playbackRate = playBackRate;
     $attackMotionVideo !== null ? $attackMotionVideo.get(0).playbackRate = playBackRate : null;
     attackDuration = Math.floor(attackDuration / playBackRate); // 재생 속도에 따른 길이 보정
-    let attackDelay = Math.floor(attackHitCount / multiAttackCount >= 3 ? Math.max((attackDuration - 400), 1500) / attackCount : attackDuration / attackCount); // 기본 타수당 딜레이, 난격에 다른 속도 지정후 계산 (약 350ms, 보통 평타 이펙트의 길이가 350 350 900 쯤 된다), 3타시 최소 1500ms 보장
+    let attackDelay = Math.floor(attackHitCount / multiAttackCount >= 3 ? Math.max((attackDuration - 400), 1100) / attackCount : attackDuration / attackCount); // 기본 타수당 딜레이, 난격에 다른 속도 지정후 계산 (약 350ms, 보통 평타 이펙트의 길이가 350 350 900 쯤 된다), 3타시 최소 1100ms 보장
     console.log('processAttack charOrder = ', charOrder, ' playbackRATE = ', playBackRate, ' attackDuration', attackDuration);
     // 준비 - 적
     let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
@@ -118,7 +118,7 @@ function processAttack(responseAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ATTACK done');
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 }
 
 
@@ -128,7 +128,7 @@ function processEnemyAttack(responseAttackData) {
     let charOrder = attackData.charOrder;
     let partySelector = '.party-' + charOrder
     let moveType = MoveType.byName(attackData.moveType);
-    let hitCount = moveType === MoveType.SINGLE_ATTACK ? 1 : moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
+    let attackHitCount = moveType === MoveType.SINGLE_ATTACK ? 1 : moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
     let damages = attackData.damages;
     let elementTypes = attackData.elementTypes;
     let additionalDamages = attackData.additionalDamages;
@@ -142,8 +142,9 @@ function processEnemyAttack(responseAttackData) {
 
     // 준비
     let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
-    let $enemyAttackVideo = $('.enemy-video-container .' + moveType.className);
-    let attackDuration = $enemyAttackVideo.get(0).duration * 1000; // ms 변환 및 100ms 영상보정
+    // let $enemyAttackVideo = $('.enemy-video-container .' + moveType.className);
+    let $enemyAttackVideo = $('.enemy-video-container .' + MoveType.SINGLE_ATTACK.className);
+    let attackDuration = $enemyAttackVideo.get(0).duration * 1000 * attackHitCount; // ms 변환 및 100ms 영상보정
     let idleMoveClassName = standbyMoveClassName === 'none' ?
         MoveType.IDLE_DEFAULT.className : MoveType.byClassName(standbyMoveClassName).getIdleType().className;
     let $enemyIdleVideo = $('.enemy-video-container .' + idleMoveClassName);
@@ -160,7 +161,28 @@ function processEnemyAttack(responseAttackData) {
     });
 
     // 적 일반공격 이펙트 재생
-    playVideo($enemyAttackVideo, null, $enemyIdleVideo);
+    $enemyAttackVideo.removeClass('hidden');
+    $enemyIdleVideo.addClass('left-hidden');
+    $enemyIdleVideo.get(0).pause();
+    $enemyIdleVideo.get(0).currentTime = 0;
+    for (let i = 0; i < attackHitCount; i++) {
+        setTimeout(function () {
+            $enemyAttackVideo.get(0).currentTime = 0;
+            $enemyAttackVideo.get(0).play();
+
+            if (i === attackHitCount - 1) {
+                setTimeout(function () {
+                    requestAnimationFrame(function () {
+                        $enemyIdleVideo.removeClass('left-hidden');
+                        $enemyIdleVideo.get(0).play();
+                        setTimeout(function () {
+                            $enemyAttackVideo.addClass('hidden');
+                        }, 50)
+                    })
+                }, attackDuration / attackHitCount)
+            }
+        }, (attackDuration / attackHitCount) * i)
+    }
 
 
     // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
@@ -169,7 +191,7 @@ function processEnemyAttack(responseAttackData) {
         $appendedEnemyDamageWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + targetOrder}).appendTo($('#damageContainer')));
     })
     //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
-    let attackHitDuration = attackDuration / hitCount; // 1타가 사용할 길이
+    let attackHitDuration = attackDuration / attackHitCount; // 1타가 사용할 길이
     damages.forEach(function (damage, index) {
         let startDelay = isAllTarget ?
             attackHitDuration * (index / targetOrders.length) :
@@ -224,7 +246,7 @@ function processEnemyAttack(responseAttackData) {
         syncHpsAndChargeGauges(hps, hpRates, chargeGauges);
         console.log('ENEMY ATTACK done');
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 
 // 현재 일반공격의 스테이터스 갱신은 없음
 }

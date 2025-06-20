@@ -366,9 +366,10 @@ function processEnemyStandBy(standbyResponse) {
     })
     // 비디오 재생
 
-    let enemyDefaultIdleVideoElement = $enemyDefaultIdleVideo.addClass('hidden').get(0);
-    enemyDefaultIdleVideoElement.pause();
-    enemyDefaultIdleVideoElement.currentTime = 0;
+    $enemyStandByVideo.one('playing', function () {
+        $enemyDefaultIdleVideo.addClass('hidden').get(0).pause();
+        $enemyDefaultIdleVideo.get(0).currentTime = 0;
+    })
     playVideo($enemyStandByVideo, null, $enemyStandByIdleVideo);
 
     let totalEndTime = $enemyStandByVideo.get(0).duration * 1000 + 100;
@@ -408,9 +409,10 @@ function processEnemyBreak(breakResponse) {
     })
 
     // 비디오 재생
-    let enemyStandbyIdleVideoElement = $enemyStandByIdleVideo.addClass('hidden').get(0);
-    enemyStandbyIdleVideoElement.pause();
-    enemyStandbyIdleVideoElement.currentTime = 0;
+    $enemyBreakVideo.one('playing', function () {
+        $enemyStandByIdleVideo.addClass('hidden').get(0).pause();
+        $enemyStandByIdleVideo.get(0).currentTime = 0;
+    })
     playVideo($enemyBreakVideo, null, $enemyIdleDefaultVideo);
 
     // 화면 흔들기
