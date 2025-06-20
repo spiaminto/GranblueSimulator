@@ -270,7 +270,7 @@ public class CalcStatusLogic {
         double hitAccuracyDownRate = getSum(statusEffects.get(StatusEffectType.HIT_ACCURACY_DOWN));
 
         // 상한 하한 처리
-        double accuracyRate = Math.max(baseAccuracy + hitAccuracyUpRate - hitAccuracyDownRate, -0.99); // 상한 X 하한 -99%
+        double accuracyRate = baseAccuracy + hitAccuracyUpRate - hitAccuracyDownRate; // 상 하한은 최종 데미지 계산시 적용 (반드시 빗나감 회피 등)
 
         battleActor.setAccuracyRate(accuracyRate);
         return 0;
@@ -279,7 +279,7 @@ public class CalcStatusLogic {
     protected Integer setDodgeRate(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
         double baseDodgeRate = battleActor.getActor().getBaseDodgeRate();
         double dodgeUpRate = getSum(statusEffects.get(StatusEffectType.DODGE_RATE_UP));
-        double dodgeRate = Math.min(baseDodgeRate + dodgeUpRate, 1.0); // 상한 100%, 하한 x
+        double dodgeRate = Math.min(baseDodgeRate + dodgeUpRate, 1.0); // 상 하한은 최종 데미지 계산시 적용 (반드시 회피 효과 등)
 
         battleActor.setDodgeRate(dodgeRate);
         return 0;

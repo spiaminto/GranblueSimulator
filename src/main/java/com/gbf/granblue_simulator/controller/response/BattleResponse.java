@@ -17,7 +17,7 @@ public class BattleResponse {
     private int attackMultiHitCount;
 
     @Builder.Default
-    private List<Integer> damages = new ArrayList<>();
+    private List<String> damages = new ArrayList<>();
     @Builder.Default
     private List<ElementType> elementTypes = new ArrayList<>();
     @Builder.Default
@@ -25,7 +25,7 @@ public class BattleResponse {
     @Builder.Default
     private List<Integer> hpRates = new ArrayList<>();
     @Builder.Default
-    private List<List<Integer>> additionalDamages = new ArrayList<>();
+    private List<List<String>> additionalDamages = new ArrayList<>();
     @Builder.Default
     private List<List<Integer>> abilityCoolDowns = new ArrayList<>();
 

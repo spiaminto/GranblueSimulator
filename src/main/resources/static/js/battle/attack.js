@@ -52,7 +52,7 @@ function processAttack(responseAttackData) {
     playVideo($attackEffectVideo, $attackMotionVideo, $idleVideo);
 
     // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
-    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper actor-' + charOrder});
+    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper party actor-' + charOrder});
     $('#damageContainer').append($attackDamageWrapper);
 
     const damageFragment = document.createDocumentFragment();
@@ -60,17 +60,18 @@ function processAttack(responseAttackData) {
         // 데미지 채우기
         let attackIndex = Math.floor(index / multiAttackCount); // 현재 인덱스의 기본타수 순서 (0, 1, 2 현재 트리플 어택까지 구현했으므로 여기까지)
         let multiAttackIndex = index % multiAttackCount; // 현재 인덱스의 난격 타수 순서 (공격마다 0-1-2-3-... 씩으로 진행, 0이면 난격이 아님)
+        let missClassName = damage === 'MISS' ? ' damage-miss' : '';
 
-        // 난격 여부 확인 후 클래스 설정 / [012 345 678] 3타 3난격 시 ap-0 m-0, ap-0 m-1, ap-0 m-2, ap-1 m-0, ap-1 m-1, ...
-        let attackDamagePositionClassName = ' attack-damage-position-' + attackIndex + ' multi-' + multiAttackIndex;
+        // 난격 여부 확인 후 클래스 설정 / [012 345 678] 3타 3난격 시 di-0 m-0, di-0 m-1, di-0 m-2, di-1 m-0, di-1 m-1, ...
+        let attackDamagePositionClassName = ' damage-index-' + attackIndex + ' multi-' + multiAttackIndex;
 
         let $attackDamage = $('<div>', { // 본 공격 + 난격
-            class: 'attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase() + attackDamagePositionClassName,
+            class: 'attack-damage actor-' + charOrder + ' element-type-' + elementType.toLowerCase() + attackDamagePositionClassName + missClassName,
             text: damage,
         });
         damageFragment.append($attackDamage[0]);
         let $additionalDamage = $('<div>', { // 추격
-            class: 'additional-damage-wrapper actor-' + charOrder + ' element-type-' + elementType.toLowerCase() + attackDamagePositionClassName,
+            class: 'additional-damage-wrapper actor-' + charOrder + ' element-type-' + elementType.toLowerCase() + attackDamagePositionClassName  + missClassName,
             text: damage // 공간 사용을 위해
         }).append((additionalDamages[index] || []).map(additionalDamage =>
             $('<div>', {
@@ -199,29 +200,19 @@ function processEnemyAttack(responseAttackData) {
         let targetOrder = isAllTarget ?
             targetOrders[index % targetOrders.length] :
             targetOrders[index];
-        // 데미지 삽입
+        let elementType = elementTypes[index];
+
+        // 데미지 채우기
+        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, additionalDamages[index], true);
         let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
-        let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        });
-        let $additionalDamage = $('<div>', {
-            class: 'damage enemy-additional-damage-wrapper actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        }).append((additionalDamages[index] || []).map(additionalDamage =>  // 추격이 존재하면 붙임
-            $('<div>', {
-                class: 'damage additional-damage' + ' element-type-' + elementTypes[index].toLowerCase(),
-                text: additionalDamage
-            })
-        ))
-        $enemyDamageWrapper.append($attackDamage, $additionalDamage);
+        $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
 
         // 데미지 표시
         setTimeout(function () {
             // 데미지 및 표시
-            $attackDamage.addClass('enemy-damage-show');
+            $damageElements.$damage.addClass('enemy-damage-show');
             // 추가데미지 표시
-            $additionalDamage.children().each(function (index, additionalDamage) {
+            $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
                     $(additionalDamage).addClass('enemy-damage-show');
                 }, index + 100);

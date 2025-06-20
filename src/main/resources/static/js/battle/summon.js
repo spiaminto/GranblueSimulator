@@ -83,12 +83,9 @@ function processSummon(responseSummonData) {
     });
 
     // 데미지 채우기 -> 어빌리티 에다가 채움
-    summonDamages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {
-            class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(),
-            text: item,
-            'data-text': item
-        }));
+    summonDamages.forEach(function (damage, index) {
+        let $damageElement = getDamageElement(charOrder, elementType, 'ability', index, damage, []);
+        $('.ability-damage-wrapper').prepend($damageElement.$damage);
     })
 
     // 소환 이펙트 재생

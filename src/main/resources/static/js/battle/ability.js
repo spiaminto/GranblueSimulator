@@ -50,11 +50,8 @@ function processAbility(responseAbilityData) {
     // 데미지 삽입
     let $abilityDamageWrapper = $('.ability-damage-wrapper');
     abilityDamages.forEach(function (damage, damageIndex) {
-        $abilityDamageWrapper.prepend($('<div>', {
-            class: 'ability-damage ability-damage-' + damageIndex + ' element-type-' + elementType.toLowerCase(),
-            text: damage,
-            'data-text': damage
-        }));
+        let $damageElements = getDamageElement(charOrder, elementType, 'ability', damageIndex, damage, []);
+        $abilityDamageWrapper.prepend($damageElements.$damage);
     })
     // 데미지 마다 표시, 적 피격 모션 재생
     let damageShowClass = abilityDamages.length > 2 ? 'multiple-damage-show' : 'damage-show'
@@ -70,7 +67,7 @@ function processAbility(responseAbilityData) {
             $enemyDamagedVideo.get(0).currentTime = 0; // 빼면 부자연스러워짐
             $enemyDamagedVideo.get(0).play();
             // 데미지 표시
-            $('.ability-damage-wrapper .ability-damage-' + damageIndex).addClass(damageShowClass);
+            $('.ability-damage-wrapper .damage-index-' + damageIndex).addClass(damageShowClass);
             if (damageIndex >= damageArray.length - 1) { // 마지막
                 // 적 모션 정상화
                 setTimeout(function () {
@@ -184,29 +181,19 @@ function processEnemyAbility(responseAbilityData) {
         let targetOrder = isAllTarget ?
             targetOrders[index % targetOrders.length] :
             targetOrders[index];
-        // 데미지 삽입
+        let elementType = elementTypes[index];
+
+        // 데미지 채우기
+        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, additionalDamages[index], true);
         let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
-        let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        });
-        let $additionalDamage = $('<div>', {
-            class: 'damage enemy-additional-damage-wrapper actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        }).append((additionalDamages[index] || []).map(additionalDamage =>  // 추격이 존재하면 붙임
-            $('<div>', {
-                class: 'damage additional-damage' + ' element-type-' + elementTypes[index].toLowerCase(),
-                text: additionalDamage
-            })
-        ))
-        $enemyDamageWrapper.append($attackDamage, $additionalDamage);
+        $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
 
         // 데미지 표시
         setTimeout(function () {
             // 데미지 및 표시
-            $attackDamage.addClass('enemy-damage-show');
+            $damageElements.$damage.addClass('enemy-damage-show');
             // 추가데미지 표시
-            $additionalDamage.children().each(function (index, additionalDamage) {
+            $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
                     $(additionalDamage).addClass('enemy-damage-show');
                 }, index + 100);
@@ -293,12 +280,9 @@ function processFatalChain(responseData) {
     });
 
     // 데미지 채우기 -> 어빌리티 에다가 채움
-    damages.forEach(function (item, index) {
-        $('.ability-damage-wrapper').prepend($('<div>', {
-            class: 'ability-damage ability-damage-' + index + ' element-type-' + elementType.toLowerCase(),
-            text: item,
-            'data-text': item
-        }));
+    damages.forEach(function (damage, index) {
+        let $damageElement = getDamageElement(charOrder, elementType, 'ability', index, damage, []);
+        $('.ability-damage-wrapper').prepend($damageElement.$damage);
     })
 
     // 파티 전체 공격 재생

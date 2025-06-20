@@ -1,4 +1,59 @@
 /**
+ * 데미지 요소를 만들어반환
+ * 일반적으로, 해당 데미지요소는 XXDamgeWrapper 에 append 됨.
+ * 난격을 포함하는 캐릭터 일반공격은 대응하지 않음.
+ * @param charOrder
+ * @param elementType
+ * @param type 데미지 타입, 'attack', 'ability', chargeAttack'
+ * @param index 데미지 인덱스
+ * @param damage
+ * @param additionalDamages
+ * @param isEnemy optional
+ * @returns {{$damage: (*|jQuery), $additionalDamage: (*|jQuery)}}
+ */
+function getDamageElement(charOrder, elementType, type, index, damage, additionalDamages, isEnemy = false) {
+    let typeClassName;
+    switch (type) {
+        case 'attack':
+            typeClassName = ' attack-damage';
+            break;
+        case 'ability':
+            typeClassName = ' ability-damage';
+            break;
+        case 'chargeAttack':
+            typeClassName = ' charge-attack-damage';
+            break;
+        default:
+            new Error('[getDamageElement] invalid type, type = ' + type);
+    }
+    let actorClassName = ' actor-' + charOrder;
+    let elementClassName = ' element-type-' + elementType.toLowerCase();
+    let damageIndexClassName = ' damage-index-' + index;
+    let enemyClassName = isEnemy ? ' enemy' : '';
+    let missClassName = damage === 'MISS' ? ' damage-miss' : '';
+
+
+    // 데미지 요소
+    let $damage = $('<div>', {
+        class: typeClassName + actorClassName + elementClassName + damageIndexClassName + elementClassName + missClassName + enemyClassName,
+        text: damage
+    });
+    // 추격 요소
+    let $additionalDamage = $('<div>', {
+        class: 'additional-damage-wrapper ' + enemyClassName + actorClassName + elementClassName + missClassName,
+        text: additionalDamages
+    }).append((additionalDamages || []).map(additionalDamage =>  // 추격이 존재하면 붙임
+        $('<div>', {
+            class: 'additional-damage' + elementClassName,
+            text: additionalDamage
+        })
+    ));
+    return {$damage, $additionalDamage};
+}
+
+
+
+/**
  * 커맨드 패널의 현재 스테이터스 아이콘 갱신 (이펙트 종료 직후)
  * @param currentBattleStatusesList 갱신할 현재 스테이터스리스트
  * @param effectVideoDuration 이펙트 길이 (시작딜레이로 사용)
@@ -149,7 +204,7 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
  * @param $idleVideo optional
  */
 function playVideo($effectVideo, $motionVideo, $idleVideo) {
-    console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo)
+    // console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo)
     if ($effectVideo == null) {
         console.error('effectVideo is null');
     }

@@ -49,10 +49,9 @@ async function processChargeAttack(responseChargeAttackData) {
     playVideo($chargeAttackVideo, $chargeAttackMotionVideo, $idleMotionVideo);
 
     // 데미지 채우기
-    $('.charge-attack-damage-wrapper').append($('<div>', {
-        class: 'charge-attack-damage element-type-' + elementType.toLowerCase(),
-        text: damages[0]
-    }));
+    let $damageElements = getDamageElement(charOrder, elementType, 'chargeAttack', 0, damages[0], []);
+    $('.charge-attack-damage-wrapper').append($damageElements.$damage);
+
     // 이펙트 종료 직전부터 데미지, 피격이펙트 재생
     let chargeAttackEffectHitDelay = chargeAttackDuration - 250; // 히트 시점을 끝나기 0.25초전으로
     setTimeout(function () {
@@ -174,29 +173,19 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     damages.forEach(function (damage, index) {
         let startDelay = isAllTarget ? 0 : chargeAttackHitDuration * index; // 오의는 전체공격시 1타뿐이므로 0 (+ efectHitDelay)
         let targetOrder = isAllTarget ? targetOrders[index % targetOrders.length] : targetOrders[index];
-        // 데미지 삽입
+        let elementType = elementTypes[index];
+
+        // 데미지 채우기
+        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, additionalDamages[index], true);
         let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
-        let $attackDamage = $('<div>', {
-            class: 'damage enemy-attack-damage actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        });
-        let $additionalDamage = $('<div>', {
-            class: 'damage enemy-additional-damage-wrapper actor-' + targetOrder + ' element-type-' + elementTypes[index].toLowerCase(),
-            text: damage
-        }).append((additionalDamages[index] || []).map(additionalDamage =>  // 추격이 존재하면 붙임
-            $('<div>', {
-                class: 'damage additional-damage' + ' element-type-' + elementTypes[index].toLowerCase(),
-                text: additionalDamage
-            })
-        ))
-        $enemyDamageWrapper.append($attackDamage, $additionalDamage);
+        $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
 
         setTimeout(function () {
             // console.log('[processEnemyChargeAttack] index = ', index, ' startDelay = ', startDelay, ' effectHitDelay = ', effectHitDelay);
             // 데미지 표시
-            $attackDamage.addClass('enemy-damage-show');
+            $damageElements.$damage.addClass('enemy-damage-show');
             // 추가데미지 표시
-            $additionalDamage.children().each(function (index, additionalDamage) {
+            $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
                     $(additionalDamage).addClass('enemy-damage-show');
                 }, (index + 1) * 100);

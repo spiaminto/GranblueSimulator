@@ -20,6 +20,7 @@ public class CharacterLogicResultMapper {
 
     /**
      * 캐릭터 로직에서 아무것도 발생하지 않았을때 리턴 (null X)
+     *
      * @return
      */
     public ActorLogicResult emptyResult() {
@@ -28,6 +29,7 @@ public class CharacterLogicResultMapper {
 
     /**
      * 데미지만 발생하는 기본공격 결과맵핑
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -35,13 +37,14 @@ public class CharacterLogicResultMapper {
      * @return
      */
     public ActorLogicResult attackToResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult) {
-        return map(mainActor, enemy, partyMembers, move, damageLogicResult, null, null );
+        return map(mainActor, enemy, partyMembers, move, damageLogicResult, null, null);
     }
 
     /**
      * 데미지와 스테이터스 모두 발생하는 일반 결과 맵핑
-     * 어빌리티, 차지어택, 서포트 어빌리티 
+     * 어빌리티, 차지어택, 서포트 어빌리티
      * 데미지 또는 스테이터스 각 안발생했을 경우 null 입력
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -49,12 +52,13 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move,DamageLogicResult damageLogicResult, SetStatusResult statusResult) {
+    public ActorLogicResult toResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult) {
         return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, null);
     }
 
     /**
      * 일반 결과 맵핑에 후 행동이 있을 경우 후행동과 함께 결과 맵핑
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -69,10 +73,16 @@ public class CharacterLogicResultMapper {
 
     protected ActorLogicResult map(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest) {
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
-        if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
+        if (damageLogicResult == null)
+            damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
         if (nextMoveRequest == null) nextMoveRequest = NextMoveRequest.of(false, null, null); // 후행동이 없을경우 기본객체 생성
-        int hitCount = damageLogicResult.getDamages().size();
-        int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
+        int hitCount = damageLogicResult.getDamages().stream().filter(damage -> damage > 0).toList().size();
+        int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream()
+                .map(additionalDamages -> additionalDamages.stream()
+                        .filter(damage -> damage > 0)
+                        .toList())
+                .mapToInt(List::size)
+                .sum();
 
         // 체력
         List<Integer> hps = new ArrayList<>();

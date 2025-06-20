@@ -46,14 +46,37 @@
     -webkit-text-fill-color: transparent;
 }
 
+#damageContainer .element-type-none {
+    letter-spacing: -0.05em;
+    background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb);
+    -webkit-text-stroke: 1px #55443e;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#damageContainer .damage-miss {
+    background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb) !important;
+    -webkit-text-stroke: 1px #55443e !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 35px !important;
+}
+
+#damageContainer .enemy-damage-wrapper .damage-miss {
+    background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb) !important;
+    -webkit-text-stroke: 1px #55443e !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 20px !important;
+}
+
+#damageContainer .additional-damage-wrapper.damage-miss {
+    display: none !important;
+}
+
 /* 아군 통상공격 데미지 */
 .attack-damage-wrapper {
     /* posotion static -> attack-damage 를 damageContainer 기준으로배치 */
-}
-
-.damage {
-    /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
-    /*text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;*/
 }
 
 .attack-damage {
@@ -65,35 +88,35 @@
     line-height: 50px;
 }
 
-.attack-damage-position-0 {
+.attack-damage-wrapper.party .damage-index-0 {
     top: 60%;
     left: 5%;
 }
-.attack-damage-position-0.multi-1 {top: 55%; left: 6%;}
-.attack-damage-position-0.multi-2 {top: 50%; left: 6%;}
-.attack-damage-position-0.multi-3 {top: 45%; left: 6%;}
-.attack-damage-position-0.multi-4 {top: 40%; left: 6%;}
-.attack-damage-position-0.multi-5 {top: 35%; left: 6%;}
+.attack-damage-wrapper.party .damage-index-0.multi-1 {top: 55%; left: 6%;}
+.attack-damage-wrapper.party .damage-index-0.multi-2 {top: 50%; left: 6%;}
+.attack-damage-wrapper.party .damage-index-0.multi-3 {top: 45%; left: 6%;}
+.attack-damage-wrapper.party .damage-index-0.multi-4 {top: 40%; left: 6%;}
+.attack-damage-wrapper.party .damage-index-0.multi-5 {top: 35%; left: 6%;}
 
-.attack-damage-position-1 {
+.attack-damage-wrapper.party .damage-index-1 {
     top: 53%;
     left: 13%;
 }
-.attack-damage-position-1.multi-1 {top: 48%; left: 14%;}
-.attack-damage-position-1.multi-2 {top: 43%; left: 14%;}
-.attack-damage-position-1.multi-3 {top: 38%; left: 14%;}
-.attack-damage-position-1.multi-4 {top: 33%; left: 14%;}
-.attack-damage-position-1.multi-5 {top: 28%; left: 14%;}
+.attack-damage-wrapper.party .damage-index-1.multi-1 {top: 48%; left: 14%;}
+.attack-damage-wrapper.party .damage-index-1.multi-2 {top: 43%; left: 14%;}
+.attack-damage-wrapper.party .damage-index-1.multi-3 {top: 38%; left: 14%;}
+.attack-damage-wrapper.party .damage-index-1.multi-4 {top: 33%; left: 14%;}
+.attack-damage-wrapper.party .damage-index-1.multi-5 {top: 28%; left: 14%;}
 
-.attack-damage-position-2{
+.attack-damage-wrapper.party .damage-index-2 {
     top: 46%;
     left: 21%;
 }
-.attack-damage-position-2.multi-1 {top: 41%; left: 22%;}
-.attack-damage-position-2.multi-2 {top: 36%; left: 22%;}
-.attack-damage-position-2.multi-3 {top: 31%; left: 22%;}
-.attack-damage-position-2.multi-4 {top: 26%; left: 22%;}
-.attack-damage-position-2.multi-5 {top: 21%; left: 22%;}
+.attack-damage-wrapper.party .damage-index-2.multi-1 {top: 41%; left: 22%;}
+.attack-damage-wrapper.party .damage-index-2.multi-2 {top: 36%; left: 22%;}
+.attack-damage-wrapper.party .damage-index-2.multi-3 {top: 31%; left: 22%;}
+.attack-damage-wrapper.party .damage-index-2.multi-4 {top: 26%; left: 22%;}
+.attack-damage-wrapper.party .damage-index-2.multi-5 {top: 21%; left: 22%;}
 
 /* .multi-attack-damage-n , 난격의 경우 어쩔수 없이 attack.js 에서 javascript 로 top 조정. 나머지 동일 */
 /* 난격을 이전 .attack-damage 를 기준으로 배치하고 싶은데 고민. */
@@ -192,7 +215,7 @@
     /*position: absolute;*/
 }
 
-.enemy-attack-damage {
+.attack-damage.enemy {
     position: absolute;
     z-index: 29;
     opacity: 0;
@@ -201,10 +224,6 @@
     line-height: 25px;
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     /*text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;*/
-}
-
-.enemy-attack-damage .additional-damage {
-    /*transform: translateY(-50%);*/
 }
 
 .enemy-damage-wrapper.actor-1 {
@@ -231,7 +250,7 @@
     right: 16%;
 }
 
-.enemy-additional-damage-wrapper {
+.additional-damage-wrapper.enemy {
     position: absolute;
     visibility: hidden;
     z-index: 28;
@@ -241,38 +260,38 @@
 }
 
     /* 4타 마다 위치 초기화 */
-.enemy-damage-wrapper.actor-1 .enemy-attack-damage:nth-child(8n + 3),
-.enemy-damage-wrapper.actor-1 .enemy-additional-damage-wrapper:nth-child(8n + 4),
-.enemy-damage-wrapper.actor-2 .enemy-attack-damage:nth-child(8n + 3),
-.enemy-damage-wrapper.actor-2 .enemy-additional-damage-wrapper:nth-child(8n + 4),
-.enemy-damage-wrapper.actor-3 .enemy-attack-damage:nth-child(8n + 3),
-.enemy-damage-wrapper.actor-3 .enemy-additional-damage-wrapper:nth-child(8n + 4),
-.enemy-damage-wrapper.actor-4 .enemy-attack-damage:nth-child(8n + 3),
-.enemy-damage-wrapper.actor-4 .enemy-additional-damage-wrapper:nth-child(8n + 4)
+.enemy-damage-wrapper.actor-1 .attack-damage.enemy:nth-child(8n + 3),
+.enemy-damage-wrapper.actor-1 .additional-damage-wrapper.enemy:nth-child(8n + 4),
+.enemy-damage-wrapper.actor-2 .attack-damage.enemy:nth-child(8n + 3),
+.enemy-damage-wrapper.actor-2 .additional-damage-wrapper.enemy:nth-child(8n + 4),
+.enemy-damage-wrapper.actor-3 .attack-damage.enemy:nth-child(8n + 3),
+.enemy-damage-wrapper.actor-3 .additional-damage-wrapper.enemy:nth-child(8n + 4),
+.enemy-damage-wrapper.actor-4 .attack-damage.enemy:nth-child(8n + 3),
+.enemy-damage-wrapper.actor-4 .additional-damage-wrapper.enemy:nth-child(8n + 4)
 {
     margin-top: -5px;
 }
 
-.enemy-damage-wrapper.actor-1 .enemy-attack-damage:nth-child(8n + 5),
-.enemy-damage-wrapper.actor-1 .enemy-additional-damage-wrapper:nth-child(8n + 6),
-.enemy-damage-wrapper.actor-2 .enemy-attack-damage:nth-child(8n + 5),
-.enemy-damage-wrapper.actor-2 .enemy-additional-damage-wrapper:nth-child(8n + 6),
-.enemy-damage-wrapper.actor-3 .enemy-attack-damage:nth-child(8n + 5),
-.enemy-damage-wrapper.actor-3 .enemy-additional-damage-wrapper:nth-child(8n + 6),
-.enemy-damage-wrapper.actor-4 .enemy-attack-damage:nth-child(8n + 5),
-.enemy-damage-wrapper.actor-4 .enemy-additional-damage-wrapper:nth-child(8n + 6)
+.enemy-damage-wrapper.actor-1 .attack-damage.enemy:nth-child(8n + 5),
+.enemy-damage-wrapper.actor-1 .additional-damage-wrapper.enemy:nth-child(8n + 6),
+.enemy-damage-wrapper.actor-2 .attack-damage.enemy:nth-child(8n + 5),
+.enemy-damage-wrapper.actor-2 .additional-damage-wrapper.enemy:nth-child(8n + 6),
+.enemy-damage-wrapper.actor-3 .attack-damage.enemy:nth-child(8n + 5),
+.enemy-damage-wrapper.actor-3 .additional-damage-wrapper.enemy:nth-child(8n + 6),
+.enemy-damage-wrapper.actor-4 .attack-damage.enemy:nth-child(8n + 5),
+.enemy-damage-wrapper.actor-4 .additional-damage-wrapper.enemy:nth-child(8n + 6)
 {
     margin-top: -10px;
 }
 
-.enemy-damage-wrapper.actor-1 .enemy-attack-damage:nth-child(8n + 7),
-.enemy-damage-wrapper.actor-1 .enemy-additional-damage-wrapper:nth-child(8n + 8),
-.enemy-damage-wrapper.actor-2 .enemy-attack-damage:nth-child(8n + 7),
-.enemy-damage-wrapper.actor-2 .enemy-additional-damage-wrapper:nth-child(8n + 8),
-.enemy-damage-wrapper.actor-3 .enemy-attack-damage:nth-child(8n + 7),
-.enemy-damage-wrapper.actor-3 .enemy-additional-damage-wrapper:nth-child(8n + 8),
-.enemy-damage-wrapper.actor-4 .enemy-attack-damage:nth-child(8n + 7),
-.enemy-damage-wrapper.actor-4 .enemy-additional-damage-wrapper:nth-child(8n + 8)
+.enemy-damage-wrapper.actor-1 .attack-damage.enemy:nth-child(8n + 7),
+.enemy-damage-wrapper.actor-1 .additional-damage-wrapper.enemy:nth-child(8n + 8),
+.enemy-damage-wrapper.actor-2 .attack-damage.enemy:nth-child(8n + 7),
+.enemy-damage-wrapper.actor-2 .additional-damage-wrapper.enemy:nth-child(8n + 8),
+.enemy-damage-wrapper.actor-3 .attack-damage.enemy:nth-child(8n + 7),
+.enemy-damage-wrapper.actor-3 .additional-damage-wrapper.enemy:nth-child(8n + 8),
+.enemy-damage-wrapper.actor-4 .attack-damage.enemy:nth-child(8n + 7),
+.enemy-damage-wrapper.actor-4 .additional-damage-wrapper.enemy:nth-child(8n + 8)
 {
     margin-top: -15px;
 }

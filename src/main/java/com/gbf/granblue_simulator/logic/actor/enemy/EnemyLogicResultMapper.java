@@ -103,7 +103,12 @@ public class EnemyLogicResultMapper {
         if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
 
         int hitCount = move.getHitCount() == null ? 0 : move.getHitCount(); // 적은 공격횟수가 가변인경우가 없음
-        int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream().mapToInt(List::size).sum();
+        int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream()
+                .map(additionalDamages -> additionalDamages.stream()
+                        .filter(damage -> damage > 0)
+                        .toList())
+                .mapToInt(List::size)
+                .sum();
 
         // 체력
         List<Integer> hps = new ArrayList<>();
