@@ -52,7 +52,6 @@ function getDamageElement(charOrder, elementType, type, index, damage, additiona
 }
 
 
-
 /**
  * 커맨드 패널의 현재 스테이터스 아이콘 갱신 (이펙트 종료 직후)
  * @param currentBattleStatusesList 갱신할 현재 스테이터스리스트
@@ -80,6 +79,46 @@ function processStatusIconSync(currentBattleStatusesList, effectVideoDuration) {
             })
         });
     }, effectVideoDuration);
+}
+
+function processHealEffect(healArray, effectVideoDuration) {
+    let healDelay = effectVideoDuration;
+    if (healArray.length === 0 || healArray.reduce((a, b) => a + b , 0 ) === 0) return healDelay;
+    let audioPlayer = new AudioPlayer();
+    let $healValueWrappers = [];
+    healArray.forEach(function (heal, index) { // 적의 데미지 컨테이너를 힐 량 표시 래퍼로 사용
+        $healValueWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + index}).appendTo($('#damageContainer')));
+    })
+    healArray.forEach(function (heal, actorIndex) {
+        // console.log('[processHealEffect] heal = ', heal, ' actorIndex = ', actorIndex);
+        if (heal !== 0) {
+            setTimeout(function () {
+                // 이펙트 재생
+                let $healVideo = $('.heal-video-wrapper .heal.actor-' + actorIndex);
+                playVideo($healVideo, null, null);
+                // 사운드 재생
+                audioPlayer.loadSound($('.global-audio-container .heal').attr('src')).then(function () {
+                    audioPlayer.playAllSounds();
+                });
+                // 데미지채우기
+                let $healValueWrapper = $healValueWrappers[actorIndex];
+                let $healElements = getDamageElement(actorIndex, 'NONE', 'attack', 0, heal, []);
+                $healValueWrapper.append($healElements.$damage);
+                setTimeout(function () {
+                    $healElements.$damage.addClass('heal enemy-damage-show'); // 약간 느리게
+                }, 100)
+            }, effectVideoDuration + 100 * actorIndex);
+            healDelay = effectVideoDuration + 800 + 100 * actorIndex; // 버프 시작할 딜레이 지정
+        }
+        if (actorIndex === healArray.length - 1) { // 힐 (데미지 요소) 삭제
+            setTimeout(function () {
+                $healValueWrappers.forEach(function ($healValueWrapper, index) {
+                    $healValueWrapper.remove();
+                })
+            }, effectVideoDuration + 1500);
+        }
+    })
+    return healDelay;
 }
 
 /**

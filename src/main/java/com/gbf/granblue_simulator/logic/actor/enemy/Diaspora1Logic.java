@@ -21,14 +21,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
+
 @Component
 @Slf4j
 public class Diaspora1Logic extends EnemyLogic {
 
     private final CalcStatusLogic calcStatusLogic;
 
-    public Diaspora1Logic(StatusUtil statusUtil, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic) {
-        super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
+    public Diaspora1Logic(EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
         this.calcStatusLogic = calcStatusLogic;
     }
 
@@ -126,7 +128,7 @@ public class Diaspora1Logic extends EnemyLogic {
         if (!matchingStatusName.equals("해당 스테이터스 없음")) {
             // 해당 공격 타입 누적데미지 합과 증가시킬 스테이터스
             Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveParentType);
-            BattleStatus matchedBattleStatus = statusUtil.getBattleStatusByName(mainActor, matchingStatusName).orElse(null);
+            BattleStatus matchedBattleStatus = getBattleStatusByName(mainActor, matchingStatusName).orElse(null);
             if (matchedBattleStatus == null) {
                 // 해당 스테이터스가 제거됨 (긴급수복모드 등)
                 log.info("[firstSupportAbility] matchedBattleStatus is null, matchingStatusName = {}", matchingStatusName);
@@ -147,7 +149,7 @@ public class Diaspora1Logic extends EnemyLogic {
     // 어느 하나의 활성 레벨이 최고레벨이 된 턴 종료시 긴급 수복 모드 발생 및 타 활성레벨 제거 (동일 레벨의 경우 이전 순서 우선)
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
-        List<BattleStatus> activateStatuses = new ArrayList<>(statusUtil.getBattleStatusesByName(mainActor, "활성"));
+        List<BattleStatus> activateStatuses = new ArrayList<>(getBattleStatusesByName(mainActor, "활성"));
         if (!activateStatuses.isEmpty()) {
             activateStatuses.stream()
                     .filter(battleStatus -> battleStatus.getLevel().equals(battleStatus.getStatus().getMaxLevel()))
@@ -167,16 +169,16 @@ public class Diaspora1Logic extends EnemyLogic {
     // 긴급 수복모드 종료시 자신에게 남아있는 활성레벨에 맞는 모드로 전환, 자신에게 걸린 모든 디버프 해제
     protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         // 현재 활성 제거
-        BattleStatus currentActivateStatus = statusUtil.getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
+        BattleStatus currentActivateStatus = getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
         String currentActivateStatusType = currentActivateStatus.getStatus().getName().substring(4, 6); // 활성 『알파』 에서 알파만 남김. 일단 구리지만 이렇게.
         setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
 
         // 2회차 전조부터 붙어있는 긴급 수복모드 제거
-        BattleStatus recoveryStatus = statusUtil.getBattleStatusByName(mainActor, "긴급 회복 시스템").orElse(null);
+        BattleStatus recoveryStatus = getBattleStatusByName(mainActor, "긴급 회복 시스템").orElse(null);
         setStatusLogic.removeBattleStatus(mainActor, recoveryStatus);
 
         // 활성 효과에 맞는 모드 적용
-        Status modeStatus = statusUtil.getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusType);
+        Status modeStatus = getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusType);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(modeStatus));
 
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
@@ -190,7 +192,7 @@ public class Diaspora1Logic extends EnemyLogic {
 
     @Override
     protected ActorLogicResult fifthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
-        SetStatusResult setStatusResult = statusUtil.getBattleStatusByName(mainActor, "자괴인자")
+        SetStatusResult setStatusResult = getBattleStatusByName(mainActor, "자괴인자")
                 .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
                 .orElse(null);
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);

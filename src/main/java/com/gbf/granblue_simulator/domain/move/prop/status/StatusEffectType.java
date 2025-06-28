@@ -95,6 +95,7 @@ public enum StatusEffectType {
     DEBUFF_RESIST_UP,
 
     // 오의게이지
+    ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
     CHARGE_GAUGE_INCREASE_UP, // [증가배율]
     CHARGE_GAUGE_INCREASE_DOWN, // [감소배율]
     CHARGE_TURN_INCREASE_UP, // [증가수치]
@@ -108,13 +109,11 @@ public enum StatusEffectType {
     // 디스펠가드
     DISPEL_GUARD, // [횟수, 1로고정]
 
-
     // 방어 특수
     IMMORTAL, // 불사신 효과 [버틸 횟수 1]
     SUBSTITUTE, // 감싸기 [우선순위 1 or 2] -> value 가 클수록 우선순위 높음
     GUARD_DISABLED, // 방어불가 [1]
-
-
+    
     // 체력
     MAX_HP_DOWN, // 최대 체력 감소 [감소배율]
 
@@ -130,10 +129,11 @@ public enum StatusEffectType {
     TRIGGER, // 다른 스테이터스의 트리거가 될경우 사용 [TRIGGERED 와 동일한 값]
     TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
 
-    // 즉시변경류
+    // 디스펠 클리어
     ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~]
     ACT_CLEAR, // 클리어 [클리어 횟수 1 ~ 99]
-    ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
+    
+    // 차지게이지 증가
 
     // 후 행동류 (재행동류 제외)
     ACT_FIRST_ABILITY, // 1어빌 자동발동
@@ -147,9 +147,6 @@ public enum StatusEffectType {
     TEST,
 
     // 여기선 List<BattleCharacter>, Enemy, StatusEffect 세개 다 받아야 할듯.
-
-    // 고유버프 (UNIQUE_[캐릭터명]_[ABILITY or CHARGE or SUPPORT]_[해당순서]
-    UNIQUE_PALADIN_SUPPORT_1 // 방패의 수호
 
     ;
 
@@ -167,7 +164,6 @@ public enum StatusEffectType {
                 this == ADDITIONAL_DAMAGE_S ||
                 this == ADDITIONAL_DAMAGE_U ||
                 this == ADDITIONAL_DAMAGE_W ||
-                this == BARRIER ||
                 this == SUBSTITUTE
                 ;
     }

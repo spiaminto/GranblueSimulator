@@ -48,6 +48,7 @@ function processSummon(responseSummonData) {
     let chargeGauges = summonData.chargeGauges;
     let hps = summonData.hps;
     let hpRates = summonData.hpRates;
+    let heals = summonData.heals;
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = summonData.addedBattleStatusList;
@@ -118,9 +119,10 @@ function processSummon(responseSummonData) {
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, summonEffectDuration);
-
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(heals, summonEffectDuration + 500);
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, summonEffectDuration + 500);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 

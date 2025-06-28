@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 
 import java.util.ArrayList;
@@ -29,6 +30,9 @@ public class Actor {
     private String nameEn; // 영어명
     @Enumerated(EnumType.STRING)
     private ElementType elementType; // 속성
+
+    @Accessors(fluent = true)
+    private boolean isMainCharacter; // 주인공 여부, Character 로 분리?
 
     @Builder.Default
     private Integer baseAttackPoint = 1000; // 공력력

@@ -18,12 +18,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByName;
+
 @Component
 @Slf4j
 public class Diaspora2Logic extends EnemyLogic {
 
-    public Diaspora2Logic(StatusUtil statusUtil, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository) {
-        super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
+    public Diaspora2Logic(EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
     }
 
     @Override
@@ -104,7 +106,7 @@ public class Diaspora2Logic extends EnemyLogic {
 
     @Override // 자신의 모드에 따라 받은 데미지의 누적값이 일정 수치에 도달할경우 턴 종료시 (자신의 모드 레벨 상승 및) 공격력 증가, 재공격 효과
     protected ActorLogicResult firstSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
-        BattleStatus matchedBattleStatus = statusUtil.getBattleStatusByName(mainActor, "모드 『").orElse(null);
+        BattleStatus matchedBattleStatus = getBattleStatusByName(mainActor, "모드 『").orElse(null);
         log.info("[firstSupportAbility] matchedBattleStatus = {}", matchedBattleStatus);
         if (matchedBattleStatus == null) {
             // 해당 타입에 맞는 모드 스테이터스 없음
@@ -135,7 +137,7 @@ public class Diaspora2Logic extends EnemyLogic {
 
     @Override // 자신의 전조 이성임계(STANDBY_C)가 해제될 경우 자신의 임계 도달 레벨 감소
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
-        SetStatusResult setStatusResult = statusUtil.getBattleStatusByName(mainActor, "임계 도달")
+        SetStatusResult setStatusResult =getBattleStatusByName(mainActor, "임계 도달")
                 .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
                 .orElse(null);
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
@@ -161,7 +163,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @return
      */
     protected Integer getStandbyBOmenInitValue(BattleActor mainActor) {
-        return statusUtil.getBattleStatusByName(mainActor, "임계 도달").map(
+        return getBattleStatusByName(mainActor, "임계 도달").map(
                 battleStatus -> 2500000 * (1 + battleStatus.getLevel())
         ).orElse(2500000);
     }
@@ -173,7 +175,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @return
      */
     protected Double getChargeAttackBDamageRate(BattleActor mainActor) {
-        return statusUtil.getBattleStatusByName(mainActor, "임계 도달").map(
+        return getBattleStatusByName(mainActor, "임계 도달").map(
                 battleStatus -> 10.0 * (1 + battleStatus.getLevel())
         ).orElse(10.0);
     }
@@ -185,7 +187,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @return
      */
     protected Double getChargeAttackDDamageRate(BattleActor mainActor) {
-        return statusUtil.getBattleStatusByName(mainActor, "자괴인자").map(
+        return getBattleStatusByName(mainActor, "자괴인자").map(
                 battleStatus -> 5.0 * (1 + battleStatus.getLevel())
         ).orElse(5.0);
     }
@@ -198,11 +200,11 @@ public class Diaspora2Logic extends EnemyLogic {
      * @return
      */
     protected void afterChargeAttackD(BattleActor mainActor, List<BattleActor> partyMembers) {
-        statusUtil.getBattleStatusByName(mainActor, "자괴인자").ifPresent(
+        getBattleStatusByName(mainActor, "자괴인자").ifPresent(
                 battleStatus -> {
                     // 효과 연장
                     partyMembers.forEach(
-                            partyMember -> statusUtil.getBattleStatusByName(partyMember, "가드불가").ifPresent(
+                            partyMember -> getBattleStatusByName(partyMember, "가드불가").ifPresent(
                                     guardDisabledStatus -> setStatusLogic.extendBattleStatus(guardDisabledStatus, battleStatus.getLevel() * 2)
                             )
                     );

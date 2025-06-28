@@ -18,8 +18,7 @@ public class SetStatusResult {
     private List<List<BattleStatus>> partyMemberAddedStatuses = new ArrayList<>(); // order by currentOrder, 내부원소도 빈리스트로 초기화됨
     @Builder.Default
     private List<List<BattleStatus>> partyMemberRemovedStatuses = new ArrayList<>();
-
-    private boolean partyMemberDispelled;
-    private boolean enemyDispelled;
+    @Builder.Default
+    private List<Integer> healValues = new ArrayList<>();
 
 }

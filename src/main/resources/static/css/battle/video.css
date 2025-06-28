@@ -7,6 +7,20 @@ video.left-hidden {
     left: -100%;
 }
 
+#videoContainer .attack.large {
+    width: 120%;
+    height: 120%;
+    top: 0;
+    left: -15%;
+}
+
+/*#videoContainer .charge-attack.large {*/
+/*    width: 110%;*/
+/*    height: 110%;*/
+/*    top: 10%;*/
+/*    right: -10%;*/
+/*}*/
+
 .hidden {
     visibility: hidden;
 }
@@ -34,7 +48,9 @@ video.left-hidden {
 }
 
 .party-video.attack.motion {
-    width: 100%; /* 주인공 공격모션 크기 보정 */
+    width: 80%; /* 주인공 공격모션 크기 보정 */
+    top: 10%;
+    right: 10%;
 }
 
 .party-video.motion:not(.idle) {
@@ -48,24 +64,24 @@ video.left-hidden {
 }
 
 .party-video-container .party-2 video {
-    top: 11%;
-    right: -10%;
+    top: 8%;
+    right: -9%;
     z-index: 2;
 }
 
 .party-video-container .party-3 video {
-    top: 24%;
+    top: 18%;
     right: 3%;
     z-index: 3;
 }
 
 .party-video-container .party-4 video {
-    top: 37%;
+    top: 28%;
     right: -10%;
     z-index: 4;
 }
 
-#videoContainer .party-video-container .attack.effect {
+#videoContainer .party-video-container .attack.effect:not(.large) {
     width: 99%;
     top: 5%;
     left: 0;
@@ -109,6 +125,39 @@ video.left-hidden {
     width: 100%;
     height: 100%;
     z-index: 5;
+}
+
+.heal-video-wrapper .heal {
+    width: 30%;
+    height: 30%;
+    z-index: 5;
+}
+
+.heal-video-wrapper .actor-0 {
+    top: 20%;
+    left: -10%;
+    width: 80%;
+    height: 80%;
+}
+
+.heal-video-wrapper .actor-1 {
+    top: 32%;
+    right: 8%;
+}
+
+.heal-video-wrapper .actor-2 {
+    top: 42%;
+    right: -5%;
+}
+
+.heal-video-wrapper .actor-3 {
+    top: 52%;
+    right: 8%;
+}
+
+.heal-video-wrapper .actor-4 {
+    top: 62%;
+    right: -5%;
 }
 
 
@@ -169,22 +218,22 @@ video.left-hidden {
 }
 
 .guard-status-wrapper .guard-status.party-1 {
-    top: 160px;
+    top: 165px;
     right: 60px;
 }
 
 .guard-status-wrapper .guard-status.party-2 {
-    top: 215px;
+    top: 205px;
     right: 15px;
 }
 
 .guard-status-wrapper .guard-status.party-3 {
-    top: 265px;
+    top: 245px;
     right: 60px;
 }
 
 .guard-status-wrapper .guard-status.party-4 {
-    top: 315px;
+    top: 285px;
     right: 15px
 }
 

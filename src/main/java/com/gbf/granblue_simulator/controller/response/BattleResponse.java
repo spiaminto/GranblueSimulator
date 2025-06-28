@@ -29,6 +29,8 @@ public class BattleResponse {
     @Builder.Default
     private List<List<Integer>> abilityCoolDowns = new ArrayList<>();
 
+    @Builder.Default
+    private List<Integer> heals = new ArrayList<>();
     @Builder.Default 
     private List<List<StatusDto>> addedBattleStatusList = new ArrayList<>(); // 발생한 스테이터스
     @Builder.Default
@@ -51,8 +53,6 @@ public class BattleResponse {
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();
 
-    private boolean isPartyMemberDispelled;
-    private boolean isEnemyDispelled;
     private boolean isEnemyPowerUp;
     private boolean isEnemyCtMax;
 }

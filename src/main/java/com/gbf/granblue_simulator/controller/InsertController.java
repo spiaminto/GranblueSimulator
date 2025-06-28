@@ -46,6 +46,7 @@ public class InsertController {
                 .nameEn(characterInsertRequest.getNameEn())
                 .battlePortraitSrc(characterInsertRequest.getBattlePortraitSrc())
                 .elementType(characterInsertRequest.getElementType())
+                .isMainCharacter(Boolean.parseBoolean(characterInsertRequest.getIsMainCharacter()))
                 .build();
         character = characterRepository.save(character);
         log.info("savedChar = {}", character);

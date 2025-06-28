@@ -28,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getStatusEffectMap;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -43,7 +45,6 @@ public class BattleLogic {
     private final BattleActorRepository battleActorRepository;
     private final BattleLogRepository battleLogRepository;
     private final SetStatusLogic setStatusLogic;
-    private final StatusUtil statusUtil;
 
     public void startBattle(List<BattleActor> partyMembers, BattleActor enemy) {
         partyMembers.forEach(partyMember -> {
@@ -222,14 +223,14 @@ public class BattleLogic {
      */
     public List<GuardResult> processGuard(BattleActor mainActor, List<BattleActor> partyMembers, StatusTargetType targetType) {
         if (targetType == StatusTargetType.SELF) {
-            List<StatusEffect> guardDisabledStatusEffects = statusUtil.getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
+            List<StatusEffect> guardDisabledStatusEffects = getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
             if (guardDisabledStatusEffects == null) {
                 mainActor.toggleGuard();
             }
         } else if (targetType == StatusTargetType.PARTY_MEMBERS) {
             boolean mainActorIsGuardOn = mainActor.isGuardOn(); // 파티전체의 경우, 가드 누른 캐릭터와 동일한 상태의 가드만 토글
             partyMembers.forEach(partyMember -> {
-                        List<StatusEffect> guardDisabledStatusEffects = statusUtil.getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
+                        List<StatusEffect> guardDisabledStatusEffects = getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
                         if (guardDisabledStatusEffects == null && partyMember.isGuardOn() == mainActorIsGuardOn) {
                             partyMember.toggleGuard();
                         }

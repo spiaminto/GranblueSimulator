@@ -134,6 +134,7 @@ public class CharacterLogicResultMapper {
                 .chargeGauges(chargeGauges)
                 .addedBattleStatusesList(resultStatusList)
                 .removedBattleStatusesList(removedStatusList)
+                .heals(setStatusResult.getHealValues())
 
                 .totalHitCount(totalHitCount)
                 .attackMultiHitCount(damageLogicResult.getAttackMultiHitCount())
@@ -141,9 +142,6 @@ public class CharacterLogicResultMapper {
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
-
-                .enemyDispelled(setStatusResult.isEnemyDispelled())
-                .partyMemberDispelled(setStatusResult.isPartyMemberDispelled())
 
                 .hasNextMove(nextMoveRequest.hasNextMove())
                 .nextMoveType(nextMoveRequest.getNextMoveType())

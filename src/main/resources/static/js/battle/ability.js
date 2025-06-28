@@ -9,6 +9,7 @@ function processAbility(responseAbilityData) {
     let chargeGauges = abilityData.chargeGauges;
     let hps = abilityData.hps;
     let hpRates = abilityData.hpRates;
+    let heals = abilityData.heals;
 
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = abilityData.addedBattleStatusList;
@@ -87,9 +88,10 @@ function processAbility(responseAbilityData) {
 
     // 어빌리티는 타수가 많을경우 데미지 표시길이만큼 딜레이 보정
     abilityEffectDuration = abilityEffectDuration += abilityHitCount * 50;
-
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(heals, abilityEffectDuration);
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, abilityEffectDuration);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
@@ -117,6 +119,7 @@ function processEnemyAbility(responseAbilityData) {
     let chargeGauges = abilityData.chargeGauges;
     let hps = abilityData.hps;
     let hpRates = abilityData.hpRates;
+    let heals = abilityData.heals;
     // 적 한정
     let targetOrders = abilityData.enemyAttackTargetOrders;
     let isAllTarget = abilityData.allTarget; // 전체공격여부
@@ -213,9 +216,10 @@ function processEnemyAbility(responseAbilityData) {
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, abilityDuration);
-
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(heals, abilityDuration);
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, abilityDuration);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 

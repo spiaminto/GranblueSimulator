@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectiveCoveringEffect;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.hasBattleStatus;
+
 /**
  * 모든 에너미로직 반환값은 null 을 사용하지 않는다.
  * 이 로직의 어빌리티 메서드 반환값이 유일한 null 리턴이며, 해당 메서드가 실행되는것은 오류임.
@@ -31,7 +34,6 @@ import java.util.stream.IntStream;
 @Slf4j
 public abstract class EnemyLogic {
 
-    protected final StatusUtil statusUtil;
     protected final EnemyLogicResultMapper resultMapper;
 
     protected final DamageLogic damageLogic;
@@ -115,7 +117,7 @@ public abstract class EnemyLogic {
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
         // 후행동 확인
-        MoveType nextMoveType = statusUtil.hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
+        MoveType nextMoveType = hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
         return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).nextMoveType(nextMoveType).build();
     }
 
@@ -158,7 +160,7 @@ public abstract class EnemyLogic {
         mainEnemy.setCurrentStandbyType(null);
         mainEnemy.setNextIncantStandbyType(null);
         // 후행동 확인 (적은 후행동 통상공격만)
-        MoveType nextMoveType = statusUtil.hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
+        MoveType nextMoveType = hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
         return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).nextMoveType(nextMoveType).build();
     }
 
@@ -252,7 +254,7 @@ public abstract class EnemyLogic {
      */
     protected List<BattleActor> getAttackTargets(boolean isAllTarget, int hitCount, List<BattleActor> partyMembers) {
         // 감싸기 효과 적용 확인
-        Optional<BattleStatus> substituteEffect = statusUtil.getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
+        Optional<BattleStatus> substituteEffect = getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
         return substituteEffect
                 .map(battleStatus -> isAllTarget ?
                         Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor()) : // 전체타겟인 경우 전원분 감싸기 id

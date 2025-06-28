@@ -359,69 +359,7 @@ public class BattleController {
         List<ActorLogicResult> results = battleLogic.processAbility(mainCharacter, battleEnemy, partyMembers, moveId);
 
         List<BattleResponse> responses = results.stream().map(result ->
-                BattleResponse.builder()
-                        .charOrder(result.getMainBattleActorOrder())
-                        .moveType(result.getMoveType())
-                        .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
-                        .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
-                        .elementTypes(result.getDamageElementTypes())
-                        .totalHitCount(result.getTotalHitCount())
-                        .attackMultiHitCount(result.getAttackMultiHitCount())
-                        .hps(result.getHps())
-                        .hpRates(result.getHpRates())
-                        .chargeGauges(result.getChargeGauges())
-                        .omenType(result.getOmenType())
-                        .omenValue(result.getOmenValue())
-                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
-                        .omenName(result.getOmenName())
-                        .omenInfo(result.getOmenInfo())
-                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
-                                .map(battleStatuses -> battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatus().getType().name())
-                                                        .name(battleStatus.getStatus().getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getStatus().getEffectText())
-                                                        .statusText(battleStatus.getStatus().getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build())
-                                        .toList()
-                                ).toList())
-                        .abilityCoolDowns(result.getAbilityCooldowns())
-                        .isEnemyDispelled(result.isEnemyDispelled())
-                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
-                        .isEnemyPowerUp(result.isEnemyPowerUp())
-                        .isEnemyCtMax(result.isEnemyCtMax())
-                        .build()
+                toBattleResponse(result, allActors)
         ).toList();
         responses.forEach(response -> log.info("response: {}", response));
 
@@ -442,71 +380,7 @@ public class BattleController {
         List<ActorLogicResult> turnProgressResults = battleLogic.progressTurn(enemy, partyMembers);
 
         List<BattleResponse> responses = turnProgressResults.stream().map(result ->
-                BattleResponse.builder()
-                        .charOrder(result.getMainBattleActorOrder())
-                        .moveType(result.getMoveType())
-                        .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
-                        .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
-                        .elementTypes(result.getDamageElementTypes())
-                        .totalHitCount(result.getTotalHitCount())
-                        .attackMultiHitCount(result.getAttackMultiHitCount())
-                        .hps(result.getHps())
-                        .hpRates(result.getHpRates())
-                        .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
-                        .isAllTarget(result.isAllTarget())
-                        .omenName(result.getOmenName())
-                        .omenType(result.getOmenType())
-                        .omenValue(result.getOmenValue())
-                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
-                        .omenInfo(result.getOmenInfo())
-                        .chargeGauges(result.getChargeGauges())
-                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
-                                .map(battleStatuses -> battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatus().getType().name())
-                                                        .name(battleStatus.getStatus().getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getStatus().getEffectText())
-                                                        .statusText(battleStatus.getStatus().getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build())
-                                        .toList()
-                                ).toList())
-                        .abilityCoolDowns(result.getAbilityCooldowns())
-                        .isEnemyDispelled(result.isEnemyDispelled())
-                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
-                        .isEnemyPowerUp(result.isEnemyPowerUp())
-                        .isEnemyCtMax(result.isEnemyCtMax())
-                        .build()
+                toBattleResponse(result, allActors)
         ).toList();
         responses.forEach(response -> log.info("response: {}", response));
 
@@ -536,68 +410,7 @@ public class BattleController {
         List<ActorLogicResult> results = battleLogic.processSummon(mainCharacter, battleEnemy, partyMembers, summonMoveId);
 
         List<BattleResponse> responses = results.stream().map(result ->
-                BattleResponse.builder()
-                        .charOrder(result.getMainBattleActorOrder())
-                        .moveType(result.getMoveType())
-                        .summonId(summonMoveId)
-                        .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
-                        .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
-                        .elementTypes(result.getDamageElementTypes())
-                        .totalHitCount(result.getTotalHitCount())
-                        .attackMultiHitCount(result.getAttackMultiHitCount())
-                        .hps(result.getHps())
-                        .hpRates(result.getHpRates())
-                        .chargeGauges(result.getChargeGauges())
-                        .omenType(result.getOmenType())
-                        .omenValue(result.getOmenValue())
-                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
-                        .omenName(result.getOmenName())
-                        .omenInfo(result.getOmenInfo())
-                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
-                                .map(battleStatuses -> battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatus().getType().name())
-                                                        .name(battleStatus.getStatus().getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getStatus().getEffectText())
-                                                        .statusText(battleStatus.getStatus().getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build())
-                                        .toList()
-                                ).toList())
-                        .abilityCoolDowns(result.getAbilityCooldowns())
-                        .isEnemyDispelled(result.isEnemyDispelled())
-                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
-                        .build()
+                toBattleResponse(result, allActors)
         ).toList();
         responses.forEach(response -> log.info("response: {}", response));
 
@@ -621,52 +434,36 @@ public class BattleController {
         List<ActorLogicResult> results = battleLogic.processFatalChain(mainCharacter, enemy, partyMembers, moveId);
 
         List<BattleResponse> responses = results.stream().map(result ->
-                BattleResponse.builder()
-                        .charOrder(result.getMainBattleActorOrder())
-                        .moveType(result.getMoveType())
-                        .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
-                        .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
-                        .elementTypes(result.getDamageElementTypes())
-                        .totalHitCount(result.getTotalHitCount())
-                        .attackMultiHitCount(result.getAttackMultiHitCount())
-                        .hps(result.getHps())
-                        .hpRates(result.getHpRates())
-                        .chargeGauges(result.getChargeGauges())
-                        .omenType(result.getOmenType())
-                        .omenValue(result.getOmenValue())
-                        .omenCancelCondInfo(result.getOmenCancelCondInfo())
-                        .omenName(result.getOmenName())
-                        .omenInfo(result.getOmenInfo())
-                        .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
-                                .map(battleStatuses ->
-                                        battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                                .map(battleStatus ->
-                                                        StatusDto.builder()
-                                                                .type(battleStatus.getStatus().getType().name())
-                                                                .name(battleStatus.getStatus().getName())
-                                                                .imageSrc(battleStatus.getIconSrc())
-                                                                .effectText(battleStatus.getStatus().getEffectText())
-                                                                .statusText(battleStatus.getStatus().getStatusText())
-                                                                .duration(battleStatus.getDuration())
-                                                                .build()
-                                                ).toList()
-                                ).toList())
-                        .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
-                                .map(battleStatuses -> battleStatuses.stream()
+                toBattleResponse(result, allActors)
+        ).toList();
+        responses.forEach(response -> log.info("response: {}", response));
+
+
+        return ResponseEntity.ok(responses);
+    }
+
+    private static BattleResponse toBattleResponse(ActorLogicResult result, List<BattleActor> allActors) {
+        return BattleResponse.builder()
+                .charOrder(result.getMainBattleActorOrder())
+                .moveType(result.getMoveType())
+                .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
+                .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
+                .elementTypes(result.getDamageElementTypes())
+                .totalHitCount(result.getTotalHitCount())
+                .attackMultiHitCount(result.getAttackMultiHitCount())
+                .hps(result.getHps())
+                .hpRates(result.getHpRates())
+                .chargeGauges(result.getChargeGauges())
+                .omenType(result.getOmenType())
+                .omenValue(result.getOmenValue())
+                .isAllTarget(result.isAllTarget())
+                .omenCancelCondInfo(result.getOmenCancelCondInfo())
+                .omenName(result.getOmenName())
+                .omenInfo(result.getOmenInfo())
+                .heals(result.getHeals())
+                .addedBattleStatusList(result.getAddedBattleStatusesList().stream()
+                        .map(battleStatuses ->
+                                battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
                                         .map(battleStatus ->
                                                 StatusDto.builder()
                                                         .type(battleStatus.getStatus().getType().name())
@@ -675,18 +472,41 @@ public class BattleController {
                                                         .effectText(battleStatus.getStatus().getEffectText())
                                                         .statusText(battleStatus.getStatus().getStatusText())
                                                         .duration(battleStatus.getDuration())
-                                                        .build())
-                                        .toList()
-                                ).toList())
-                        .abilityCoolDowns(result.getAbilityCooldowns())
-                        .isEnemyDispelled(result.isEnemyDispelled())
-                        .isPartyMemberDispelled(result.isPartyMemberDispelled())
-                        .build()
-        ).toList();
-        responses.forEach(response -> log.info("response: {}", response));
-
-
-        return ResponseEntity.ok(responses);
+                                                        .build()
+                                        ).toList()
+                        ).toList())
+                .removedBattleStatusList(result.getRemovedBattleStatusesList().stream()
+                        .map(battleStatuses ->
+                                battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
+                                        .map(battleStatus ->
+                                                StatusDto.builder()
+                                                        .type(battleStatus.getStatus().getType().name())
+                                                        .name(battleStatus.getStatus().getName())
+                                                        .imageSrc(battleStatus.getIconSrc())
+                                                        .effectText(battleStatus.getStatus().getEffectText())
+                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .duration(battleStatus.getDuration())
+                                                        .build()
+                                        ).toList()
+                        ).toList())
+                .battleStatusList(allActors.stream().map(BattleActor::getBattleStatuses)
+                        .map(battleStatuses -> battleStatuses.stream()
+                                .map(battleStatus ->
+                                        StatusDto.builder()
+                                                .type(battleStatus.getStatus().getType().name())
+                                                .name(battleStatus.getStatus().getName())
+                                                .imageSrc(battleStatus.getIconSrc())
+                                                .effectText(battleStatus.getStatus().getEffectText())
+                                                .statusText(battleStatus.getStatus().getStatusText())
+                                                .duration(battleStatus.getDuration())
+                                                .build())
+                                .toList()
+                        ).toList())
+                .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
+                .abilityCoolDowns(result.getAbilityCooldowns())
+                .isEnemyPowerUp(result.isEnemyPowerUp())
+                .isEnemyCtMax(result.isEnemyCtMax())
+                .build();
     }
 
     @PostMapping("/api/guard")
@@ -745,5 +565,7 @@ public class BattleController {
         BattleActor enemy = diaspora;
         battleLogic.startBattle(partyMembers, enemy);
     }
+
+
 
 }

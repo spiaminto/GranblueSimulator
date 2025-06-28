@@ -21,13 +21,14 @@ import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getStatusEffectMap;
+
 @Component
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
 public class DamageLogic {
 
-    private final StatusUtil statusUtil;
     private final Map<ProcessType, BaseCap> baseCapMap = new HashMap<>();
 
     public DamageLogicResult processEnemy(BattleActor mainActor, List<BattleActor> targetActors, Move move) {
@@ -129,8 +130,8 @@ public class DamageLogic {
 
         int hitCount = 1; // 적의 공격은 1회 1히트가 원칙
         int attackMultiHitCount = 1; // 현재 적은 난격효과를 적용하지 않음
-        Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
-        Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = statusUtil.getStatusEffectMap(mainActor);
+        Map<StatusEffectType, List<StatusEffect>> targetStatusMap = getStatusEffectMap(target);
+        Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = getStatusEffectMap(mainActor);
 
         // 전처리
         double damage = atkToDamage(mainActor.getAtk(), damageRate);
@@ -242,8 +243,8 @@ public class DamageLogic {
                     .build();
         }
 
-        Map<StatusEffectType, List<StatusEffect>> targetStatusMap = statusUtil.getStatusEffectMap(target);
-        Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = statusUtil.getStatusEffectMap(mainActor);
+        Map<StatusEffectType, List<StatusEffect>> targetStatusMap = getStatusEffectMap(target);
+        Map<StatusEffectType, List<StatusEffect>> mainActorStatusMap = getStatusEffectMap(mainActor);
         int attackMultiHitCount = 1; // 난격 효과시 통상공격 갯수 (효과 있으면 2부터 시작)
         List<Double> additionalDamages = new ArrayList<>(); // 추격
 

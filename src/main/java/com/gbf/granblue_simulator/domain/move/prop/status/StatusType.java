@@ -7,6 +7,7 @@ public enum StatusType {
     DEBUFF_FOR_ALL, // 참전자 전체 디버프
     
     HEAL, // 힐,
+    HEAL_FOR_ALL,// 참전자 힐
 
     DISPEL, // 디스펠
     DISPEL_GUARD, // 디스펠 가드

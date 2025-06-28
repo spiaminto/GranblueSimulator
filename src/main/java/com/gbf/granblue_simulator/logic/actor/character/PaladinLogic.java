@@ -20,8 +20,8 @@ public class PaladinLogic extends CharacterLogic {
 
     private final CalcStatusLogic calcStatusLogic;
 
-    public PaladinLogic(StatusUtil statusUtil, CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
-        super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+    public PaladinLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
         this.calcStatusLogic = calcStatusLogic;
     }
 

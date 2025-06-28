@@ -8,12 +8,11 @@ import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.Comparator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,9 +20,41 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.*;
 
 @Slf4j
-@Transactional
-@Component
-public class StatusUtil {
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class StatusUtil {
+
+    /**
+     * 주어진 battleActor 의 battleStatus 중 statusEffectType 을 가진 battleStatus 의 statusEffect.value 의 합
+     * @param battleActor 
+     * @param statusEffectType 합산할 이펙트 타입
+     * @return
+     */
+    public static double getEffectValueSum(BattleActor battleActor, StatusEffectType statusEffectType) {
+        List<StatusEffect> statusEffects = getStatusEffectMap(battleActor).getOrDefault(statusEffectType, Collections.emptyList());
+        return statusEffects == null || statusEffects.isEmpty() ?
+                0 :
+                statusEffects.stream()
+                        .map(StatusEffect::getCalcValue) // 레벨제 계산후 반환
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
+    }
+
+    /**
+     * 주어진 battleActor 의 battleStatus 중 statusEffectType 을 가진 battleStatus 의 statusEffect.value 중 최댓값
+     * 고유버프를 통한 항 중복시 최댓값만을 선택할때 사용 (ex 야치마 서포어비 추격 + 기타 고유버프 추격 항 공통일떄 max 선택)
+     *
+     * @param battleActor
+     * @param statusEffectType 합산할 이펙트 타입
+     * @return
+     */static double getEffectValueMax(BattleActor battleActor, StatusEffectType statusEffectType) {
+        List<StatusEffect> statusEffects = getStatusEffectMap(battleActor).getOrDefault(statusEffectType, Collections.emptyList());
+        return statusEffects == null || statusEffects.isEmpty() ?
+                0 :
+                statusEffects.stream()
+                        .map(StatusEffect::getCalcValue)
+                        .mapToDouble(Double::doubleValue)
+                        .max().orElse(0);
+    }
 
     /**
      * Move.Statuses 의 각각의 statusEffect 를 Map<StatusEffectType, List<StatusEffect>> 로 변환 (플랫화)
@@ -31,7 +62,7 @@ public class StatusUtil {
      * @param move
      * @return
      */
-    public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(Move move) {
+    public static Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(Move move) {
         return move.getStatuses().stream()
                 .flatMap(status -> status.getStatusEffects().values().stream())
                 .collect(Collectors.groupingBy(
@@ -48,8 +79,8 @@ public class StatusUtil {
      * @param battleActor
      * @return
      */
-    public Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(BattleActor battleActor) {
-        return this.getFlatStatusEffectStream(battleActor)
+    public static Map<StatusEffectType, List<StatusEffect>> getStatusEffectMap(BattleActor battleActor) {
+        return getFlatStatusEffectStream(battleActor)
                 .collect(Collectors.groupingBy(
                                 StatusEffect::getType,
                                 mapping(Function.identity(), toList())
@@ -63,8 +94,8 @@ public class StatusUtil {
      * @param battleActor
      * @return
      */
-    public List<StatusEffect> getAdditionalDamageEffects(BattleActor battleActor) {
-        return this.getFlatStatusEffectStream(battleActor)
+    public static List<StatusEffect> getAdditionalDamageEffects(BattleActor battleActor) {
+        return getFlatStatusEffectStream(battleActor)
                 .filter(statusEffect ->
                         statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_A ||
                                 statusEffect.getType() == StatusEffectType.ADDITIONAL_DAMAGE_C ||
@@ -74,7 +105,7 @@ public class StatusUtil {
                 ).toList();
     }
 
-    protected Stream<StatusEffect> getFlatStatusEffectStream(BattleActor battleActor) {
+    private static Stream<StatusEffect> getFlatStatusEffectStream(BattleActor battleActor) {
         return battleActor.getBattleStatuses().stream()
                 .map(battleStatus -> battleStatus.getStatus().getStatusEffects().values().stream()
                         .map(statusEffect -> statusEffect.setCurrentLevel(battleStatus.getLevel())).toList())
@@ -88,7 +119,7 @@ public class StatusUtil {
      * @param name
      * @return 가졌으면 true
      */
-    public boolean hasBattleStatus(BattleActor battleActor, String name) {
+    public static boolean hasBattleStatus(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .anyMatch(battleStatus -> battleStatus.getStatus().getName().contains(name));
     }
@@ -100,8 +131,8 @@ public class StatusUtil {
      * @param name
      * @return 스테이터스 적용 스킵 가능하면 true
      */
-    public boolean isStatusSetSkippable(BattleActor battleActor, String name) {
-        return this.getBattleStatusByName(battleActor, name).map(battleStatus ->
+    public static boolean isStatusSetSkippable(BattleActor battleActor, String name) {
+        return getBattleStatusByName(battleActor, name).map(battleStatus ->
                 battleStatus.getStatus().getType() == StatusType.BUFF &&
                         battleStatus.getLevel() > 0 &&
                         battleStatus.isMaxLevel() &&
@@ -117,7 +148,7 @@ public class StatusUtil {
      * @return
      * @throws IllegalArgumentException 해당 이름의 status 가 없음
      */
-    public Status getStatusByNameFromMove(BattleActor battleActor, MoveType moveType, String name) {
+    public static Status getStatusByNameFromMove(BattleActor battleActor, MoveType moveType, String name) {
         return battleActor.getActor().getMoves().get(moveType).getStatuses().stream()
                 .filter(status -> status.getName().contains(name))
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("해당 name 을 가진 Status 가 없습니다. name = " + name + "moveType = " + moveType.name()));
@@ -130,7 +161,7 @@ public class StatusUtil {
      * @param name
      * @return
      */
-    public Optional<BattleStatus> getBattleStatusByName(BattleActor battleActor, String name) {
+    public static Optional<BattleStatus> getBattleStatusByName(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
                 .findFirst();
@@ -143,7 +174,7 @@ public class StatusUtil {
      * @param name
      * @return
      */
-    public List<BattleStatus> getBattleStatusesByName(BattleActor battleActor, String name) {
+    public static List<BattleStatus> getBattleStatusesByName(BattleActor battleActor, String name) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getName().contains(name))
                 .toList();
@@ -156,7 +187,7 @@ public class StatusUtil {
      * @param statusType
      * @return
      */
-    public List<BattleStatus> getBattleStatuesByStatusType(BattleActor battleActor, StatusType statusType) {
+    public static List<BattleStatus> getBattleStatuesByStatusType(BattleActor battleActor, StatusType statusType) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getType() == statusType)
                 .toList();
@@ -170,7 +201,7 @@ public class StatusUtil {
      * @param status
      * @return Optional<BattleStatus>
      */
-    public Optional<BattleStatus> getSameIdBattleStatus(BattleActor battleActor, Status status) {
+    public static Optional<BattleStatus> getSameIdBattleStatus(BattleActor battleActor, Status status) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> status.getId().equals(battleStatus.getStatus().getId()))
                 .findFirst();
@@ -183,7 +214,7 @@ public class StatusUtil {
      * @param status
      * @return Optional<BattleStatus> battleStatus, 단일 statusEffect 로 구성되지 않은 status 의 경우 Optional.empty
      */
-    public Optional<BattleStatus> getSameEffectTypeStatus(BattleActor battleActor, Status status) {
+    public static Optional<BattleStatus> getSameEffectTypeStatus(BattleActor battleActor, Status status) {
         Map<StatusEffectType, StatusEffect> inputStatusEffects = status.getStatusEffects();
         if (inputStatusEffects.size() != 1) return Optional.empty();
         return battleActor.getBattleStatuses().stream()
@@ -204,7 +235,7 @@ public class StatusUtil {
      * @param statusEffectType
      * @return StatusEffectType 이 같은것중 적용 우선순위가 가장 높은 Optional<BattleStatus>
      */
-    public Optional<BattleStatus> getEffectiveCoveringEffect(List<BattleActor> battleActors, StatusEffectType statusEffectType) {
+    public static Optional<BattleStatus> getEffectiveCoveringEffect(List<BattleActor> battleActors, StatusEffectType statusEffectType) {
         return battleActors.stream()
                 .map(BattleActor::getBattleStatuses)
                 .flatMap(List::stream)
@@ -223,7 +254,7 @@ public class StatusUtil {
      * @param status
      * @return
      */
-    public Double getFirstStatusEffectValue(Status status) {
+    public static Double getFirstStatusEffectValue(Status status) {
         return status.getStatusEffects().entrySet().iterator().next().getValue().getValue();
     }
 
@@ -234,14 +265,14 @@ public class StatusUtil {
      * @param name
      * @return int 레벨
      */
-    public int getUniqueStatusLevel(BattleActor battleActor, String name) {
+    public static int getUniqueStatusLevel(BattleActor battleActor, String name) {
         Optional<BattleStatus> matchedBattleStatus = battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> name.equals(battleStatus.getStatus().getName()))
                 .findFirst();
         return matchedBattleStatus.map(BattleStatus::getLevel).orElse(0);
     }
 
-    public boolean isUniqueStatusReachedLevel(BattleActor battleActor, String name, int level) {
+    public static boolean isUniqueStatusReachedLevel(BattleActor battleActor, String name, int level) {
         Optional<BattleStatus> matchedBattleStatus = battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> name.equals(battleStatus.getStatus().getName()))
                 .findFirst();

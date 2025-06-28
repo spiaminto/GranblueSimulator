@@ -10,6 +10,7 @@ async function processChargeAttack(responseChargeAttackData) {
     let chargeGauges = chargeAttackData.chargeGauges;
     let hps = chargeAttackData.hps;
     let hpRates = chargeAttackData.hpRates;
+    let heals = chargeAttackData.heals;
     // 발생한 스테이터스 효과, [[적][아군][아군][아군][아군]]
     let addedBattleStatusesList = chargeAttackData.addedBattleStatusList;
     let addedBuffStatusesList = addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
@@ -70,10 +71,11 @@ async function processChargeAttack(responseChargeAttackData) {
     }, chargeAttackEffectHitDelay);
 
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
-
+    processStatusIconSync(currentBattleStatusesList, chargeAttackDuration + 500);
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(heals, chargeAttackDuration)
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, chargeAttackDuration + 500);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 
@@ -113,6 +115,7 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
     let chargeGauges = chargeAttackData.chargeGauges;
     let hps = chargeAttackData.hps;
     let hpRates = chargeAttackData.hpRates;
+    let heals = chargeAttackData.heals;
     // 적 한정
     let targetOrders = chargeAttackData.enemyAttackTargetOrders;
     let isAllTarget = chargeAttackData.allTarget; // 전체공격여부
@@ -205,9 +208,10 @@ async function processEnemyChargeAttack(responseChargeAttackData) {
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(currentBattleStatusesList, chargeAttackDuration);
-
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(heals, chargeAttackDuration + 500);
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, chargeAttackDuration + 500);
+    let buffEndTime = processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(addedDebuffStatusesList, buffEndTime);
 

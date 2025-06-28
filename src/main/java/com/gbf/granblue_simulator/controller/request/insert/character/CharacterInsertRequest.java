@@ -9,4 +9,5 @@ public class CharacterInsertRequest {
     private String nameEn;
     private String battlePortraitSrc;
     private ElementType elementType;
+    private String isMainCharacter;
 }

@@ -70,6 +70,16 @@
     font-size: 20px !important;
 }
 
+#damageContainer .enemy-damage-wrapper .heal {
+    background: linear-gradient(to bottom, #ebe9e0 35%, #2c8626 55%, #ebe9e0 85%) !important;
+    -webkit-text-stroke: 1px #0f280c !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 25px !important;
+    font-weight: 600;
+    z-index: 40; /* status effect 39 보다 높게 */
+}
+
 #damageContainer .additional-damage-wrapper.damage-miss {
     display: none !important;
 }
@@ -228,25 +238,25 @@
 
 .enemy-damage-wrapper.actor-1 {
     position: absolute;
-    top: 34%;
+    top: 32%;
     right: 30%;
 }
 
 .enemy-damage-wrapper.actor-2 {
     position: absolute;
-    top: 47%;
+    top: 41%;
     right: 16%;
 }
 
 .enemy-damage-wrapper.actor-3 {
     position: absolute;
-    top: 60%;
+    top: 54%;
     right: 30%;
 }
 
 .enemy-damage-wrapper.actor-4 {
     position: absolute;
-    top: 73%;
+    top: 67%;
     right: 16%;
 }
 

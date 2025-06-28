@@ -44,6 +44,8 @@ public class ActorLogicResult {
     private List<List<BattleStatus>> removedBattleStatusesList = new ArrayList<>();
     @Builder.Default
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> heals = new ArrayList<>();
 
     // 비필수, 중요
     private int totalHitCount; // 통상공격의 경우 추격까지 모두 더함
@@ -57,9 +59,6 @@ public class ActorLogicResult {
     private String omenCancelCondInfo;
     private String omenName;
     private String omenInfo;
-
-    private boolean enemyDispelled;
-    private boolean partyMemberDispelled;
 
     // 적의 데미지 발생시 사용
     @Builder.Default

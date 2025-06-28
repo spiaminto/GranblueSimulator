@@ -168,6 +168,7 @@ public class EnemyLogicResultMapper {
                 .chargeGauges(chargeGauges)
                 .addedBattleStatusesList(addedStatusesList)
                 .removedBattleStatusesList(removedStatusList)
+                .heals(setStatusResult.getHealValues())
 
                 .omenType(omenType)
                 .omenCancelCondInfo(omenCancelCondInfo)
@@ -184,9 +185,6 @@ public class EnemyLogicResultMapper {
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
-
-                .enemyDispelled(setStatusResult.isEnemyDispelled())
-                .partyMemberDispelled(setStatusResult.isPartyMemberDispelled())
 
                 .nextMoveType(nextMoveType)
 

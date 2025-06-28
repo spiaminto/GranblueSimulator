@@ -26,8 +26,6 @@ import static com.gbf.granblue_simulator.domain.move.MoveType.*;
 @Transactional
 @RequiredArgsConstructor
 public abstract class CharacterLogic {
-
-    protected final StatusUtil statusUtil;
     protected final CharacterLogicResultMapper resultMapper;
     protected final DamageLogic damageLogic;
     protected final ChargeGaugeLogic chargeGaugeLogic;

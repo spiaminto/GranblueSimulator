@@ -1,18 +1,308 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Document</title>
+  <title>그랑블루시뮬</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+  <style>
+
+      #indexHeader {
+          padding: 15px;
+      }
+
+      #indexHeader a {
+          color: black;
+          text-decoration: none;
+      }
+
+      #indexHeader a:hover {
+          border-bottom: solid 1px;
+      }
+
+      h4 {
+          margin-top: 20px;
+      }
+
+      #userInfoBox {
+          padding: 10px;
+      }
+
+      #userInfoBox span {
+          margin: 0 10px;
+      }
+
+      .modal-body > label {
+          padding: 8px;
+      }
+
+      .field-error {
+          color: red;
+          border-color: red;
+      }
+
+      #loginErrorMessage {
+          padding: 8px;
+      }
+
+      #roomTypeRadioWrapper {
+          padding: 8px;
+      }
+
+      #twentyGameOptionWrapper {
+          display: none;
+      }
+
+      #twentyGameOptionWrapper > label {
+          padding: 8px;
+      }
+
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js">
+      $(function () {
+          /*<![CDATA[*/
+          // let thLoginErrorMessage = [[${loginErrorMessage}]];
+          // let thNeedLogin = [[${needLogin}]];
+          // let thIsLoginError = [[${isLoginError}]];
+          // let thLoginId = [[${loginId}]];
+          // let thIsCreateRoomError = [[${isCreateRoomError}]];
+          // let alertMessage = [[${alertMessage}]];
+          /*]]>*/
+
+          // needLogin 이 true 이고, 로그인 정보패널이 없으면 로그인 모달을 띄움
+          if (thNeedLogin && !document.querySelector('#userInfoBox')) {
+              triggerLoginModal();
+          }
+
+          // controller 에서 alertMessage 있으면 띄움
+          if (alertMessage) {
+              alert(alertMessage);
+          }
+
+          if (thIsCreateRoomError) {
+              // 방 만들때 에러나면, 방만들기 모달에서 값이 선택될때, radio.change 이벤트 리스너가 안먹어 강제로 설정
+              changeTwentyGameOptionWrapperDisplay(document.querySelector("input[name='roomType']:checked").value);
+              triggerCreateRoomModal();
+          }
+
+          // ================================================================
+
+          document.getElementById('definedTwentyGameSubject').addEventListener('change', changeCustomTwentyGameSubjectDisabled);
+
+          // #definedTwentyGameSubject 의 값이 "custom" 으로 변경될 때 마다 #customTwentyGameSubject 의 disabled 속성을 변경
+          function changeCustomTwentyGameSubjectDisabled() {
+              let definedTwentyGameSubject = document.getElementById("definedTwentyGameSubject");
+              let customTwentyGameSubject = document.getElementById("customTwentyGameSubject");
+
+              // customTwentyGameSubject.classList.remove('is-invalid'); // eventListener 'input' 참고.
+
+              if (definedTwentyGameSubject.value === "CUSTOM") {
+                  customTwentyGameSubject.disabled = false;
+                  customTwentyGameSubject.removeAttribute("required");
+              } else {
+                  customTwentyGameSubject.disabled = true;
+                  customTwentyGameSubject.setAttribute("required", "false");
+              }
+          }
+
+          // 방 만들기 모달에서, 선택된 방 타입에 따라 동작을 지정한다.
+          document.querySelectorAll("input[name='roomType']").forEach((radio) => {
+              radio.addEventListener('change', function () {
+                  let roomType = this.value;
+
+                  changeTwentyGameOptionWrapperDisplay(roomType);
+              });
+          })
+
+          function triggerLoginModal() {
+              document.getElementById('loginModalTriggerBtn').click();
+              document.getElementById('loginId').value = thLoginId;
+          }
+
+          function triggerCreateRoomModal() {
+              document.getElementById('createRoomModalTriggerBtn').click();
+          }
+
+          // 방만들기 모달에서, 스무고개 옵션을 선택하면 스무고개 게임옵션지정창을 보이게 한다.
+          function changeTwentyGameOptionWrapperDisplay(roomType) {
+              // console.log('roomType: ' + roomType);
+
+              let twentyGameOptionBox = document.getElementById('twentyGameOptionWrapper');
+              if (roomType === 'CHAT') {
+                  twentyGameOptionBox.style.display = 'none';
+                  // document.getElementById("customTwentyGameSubject").removeAttribute("required");
+              } else {
+                  twentyGameOptionBox.style.display = 'block';
+                  // document.getElementById("customTwentyGameSubject").setAttribute("required", "true");
+              }
+          }
+
+
+      });
+  </script>
 </head>
 <body>
+<div class="container">
 
-  <h1>홈 화면</h1>
-  <form id="enterRoom" target="/battle" method="GET">
-    <input type="text" id="username" placeholder="닉네임 입력">
-    <input type="text" id="roomInfo" placeholder="방 정보 입력">
-    <button type="submit">입장</button>
+  <h1 id="indexHeader"><a href="/">채팅 with GPT</a></h1>
+
+  <!-- 모달 트리거 -->
+  <button sec:authorize="isAnonymous()"
+          id="loginModalTriggerBtn" type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+          data-bs-target="#loginModal">
+    로그인
+  </button>
+  <button id="logoutBtn" sec:authorize="isAuthenticated()"
+          type="button" class="btn btn-outline-primary" onclick="javascript:logout()">
+    로그아웃
+  </button>
+  <form id="logoutForm" method="POST" action="/logout" style="display: none">
+    <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
   </form>
+  <script>
+      function logout() {
+          document.getElementById('logoutForm').submit();
+      }
+  </script>
+  <button sec:authorize="isAnonymous()"
+          id="addUserBtn" type="button" class="btn btn-outline-primary" onclick="location.href = '/user/add'">
+    회원가입
+  </button>
 
+  <!-- Modal -->
+  <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+       aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="loginModalLabel">로그인</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <form th:action="@{/loginProc}" method="post">
+          <div class="modal-body">
+            <label for="loginId">로그인 ID</label>
+            <input type="text" id="loginId" class="form-control" name="loginId" placeholder="로그인 Id 입력"/>
+            <label for="loginPassword">비밀번호</label>
+            <input id="loginPassword" type="password" name="password" class="form-control" placeholder="비밀번호 입력">
+            <div th:if="${isLoginError == true}">
+              <p id="loginErrorMessage" class="field-error" th:text="${loginErrorMessage}">로그인 오류 메시지</p>
+            </div>
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            <button type="submit" id="loginModalLoginBtn" class="btn btn-outline-primary">로그인</button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <h4>유저정보</h4>
+  <div sec:authorize="isAnonymous()">
+    <span>로그인이 필요합니다.</span>
+  </div>
+  <div sec:authorize="isAuthenticated()" id="userInfoBox">
+    <span th:text="'로그인ID : ' + ${#authentication.principal.user.loginId}"></span>
+    <span th:text="'닉네임 : ' + ${#authentication.name}"></span>
+  </div>
+
+  <hr>
+
+  <!-- 모달 트리거 -->
+  <button id="createRoomModalTriggerBtn" type="button" class="btn btn-outline-primary"
+          sec:authorize="isAuthenticated()"
+          data-bs-toggle="modal" data-bs-target="#staticBackdrop">
+    방 만들기
+  </button>
+
+  <!-- Modal -->
+  <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+       aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="staticBackdropLabel">방 만들기</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form action="/room" method="post" th:object="${roomAddForm}" id="roomAddForm">
+          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+          <div class="modal-body">
+
+            <label for="twentyRoomName">방 이름</label>
+            <input type="text" id="twentyRoomName" th:field="*{name}" class="form-control" name="name"
+                   placeholder="최대 16 자 까지 허용합니다." th:errorclass="is-invalid"/>
+            <div class="invalid-feedback" th:errors="*{name}"> name 오류</div>
+
+            <div id="roomTypeRadioWrapper">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" th:field="*{roomType}" name="roomType" id="roomTypeChat"
+                       value="CHAT" checked>
+                <label class="form-check-label" for="roomTypeChat">채팅</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" th:field="*{roomType}" name="roomType" id="roomTypeTwenty"
+                       value="TWENTY_GAME">
+                <label class="form-check-label" for="roomTypeTwenty">스무고개</label>
+              </div>
+            </div>
+
+            <div id="twentyGameOptionWrapper">
+              <label for="definedTwentyGameSubject">주제 선택</label>
+              <select id="definedTwentyGameSubject" th:field="*{subject}" name="subject" class="form-select">
+                <!--                                <option value="CUSTOM" selected>직접입력</option>-->
+                <option value="FOOD" selected>음식</option>
+                <option value="STARCRAFT">스타크래프트 유닛</option>
+              </select>
+
+              <!--                            <label for="customTwentyGameSubject">주제 직접 입력</label>-->
+              <!--                            <input id="customTwentyGameSubject" th:field="*{customSubject}" name="customSubject" type="text" class="form-control" value=""-->
+              <!--                            placeholder="최대 10 자 까지 허용합니다." th:errorclass="is-invalid">-->
+              <!--                            <div class="invalid-feedback" th:errors="*{customSubject}"> customSubject 오류</div>-->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            <button type="submit" id="twentyGameStartBtn" class="btn btn-outline-primary">만들기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <h4>방 목록</h4>
+  <ul id="roomList" class="list-group">
+    <li class="list-group-item d-flex justify-content-between align-items-start room-list-item"
+        th:each="room : ${roomList}">
+      <div class="ms-2 me-auto">
+        <div class="fw-bold" th:text="${room.getName}">roomName</div>
+        <a class="room-list-item-link" th:href="@{/room/{roomId}(roomId=${room.id})}"> 입장하기 </a>
+      </div>
+      <span class="badge bg-primary rounded-pill room-list-item-connected-member-count"
+            th:unless="${room.isGptActivated() && room.type == T(chat.twenty.enums.ChatRoomType).TWENTY_GAME}"
+            th:text="${room.connectedMemberCount} + ' 명 접속중'">0</span>
+      <span class="badge bg-primary rounded-pill room-list-item-is-playing"
+            th:if="${room.isGptActivated() && room.type == T(chat.twenty.enums.ChatRoomType).TWENTY_GAME}"
+            th:text="${room.connectedMemberCount} + ' 명 게임중'">게임중</span>
+    </li>
+  </ul>
+
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe"
+        crossorigin="anonymous"></script>
 </body>
 </html>

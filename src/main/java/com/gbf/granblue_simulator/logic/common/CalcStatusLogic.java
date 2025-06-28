@@ -11,20 +11,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getStatusEffectMap;
+
 @Component
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
 public class CalcStatusLogic {
 
-    private final StatusUtil statusUtil;
-
     /**
      * 전투 시작시 스탯 갱신
      * @param battleActor
      */
     public void initStatus(BattleActor battleActor) {
-        Map<StatusEffectType, List<StatusEffect>> statusEffects = statusUtil.getStatusEffectMap(battleActor);
+        Map<StatusEffectType, List<StatusEffect>> statusEffects = getStatusEffectMap(battleActor);
 
         if (battleActor.isEnemy()) {
             // 첫 스테이터스 설정시 적은 weapon 항 전부 0으로 초기화
@@ -61,7 +61,7 @@ public class CalcStatusLogic {
      * @param battleActor 대상
      */
     public void syncStatus(BattleActor battleActor) {
-        Map<StatusEffectType, List<StatusEffect>> statusEffects = statusUtil.getStatusEffectMap(battleActor);
+        Map<StatusEffectType, List<StatusEffect>> statusEffects = getStatusEffectMap(battleActor);
         setMaxHp(battleActor, statusEffects);
         setHp(battleActor, statusEffects); // 혼신, 배수 설정을 위해 atk 보다 우선 설정
 

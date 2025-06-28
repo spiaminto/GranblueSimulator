@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
+
 @Component
 @Transactional
 @Slf4j
@@ -27,8 +29,8 @@ public class YachimaLogic extends CharacterLogic {
 
     private final CalcStatusLogic calcStatusLogic;
 
-    public YachimaLogic(StatusUtil statusUtil, CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
-        super(statusUtil, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+    public YachimaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
         this.calcStatusLogic = calcStatusLogic;
     }
 
@@ -48,7 +50,7 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     public ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         // 오의 배율 변화
-        Double damageRate = statusUtil.hasBattleStatus(mainActor, "레코데이션 싱크") ? 12.5 : null;
+        Double damageRate = hasBattleStatus(mainActor, "레코데이션 싱크") ? 12.5 : null;
         DefaultActorLogicResult chargeAttackResult = super.defaultChargeAttack(mainActor, enemy, partyMembers, damageRate);
         // 1어빌 자동발동
 //        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult(),
@@ -87,7 +89,7 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     protected ActorLogicResult firstAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move firstAbility) {
         // 알파레벨에 비례해 히트수 증가
-        int hitCount = firstAbility.getHitCount() + statusUtil.getUniqueStatusLevel(mainActor, "알파");
+        int hitCount = firstAbility.getHitCount() + getUniqueStatusLevel(mainActor, "알파");
         DefaultActorLogicResult defaultActorLogicResult = defaultAbility(mainActor, enemy, partyMembers, firstAbility, null, hitCount);
         return resultMapper.toResult(mainActor, enemy, partyMembers, firstAbility, defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult());
     }
@@ -105,7 +107,7 @@ public class YachimaLogic extends CharacterLogic {
     protected ActorLogicResult thirdAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move thirdAbility) {
         StatusTargetType afterMoveTarget = StatusTargetType.SELF; // 턴진행 없이 통상공격 실행 타겟
         SetStatusResult setStatusResult = null;
-        if (statusUtil.hasBattleStatus(mainActor, "레코데이션 싱크")) {
+        if (hasBattleStatus(mainActor, "레코데이션 싱크")) {
             // 레코데이션 싱크 효과중 효과 전체화
             setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility.getStatuses(), StatusTargetType.PARTY_MEMBERS);
             afterMoveTarget = StatusTargetType.PARTY_MEMBERS;
@@ -122,7 +124,7 @@ public class YachimaLogic extends CharacterLogic {
     // 자신이 공격행동시 사포아비1 적용 (알파레벨 증가)
     @Override
     protected ActorLogicResult firstSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        return statusUtil.isStatusSetSkippable(mainActor, "알파") ?
+        return isStatusSetSkippable(mainActor, "알파") ?
                 resultMapper.emptyResult() :
                 resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability.getStatuses()));
     }
@@ -130,7 +132,7 @@ public class YachimaLogic extends CharacterLogic {
     // 자신이 적에게 공격받을시 델타레벨 증가
     @Override
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        return statusUtil.isStatusSetSkippable(mainActor, "델타") ?
+        return isStatusSetSkippable(mainActor, "델타") ?
                 resultMapper.emptyResult() :
                 resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability.getStatuses()));
     }
@@ -138,9 +140,9 @@ public class YachimaLogic extends CharacterLogic {
     // 자신이 알파레벨, 델타레벨 최대치인경우 턴 종료시 레코데이션 싱크 효과, 알파 델타를 아군 전체에 적용
     @Override
     protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        Optional<BattleStatus> recordationSyncOptional = statusUtil.getBattleStatusByName(mainActor, "레코데이션");
+        Optional<BattleStatus> recordationSyncOptional = getBattleStatusByName(mainActor, "레코데이션");
         if (recordationSyncOptional.isEmpty()) {
-            if (statusUtil.isUniqueStatusReachedLevel(mainActor, "알파", 4) && statusUtil.isUniqueStatusReachedLevel(mainActor, "델타", 4)) {
+            if (isUniqueStatusReachedLevel(mainActor, "알파", 4) && isUniqueStatusReachedLevel(mainActor, "델타", 4)) {
                 // 레코데이션 싱크 적용
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability.getStatuses());
                 // 자신을 포함한 아군 전체에게 알파, 델타 효과 재적용 (타겟 아군 전체로 변경)
@@ -161,7 +163,7 @@ public class YachimaLogic extends CharacterLogic {
 
     @Override // 자신이 레코데이션 싱크 효과중 오의 발동 후 1어빌 자동발동
     protected ActorLogicResult fourthSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        if (statusUtil.hasBattleStatus(mainActor, "레코데이션")) {
+        if (hasBattleStatus(mainActor, "레코데이션")) {
             return firstAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_ABILITY));
         }
         return resultMapper.emptyResult();

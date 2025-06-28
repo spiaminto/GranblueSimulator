@@ -51,8 +51,7 @@
           container.style.transformOrigin = 'top left';
 
           // 테스트용
-          $('.menu-button-wrapper button').on('click',{}, triggerShake);
-
+          $('.menu-button-wrapper button').on('click', {}, triggerShake);
 
 
           // 테스트용 흔들기
@@ -194,6 +193,8 @@
           // 모든 idle 무브에 loop 추가
           $('.enemy-video-container .idle').attr('loop', true);
           $('.party-video-container .idle').attr('loop', true);
+          // party-1 (주인공) 을 제외한 attack 에 large 추가
+          $('.party-video-container div:not(.party-1) .attack').addClass('large');
           // 적의 첫무브 재생
           let $enemyInitialVideo = $('.enemy-video-container .' + initialMoveClassName);
           $enemyInitialVideo.attr('preload', 'auto')
@@ -214,7 +215,9 @@
               }
           }, 500) // 로드할 시간 줌
           // 아군 무브 idle 보이게 설정
-          $('.party-video-container .idle-default').removeClass('hidden').get(0)?.play();
+          $('.party-video-container .idle-default').each(function (index, partyVideo) {
+              $(partyVideo).removeClass('hidden').get(0)?.play();
+          });
 
           $('.guard-button').each(function (index, guardButton) {
               let pressStart = 0;
@@ -377,6 +380,11 @@
                th:data-effect-hit-delay="${entry.value.effectHitDelay}"
                th:classappend="${#strings.listJoin(entry.value.classNames, ' ')}">
         </video>
+
+<!--        <video class="enemy-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--               src="/static/assets/video/enemy/diaspora2/idle.webm"-->
+<!--        ></video>-->
+
       </div>
       <div class="party-video-container">
         <div class="party-1">
@@ -385,10 +393,16 @@
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
 
           <!-- TEST ================================================= -->
-          <!--          <video class="party-video attack " loop muted autoplay playsinline preload="auto"-->
-          <!--                 src="/static/assets/video/ch/yachima/triple-attack.webm"-->
+          <!--                    <video class="party-video attack motion" loop muted autoplay playsinline preload="auto"-->
+          <!--                           src="/static/assets/video/ch/paladin/single-attack-motion.webm"-->
+          <!--                    ></video>-->
+          <!--          <video class="party-video attack large" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/yachima/single-attack.webm"-->
           <!--          ></video>-->
           <!--          <video class="party-video attack for-test" loop muted autoplay playsinline preload="auto"-->
           <!--                 src="/static/assets/video/gl/hauhet.webm"-->
@@ -404,8 +418,22 @@
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
+        </div>
+        <div class="party-3">
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
+        </div>
+        <div class="party-4">
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
         </div>
       </div>
+
 
       <div class="summon-video-container">
         <video class="hidden summon-video" muted playsinline
@@ -417,6 +445,28 @@
 
 
       <div class="global-video-container">
+        <div class="heal-video-wrapper">
+          <video muted playsinline
+                 class="global-video heal actor-0 hidden"
+                 src="/static/assets/video/gl/gl-heal.webm">
+          </video>
+          <video muted playsinline
+                 class="global-video heal actor-1 hidden"
+                 src="/static/assets/video/gl/gl-heal.webm">
+          </video>
+          <video muted playsinline
+                 class="global-video heal actor-2 hidden"
+                 src="/static/assets/video/gl/gl-heal.webm">
+          </video>
+          <video muted playsinline
+                 class="global-video heal actor-3 hidden"
+                 src="/static/assets/video/gl/gl-heal.webm">
+          </video>
+          <video muted playsinline
+                 class="global-video heal actor-4 hidden"
+                 src="/static/assets/video/gl/gl-heal.webm">
+          </video>
+        </div>
         <video muted playsinline
                class="global-video hidden fatal-chain-video"
                src="" th:src="${fatalChainInfo.effectVideoSrc}"
@@ -440,7 +490,7 @@
       </div>
       <div class="global-audio-container">
         <audio class="audio fatal-chain-audio"
-        src="" th:src="${fatalChainInfo.seAudioSrc}"></audio>
+               src="" th:src="${fatalChainInfo.seAudioSrc}"></audio>
 
         <audio class="audio enemy-charge-attack-start"
                src="/static/assets/audio/gl/enemy-charge-attack-start.mp3"></audio>
@@ -455,6 +505,9 @@
                src="/static/assets/audio/gl/gl-guard-on.mp3"></audio>
         <audio class="audio guard-off"
                src="/static/assets/audio/gl/gl-guard-off.mp3"></audio>
+
+        <audio class="audio heal"
+               src="/static/assets/audio/gl/gl-heal.mp3"></audio>
 
       </div>
       <div class="global-image-container">
@@ -549,20 +602,21 @@
 
 
       <!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
-      <!--      <div class="enemy-damage-wrapper actor-1">-->
-      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
-      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
-      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
-      <!--        </div>-->
-      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
-      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
-      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
-      <!--        </div>-->
-      <!--        <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
-      <!--        <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
-      <!--          <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
-      <!--        </div>-->
-      <!--      </div>-->
+<!--            <div class="enemy-damage-wrapper actor-1">-->
+<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth heal">4998</div>-->
+<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
+<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
+<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
+<!--              </div>-->
+<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
+<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
+<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
+<!--              </div>-->
+<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
+<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
+<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
+<!--              </div>-->
+<!--            </div>-->
 
     </div>
 
