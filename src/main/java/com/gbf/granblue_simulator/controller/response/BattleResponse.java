@@ -32,11 +32,11 @@ public class BattleResponse {
     @Builder.Default
     private List<Integer> heals = new ArrayList<>();
     @Builder.Default 
-    private List<List<StatusDto>> addedBattleStatusList = new ArrayList<>(); // 발생한 스테이터스
+    private List<List<StatusDto>> addedBattleStatusesList = new ArrayList<>(); // 발생한 스테이터스
     @Builder.Default
-    private List<List<StatusDto>> removedBattleStatusList = new ArrayList<>(); // 삭제된 스테이터스
+    private List<List<StatusDto>> removedBattleStatusesList = new ArrayList<>(); // 삭제된 스테이터스
     @Builder.Default
-    private List<List<StatusDto>> battleStatusList = new ArrayList<>(); //갱신용 전체 스테이터스
+    private List<List<StatusDto>> currentBattleStatusesList = new ArrayList<>(); //갱신용 전체 스테이터스
 
     @Builder.Default
     private List<Integer> enemyAttackTargetOrders = new ArrayList<>();
@@ -52,7 +52,10 @@ public class BattleResponse {
 
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();
+    private int fatalChainGauge;
 
     private boolean isEnemyPowerUp;
     private boolean isEnemyCtMax;
 }
+
+

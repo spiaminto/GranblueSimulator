@@ -74,7 +74,7 @@ public class BattleLogic {
         return progressTurnResults;
     }
 
-    protected List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
+    private List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
         // 아군 턴종 처리
         partyMembers.forEach(partyMember -> {
@@ -100,7 +100,7 @@ public class BattleLogic {
      * @param partyMembers
      * @return
      */
-    protected List<ActorLogicResult> processAttack(BattleActor enemy, List<BattleActor> partyMembers) {
+    private List<ActorLogicResult> processAttack(BattleActor enemy, List<BattleActor> partyMembers) {
         List<ActorLogicResult> results = new ArrayList<>();
 
         for (BattleActor mainActor : partyMembers) {
@@ -130,7 +130,17 @@ public class BattleLogic {
         return results;
     }
 
-    public List<ActorLogicResult> processAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
+    public List<ActorLogicResult> processMove(BattleActor mainActor, BattleEnemy enemy, List<BattleActor> partyMembers, Long moveId) {
+        Move move = moveRepository.findById(moveId).orElseThrow();
+        return switch (move.getType().getParentType()) {
+            case ABILITY -> processAbility(mainActor, enemy, partyMembers, moveId);
+            case SUMMON -> processSummon(mainActor, enemy, partyMembers, moveId);
+            case FATAL_CHAIN -> processFatalChain(mainActor, enemy, partyMembers, moveId);
+            default -> throw new IllegalArgumentException("[processMove] Invalid move type = " + move.getType());
+        };
+    }
+
+    private List<ActorLogicResult> processAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
         Move ability = moveRepository.findById(moveId).orElseThrow();
         CharacterLogic mainCharacterLogic = characterLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
         List<ActorLogicResult> results = new ArrayList<>();
@@ -168,7 +178,7 @@ public class BattleLogic {
         return results;
     }
 
-    protected List<ActorLogicResult> processEnemyAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
+    private List<ActorLogicResult> processEnemyAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy enemy = (BattleEnemy) mainActor;
         List<ActorLogicResult> results = new ArrayList<>();
         EnemyLogic enemyLogic = enemyLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
@@ -192,7 +202,7 @@ public class BattleLogic {
         return results;
     }
 
-    public List<ActorLogicResult> processSummon(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
+    private List<ActorLogicResult> processSummon(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
         Move move = moveRepository.findById(moveId).orElseThrow();
 
         List<ActorLogicResult> results = new ArrayList<>();
@@ -202,7 +212,7 @@ public class BattleLogic {
         return results;
     }
 
-    public List<ActorLogicResult> processFatalChain(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
+    private List<ActorLogicResult> processFatalChain(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Long moveId) {
         Move fatalChain = moveRepository.findById(moveId).orElseThrow();
         CharacterLogic mainCharacterLogic = characterLogicMap.get(mainActor.getActor().getNameEn() + "Logic");
 

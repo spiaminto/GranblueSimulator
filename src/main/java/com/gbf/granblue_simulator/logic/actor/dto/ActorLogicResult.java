@@ -38,6 +38,7 @@ public class ActorLogicResult {
     private List<Integer> hpRates = new ArrayList<>();
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();
+    private int fatalChainGauge;
     @Builder.Default
     private List<List<BattleStatus>> addedBattleStatusesList = new ArrayList<>();
     @Builder.Default

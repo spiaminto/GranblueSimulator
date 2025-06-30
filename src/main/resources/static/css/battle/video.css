@@ -115,10 +115,10 @@ video.left-hidden {
 
 
 .global-video.enemy-charge-attack-start {
-    width: 105%;
-    height: 120%;
-    top: -13%;
-    left: -5%;
+    width: 130%;
+    height: 130%;
+    top: -23%;
+    left: -10%;
 }
 
 .global-video .fatal-chain-video {
@@ -128,35 +128,35 @@ video.left-hidden {
 }
 
 .heal-video-wrapper .heal {
-    width: 30%;
-    height: 30%;
+    width: 40%;
+    height: 50%;
     z-index: 5;
 }
 
-.heal-video-wrapper .actor-0 {
-    top: 20%;
-    left: -10%;
-    width: 80%;
-    height: 80%;
+.heal-video-wrapper.heal .actor-0 {
+    top: -22%;
+    left: -37%;
+    width: 130%;
+    height: 130%;
 }
 
 .heal-video-wrapper .actor-1 {
-    top: 32%;
-    right: 8%;
+    top: 18%;
+    right: 2%;
 }
 
 .heal-video-wrapper .actor-2 {
-    top: 42%;
-    right: -5%;
+    top: 28%;
+    right: -9%;
 }
 
 .heal-video-wrapper .actor-3 {
-    top: 52%;
-    right: 8%;
+    top: 38%;
+    right: 2%;
 }
 
 .heal-video-wrapper .actor-4 {
-    top: 62%;
+    top: 48%;
     right: -5%;
 }
 
@@ -196,7 +196,7 @@ video.left-hidden {
 .guard-status-wrapper .guard-status {
     position: absolute;
     width: 55px;
-    z-index: 11;
+    z-index: 4;
     opacity: 0;
 }
 

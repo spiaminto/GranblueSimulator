@@ -37,9 +37,10 @@ $(function () {
         })
         $('#abilityInfoModal .use-ability-button').one('click', function () {
             $('#abilityInfoModal .close-ability-info-modal-button').click();
-            if (isFatalChain)
-                requestFatalChain($abilityIcon.find('.fatal-chain-gauge-info').attr('data-fatal-chain-move-id'));
-            else
+            if (isFatalChain) {
+                let characterId = $('#partyCommandContainer .battle-portrait').eq(0).data('character-id');
+                requestMove(characterId, $abilityIcon.find('.fatal-chain-gauge-info').attr('data-fatal-chain-move-id'));
+            } else
                 processAbilityClick($abilityIcon);
         });
         $('.ability-info-modal-button').click();
@@ -50,42 +51,33 @@ $(function () {
 
     function processAbilityClick($abilityIcon) {
         // console.log($abilityIcon); // ability-icon 에 직접 연결하지 않으면 이벤트 정보가 들어옴. type 속성으로 'click' 등을 짐
-        $abilityIcon= $abilityIcon.type ? $(this) : $abilityIcon; // type 속성이 있으면 ability-icon과 직접연결됨, 없으면 파라미터로 ability-icon 받아옴
-        // 어빌리티 사용 가능한 상태가 아님
+        $abilityIcon = $abilityIcon.type ? $(this) : $abilityIcon; // type 속성이 있으면 ability-icon과 직접연결됨, 없으면 파라미터로 ability-icon 받아옴
 
-        // DEV 개발중에는 어빌리티 오버레이에 상관없이 실행
+        // 어빌리티 사용 가능한 상태가 아님 DEV 개발중에는 어빌리티 오버레이에 상관없이 실행
         // if ($abilityIcon.find('.ability-overlay').hasClass('not-ready')) return false;
 
         let charOrder = $abilityIcon.closest('.ability-panel').data('characterOrder');
-        let abilityOrder = $abilityIcon.data('abilityOrder');
+        let abilityId = $abilityIcon.attr('data-ability-id');
         let currentAbilityRailLength = $('.ability-rail-wrapper img').length;
 
         // 어빌리티 not-ready 로 변경 (오버레이)
-        let $processedAbility = $('.ability-panel.character-' + charOrder + ' .ability-' + abilityOrder);
+        let $processedAbility = $('.ability-panel.character-' + charOrder + ' [data-ability-id=' + abilityId + ']');
         $processedAbility.find('.ability-overlay').addClass('not-ready');
 
-        // 어빌리티 레일에 등록할 img 요소
-        let $abilityIconElement = $abilityIcon.find('img').clone();
-        // 감쌀 div
-        let $railAbilityElement = $($(document.createElement('div')).addClass('rail-ability rail-ability-' + currentAbilityRailLength).data('ability-order', abilityOrder).data('character-order', charOrder));
-        $railAbilityElement.append($abilityIconElement)
-        // 클릭 이벤트 연결
-        $railAbilityElement.on('click', function () {
-            if ($(this).index() === 1) return; // 자신이 두번째면 클릭 불가 (더미 빼고 첫번째 레일어빌리티)
-            // 어빌리티 슬라이더에서 오버레이 not-ready 해제
-            let charOrder = $(this).data('character-order');
-            let abilityOrder = $(this).data('ability-order');
-            let $sliderAbilityIcon = $('.ability-panel.character-' + charOrder + ' .ability-' + abilityOrder);
-            $sliderAbilityIcon.find('.ability-overlay').removeClass('not-ready');
-            // 어빌리티 레일에서 자신 제거
-            $(this).remove();
-        })
         // 어빌리티 레일에 등록
-        $('.ability-rail-wrapper').append($railAbilityElement);
-
-
-        // processAbility(charOrder, abilityOrder);
+        $('<div>', {
+            'class': 'rail-ability rail-ability-' + currentAbilityRailLength,
+            'data-character-order': charOrder,
+            'data-ability-id': abilityId,
+        }).append($abilityIcon.find('img').clone()) // 이미지를 어빌리티 레일에 넣을 새 div 로 감싸서 생성
+            .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
+                if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
+                $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
+                $(this).remove(); // 제거
+            })
+            .appendTo($('.ability-rail-wrapper'));
     }
+
 
     const abilityRailMutationObserver = new MutationObserver((entries) => {
         // callback : processAbility() 를 호출했다면 true 반환
@@ -96,13 +88,13 @@ $(function () {
 
         // 첫번째 어빌리티가 추가됨
         if ($(addedAbility).hasClass('rail-ability-1')) {
-            console.log('first ability added')
             // 어빌리티 실행
-            let charOrder = $(addedAbility).data('character-order');
-            let abilityOrder = $(addedAbility).data('ability-order');
+            let charOrder = $(addedAbility).attr('data-character-order');
+            let abilityId = $(addedAbility).attr('data-ability-id');
             $(addedAbility).addClass('active');
             setTimeout(() => {
-                requestAbility(charOrder, abilityOrder);
+                let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+                requestMove(characterId, abilityId);
             }, 500);
             return true;
         }
@@ -114,13 +106,14 @@ $(function () {
                 return false;
             }
             if ($(removedAbility).hasClass('active')) {
-                // 레일에서 삭제된 어빌리티가 최근 어빌리티임
+                // 어빌리티가 실행 후 삭제됨 -> 다음 어빌리티(제일 왼쪽) 실행
                 let $latestAbility = $(abilityRailWrapper).children('.rail-ability').first();
-                let charOrder = $latestAbility.data('character-order');
-                let abilityOrder = $latestAbility.data('ability-order');
+                let charOrder = $latestAbility.attr('data-character-order');
+                let abilityId = $latestAbility.attr('data-ability-id');
                 $latestAbility.addClass('active');
                 setTimeout(() => {
-                    requestAbility(charOrder, abilityOrder);
+                    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+                    requestMove(characterId, abilityId);
                 }, 700);
                 return true;
             } else {

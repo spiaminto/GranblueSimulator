@@ -83,8 +83,8 @@ function processStatusIconSync(currentBattleStatusesList, effectVideoDuration) {
 
 function processHealEffect(healArray, effectVideoDuration) {
     let healDelay = effectVideoDuration;
-    if (healArray.length === 0 || healArray.reduce((a, b) => a + b , 0 ) === 0) return healDelay;
-    let audioPlayer = new AudioPlayer();
+    if (healArray.length === 0 || healArray.reduce((a, b) => a + b, 0) === 0) return healDelay;
+    let audioPlayer = new AudioPlayer().init();
     let $healValueWrappers = [];
     healArray.forEach(function (heal, index) { // 적의 데미지 컨테이너를 힐 량 표시 래퍼로 사용
         $healValueWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + index}).appendTo($('#damageContainer')));
@@ -98,7 +98,7 @@ function processHealEffect(healArray, effectVideoDuration) {
                 playVideo($healVideo, null, null);
                 // 사운드 재생
                 audioPlayer.loadSound($('.global-audio-container .heal').attr('src')).then(function () {
-                    audioPlayer.playAllSounds();
+                    audioPlayer.playAllSoundsWithoutClear();
                 });
                 // 데미지채우기
                 let $healValueWrapper = $healValueWrappers[actorIndex];
@@ -138,7 +138,7 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
             return [...removedDebuffs, ...addedBuffes, ...removedBuffes];
         }
     );
-    console.log('[processBuffEffect] statusesList = {}', statusesList);
+    // console.log('[processBuffEffect] statusesList = {}', statusesList);
     // 표시 순서 removedDebuff -> addedBuff -> removedBuff
     statusesList.forEach(function (statuses, actorIndex) { // [[적][아군][아군][아군][아군]]
         let statusRemovedEffectCount = 0;
@@ -150,13 +150,13 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
                     $('<img>', {src: status.imageSrc, class: status.imageSrc.length < 1 ? 'none-icon' : ''}),
                     $('<span>', {class: 'status-effect-text', text: status.effectText})
                 );
-            $effectContainer.prepend($statusEffect);
+            $effectContainer.append($statusEffect);
 
             let type = statusObject.type;
             let audioPlayer = null;
             let $statusRemovedEffect = null;
             if (type === 'removedDebuffs' || type === 'removedBuffs') {
-                audioPlayer = new AudioPlayer();
+                audioPlayer = new AudioPlayer().init();
                 audioPlayer.loadSound($('.global-audio-container .status-removed').attr('src')); // 일단 실행까지 여유가 있으니 놔둠
 
                 let statusEffectPosition = $statusEffect.position();
@@ -166,7 +166,7 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
                     width: $statusEffect.find('.status-effect-text').width() + 30, // img 크기까지
                     height: $statusEffect.find('.status-effect-text').height()
                 });
-                $effectContainer.prepend($statusRemovedEffect);
+                $effectContainer.append($statusRemovedEffect);
                 statusRemovedEffectCount++;
             }
 
@@ -177,16 +177,16 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
 
             setTimeout(() => {
                 if (audioPlayer != null && $statusRemovedEffect != null) {
-                    audioPlayer.playAllSounds();
+                    audioPlayer.playAllSoundsWithoutClear();
                     $statusEffect.addClass('status-removed');
                     $statusRemovedEffect.addClass('active');
                 } else {
                     $statusEffect.fadeTo(100, 1).delay(800).fadeTo(200, 0);
                 }
 
-                if (statusIndex >= statuses.length - 1 || statusIndex % statusForPage === statusForPage - 1) {
-                    // 페이지의 마지막마다 제거
-                    setTimeout(() => $effectContainer.find('.status-effect').slice(0, statusForPage + statusRemovedEffectCount).remove(), 1100);
+                if (statusIndex >= statuses.length - 1 || statusIndex % statusForPage + 1 === statusForPage) {
+                    // 마지막 스테이터스 또는 페이지 마지막마다 제거
+                    setTimeout(() => $effectContainer.find('.status-effect').slice(0, statusIndex % statusForPage + 1).remove(), 1100);
                     statusRemovedEffectCount = 0;
                 }
             }, startDelay);
@@ -214,7 +214,7 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
                     }),
                     $('<span>', {class: 'status-effect-text', text: debuffStatus.effectText})
                 );
-            $effectContainer.prepend($statusEffect);
+            $effectContainer.append($statusEffect);
 
             let debuffForPage = actorIndex === 0 ? 7 : 4; // 한 페이지에 표시할 디버프 이펙트 갯수 적은 한번에 7개, 아군은 4개까지 표시
             let debuffPageCount = Math.floor(debuffIndex / debuffForPage); // 현재 표시할 디버프의 페이지 (0 부터)
@@ -231,6 +231,39 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
     return longestDebuffEndTime;
 }
 
+/**
+ * 파라미터로 넘어온 actorOrder, moveType, idleType 에 맞는 비디오 찾아서 오브젝트로 반환
+ * @param actorOrder
+ * @param moveType
+ * @param idleType optional, 아군의 경우 없어도됨. 적의경우 idle default 가 아닌경우 사용
+ * @returns {{motion: (jQuery|HTMLElement|*), effect: (jQuery|HTMLElement|*), idle: (jQuery|HTMLElement|*)}}, 없으면 null 로 대체됨
+ */
+function getVideo(actorOrder, moveType, idleType = MoveType.IDLE_DEFAULT) {
+    let $effectVideo = $('#videoContainer .actor-' + actorOrder + '.' + moveType.className + '.effect').eq(0);
+    let $motionVideo = $('#videoContainer .actor-' + actorOrder + '.' + moveType.className + '.motion').eq(0);
+    let $idleVideo = $('#videoContainer .actor-' + actorOrder + '.' + idleType.className).eq(0);
+    // 없으면 null 로 대체
+    $effectVideo = $effectVideo.length > 0 ? $effectVideo : null;
+    $motionVideo = $motionVideo.length > 0 ? $motionVideo : null;
+    $idleVideo = $idleVideo.length > 0 ? $idleVideo : null;
+    return {
+        effect: $effectVideo,
+        motion: $motionVideo,
+        idle: $idleVideo
+    }
+}
+
+/**
+ * 적 피격 동영상용 별도 getVideo
+ * @returns {{motion: (Window.jQuery|HTMLElement|*), effect: (Window.jQuery|HTMLElement|*), idle: (Window.jQuery|HTMLElement|*)}}
+ */
+function getEnemyDamagedVideo() {
+    let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
+    let idleMoveType = standbyMoveClassName === 'none' ? MoveType.IDLE_DEFAULT : MoveType.byClassName(standbyMoveClassName).getIdleType();
+    let damagedMoveType = standbyMoveClassName === 'none' ? MoveType.DAMAGED_DEFAULT : MoveType.byClassName(standbyMoveClassName).getDamagedType();
+    return getVideo(0, damagedMoveType, idleMoveType);
+}
+
 
 /**
  * 비디오를 재생하는 메서드
@@ -245,10 +278,11 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
 function playVideo($effectVideo, $motionVideo, $idleVideo) {
     // console.log('[playVideo] $effectVideo = ', $effectVideo, ' $motionVideo = ', $motionVideo, ' $idleVideo = ', $idleVideo)
     if ($effectVideo == null) {
-        console.error('effectVideo is null');
+        console.warn('effectVideo is null');
+        return; // 이펙트 비디오 없으면 무시
     }
     if ($effectVideo?.length === 0 || $motionVideo?.length === 0 || $idleVideo?.length === 0) {
-        console.error('video length is 0'); // 비디오는 있거나, null 이거나 둘중하나
+        throw new Error('video length is 0') // 비디오는 있거나, null 이거나 둘중하나
     }
 
     // 모션 있으면 재생
@@ -284,4 +318,73 @@ function playVideo($effectVideo, $motionVideo, $idleVideo) {
             $effectVideo.addClass('hidden');
         }
     }).get(0).play();
+}
+
+// 응답
+// 상태 정보 클래스
+class StatusDto {
+    constructor({type, name, imageSrc, effectText, statusText, duration}) {
+        this.type = type;
+        this.name = name;
+        this.imageSrc = imageSrc;
+        this.effectText = effectText;
+        this.statusText = statusText;
+        this.duration = duration;
+    }
+}
+
+// MoveResponse 클래스
+class MoveResponse {
+    constructor(data) {
+        this.charOrder = data.charOrder;
+        this.moveType = MoveType.byName(data.moveType);
+        this.summonId = data.summonId ?? null;
+        this.abilityCoolDowns = data.abilityCoolDowns || [];
+
+        this.totalHitCount = data.totalHitCount;
+        this.attackMultiHitCount = data.attackMultiHitCount;
+        this.elementTypes = data.elementTypes || [];
+
+        this.damages = data.damages || [];
+        this.additionalDamages = data.additionalDamages || [];
+
+        this.hps = data.hps || [];
+        this.hpRates = data.hpRates || [];
+        this.heals = data.heals || [];
+
+        this.chargeGauges = data.chargeGauges || [];
+        this.fatalChainGauge = data.fatalChainGauge ?? 0;
+
+        // 스테이터스 매핑 [적][아군][아군][아군][아군]
+        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(
+            statusList => statusList.map(s => new StatusDto(s))
+        );
+        this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
+        this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(
+            statusList => statusList.map(s => new StatusDto(s))
+        );
+        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF'));
+        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
+        this.currentBattleStatusesList = (data.currentBattleStatusesList || []).map(
+            statusList => statusList.map(s => new StatusDto(s))
+        );
+
+        this.enemyAttackTargetOrders = data.enemyAttackTargetOrders ?? null;
+        this.allTarget = data.allTarget ?? false;
+
+        this.omenType = OmenType.byName(data.omenType);
+        this.omenValue = data.omenValue ?? null;
+        this.omenCancelCondInfo = data.omenCancelCondInfo ?? null;
+        this.omenName = data.omenName ?? null;
+        this.omenInfo = data.omenInfo ?? null;
+
+        this.enemyPowerUp = data.enemyPowerUp ?? false;
+        this.enemyCtMax = data.enemyCtMax ?? false;
+    }
+}
+
+// JSON 배열을 MoveResponse 인스턴스 배열로 변환하는 함수
+function parseMoveResponseList(jsonArray) {
+    return jsonArray.map(item => new MoveResponse(item));
 }

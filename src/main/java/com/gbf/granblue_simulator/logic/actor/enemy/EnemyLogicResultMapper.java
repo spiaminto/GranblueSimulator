@@ -109,6 +109,9 @@ public class EnemyLogicResultMapper {
                         .toList())
                 .mapToInt(List::size)
                 .sum();
+        int fatalChainGauge = partyMembers.stream()
+                .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
+                .map(BattleActor::getFatalChainGauge).orElseGet(() -> 0);
 
         // 체력
         List<Integer> hps = new ArrayList<>();
@@ -166,6 +169,7 @@ public class EnemyLogicResultMapper {
                 .hps(hps)
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
+                .fatalChainGauge(fatalChainGauge)
                 .addedBattleStatusesList(addedStatusesList)
                 .removedBattleStatusesList(removedStatusList)
                 .heals(setStatusResult.getHealValues())

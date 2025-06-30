@@ -1,17 +1,23 @@
 class AudioPlayer {
     constructor() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioContext = null;
         this.buffers = [];
         this.bufferCache = new Map(); // {src : string, audioBuffer : audioBuffer}
     }
 
+    init() {
+        this.audioContext = new window.AudioContext();
+        return this;
+    }
+
     async loadSound(src) {
-        if (src == null || src === '') return;
+        if (this.audioContext == null || src == null || src === '') return;
         if (this.bufferCache.has(src)) {
             console.log('[AudioPlayer.loadSound] cache Hit src = ', src)
             this.buffers.push(this.bufferCache.get(src));
             return;
         }
+        console.log('[AudioPlayer.loadSounds] audioSrc = ', src);
         const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
@@ -21,7 +27,7 @@ class AudioPlayer {
     }
 
     async loadSounds(audioSrcs) {
-        console.log('[AudioPlayer.loadSounds] audioSrcs = ', audioSrcs);
+        // console.log('[AudioPlayer.loadSounds] audioSrcs = ', audioSrcs);
         if (audioSrcs.length > 0) {
             for (const src of audioSrcs) {
                 await this.loadSound(src); // 원래 비동기로 했는데 캐시 생성해서 순차실행으로 변경
@@ -31,14 +37,26 @@ class AudioPlayer {
         }
     }
 
-    playSound(audioBuffer, delay = 0) {
-        if (!audioBuffer) {
-            console.error(`[AudioPlayer.playSound] Invalid audio Buffer: ${audioBuffer}`)
+    #playSound(audioBuffer, delay = 0) {
+        if (this.audioContext == null || !audioBuffer) {
+            console.warn(`[AudioPlayer.playSound] audioContext = ${this.audioContext}, audioBuffer = ${audioBuffer}`)
+            return;
         }
+        // console.log('[AudioPlayer.playSound] audioBuffer = ', audioBuffer, ' delay = ', delay);
         const source = this.audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(this.audioContext.destination);
         source.start(this.audioContext.currentTime + delay / 1000); // 단위가 s 단위라 ms 로 보내서 1000 으로 나눔
+        source.onended = () => {
+            source.disconnect();
+            // 호출쪽에서 buffer 클리어
+            // CHECK 캐시는 남겨두고, 메모리 상황 보고 나중에 정리
+        };
+    }
+
+    playSound() {
+        this.#playSound(this.buffers[0])
+        this.buffers = [];
     }
 
     /**
@@ -46,7 +64,16 @@ class AudioPlayer {
      */
     playAllSounds() {
         // console.log('[AudioPlayer.playAllSounds] play all sounds', this.buffers);
-        this.buffers.forEach((audioBuffer) => this.playSound(audioBuffer))
+        this.buffers.forEach((audioBuffer) => this.#playSound(audioBuffer))
+        this.buffers = [];
+    }
+
+    /**
+     *  모든 사운드를 동시에 재생
+     */
+    playAllSoundsWithoutClear() {
+        // console.log('[AudioPlayer.playAllSounds] play all sounds', this.buffers);
+        this.buffers.forEach((audioBuffer) => this.#playSound(audioBuffer))
     }
 
     /**
@@ -60,14 +87,15 @@ class AudioPlayer {
         this.buffers.forEach((audioBuffer, index) => {
             if (index === 0) {
                 // 보이스
-                this.playSound(audioBuffer);
+                this.#playSound(audioBuffer);
             } else {
                 // 이펙트
                 let attackIndex = Math.floor((index - 1) / attackMultiHitCount);
                 let multiHitIndex = (index - 1) % attackMultiHitCount;
                 let totalDelay = (attackIndex * attackDelay) + (multiHitIndex * 115);
-                this.playSound(audioBuffer, totalDelay);
+                this.#playSound(audioBuffer, totalDelay);
             }
         })
+        this.buffers = [];
     }
 }

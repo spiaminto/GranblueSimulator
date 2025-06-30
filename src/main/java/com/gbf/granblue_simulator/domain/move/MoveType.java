@@ -79,20 +79,24 @@ public enum MoveType {
         CHARGE_ATTACK_G(CHARGE_ATTACK, "charge-attack-g"),
 
     FORM_CHANGE(ROOT, "form-change"),
-    FORM_CHANGE_ENTRY(ROOT, "form-change-entry"),
+        FORM_CHANGE_DEFAULT(FORM_CHANGE, "form-change"),
+        FORM_CHANGE_ENTRY(FORM_CHANGE, "form-change"),
 
     DEAD(ROOT, "dead"),
+        DEAD_DEFAULT(DEAD, "dead"),
 
     SUMMON(ROOT, "summon"), // 소환
+        SUMMON_DEFAULT(SUMMON, "summon"),
 
     GUARD(ROOT, "guard"), // 가드
+        GUARD_DEFAULT(GUARD, "guard"),
 
     FATAL_CHAIN(ROOT, "fatal-chain"), // 페이탈 체인
+        FATAL_CHAIN_DEFAULT(FATAL_CHAIN, "fatal-chain"),
 
     ETC(ROOT, "etc"),
-    
-    // NULL 대응
-    NONE(ROOT, "none"), // null 대응
+
+    NONE(ROOT, "none"),
     ;
 
     private final MoveType parentType;

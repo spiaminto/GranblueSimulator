@@ -23,7 +23,7 @@ public class CharacterInfo {
     private Integer hpRate;
 
     private Move chargeAttack;
-    private List<Move> abilities;
+    private List<AbilityInfo> abilities;
     private List<BattleStatus> statuses;
 
     private List<Integer> abilityCoolDowns;

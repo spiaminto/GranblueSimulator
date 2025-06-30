@@ -196,11 +196,12 @@ public abstract class CharacterLogic {
     public ActorLogicResult defaultFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, fatalChain);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, Collections.emptyList(), fatalChain);
+        mainActor.setFatalChainGauge(0); // 페이탈 체인 게이지 초기화
         return resultMapper.toResult(mainActor, enemy, Collections.emptyList(), fatalChain, damageLogicResult, setStatusResult);
     }
 
     protected ActorLogicResult defaultGuard(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        return resultMapper.toResult(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.GUARD), null, null);
+        return resultMapper.toResult(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(GUARD_DEFAULT), null, null);
     }
 
     // 가변 오버라이드 (내부사용)

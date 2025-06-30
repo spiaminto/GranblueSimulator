@@ -19,6 +19,8 @@ public class User {
     private String username; // 유저 이름
     private String password; // 유저 비밀번호
 
+    private String role;
+
     @OneToMany(mappedBy = "user")
     private List<Member> members; // 이거 나중에 지울 예정
 

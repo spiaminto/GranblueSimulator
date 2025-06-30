@@ -106,12 +106,23 @@ const MoveType = {
     CHARGE_ATTACK_E: {name: 'CHARGE_ATTACK_E', parentType: 'CHARGE_ATTACK', className: 'charge-attack-e'},
     CHARGE_ATTACK_F: {name: 'CHARGE_ATTACK_F', parentType: 'CHARGE_ATTACK', className: 'charge-attack-f'},
     CHARGE_ATTACK_G: {name: 'CHARGE_ATTACK_G', parentType: 'CHARGE_ATTACK', className: 'charge-attack-g'},
+
     FORM_CHANGE: {name: 'FORM_CHANGE', parentType: 'ROOT', className: 'phase-change'},
-    FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'ROOT', className: 'phase-change-entry'},
+    FORM_CHANGE_DEFAULT: {name: 'FORM_CHANGE_DEFAULT', parentType: 'FORM_CHANGE', className: 'phase-change-default'},
+    FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'FORM_CHANGE', className: 'phase-change-entry'},
+
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
+    SUMMON_DEFAULT: {name: 'SUMMON_DEFAULT', parentType: 'SUMMON', className: 'summon'},
+
     DEAD: {name: 'DEAD', parentType: 'ROOT', className: 'dead'},
+    DEAD_DEFAULT: {name: 'DEAD_DEFAULT', parentType: 'DEAD', className: 'dead'},
+
     GUARD: {name: 'GUARD', parentType: 'ROOT', className: 'guard'},
+    GUARD_DEFAULT: {name: 'GUARD_DEFAULT', parentType: 'GUARD', className: 'guard'},
+
     FATAL_CHAIN : {name: 'FATAL_CHAIN', parentType: 'ROOT', className: 'fatal-chain'},
+    FATAL_CHAIN_DEFAULT : {name: 'FATAL_CHAIN_DEFAULT', parentType: 'FATAL_CHAIN', className: 'fatal-chain'},
+
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };

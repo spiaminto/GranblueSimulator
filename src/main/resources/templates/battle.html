@@ -40,9 +40,15 @@
   <script src="/static/js/battle/charge-attack.js"></script>
   <script src="/static/js/battle/movetype.js"></script>
   <script src="/static/js/battle/request-command.js"></script>
-  <script src="/static/js/battle/summon.js"></script>
+  <script src="/static/js/battle/process-move.js"></script>
   <script>
+      window.effectAudioPlayer = new AudioPlayer();
       $(function () {
+
+          $('body').one('click', function () {
+              window.effectAudioPlayer.init();
+          })
+
           let scale = window.innerWidth / 390;
           scale = scale > 2 ? 2 : scale;
           console.log('bodywidth = scale = ', window.innerWidth, scale)
@@ -111,6 +117,15 @@
           })
 
           $('#abilitySlider').slick({speed: 200, arrows: false});
+
+
+          // 소환석 클릭 이벤트리스너
+          $('#commandContainer .summon-list .summon-list-item:not(.empty)').on('click', function () {
+              let characterId = $('#partyCommandContainer .battle-portrait').eq(0).data('character-id');
+              let summonId = $(this).data('summon-id');
+              requestMove(characterId, summonId);
+          });
+
 
           // 어빌리티 슬라이더 버튼 클릭
           $('.ability-slider-slide-button-wrapper').on('click', function () {
@@ -202,11 +217,8 @@
               $enemyInitialVideo.removeClass('hidden').get(0)?.play();
               if ($enemyInitialVideo.hasClass('standby')) {
                   // 스탠바이 일경우 오디오 재생
-                  let audioPlayer = new AudioPlayer();
                   let audioSrc = $('.enemy-audio-container').find('.' + initialMoveClassName).attr('src');
-                  audioPlayer.loadSound(audioSrc, 0).then(() => {
-                      audioPlayer.playAllSounds();
-                  })
+                  window.effectAudioPlayer.loadSound(audioSrc).then(() => window.effectAudioPlayer.playAllSounds());
                   $enemyInitialVideo.one('ended', function () {
                       // stnadby 일 경우 이어서 standbyIdle 재생
                       $('.enemy-video-container').find('.' + MoveType.byClassName(initialMoveClassName).getIdleType().className).removeClass('hidden').get(0).play();
@@ -334,7 +346,7 @@
 
     <div id="audioContainer" class="battle-canvas">
       <div class="enemy-audio-container">
-        <audio class="audio"
+        <audio class="audio actor-0"
                th:each="entry : ${enemyAudioSrcMap}"
                th:src="${entry.key}"
                th:classappend="${#strings.listJoin(entry.value, ' ')}">
@@ -342,15 +354,15 @@
       </div>
       <div class="party-audio-container">
         <div class="party-1">
-          <audio class="audio"
-                 th:each="entry : ${firstCharacterAudioSrcMap}"
+          <audio class="audio actor-1"
+                 th:each="entry : ${characterAudioSrcMaps.get(0)}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </audio>
         </div>
         <div class="party-2">
-          <audio class="audio"
-                 th:each="entry : ${secondCharacterAudioSrcMap}"
+          <audio class="audio actor-2"
+                 th:each="entry : ${characterAudioSrcMaps.get(1)}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </audio>
@@ -358,9 +370,9 @@
       </div>
       <div class="summon-audio-container">
         <audio class="audio summon-audio"
-               th:each="entry : ${summonAudioSrcMap}"
-               th:src="${entry.key}"
-               th:data-summon-id="${entry.value}">
+               th:data-summon-id="${summonInfos.get(stat.index).id}"
+               th:each="entry, stat : ${summonAudioSrcMap}"
+               th:src="${entry.key}">
         </audio>
       </div>
     </div>
@@ -373,7 +385,7 @@
       <div class="enemy-video-container" th:data-phase="${enemyInfo.getPhase()}"
            th:data-initial-move-class="${enemyInfo.initialMoveType.className}"
            th:data-standby-move-class="${enemyInfo.initialMoveType.parentType.className.equals('standby') ? enemyInfo.initialMoveType.className : 'none'}">
-        <video class="hidden enemy-video" muted playsinline preload="auto"
+        <video class="hidden enemy-video actor-0" muted playsinline preload="auto"
                th:each="entry : ${enemyVideoSrcMap}"
                th:data-move-type="${entry}"
                th:src="${entry.key}"
@@ -381,21 +393,21 @@
                th:classappend="${#strings.listJoin(entry.value.classNames, ' ')}">
         </video>
 
-<!--        <video class="enemy-video idle motion" loop muted autoplay playsinline preload="auto"-->
-<!--               src="/static/assets/video/enemy/diaspora2/idle.webm"-->
-<!--        ></video>-->
+        <!--        <video class="enemy-video idle motion" loop muted autoplay playsinline preload="auto"-->
+        <!--               src="/static/assets/video/enemy/diaspora2/idle.webm"-->
+        <!--        ></video>-->
 
       </div>
       <div class="party-video-container">
         <div class="party-1">
-          <video class="hidden party-video" muted playsinline preload="auto"
-                 th:each="entry : ${firstCharacterVideoSrcMap}"
+          <video class="hidden party-video actor-1" muted playsinline preload="auto"
+                 th:each="entry : ${characterVideoSrcMaps.get(0)}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
-<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-<!--          ></video>-->
+          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+          <!--          ></video>-->
 
           <!-- TEST ================================================= -->
           <!--                    <video class="party-video attack motion" loop muted autoplay playsinline preload="auto"-->
@@ -413,33 +425,33 @@
 
         </div>
         <div class="party-2">
-          <video class="hidden party-video" muted playsinline preload="auto"
-                 th:each="entry : ${secondCharacterVideoSrcMap}"
+          <video class="hidden party-video actor-2" muted playsinline preload="auto"
+                 th:each="entry : ${characterVideoSrcMaps.get(1)}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value}">
           </video>
-<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-<!--          ></video>-->
+          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+          <!--          ></video>-->
         </div>
         <div class="party-3">
-<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-<!--          ></video>-->
+          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+          <!--          ></video>-->
         </div>
         <div class="party-4">
-<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-<!--          ></video>-->
+          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+          <!--          ></video>-->
         </div>
       </div>
 
 
       <div class="summon-video-container">
         <video class="hidden summon-video" muted playsinline
-               th:each="entry : ${summonVideoSrcMap}"
-               th:src="${entry.key}"
-               th:data-summon-id="${entry.value}">
+               th:data-summon-id="${summonInfos.get(stat.index).id}"
+               th:each="entry, stat : ${summonVideoSrcMap}"
+               th:src="${entry.key}">
         </video>
       </div>
 
@@ -602,21 +614,21 @@
 
 
       <!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
-<!--            <div class="enemy-damage-wrapper actor-1">-->
-<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth heal">4998</div>-->
-<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
-<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
-<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
-<!--              </div>-->
-<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
-<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
-<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
-<!--              </div>-->
-<!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
-<!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
-<!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
-<!--              </div>-->
-<!--            </div>-->
+      <!--            <div class="enemy-damage-wrapper actor-1">-->
+      <!--              <div class="damage enemy-attack-damage actor-1 element-type-earth heal">4998</div>-->
+      <!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4998</div>-->
+      <!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4998-->
+      <!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4951</div>-->
+      <!--              </div>-->
+      <!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4990</div>-->
+      <!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4990-->
+      <!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4967</div>-->
+      <!--              </div>-->
+      <!--              <div class="damage enemy-attack-damage actor-1 element-type-earth enemy-damage-show">4971</div>-->
+      <!--              <div class="damage enemy-additional-damage-wrapper actor-1 element-type-earth">4971-->
+      <!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
+      <!--              </div>-->
+      <!--            </div>-->
 
     </div>
 
@@ -773,9 +785,9 @@
               </div>
               <div class="ability-wrapper">
                 <div class="ability-icon" th:each="ability : ${characterInfo.abilities}"
-                     th:data-ability-order="${abilityStat.count}">
+                     th:data-ability-id="${ability.id}" th:data-ability-order="${abilityStat.count}">
                   <img src="/static/assets/img/ch/paladin/ability-1.png"
-                       th:src="${ability.asset.iconImageSrc}"/>
+                       th:src="${ability.iconImageSrc}"/>
                   <div class="ability-cooldown-text" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}"
                        th:classappend="${characterInfo.abilityCoolDowns.get(abilityStat.index).equals(0) ? 'active' : 'inactive'}">
                     쿨다운
@@ -936,6 +948,10 @@
     </div>
   </div>
 </div>
+
+<form id="csrfForm">
+  <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

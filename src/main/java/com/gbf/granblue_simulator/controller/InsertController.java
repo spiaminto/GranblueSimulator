@@ -80,7 +80,7 @@ public class InsertController {
 
         // guard
         Move guard = Move.builder()
-                .type(MoveType.GUARD)
+                .type(MoveType.GUARD_DEFAULT)
                 .name("guard")
                 .info("guard")
                 .elementType(character.getElementType())
@@ -297,7 +297,7 @@ public class InsertController {
         Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
         Move summon = Move.builder()
                 .name(request.getName())
-                .type(MoveType.SUMMON)
+                .type(MoveType.SUMMON_DEFAULT)
                 .info(request.getInfo())
                 .elementType(request.getElementType())
                 .damageRate(request.getDamageRate())

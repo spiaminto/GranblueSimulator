@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.domain.actor;
 
+import com.gbf.granblue_simulator.domain.Member;
 import jakarta.persistence.*;
 import lombok.*;
 

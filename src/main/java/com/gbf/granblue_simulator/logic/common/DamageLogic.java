@@ -105,14 +105,10 @@ public class DamageLogic {
             case ABILITY, SUPPORT_ABILITY -> processType = ProcessType.ABILITY;
             case ATTACK -> processType = ProcessType.ATTACK;
             case CHARGE_ATTACK -> processType = ProcessType.CHARGE_ATTACK;
-            default -> {
-                switch (moveType) {
-                    case SUMMON -> processType = ProcessType.SUMMON;
-                    case FATAL_CHAIN -> processType = ProcessType.FATAL_CHAIN;
-                    default ->
-                            throw new IllegalArgumentException("[determineProcessType] MoveType = " + moveType + " is not supported");
-                }
-            }
+            case SUMMON -> processType = ProcessType.SUMMON;
+            case FATAL_CHAIN -> processType = ProcessType.FATAL_CHAIN;
+            default ->
+                    throw new IllegalArgumentException("[determineProcessType] MoveType = " + moveType + " is not supported");
         }
         return processType;
     }
@@ -565,6 +561,7 @@ public class DamageLogic {
 
     /**
      * 타겟과 메인캐릭터의 명중/회피율 을 계산하여 최종 명중률을 반환
+     *
      * @param mainActor
      * @param targetActor
      * @return

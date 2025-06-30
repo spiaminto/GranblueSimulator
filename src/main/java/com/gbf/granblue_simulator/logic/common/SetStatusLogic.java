@@ -203,8 +203,10 @@ public class SetStatusLogic {
         StatusEffect firstStatusEffect = status.getStatusEffects().entrySet().iterator().next().getValue();
         if (firstStatusEffect.getType() == StatusEffectType.ACT_CHARGE_GAUGE_UP) {
             chargeGaugeLogic.processChargeGaugeFromSetStatus(targetActor, firstStatusEffect);
+        } else if (firstStatusEffect.getType() == StatusEffectType.ACT_FATAL_CHAIN_GAUGE_UP) { // 페이탈 게이지 업
+            chargeGaugeLogic.processFatalChainGaugeFromSetStatus(targetActor, firstStatusEffect);
         }
-
+        
         // 새로 추가되는 스테이터스
         BattleStatus addedBattleStatus = BattleStatus.builder()
                 .battleActor(targetActor)

@@ -103,6 +103,9 @@ public enum StatusEffectType {
     CHARGE_TURN_FIX, // 공포, 장악 효과 [0]
     PETRIFIED, // 공포 [1]
 
+    // 페이탈 체인
+    ACT_FATAL_CHAIN_GAUGE_UP, // 페이탈 체인 게이지 상승 [상승할 페이탈 체인 게이지 수치]
+
     // 도트데미지 류
     BURNED, // 작열 [턴당 받을 데미지]
 
