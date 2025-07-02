@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
+import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,16 +19,12 @@ import java.util.List;
 @Slf4j
 public class PaladinLogic extends CharacterLogic {
 
-    private final CalcStatusLogic calcStatusLogic;
-
-    public PaladinLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
+    public PaladinLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic, MoveRepository moveRepository) {
         super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
-        this.calcStatusLogic = calcStatusLogic;
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        calcStatusLogic.initStatus(mainActor);
         // 전투 시작시 서포어비 1, 2 발동
         return List.of(
                 firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY)),

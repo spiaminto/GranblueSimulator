@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.response;
+package com.gbf.granblue_simulator.controller.response.info.battle;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -9,7 +9,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class CharacterInfo {
+public class BattleCharacterInfo {
 
     private Long id;
     private String name;

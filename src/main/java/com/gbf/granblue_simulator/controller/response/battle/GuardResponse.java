@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.response;
+package com.gbf.granblue_simulator.controller.response.battle;
 
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import lombok.Builder;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -21,7 +22,13 @@ public class User {
 
     private String role;
 
-    @OneToMany(mappedBy = "user")
-    private List<Member> members; // 이거 나중에 지울 예정
+    @OneToMany(mappedBy = "user") @Builder.Default
+    private List<Member> members = new ArrayList<>(); // 이거 나중에 지울 예정
+
+    private Long primaryPartyId; // 현재 선택중인 파티 id
+
+    public void setPrimaryParty(Long primaryPartyId) {
+        this.primaryPartyId = primaryPartyId;
+    }
 
 }

@@ -1,8 +1,8 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.enemy.*;
-import com.gbf.granblue_simulator.controller.response.EnemyInsertResponse;
-import com.gbf.granblue_simulator.controller.response.InsertResponse;
+import com.gbf.granblue_simulator.controller.response.insert.EnemyInsertResponse;
+import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;

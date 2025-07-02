@@ -27,16 +27,12 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @Slf4j
 public class Diaspora1Logic extends EnemyLogic {
 
-    private final CalcStatusLogic calcStatusLogic;
-
     public Diaspora1Logic(EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic) {
         super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
-        this.calcStatusLogic = calcStatusLogic;
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
-        calcStatusLogic.initStatus(mainActor);
 
         Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility.getStatuses());

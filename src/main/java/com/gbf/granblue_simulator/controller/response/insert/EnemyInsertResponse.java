@@ -1,6 +1,5 @@
-package com.gbf.granblue_simulator.controller.response;
+package com.gbf.granblue_simulator.controller.response.insert;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data

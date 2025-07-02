@@ -51,12 +51,152 @@
           padding: 8px;
       }
 
+      /* room list*/
+
+      .room-list-item {
+          padding: 10px;
+          cursor: pointer;
+      }
+
+      .room-list-item:hover {
+          background-color: #f1f1f1;
+      }
+
+      .room-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+      }
+
+      .room-header .room-member-count {
+          margin-left: auto;
+      }
+
+
+      .hp-container {
+          display: flex;
+          align-items: center;
+      }
+
+      .hp-container .hp-bar {
+          width: 60%;
+          background-color: grey;
+      }
+
+      /*    파티 관련 */
+      .party-container {
+          width: 350px;
+          margin: 10px auto;
+      }
+
+      .party-wrapper {
+          width: 100%;
+          border: 1px solid black;
+          padding: 5px;
+          margin-bottom: 5px;
+      }
+
+      .party-wrapper.primary {
+          background-color: rgba(255, 255, 0, 0.2);
+      }
+
+      .party-wrapper.primary .primary-indicator {
+          color: red;
+      }
+
+      .party-info-header {
+          display: flex;
+          padding: 3px;
+          justify-content: space-between;
+      }
+
+
+      .party-body {
+          width: 100%;
+      }
+
+      .character-info-wrapper {
+          width: 100%;
+      }
+
+      .character-info-wrapper::after {
+          content: "";
+          display: block;
+          clear: both;
+      }
+
+      .character-info-wrapper .character-info {
+          float: left;
+          width: 23%;
+          height: 160px;
+          margin-right: 2%;
+          border: 1px solid black;
+          overflow: hidden;
+      }
+
+      .character-info-wrapper .character-info:nth-child(4n) {
+          margin-right: 0;
+      }
+
+      .character-portrait {
+          height: 130px;
+          overflow: hidden;
+      }
+
+      .character-portrait img {
+          width: 100%;
+      }
+
+      .summon-info-wrapper {
+          margin-top: 5px;
+          width: 100%;
+      }
+
+      .summon-info-wrapper::after {
+          content: "";
+          display: block;
+          clear: both;
+      }
+
+      .summon-info-wrapper .summon-info {
+          float: left;
+          width: 23%;
+          height: 160px;
+          margin-right: 2%;
+          border: 1px solid black;
+          overflow: hidden;
+      }
+
+      .summon-portrait {
+          height: 130px;
+          overflow: hidden;
+      }
+
+      .summon-portrait img {
+          width: 100%;
+      }
+
 
   </style>
   <script src="https://code.jquery.com/jquery.min.js"></script>
   <script>
 
       $(function () {
+
+          // needLogin 이 true 이고, 로그인 정보패널이 없으면 로그인 모달을 띄움
+          const params = new URLSearchParams(window.location.search);
+          if (params.has('needLogin') && params.get('needLogin') === 'true') {
+              // needLogin=true가 존재할 때 실행할 코드
+              triggerLoginModal();
+          }
+
+          $("#logoutBtn").on('click', function () {
+              $("#logoutForm").submit();
+          })
+
+          function triggerLoginModal() {
+              document.getElementById('loginModalTriggerBtn').click();
+          }
 
           $('#loginForm').on('submit', function (event) {
               event.preventDefault(); // 폼 기본 제출 막기
@@ -93,31 +233,10 @@
               });
           });
 
-          /*<![CDATA[*/
-          // let thLoginErrorMessage = [[${loginErrorMessage}]];
-          // let thNeedLogin = [[${needLogin}]];
-          // let thIsLoginError = [[${isLoginError}]];
-          // let thLoginId = [[${loginId}]];
-          // let thIsCreateRoomError = [[${isCreateRoomError}]];
-          // let alertMessage = [[${alertMessage}]];
-          /*]]>*/
-
-          // needLogin 이 true 이고, 로그인 정보패널이 없으면 로그인 모달을 띄움
-          const params = new URLSearchParams(window.location.search);
-          if (params.has('needLogin') && params.get('needLogin') === 'true') {
-              // needLogin=true가 존재할 때 실행할 코드
-              triggerLoginModal();
-          }
-
-
-          $("#logoutBtn").on('click', function () {
-              $("#logoutForm").submit();
+          $('.room-list-item').on('click', function () {
+              $('#enterRoomForm input[name="roomId"]').val($(this).attr('data-roomId'));
+              $('#enterRoomModalTriggerBtn').click();
           })
-
-
-          function triggerLoginModal() {
-              document.getElementById('loginModalTriggerBtn').click();
-          }
 
 
       });
@@ -188,6 +307,7 @@
   <div sec:authorize="isAuthenticated()" id="userInfoBox">
     <span th:text="'유저명 : ' + ${#authentication.principal.user.username}"></span>
     <span th:text="'닉네임 : ' + ${#authentication.name}"></span>
+    <span th:text="'선택파티 : ' + ${partyInfo.name}"></span>
   </div>
 
   <hr>
@@ -197,6 +317,13 @@
           sec:authorize="isAuthenticated()"
           data-bs-toggle="modal" data-bs-target="#staticBackdrop">
     방 만들기
+  </button>
+
+  <button id="setPartyBtn" type="button" class="btn btn-outline-primary"
+          sec:authorize="isAuthenticated()"
+          th:onclick="|location.href='@{/party(userId=${#authentication.principal.user.id})}'|"
+          onclick="location.href = ''">
+    파티 편성
   </button>
 
   <!-- Modal -->
@@ -209,14 +336,12 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form action="/room" method="post" th:object="${roomAddForm}" id="roomAddForm">
-          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
           <div class="modal-body">
-
             <label for="roomMessage">로비에 띄울 메시지</label>
             <input type="text" id="roomMessage" th:field="*{message}" class="form-control" name="name"
                    placeholder="최대 16 자 까지 허용합니다." th:errorclass="is-invalid"/>
             <div class="invalid-feedback" th:errors="*{message}"> 메시지 오류</div>
-
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
               <button type="submit" id="twentyGameStartBtn" class="btn btn-outline-primary">만들기</button>
@@ -229,18 +354,123 @@
 
   <h4>방 목록</h4>
   <ul id="roomList" class="list-group">
-    <li class="list-group-item d-flex justify-content-between align-items-start room-list-item"
-        th:each="room : ${roomList}">
-      <div class="ms-2 me-auto">
-        <div class="fw-bold" th:text="${room.info}">roominfo</div>
-        <a class="room-list-item-link" th:href="@{/room/{roomId}(roomId=${room.id})}"> 입장하기 </a>
+    <li class="list-group-item room-list-item"
+        th:each="room : ${roomInfos}" th:data-room-id="${room.id}" data-roomId="1">
+      <div class="room-header">
+        <span class="fw-bold" th:text="${room.info}">방 설명</span>
+        <span class="badge bg-primary rounded-pill room-member-count"
+              th:text="${room.memberCount} + ' 명 참가중'">0 명 참가중</span>
+        <span class="badge bg-primary rounded-pill room-list-item-is-playing"
+              th:text="'방장 : ' + ${room.ownerUsername}">방장 : 방장ID</span>
       </div>
-      <span class="badge bg-primary rounded-pill room-list-item-connected-member-count"
-            th:text="${room.members.size()} + ' 명 참가중'">0</span>
-      <span class="badge bg-primary rounded-pill room-list-item-is-playing"
-            th:text="'방장 : ' + ${room.ownerUsername}">방장</span>
+      <div class="hp-container enemy">
+        <div class="enemy-name me-3">디아스포라</div>
+        <div class="value-hp me-3" th:text="${room.enemyHpRate + '%'}">79%</div>
+        <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100"
+             aria-valuemin="0"
+             aria-valuemax="100" style="height: 10px">
+          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 79%"
+               th:style="${'width: ' + room.enemyHpRate + '%'}"></div>
+          <div class="hp-trigger hp-trigger-1"></div>
+        </div>
+      </div>
+
     </li>
   </ul>
+
+  <!-- 방 입장 Modal -->
+  <button id="enterRoomModalTriggerBtn" type="button" class="btn btn-outline-primary"
+          sec:authorize="isAuthenticated()"
+          data-bs-toggle="modal" data-bs-target="#enterRoomModal">
+    입장
+  </button>
+  <div class="modal fade" id="enterRoomModal" data-bs-keyboard="false" tabindex="-1"
+       aria-labelledby="enterRoomModalTitle" aria-hidden="true" sec:authorize="authenticated">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="enterRoomModalTitle">방 입장</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div> 아래의 파티로 입장합니다. 파티는 편성에서 변경할 수 있습니다. </div>
+          <div class="party-container">
+            <div class="party-wrapper" th:data-party-id="${partyInfo.id}">
+              <div class="party-info">
+                <div class="party-info-header">
+                  <div class="party-name" th:text="${partyInfo.name}">파티 이름</div>
+                </div>
+              </div>
+              <div class="party-body">
+                <div class="character-info-wrapper">
+                  <div class="character-info" th:each="characterInfo : ${partyInfo.characterInfos}">
+                    <div class="character-portrait" th:data-character-id="${characterInfo.id}">
+                      <img src="/static/assets/img/ch/yachima/battle-portrait.jpg"
+                           th:src="${characterInfo.portraitSrc}">
+                    </div>
+                    <div class="character-name" th:text="${characterInfo.name}"> 캐릭이름</div>
+                  </div>
+
+
+                  <div class="character-info">
+                    <div class="character-portrait">
+                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+                    </div>
+                  </div>
+                  <div class="character-info">
+                    <div class="character-portrait">
+                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+                    </div>
+                  </div>
+                  <div class="character-info">
+                    <div class="character-portrait">
+                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
+                    </div>
+                  </div>
+
+                </div>
+                <div class="summon-info-wrapper" th:each="summonInfo : ${partyInfo.summonInfos}">
+                  <div class="summon-info">
+                    <div class="summon-portrait">
+                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg"
+                           th:src="${summonInfo.portraitSrc}">
+                    </div>
+                    <div class="character-name" th:text="${summonInfo.name}"> 솬석이름</div>
+                  </div>
+
+                  <div class="summon-info">
+                    <div class="summon-portrait">
+                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+                    </div>
+                  </div>
+                  <div class="summon-info">
+                    <div class="summon-portrait">
+                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+                    </div>
+                  </div>
+                  <div class="summon-info">
+                    <div class="summon-portrait">
+                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+          <form action="/room/join" method="post" id="enterRoomForm">
+            <input type="hidden" class="roomId" name="roomId"/>
+            <input type="hidden" class="userId" name="userId" th:value="${#authentication.principal.user.id}"/>
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+              <button type="submit" id="enterRoomBtn" class="btn btn-outline-primary">입장</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
 
 </div>

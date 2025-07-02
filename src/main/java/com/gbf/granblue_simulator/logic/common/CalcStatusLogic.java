@@ -320,16 +320,22 @@ public class CalcStatusLogic {
      * @return
      */
     protected Integer initEtc(BattleActor battleActor) {
+        log.info("[initEtc] battleActor = {}", battleActor);
         battleActor.setMaxChargeGauge(battleActor.getActor().getMaxChargeGauge());
         battleActor.setChargeGauge(0);
         battleActor.setMaxHp(battleActor.getHp());
 
+        battleActor.setElementType(battleActor.getActor().getElementType());
+        battleActor.setFatalChainGauge(0);
+
         battleActor.setFirstAbilityCoolDown(0);
         battleActor.setSecondAbilityCoolDown(0);
         battleActor.setThirdAbilityCoolDown(0);
+        battleActor.setFourthAbilityCoolDown(0);
         battleActor.setFirstAbilityUseCount(0);
         battleActor.setSecondAbilityUseCount(0);
         battleActor.setThirdAbilityUseCount(0);
+        battleActor.setFourthAbilityUseCount(0);
         return 1;
     }
 

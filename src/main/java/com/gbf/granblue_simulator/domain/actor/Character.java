@@ -7,7 +7,6 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-//@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter @EqualsAndHashCode(callSuper = false) @ToString(callSuper = true)
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Character extends Actor {

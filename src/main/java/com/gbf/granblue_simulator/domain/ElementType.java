@@ -6,21 +6,27 @@ import java.util.concurrent.ThreadLocalRandom;
 
 @Getter
 public enum ElementType {
-    FIRE, // 화
-    WATER, // 수
-    WIND, // 풍
-    EARTH, // 토
-    LIGHT, // 빛
-    DARK, // 암
+    FIRE("화속성"), // 화
+    WATER("수속성"), // 수
+    WIND("풍속성"), // 풍
+    EARTH("토속성"), // 토
+    LIGHT("빛속성"), // 빛
+    DARK("암속성"), // 암
 
     // 나중에 천원 구현할때 사용예정
 //    FIRE_WIND, // 화풍
 //    WATER_EARTH, // 수토
 //    LIGHT_DARK, // 광암
     
-    NONE, // 무속성
-    RANDOM // 랜덤속성 -> 로직에서 변환해서사용
+    NONE("무속성"), // 무속성
+    RANDOM("랜덤속성") // 랜덤속성 -> 로직에서 변환해서사용
     ;
+
+    private final String presentName;
+
+    ElementType(String presentName) {
+        this.presentName = presentName;
+    }
 
     // 유리속성 확인
     public boolean isAdvantageTo(ElementType target) {

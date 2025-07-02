@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>그랑블루시뮬</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+  <link href="/static/css/battle/common.css" rel="stylesheet">
+  <style>
+
+      .party-container {
+          width: 350px;
+          margin: 10px auto;
+      }
+
+      .party-wrapper {
+          width: 100%;
+          border: 1px solid black;
+          padding: 5px;
+          margin-bottom: 5px;
+      }
+
+      .party-wrapper.primary {
+          background-color: rgba(255, 255, 0, 0.2);
+      }
+
+      .party-wrapper.primary .primary-indicator {
+          color: red;
+      }
+
+      .party-info-header {
+          display: flex;
+          padding: 3px;
+          justify-content: space-between;
+      }
+
+
+      .party-body {
+          width: 100%;
+      }
+
+      .character-info-wrapper {
+          width: 100%;
+      }
+
+      .character-info-wrapper::after {
+          content: "";
+          display: block;
+          clear: both;
+      }
+
+      .character-info-wrapper .character-info {
+          float: left;
+          width: 23%;
+          height: 160px;
+          margin-right: 2%;
+          border: 1px solid black;
+          overflow: hidden;
+      }
+
+      .character-info-wrapper .character-info:nth-child(4n) {
+          margin-right: 0;
+      }
+
+      .character-portrait {
+          height: 130px;
+          overflow: hidden;
+      }
+
+      .character-portrait img {
+          width: 100%;
+      }
+
+      .summon-info-wrapper {
+          margin-top: 5px;
+          width: 100%;
+      }
+
+      .summon-info-wrapper::after {
+          content: "";
+          display: block;
+          clear: both;
+      }
+
+      .summon-info-wrapper .summon-info {
+          float: left;
+          width: 23%;
+          height: 160px;
+          margin-right: 2%;
+          border: 1px solid black;
+          overflow: hidden;
+      }
+
+      .summon-portrait {
+          height: 130px;
+          overflow: hidden;
+      }
+
+      .summon-portrait img {
+          width: 100%;
+      }
+
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script>
+      $(function () {
+
+          let scale = window.innerWidth / 390;
+          scale = scale > 2 ? 2 : scale;
+          console.log('bodywidth = scale = ', window.innerWidth, scale)
+          let container = document.querySelector('#container');
+          container.style.transform = `scale(${scale})`;
+          container.style.transformOrigin = 'top left';
+
+          $('.character-portrait').on('click', function () {
+              let characterId = $(this).attr('data-character-id');
+              console.log('characterId = ', characterId);
+              window.location.href = '/character/' + characterId;
+          })
+
+          $('.primary-indicator').on('click', function () {
+              if (!confirm("이 파티를 선택합니다")) return;
+
+              let partyId = $(this).closest('.party-wrapper').attr('data-party-id');
+              console.log('partyId = ', partyId);
+              $('#primaryPartyForm #primaryPartyId').val(partyId);
+              $('#primaryPartyForm').submit();
+          })
+
+      });
+
+
+  </script>
+</head>
+<body>
+<div id="container">
+  <h1 id="header">파티편성</h1>
+  <div>
+    캐릭터 또는 소환석을 누르면 상세 설명을 확인할 수 있습니다.
+  </div>
+
+  <div class="party-container">
+    <div class="party-wrapper" th:each="partyInfo : ${partyInfos}" th:data-party-id="${partyInfo.id}"
+         th:classappend="${partyInfo.isPrimary() ? 'primary' : ''}">
+      <div class="party-info">
+        <div class="party-info-header">
+          <div class="party-name" th:text="${partyInfo.name}">파티 1번 이름</div>
+          <div class="primary-indicator" th:text="${partyInfo.isPrimary() ? '선택중' : '선택하기'}"> 선택중</div>
+        </div>
+        <div class="party-info-text" th:text="${partyInfo.info}">
+          이 파티는 어쩌구 저쩌구 파티의 설명이 이어진다. 파티의 설명은 대략 두세줄 정도로 예상하고 있다.
+          만능형 파티는 전조 대응력이 높고 공격력과 생존력 모두 고르게 좋은 파티입니다.
+        </div>
+      </div>
+      <div class="party-body">
+        <div class="character-info-wrapper">
+          <div class="character-info" th:each="characterInfo : ${partyInfo.characterInfos}">
+            <div class="character-portrait" th:data-character-id="${characterInfo.id}">
+              <img src="/static/assets/img/ch/yachima/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
+            </div>
+            <div class="character-name" th:text="${characterInfo.name}"> 캐릭이름</div>
+          </div>
+
+
+          <!--          <div class="character-info">-->
+          <!--            <div class="character-portrait">-->
+          <!--              <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--          <div class="character-info">-->
+          <!--            <div class="character-portrait">-->
+          <!--              <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--          <div class="character-info">-->
+          <!--            <div class="character-portrait">-->
+          <!--              <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--          </div>-->
+
+        </div>
+        <div class="summon-info-wrapper" th:each="summonInfo : ${partyInfo.summonInfos}">
+          <div class="summon-info">
+            <div class="summon-portrait">
+              <img src="/static/assets/img/summon/zeus/battle-portrait.jpg" th:src="${summonInfo.portraitSrc}">
+            </div>
+            <div class="character-name" th:text="${summonInfo.name}"> 솬석이름</div>
+          </div>
+
+          <!--          <div class="summon-info">-->
+          <!--            <div class="summon-portrait">-->
+          <!--              <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--          <div class="summon-info">-->
+          <!--            <div class="summon-portrait">-->
+          <!--              <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--          <div class="summon-info">-->
+          <!--            <div class="summon-portrait">-->
+          <!--              <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">-->
+          <!--            </div>-->
+          <!--        </div>-->
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .party-container -->
+
+<form id="primaryPartyForm" action="/user/edit" method="post">
+  <input id="userId" type="hidden" name="userId" th:value="${#authentication.principal.id}">
+  <input id="primaryPartyId" type="hidden" name="primaryPartyId"/>
+  <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
+
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

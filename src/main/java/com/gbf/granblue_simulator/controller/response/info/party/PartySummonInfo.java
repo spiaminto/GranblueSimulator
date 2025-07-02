@@ -1,14 +1,16 @@
-package com.gbf.granblue_simulator.controller.response;
+package com.gbf.granblue_simulator.controller.response.info.party;
 
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class SummonInfo {
+public class PartySummonInfo {
+
     private Long id;
     private String name;
     private String info;
-    private String iconImageSrc;
+    private String portraitSrc;
     private Integer cooldown;
+
 }

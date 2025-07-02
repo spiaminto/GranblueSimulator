@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -24,8 +25,8 @@ public class Member {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "room_id")
     private Room room;
 
-    @OneToMany(mappedBy = "member")
-    private List<BattleActor> battleActors;
+    @OneToMany(mappedBy = "member") @Builder.Default
+    private List<BattleActor> battleActors = new ArrayList<>();
 
     @Builder.Default
     private Integer currentTurn = 1; // 현재 자신의 턴, 1부터 시작

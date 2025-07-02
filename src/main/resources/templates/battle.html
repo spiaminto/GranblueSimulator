@@ -57,7 +57,7 @@
           container.style.transformOrigin = 'top left';
 
           // 테스트용
-          $('.menu-button-wrapper button').on('click', {}, triggerShake);
+          $('.sound-button-wrapper button').on('click', {}, triggerShake);
 
 
           // 테스트용 흔들기
@@ -267,6 +267,11 @@
               });
           });
 
+          $('.exit-room-button').on('click', function () {
+              if (!confirm("방에서 퇴장하면 클리어시 획득 가능한 아이템이나 공헌도를 모두 잃습니다")) return;
+              $('#exitRoomForm').submit();
+          })
+
       });
   </script>
   <link rel="stylesheet" href="../static/css/battle/ability.css">
@@ -282,7 +287,10 @@
                                         th:text="${member.getCurrentTurn()}">1</span><span> turn</span></div>
       <div class="time-indicator"><i class="bi bi-stopwatch me-1"></i>12:34</div>
       <div class="menu-button-wrapper top-menu-button-wrapper">
-        <button type="button" class="btn btn-light">Menu</button>
+        <button type="button" class="btn btn-light menu-modal-button" data-bs-toggle="modal"
+                data-bs-target="#menuModal">
+          메뉴
+        </button>
       </div>
     </div>
   </div>
@@ -297,21 +305,21 @@
     </div>
 
     <div class="omen-container omen-container-bottom enemy blinking-element"
-         th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
-      <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
+         th:classappend="${battleEnemyInfo.omenActivated ? 'activated' : ''}">
+      <div class="omen-text" th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
       <span class="omen-prefix"
-            th:text="${enemyInfo.omenType == null ? '' : '[' + enemyInfo.omenType.info + '] ' + enemyInfo.omenName}">전조이름</span>
+            th:text="${battleEnemyInfo.omenType == null ? '' : '[' + battleEnemyInfo.omenType.info + '] ' + battleEnemyInfo.omenName}">전조이름</span>
       </div>
     </div>
 
     <div class="enemy-info-container">
       <div class="hp-container enemy">
-        <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}">100%</div>
+        <div class="value-hp" th:text="${battleEnemyInfo.getHpRate() + '%'}">100%</div>
         <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100"
              aria-valuemin="0"
              aria-valuemax="100" style="height: 10px">
           <div class="progress-bar hp-bar-realtime bg-danger" style="width: 100%"
-               th:style="${'width: ' + enemyInfo.hpRate + '%'}"></div>
+               th:style="${'width: ' + battleEnemyInfo.hpRate + '%'}"></div>
           <div class="hp-trigger hp-trigger-1"></div>
         </div>
       </div>
@@ -319,7 +327,7 @@
         <div class="show-status-info-button-wrapper enemy">
           <button class="btn btn-outline-light button-xsm">상세</button>
         </div>
-        <div class="status" th:each="status : ${enemyInfo.statuses}"
+        <div class="status" th:each="status : ${battleEnemyInfo.statuses}"
              th:data-status-type="${status.status.type}">
           <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png"
                th:src="${status.iconSrc}"/>
@@ -330,15 +338,15 @@
       </div>
       <div class="d-flex">
         <div class="charge-turn-container enemy">
-          <div class="charge-turn" th:each="chargeGauge : ${enemyInfo.maxChargeGauge}"
-               th:classappend="${chargeGaugeStat.index < enemyInfo.currentChargeGauge ? 'active' : ''}"></div>
+          <div class="charge-turn" th:each="chargeGauge : ${battleEnemyInfo.maxChargeGauge}"
+               th:classappend="${chargeGaugeStat.index < battleEnemyInfo.currentChargeGauge ? 'active' : ''}"></div>
         </div>
         <div class="omen-container enemy omen-container-top"
-             th:classappend="${enemyInfo.omenActivated ? 'activated' : ''}">
-          <div class="omen-text" th:classappend="${enemyInfo.isOmenActivated() ? enemyInfo.omenType.className : ''}">
-            <span class="omen-prefix" th:text="${enemyInfo.omenPrefix + ': '}">전조 조건: </span>
-            <span class="omen-value" th:text="${enemyInfo.omenValue}">값</span>
-            <span class="omen-info" th:text="${enemyInfo.omenInfo}">전조 설명</span>
+             th:classappend="${battleEnemyInfo.omenActivated ? 'activated' : ''}">
+          <div class="omen-text" th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
+            <span class="omen-prefix" th:text="${battleEnemyInfo.omenPrefix + ': '}">전조 조건: </span>
+            <span class="omen-value" th:text="${battleEnemyInfo.omenValue}">값</span>
+            <span class="omen-info" th:text="${battleEnemyInfo.omenInfo}">전조 설명</span>
           </div>
         </div>
       </div>
@@ -382,9 +390,9 @@
         <img src="/static/assets/img/enemy/diaspora2/bg.jpg" width="100%">
       </div>
 
-      <div class="enemy-video-container" th:data-phase="${enemyInfo.getPhase()}"
-           th:data-initial-move-class="${enemyInfo.initialMoveType.className}"
-           th:data-standby-move-class="${enemyInfo.initialMoveType.parentType.className.equals('standby') ? enemyInfo.initialMoveType.className : 'none'}">
+      <div class="enemy-video-container" th:data-phase="${battleEnemyInfo.getPhase()}"
+           th:data-initial-move-class="${battleEnemyInfo.initialMoveType.className}"
+           th:data-standby-move-class="${battleEnemyInfo.initialMoveType.parentType.className.equals('standby') ? battleEnemyInfo.initialMoveType.className : 'none'}">
         <video class="hidden enemy-video actor-0" muted playsinline preload="auto"
                th:each="entry : ${enemyVideoSrcMap}"
                th:data-move-type="${entry}"
@@ -665,7 +673,7 @@
     <div id="partyCommandContainer">
 
       <div class="battle-member-wrapper">
-        <div class="battle-portrait" th:each="characterInfo : ${characterInfos}"
+        <div class="battle-portrait" th:each="characterInfo : ${battleCharacterInfos}"
              th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + characterInfoStat.count}">
           <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
                th:src="${characterInfo.portraitSrc}">
@@ -745,7 +753,7 @@
       </div>
 
       <div id="abilitySlider">
-        <div class="slick-slider-item" th:each="characterInfo : ${characterInfos}">
+        <div class="slick-slider-item" th:each="characterInfo : ${battleCharacterInfos}">
           <div class="ability-panel" th:data-character-order="${characterInfoStat.count}"
                th:classappend="${'actor-' + characterInfoStat.count}">
             <div class="ability-battle-portrait">
@@ -886,6 +894,27 @@
 
 </div> <!-- #container -->
 
+<!-- 메뉴 모달 -->
+<div class="modal fade" id="menuModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="menuModalLabel">메뉴</h1>
+      </div>
+      <div class="modal-body">
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger me-2 exit-room-button">퇴장</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 어빌리티 설명 모달 -->
 <button type="button" class="btn btn-primary ability-info-modal-button" data-bs-toggle="modal"
         data-bs-target="#abilityInfoModal">
@@ -948,6 +977,11 @@
     </div>
   </div>
 </div>
+
+<form id="exitRoomForm" action="/room/exit" method="POST">
+  <input type="hidden" name="memberId" th:value="${member.id}">
+  <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
 
 <form id="csrfForm">
   <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>

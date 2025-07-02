@@ -18,14 +18,12 @@ import java.util.List;
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Setter
 @EqualsAndHashCode
 @ToString(exclude = {"member"})
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn
-public class BattleActor {
+@Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
+public abstract class BattleActor {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(insertable = false, updatable = false)

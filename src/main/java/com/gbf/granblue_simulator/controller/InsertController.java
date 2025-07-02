@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.character.*;
 import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
-import com.gbf.granblue_simulator.controller.response.InsertResponse;
+import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -21,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;

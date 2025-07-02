@@ -120,6 +120,7 @@ public class CharacterLogicResultMapper {
         // 쿨다운
         List<List<Integer>> cooldownList = new ArrayList<>();
         cooldownList.add(new ArrayList<>());
+        partyMembers.forEach(battleActor -> log.info("[map] battleActor = {}", battleActor));
         List<List<Integer>> partyMemberCooldowns = partyMembers.stream().map(actor -> List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown())).toList();
         cooldownList.addAll(partyMemberCooldowns);
 

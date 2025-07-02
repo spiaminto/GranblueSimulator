@@ -17,15 +17,16 @@ import java.util.Map;
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @EqualsAndHashCode @ToString(exclude = "battleActors")
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn
-public class Actor {
+@Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
+public abstract class Actor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(insertable = false, updatable = false)
+    private String dtype;
+
     private String name;
     private String nameEn; // 영어명
     @Enumerated(EnumType.STRING)

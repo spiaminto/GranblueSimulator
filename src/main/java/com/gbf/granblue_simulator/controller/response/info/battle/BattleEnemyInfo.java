@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.response;
+package com.gbf.granblue_simulator.controller.response.info.battle;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -10,7 +10,7 @@ import java.util.List;
 
 @Builder
 @Data
-public class EnemyInfo {
+public class BattleEnemyInfo {
     private Long id;
     private String name;
     private Integer phase;

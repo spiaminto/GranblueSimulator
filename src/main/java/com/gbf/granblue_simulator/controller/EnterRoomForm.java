@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class EnterRoomForm {
-    private String roomInfo;
-    private String username;
+    private Long roomId;
+    private Long userId;
 }

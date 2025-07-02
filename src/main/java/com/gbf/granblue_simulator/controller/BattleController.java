@@ -1,9 +1,9 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.*;
-import com.gbf.granblue_simulator.controller.response.BattleResponse;
-import com.gbf.granblue_simulator.controller.response.GuardResponse;
-import com.gbf.granblue_simulator.controller.response.StatusDto;
+import com.gbf.granblue_simulator.controller.response.battle.BattleResponse;
+import com.gbf.granblue_simulator.controller.response.battle.GuardResponse;
+import com.gbf.granblue_simulator.controller.response.battle.StatusDto;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;

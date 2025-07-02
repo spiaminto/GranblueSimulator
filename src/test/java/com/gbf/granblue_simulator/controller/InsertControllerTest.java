@@ -4,7 +4,7 @@
 //import com.gbf.granblue_simulator.controller.request.insert.character.CharacterInsertRequest;
 //import com.gbf.granblue_simulator.controller.request.insert.character.ChargeAttackRequest;
 //import com.gbf.granblue_simulator.controller.request.insert.character.IdleAndAttackRequest;
-//import com.gbf.granblue_simulator.controller.response.InsertResponse;
+//import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 //import com.gbf.granblue_simulator.domain.entity.Character;
 //import com.gbf.granblue_simulator.domain.move.MoveType;
 //import com.gbf.granblue_simulator.repository.move.AssetRepository;

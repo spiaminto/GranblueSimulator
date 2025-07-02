@@ -26,17 +26,12 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @Slf4j
 public class YachimaLogic extends CharacterLogic {
 
-
-    private final CalcStatusLogic calcStatusLogic;
-
     public YachimaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
         super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
-        this.calcStatusLogic = calcStatusLogic;
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
-        calcStatusLogic.initStatus(mainActor);
         return Collections.emptyList();
     }
 

@@ -4,6 +4,8 @@ import com.gbf.granblue_simulator.domain.Member;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -32,4 +34,12 @@ public class Party {
     private Long secondSummonMoveId;
     private Long thirdSummonMoveId;
     private Long fourthSummonMoveId;
+
+    public List<Long> getActorIds() {
+        return List.of(this.firstActorId, this.secondActorId, this.thirdActorId, this.fourthActorId);
+    }
+
+    public List<Long> getSummonMoveIds() {
+        return List.of(this.firstSummonMoveId, this.secondSummonMoveId, this.thirdSummonMoveId, this.fourthSummonMoveId);
+    }
 }
