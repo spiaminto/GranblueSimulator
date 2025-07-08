@@ -7,7 +7,6 @@ import lombok.Data;
 public class CharacterInsertRequest {
     private String name;
     private String nameEn;
-    private String battlePortraitSrc;
     private ElementType elementType;
     private String isMainCharacter;
 }

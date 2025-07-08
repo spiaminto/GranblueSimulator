@@ -47,7 +47,7 @@ public class Diaspora1Logic extends EnemyLogic {
 
         DefaultActorLogicResult attackResult = defaultAttack(mainActor, partyMembers);
         List<Integer> targetOrders = attackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders, attackResult.getNextMoveType());
+        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class Diaspora1Logic extends EnemyLogic {
         Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
         DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, standby);
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
+        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult());
     }
 
     @Override
@@ -189,7 +189,7 @@ public class Diaspora1Logic extends EnemyLogic {
     @Override
     protected ActorLogicResult fifthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         SetStatusResult setStatusResult = getBattleStatusByName(mainActor, "자괴인자")
-                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
+                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, battleStatus))
                 .orElse(null);
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }
@@ -199,7 +199,7 @@ public class Diaspora1Logic extends EnemyLogic {
         // 서포트어빌리티 3 모드전환 발동
         ActorLogicResult thirdSupportAbilityResult = thirdSupportAbility(mainActor, partyMembers, enemy.getActor().getMoves().get(MoveType.THIRD_SUPPORT_ABILITY), null);
         // 폼체인지 무브
-        Move formChangeMove = mainActor.getActor().getMoves().get(MoveType.FORM_CHANGE);
+        Move formChangeMove = mainActor.getActor().getMoves().get(MoveType.FORM_CHANGE_DEFAULT);
         // 다음 폼 및 폼체인지 입장 무브
         Actor diaspora2 = actorRepository.findByNameEnContains("diaspora").stream().filter(actor -> !Objects.equals(actor.getId(), mainActor.getActor().getId())).findFirst().orElse(null);
         if (diaspora2 == null) return null;

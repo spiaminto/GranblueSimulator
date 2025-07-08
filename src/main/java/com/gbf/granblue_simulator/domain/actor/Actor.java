@@ -18,7 +18,7 @@ import java.util.Map;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = "battleActors")
+@EqualsAndHashCode(exclude = {"moves", "battleActors"}) @ToString(exclude = "battleActors")
 @Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
 public abstract class Actor {
     @Id

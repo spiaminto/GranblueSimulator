@@ -237,7 +237,7 @@ public class IndexController {
                 .id(partyMember.getId())
                 .name(partyMember.getName())
                 .portraitSrc(partyMember.getActor().getBattlePortraitSrc())
-                .statuses(partyMember.getBattleStatuses())
+                .statuses(partyMember.getBattleStatuses().stream().filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
                 .hp(partyMember.getHp())
                 .maxHp(partyMember.getMaxHp())
                 .hpRate(partyMember.calcHpRate())
@@ -279,7 +279,7 @@ public class IndexController {
                 .id(enemy.getId())
                 .name(enemy.getName())
                 .phase(enemy.getCurrentForm())
-                .statuses(enemy.getBattleStatuses())
+                .statuses(enemy.getBattleStatuses().stream().filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
                 .hpRate(enemy.calcHpRate())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
@@ -422,7 +422,7 @@ public class IndexController {
     public String battle(Model model) {
 
         Room findRoom = roomRepository.findById(1L).orElseThrow(() -> new IllegalArgumentException("방을 찾을수 없음"));
-        Member findMember = memberRepository.findByRoomIdAndUserId(1L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+        Member findMember = memberRepository.findByRoomIdAndUserId(133L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         List<BattleActor> battleActors = findMember.getBattleActors();
 
         if (battleActors.isEmpty()) {

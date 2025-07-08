@@ -7,7 +7,7 @@ video.left-hidden {
     left: -100%;
 }
 
-#videoContainer .attack.large {
+#videoContainer .attack.large, #videoContainer .ability.large {
     width: 120%;
     height: 120%;
     top: 0;

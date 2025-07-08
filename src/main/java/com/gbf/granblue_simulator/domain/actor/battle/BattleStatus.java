@@ -50,7 +50,8 @@ public class BattleStatus {
      */
     public void increaseLevel() {
         this.level = Math.min(this.status.getMaxLevel(), this.level + 1);
-        this.iconSrc = this.status.getIconSrcs().get(level - 1); // 아이콘이 없으면 에러남
+        int nextIconIndex = Math.min(this.level - 1, this.status.getIconSrcs().size() - 1); // 아이콘 인덱스 갱신 (레벨비례 아이콘 없는경우도 존재)
+        this.iconSrc = this.status.getIconSrcs().get(nextIconIndex);
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -58,22 +59,22 @@ public class BattleStatus {
      * 들어온 level 값 만큼 자신의 level 을 추가 및 아이콘 url 갱신
      * 이 메서드는 주로 사용자에게 반환 결과 없이 임의로 레벨을 조작할때 사용함.
      * @param level
-     * @param updateIcon 아이콘 url 갱신여부
      */
-    public void addLevel(int level, boolean updateIcon) {
+    public void addLevel(int level) {
         this.level = Math.min(this.status.getMaxLevel(), this.level + level);
-        this.iconSrc = updateIcon ? this.status.getIconSrcs().get(this.level - 1) : this.iconSrc;
+        int nextIconIndex = Math.min(this.level - 1, this.status.getIconSrcs().size() - 1);
+        this.iconSrc = this.status.getIconSrcs().get(nextIconIndex);
         this.updatedAt = LocalDateTime.now();
     }
 
     /**
      * 들어온 level 값 만큼 자신의 level 을 감소 및 url 갱신
      * @param level
-     * @param updateIcon
      */
-    public void subtractLevel(int level, boolean updateIcon) {
+    public void subtractLevel(int level) {
         this.level = Math.max(0, this.level - level);
-        this.iconSrc = updateIcon && this.level > 0 ? this.status.getIconSrcs().get(this.level - 1) : this.iconSrc;
+        int nextIconIndex = Math.max(this.level - 1, 0); // 아이콘 인덱스 갱신 (레벨비례 아이콘 없는경우도 존재), 레벨 0인경우 첫번째 그대로 사용
+        this.iconSrc = this.status.getIconSrcs().get(nextIconIndex);
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -99,7 +100,17 @@ public class BattleStatus {
 
     public void decreaseDuration() {
         this.duration = Math.max(0, this.duration - 1);
-        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void subtractDuration(int duration) {
+        this.duration = Math.max(0, this.duration - duration);
+    }
+
+    /**
+     * 턴 종료시 삭제되도록 duration 조정 (마운트, ...)
+     */
+    public void expireAtTurnEnd() {
+        this.duration = 0; // 강화 효과 연장에 반응하지 않게 하기 위해 0으로 감소
     }
 
     /**

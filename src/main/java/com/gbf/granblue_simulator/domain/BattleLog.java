@@ -54,8 +54,8 @@ public class BattleLog {
     private List<String> statusTypes; // StatusType
 
     @Type(ListArrayType.class)
-    @Column(name = "status_effect_types", columnDefinition = "text[]")
-    private List<String> statusEffectTypes; // StatusEffectType
+    @Column(name = "status_ids", columnDefinition = "bigint[]")
+    private List<Long> statusIds;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -11,14 +11,12 @@ public class SummonInsertRequest {
     private Long characterId;
 
     private String name;
+    private String nameEn;
     private String info;
     private Double damageRate;
     private Integer hitCount;
     private Integer coolDown;
-    private String effectVideoSrc;
-    private String seAudioSrc;
     private ElementType elementType;
-    private String iconSrc;
 
     private List<SummonStatus> statuses;
 
@@ -33,7 +31,6 @@ public class SummonInsertRequest {
         private Integer duration;
         private String removable;
         private String isResistible;
-        private String iconSrcs; // 엔터로 구분되는 src 들
 
         private String statusEffects; // type, value \n
     }

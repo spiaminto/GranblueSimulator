@@ -18,6 +18,7 @@ import com.gbf.granblue_simulator.service.BattleLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -66,14 +67,13 @@ public abstract class EnemyLogic {
 
     /**
      * 공격 행동을 수행
-     * 적은 후행동으로 오의를 사용할 수 없기 때문에 일반공격 - 일반공격 / 오의 - 일반공격 2종류만 존재
      * 오의게이지와 관계없이 nextStandby 가 set 되어있는 경우에 한해 오의를 사용. 나머지는 전부 일반공격
      *
      * @param mainActor
      * @param partyMembers
      * @return
      */
-    public ActorLogicResult processAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
+    public ActorLogicResult processStrike(BattleActor mainActor, List<BattleActor> partyMembers) {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         MoveType currentStandbyType = mainEnemy.getCurrentStandbyType();
         return currentStandbyType != null ?
@@ -116,14 +116,21 @@ public abstract class EnemyLogic {
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
-        // 후행동 확인
-        MoveType nextMoveType = hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
-        return DefaultActorLogicResult.builder().resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).nextMoveType(nextMoveType).build();
+        // 전체공격시 타겟 변경
+        List<BattleActor> allTargetedTargets = new ArrayList<>();
+        if (attackMove.isAllTarget()) {
+            // 어빌리티 및 오의와 같이 전체공격시 타겟을 복제하여 설정. 데미지로직 구현상 그쪽에는 쓰지말것 (일반공격시, 타수에 맞게 데미지가 복제되므로 타겟만 후에 복제해야함)
+            for (int i = 0; i < attackMove.getHitCount(); i++) allTargetedTargets.addAll(targets);
+            targets = allTargetedTargets;
+        }
+        return DefaultActorLogicResult.builder()
+                .resultMove(attackMove).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).build();
     }
 
     /**
      * 기본적인 오의 처리
      * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 스테이터스 추가 -> 오의게이지 갱신
+     *
      * @param mainActor
      * @param partyMembers
      * @param standby
@@ -139,7 +146,7 @@ public abstract class EnemyLogic {
      *
      * @param mainActor
      * @param partyMembers
-     * @param standby 오의(전조) 타입 조회를 위해 필요
+     * @param standby            오의(전조) 타입 조회를 위해 필요
      * @param chargeAttack
      * @param modifiedDamageRate
      * @return DefaultActorLogicResult
@@ -159,9 +166,8 @@ public abstract class EnemyLogic {
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         mainEnemy.setCurrentStandbyType(null);
         mainEnemy.setNextIncantStandbyType(null);
-        // 후행동 확인 (적은 후행동 통상공격만)
-        MoveType nextMoveType = hasBattleStatus(mainActor, "재공격") ? MoveType.ATTACK : null;
-        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).nextMoveType(nextMoveType).build();
+        return DefaultActorLogicResult.builder()
+                .resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).build();
     }
 
     /**
@@ -256,14 +262,14 @@ public abstract class EnemyLogic {
         // 감싸기 효과 적용 확인
         Optional<BattleStatus> substituteEffect = getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
         return substituteEffect
-                .map(battleStatus -> isAllTarget ?
-                        Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor()) : // 전체타겟인 경우 전원분 감싸기 id
-                        Collections.nCopies(hitCount, battleStatus.getBattleActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
-                .orElseGet(() -> isAllTarget ?
-                        partyMembers :
-                        IntStream.range(0, hitCount)
-                                .mapToObj(i -> partyMembers.get((int) (Math.random() * partyMembers.size())))
-                                .toList());
+                .map(battleStatus -> isAllTarget
+                        ? Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor())  // 전체타겟인 경우 전원분 감싸기 id
+                        : Collections.nCopies(hitCount, battleStatus.getBattleActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
+                .orElseGet(() -> isAllTarget
+                        ? partyMembers
+                        : IntStream.range(0, hitCount)
+                        .mapToObj(i -> partyMembers.get((int) (Math.random() * partyMembers.size())))
+                        .toList());
     }
 
     // 가변 오버라이드 (내부사용)

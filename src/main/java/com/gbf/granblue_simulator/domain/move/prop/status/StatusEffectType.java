@@ -14,8 +14,8 @@ public enum StatusEffectType {
     // 배수항
     JAMMED, // [최대상승배율] - 감소없음
     // 별항
-    ATK_UNIQUE_UP, //[상승배율]
-    ATK_UNIQUE_DOWN, // [감소배율]
+    ATK_UP_UNIQUE, //[상승배율]
+//    ATK_DOWN_UNIQUE, // [감소배율]
     // 공격 데미지 상승
     SUPPLEMENTAL_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
     SUPPLEMENTAL_ATTACK_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
@@ -53,18 +53,17 @@ public enum StatusEffectType {
     TAKEN_DAMAGE_FIX, // 피격 최대 데미지 고정 [고정수치]
 
     BARRIER, // [베리어 수치]
-    
 
     // 더블어택 / 트리플 어택
-    // 반드시~ -> 10.0 (1000%)
+    // 반드시~ -> 999 (9999%)
     DOUBLE_ATTACK_RATE_UP, // [상승배율]
     DOUBLE_ATTACK_RATE_DOWN, // [감소배율]
     TRIPLE_ATTACK_RATE_UP, // [상승배율]
     TRIPLE_ATTACK_RATE_DOWN, // [감소배율]
 
-    // 재공격
-    DOUBLE_STRIKE, // [2]
-    TRIPLE_STRIKE, // [3]
+    // 공격 행동관련
+    MULTI_STRIKE, // 다회공격 [공격횟수]
+    SUBJUGATED, // 장악 [1]
 
     // 크리티컬
     CRITICAL_RATE_UP, // [상승배율]
@@ -93,6 +92,7 @@ public enum StatusEffectType {
     // 디버프저항 [가산배율]
     DEBUFF_RESIST_DOWN,
     DEBUFF_RESIST_UP,
+    MOUNT, // 마운트 [1]
 
     // 오의게이지
     ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
@@ -101,16 +101,19 @@ public enum StatusEffectType {
     CHARGE_TURN_INCREASE_UP, // [증가수치]
     CHARGE_TURN_INCREASE_DOWN, // [감소수치]
     CHARGE_TURN_FIX, // 공포, 장악 효과 [0]
-    PETRIFIED, // 공포 [1]
+    PETRIFIED, // 공포 [1] -> 오의게이지 감소배율 999 로 변경예정
+    CHARGE_ATTACK_SEALED, // 오의 봉인 [1]
+    MULTI_CHARGE_ATTACK, // 오의 다회발동 [2] 현재 구현상 2회발동 밖에 없음
 
     // 페이탈 체인
     ACT_FATAL_CHAIN_GAUGE_UP, // 페이탈 체인 게이지 상승 [상승할 페이탈 체인 게이지 수치]
 
+    // 어빌리티
+    ABILITY_SEALED, // 어빌리티 봉인[1]
+    // 쿨다운은 로직에서 처리
+
     // 도트데미지 류
     BURNED, // 작열 [턴당 받을 데미지]
-
-    // 디스펠가드
-    DISPEL_GUARD, // [횟수, 1로고정]
 
     // 방어 특수
     IMMORTAL, // 불사신 효과 [버틸 횟수 1]
@@ -133,7 +136,8 @@ public enum StatusEffectType {
     TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
 
     // 디스펠 클리어
-    ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~]
+    ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~ , 적은 99 (모두디스펠)]
+    ACT_DISPEL_GUARD, // 디스펠 가드 [1]
     ACT_CLEAR, // 클리어 [클리어 횟수 1 ~ 99]
     
     // 차지게이지 증가
@@ -149,7 +153,9 @@ public enum StatusEffectType {
     // 테스트
     TEST,
 
-    // 여기선 List<BattleCharacter>, Enemy, StatusEffect 세개 다 받아야 할듯.
+    // 턴종 처리
+    TURN_RECOVERY // 재생효과
+
 
     ;
 

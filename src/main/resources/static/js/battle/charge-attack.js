@@ -15,7 +15,7 @@ async function processChargeAttack(response) {
 
     // 데미지 채우기
     let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'chargeAttack', 0, response.damages[0], []);
-    $('.charge-attack-damage-wrapper').append($damageElements.$damage);
+    $('<div>', {class: 'charge-attack-damage-wrapper'}).append($damageElements.$damage).appendTo($('#chargeAttackDamageContainer'))
 
     // 이펙트 종료 직전부터 데미지, 피격이펙트 재생
     let effectHitDelay = effectDuration - 250; // 히트 시점을 끝나기 0.25초전으로
@@ -65,15 +65,10 @@ async function processEnemyChargeAttackPreEffect() {
 
 async function processEnemyChargeAttack(response) {
     await processEnemyChargeAttackPreEffect();
-    let isAllTarget = response.allTarget;
-    let uniqueTargetOrders = [...new Set(response.enemyAttackTargetOrders)];
-    let damageCount = response.damages.length; // 데미지 발생 카운트 (추격제외)
 
     // 준비
     let $enemyVideo = getVideo(0, response.moveType, MoveType.IDLE_DEFAULT);
-    let effectHitDelay = Number($enemyVideo.effect.attr('data-effect-hit-delay')); // 이펙트 시작 ~ 데미지 표시 까지 딜레이
     let effectDuration = $enemyVideo.effect ? $enemyVideo.effect.get(0).duration * 1000 : 0;
-    let effectHitDuration = (effectDuration - effectHitDelay) / damageCount; // 1타가 사용할 길이
     let standbyIdleClassName = MoveType.byClassName($('.enemy-video-container').attr('data-standby-move-class')).getIdleType().className;
     let $standbyIdleVideo = $('.enemy-video-container .' + standbyIdleClassName);
     // 준비 - 아군 (0번은 사용안함)
@@ -98,46 +93,8 @@ async function processEnemyChargeAttack(response) {
     $standbyIdleVideo.addClass('hidden').get(0).pause(); // standbyIdle 정지, 숨김
     playVideo($enemyVideo.effect, null, $enemyVideo.idle);
 
-    // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
-    let $appendedEnemyDamageWrappers = [];
-    uniqueTargetOrders.forEach(targetOrder => {
-        $appendedEnemyDamageWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + targetOrder}).appendTo($('#damageContainer')));
-    })
-    //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
-    response.damages.forEach(function (damage, index) {
-        let startDelay = isAllTarget ? 0 : effectHitDuration * index; // 오의는 전체공격시 1타뿐이므로 0 (+ efectHitDelay)
-        let targetOrder = isAllTarget ?
-            response.enemyAttackTargetOrders[index % response.enemyAttackTargetOrders.length] :
-            response.enemyAttackTargetOrders[index];
-        let elementType = response.elementTypes[index];
-
-        // 데미지 채우기
-        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, response.additionalDamages[index], true);
-        let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
-        $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
-
-        setTimeout(function () {
-            // console.log('[processEnemyChargeAttack] index = ', index, ' startDelay = ', startDelay, ' effectHitDelay = ', effectHitDelay);
-            // 데미지 표시
-            $damageElements.$damage.addClass('enemy-damage-show');
-            // 추가데미지 표시
-            $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
-                setTimeout(function () {
-                    $(additionalDamage).addClass('enemy-damage-show');
-                }, (index + 1) * 100);
-            });
-            // 아군 피격 재생
-            playVideo($partyVideos[targetOrder].effect, null, $partyVideos[targetOrder].idle);
-            // 마지막 공격시 종료후 데미지 삭제.
-            if (index >= response.damages.length - 1) {
-                setTimeout(function () {
-                    $appendedEnemyDamageWrappers.forEach(function (wrapper) {
-                        $(wrapper).remove();
-                    })
-                }, 1000);
-            }
-        }, startDelay + effectHitDelay)
-    })
+    // 데미지 후처리 (데미지 표시, 아군 피격 재생)
+    enemyDamagesPostProcess(response, $enemyVideo, $partyVideos);
 
     // 스테이터스 아이콘 갱신
     processStatusIconSync(response.currentBattleStatusesList, effectDuration + 500);

@@ -1,8 +1,11 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
@@ -12,7 +15,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,14 +36,19 @@ public abstract class CharacterLogic {
     // 필수 오버라이드
     // 전투 시작시 효과
     public abstract List<ActorLogicResult> processBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+
     // 통상공격
     protected abstract ActorLogicResult attack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+
     // 오의
     protected abstract ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
+
     // 아군이 ~ 할때 효과
     public abstract ActorLogicResult postProcessToPartyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult);
+
     // 적이 ~ 할때 효과
     public abstract ActorLogicResult postProcessToEnemyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult enemyMoveResult);
+
     // 턴 종료시 효과
     public abstract List<ActorLogicResult> processTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
@@ -52,33 +59,38 @@ public abstract class CharacterLogic {
 
     /**
      * 공격 행동을 수행
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
-     * @param moveType 공격 또는 오의 를 지정. 후행동으로 지정된 타입을 실행하려면 타입입력, 턴 진행시 자동으로 연산하려면 null
      * @return
      */
-    public ActorLogicResult processAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, MoveType moveType) {
+    public ActorLogicResult processStrike(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         boolean readyChargeAttack = mainActor.getChargeGauge() >= mainActor.getActor().getMaxChargeGauge();
+        boolean chargeAttackSealed = StatusUtil.getBattleStatusByEffectType(mainActor, StatusEffectType.CHARGE_ATTACK_SEALED) != null;
+        boolean isChargeAttackOn = mainActor.getMember().isChargeAttackOn(); // 오의 발동 on 여부
         if (mainActor.isGuardOn()) return defaultGuard(mainActor, enemy, partyMembers);
-        return moveType == MoveType.CHARGE_ATTACK_DEFAULT || readyChargeAttack ?
+        mainActor.increaseStrikeCount(); // 공격행동 횟수 증가, 가드와 턴진행없이 일반공격에서는 이 카운트를 건드리지 않음
+        return isChargeAttackOn && readyChargeAttack && !chargeAttackSealed ?
                 chargeAttack(mainActor, enemy, partyMembers) :
                 attack(mainActor, enemy, partyMembers);
     }
 
     /**
-     * 통상 공격을 수행 (후행동)
+     * 통상 공격을 수행
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
      * @return
      */
-    public ActorLogicResult processNormalAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+    public ActorLogicResult processAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         return attack(mainActor, enemy, partyMembers);
     }
 
     /**
      * 오의를 수행 (후행동)
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -106,6 +118,7 @@ public abstract class CharacterLogic {
     /**
      * 기본적인 공격처리
      * 공격 행동 결정(평타횟수) -> 데미지 계산 -> 오의게이지 갱신
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -127,6 +140,7 @@ public abstract class CharacterLogic {
     /**
      * 기본적인 오의 처리
      * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 스테이터스 추가 -> 오의게이지 갱신
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -143,42 +157,80 @@ public abstract class CharacterLogic {
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, chargeAttack.getStatuses());
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
-        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+        // 오의 재발동
+        BattleStatus multiChargeAttackStatus = StatusUtil.getBattleStatusByEffectType(mainActor, StatusEffectType.MULTI_CHARGE_ATTACK);
+        boolean isMultiChargeAttack = multiChargeAttackStatus != null;
+        if (isMultiChargeAttack)
+            setStatusLogic.removeBattleStatus(mainActor, multiChargeAttackStatus); // 오의 재발동 플래그 체크후 스테이터스 삭제
+
+        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).executeChargeAttack(isMultiChargeAttack).build();
     }
 
     /**
      * 기본적인 어빌리티, 서포트 어빌리티 처리
-     * 데미지 계산 -> 스테이터스 추가 -> 쿨타임 적용
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
      * @return DefaultActorLogicResult
      */
     protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        return this.defaultAbility(mainActor, enemy, partyMembers, ability, null, null);
+        return this.defaultAbility(mainActor, enemy, partyMembers, ability, null, null, null);
     }
 
     /**
-     * 기본적인 어빌리티, 서포트 어빌리티 처리 (배율 변화 및 히트수 변화 있음)
-     * 데미지 배율 및 히트수 확인 -> 데미지 계산 -> 스테이터스 추가 -> 쿨타임 적용
+     * 기본적인 어빌리티, 서포트 어빌리티 처리 (스테이터스 선택식)
+     *
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @return DefaultActorLogicResult
+     */
+    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability, List<Status> selectedStatuses) {
+        return this.defaultAbility(mainActor, enemy, partyMembers, ability, null, null, selectedStatuses);
+    }
+
+    /**
+     * 기본적인 어빌리티, 서포트 어빌리티 처리 (배율 변화, 히트수 변화 있음)
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
      * @param modifiedDamageRate : 변경할 어빌리티 배율 (기본배율 사용시 null)
-     * @param modifiedHitCount : 변경할 히트수 (기본 히트수 사용시 null)
+     * @param modifiedHitCount   : 변경할 히트수 (기본 히트수 사용시 null)
      * @return DefaultActorLogicResult
      */
     protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
+        return this.defaultAbility(mainActor, enemy, partyMembers, ability, modifiedDamageRate, modifiedHitCount, null);
+    }
+
+
+    /**
+     * 기본적인 어빌리티, 서포트 어빌리티 처리 (배율 변화, 히트수 변화, 스테이터스 변화 모두 있음)
+     * 데미지 배율, 히트수, 스테이터스 확인 -> 데미지 계산 -> 스테이터스 추가 -> 쿨타임 적용
+     *
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @param ability
+     * @param modifiedDamageRate : 변경할 어빌리티 배율 (기본배율 사용시 null)
+     * @param modifiedHitCount   : 변경할 히트수 (기본 히트수 사용시 null)
+     * @param selectedStatuses   : 변경(선택)할 스테이터스 (어빌리티의 기본 모든 스테이터스 사용시 null)
+     * @return DefaultActorLogicResult
+     */
+    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount, List<Status> selectedStatuses) {
         // 데미지 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : ability.getDamageRate();
         // 히트수 변경 확인
         int hitCount = modifiedHitCount != null ? modifiedHitCount : ability.getHitCount();
+        // 스테이터스 변경 확인
+        List<Status> statuses = selectedStatuses != null ? selectedStatuses : ability.getStatuses();
         // 데미지 계산
         DamageLogicResult damageLogicResult = hitCount > 0 ?
                 damageLogic.process(mainActor, enemy, ability.getType(), ability.getElementType(), damageRate, hitCount) :
                 null;
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, ability.getStatuses());
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, statuses);
         // 쿨다운 설정
         MoveType abilityType = ability.getType();
         Integer coolDown = ability.getCoolDown();

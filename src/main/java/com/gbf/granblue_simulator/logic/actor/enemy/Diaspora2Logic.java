@@ -37,7 +37,7 @@ public class Diaspora2Logic extends EnemyLogic {
     public ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers) {
         DefaultActorLogicResult attackResult = defaultAttack(mainActor, partyMembers);
         List<Integer> targetOrders = attackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders, attackResult.getNextMoveType());
+        return resultMapper.attackToResult(mainActor, partyMembers, attackResult.getResultMove(), attackResult.getDamageLogicResult(), targetOrders);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class Diaspora2Logic extends EnemyLogic {
                                 chargeAttack.getDamageRate(); // 기본배율
         DefaultActorLogicResult chargeAttackResult = defaultChargeAttack(mainActor, partyMembers, standby, chargeAttack, damageRate);
         List<Integer> targetOrders = chargeAttackResult.getEnemyAttackTargets().stream().map(BattleActor::getCurrentOrder).toList();
-        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult(), chargeAttackResult.getNextMoveType());
+        return resultMapper.toResult(mainActor, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), targetOrders, chargeAttackResult.getSetStatusResult());
     }
 
     @Override
@@ -126,7 +126,7 @@ public class Diaspora2Logic extends EnemyLogic {
             log.info("[firstSupportAbility] addLevel = {}, matchedLevel = {}, takenDamageSum = {}", addLevel, matchedBattleStatus.getLevel(), takenDamageSum);
             if (addLevel > 0) {
                 // 모드 레벨 상승 (결과 반환 x) - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
-                setStatusLogic.addBattleStatusLevel(mainActor, addLevel, false, matchedBattleStatus.getStatus().getId());
+                setStatusLogic.addBattleStatusLevel(mainActor, addLevel, matchedBattleStatus.getStatus().getId());
                 // 가하는 데미지 상승 및 재공격 적용 (결과 반환 ㅇ)
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, ability);
                 return resultMapper.toResultWithEffect(mainActor, partyMembers, ability, null, null, setStatusResult, true, false);
@@ -138,7 +138,7 @@ public class Diaspora2Logic extends EnemyLogic {
     @Override // 자신의 전조 이성임계(STANDBY_C)가 해제될 경우 자신의 임계 도달 레벨 감소
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         SetStatusResult setStatusResult =getBattleStatusByName(mainActor, "임계 도달")
-                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, true, battleStatus))
+                .map(battleStatus -> setStatusLogic.subtractBattleStatusLevel(mainActor, 1, battleStatus))
                 .orElse(null);
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }

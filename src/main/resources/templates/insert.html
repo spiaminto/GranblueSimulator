@@ -89,26 +89,6 @@
                   }).end().html())
           })
 
-// placeholder
-          $('input, textarea').each(function (index, element) {
-              if (element.name.includes('ideo')) {
-                  element.value = '/static/assets/video/ch/';
-              } else if (element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait')) { // mage 하면 damage 랑겹침
-                  element.value = '/static/assets/img/ch/'
-              } else if (element.name.includes('udio')) {
-                  element.value = '/static/assets/audio/ch/'
-              }
-          })
-
-          $('.apply-name-button').on('click', function () {
-              let nameEnVal = $("input[name='nameEn']").val();
-              $('input, textareat').each(function (index, element) {
-                  if (element.name.includes('ideo') || element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes('udio')) {
-                      element.value = element.value + nameEnVal + '/';
-                  }
-              })
-          })
-
 // 스테이터스 체크
           $('.status-input-check').change(function () {
               $(this).is(':checked') ? $(this).parent().next().show() : $(this).parent().next().find('input').val('').end().hide();
@@ -117,10 +97,6 @@
           $('.character-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#characterInputForm').get(0));
               ajaxRequest("/insert/character", requestData);
-          })
-          $('.idle-and-attack-submit-button').on('click', function (e) {
-              let requestData = serializeJson($('#idleAndAttackInputForm').get(0));
-              ajaxRequest("/insert/idle-and-attack", requestData);
           })
           $('.charge-attack-submit-button').on('click', function (e) {
               e.preventDefault();
@@ -145,7 +121,7 @@
                   url: url,
                   contentType: "application/json",
                   headers: {
-                      // 'X-CSRF-TOKEN': $('#csrfToken').val()
+                      'X-CSRF-TOKEN': $('#csrfToken').val()
                   },
                   data: requestData,
                   success: function (data) {
@@ -159,15 +135,62 @@
               })
           }
 
+
+          // 폼 저장
+          $('.form-save-button').on('click', function() {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              // input, textarea 값 저장
+              let data = {};
+              $form.find('input, textarea').each(function() {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  data[name] = $input.attr('type') === 'checkbox' ? $input.prop('checked') : $input.val();
+              });
+              // status-input-wrapper 체크박스 상태 별도로 저장 (show, hide용)
+              data.statusChecks = $form.find('.status-input-check').toArray().map(inputCheck =>
+                  $(inputCheck).prop('checked')
+              );
+              localStorage.setItem(formName, JSON.stringify(data));
+              alert('저장');
+          });
+
+          // 폼 복원
+          $('.form-load-button').on('click', function() {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              let data = JSON.parse(localStorage.getItem(formName));
+              if (!data) { return; }
+              // input, textarea 값 복원
+              $form.find('input, textarea').each(function() {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
+              });
+              // status 체크박스 show/hide 및 입력란 표시
+              $form.find('.status-input-check').each(function(idx) {
+                  let checked = data.statusChecks && data.statusChecks[idx];
+                  $(this).prop('checked', !!checked).trigger('change');
+              });
+              alert('복원');
+          });
+
           // ready
       })
   </script>
 </head>
 <body>
 
+<form id="csrfForm">
+  <input type="hidden" id="csrfToken" name="_csrf" th:value="${_csrf.token}">
+</form>
+
 <h1>캐릭터 삽입</h1>
 
 <h2>character</h2>
+<p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
 <form id="characterInputForm" target="/input-character" method="POST">
   <div>character.name</div>
   <input class="form-control mb-2" type="text" name="name" placeholder="">
@@ -175,49 +198,20 @@
   <input class="form-control mb-2" type="text" name="elementType" placeholder="">
   <div>영문명 Actor.nameEn</div>
   <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
-  <button type="button" class="apply-name-button btn btn-primary">이름 적용</button>
   <div>주인공 여부 Actor.isMainCharacter [true/false]</div>
-  <input class="form-control mb-2" type="text" name="isMainCharacter" placeholder="">
-  <div>battlePortraitSrc [.jpg]</div>
-  <input class="form-control mb-2" type="text" name="battlePortraitSrc" placeholder="">
+  <input class="form-control mb-2" type="text" name="isMainCharacter" placeholder="" value="false">
   <button type="button" class="character-submit-button btn btn-primary">캐릭터저장</button>
 </form>
 
 <hr>
-<h2>idle and attack</h2>
-<div class="attack-input-wrapper">
-  <form id="idleAndAttackInputForm">
-    <div>characterId</div>
-    <input class="form-control mb-2" type="text" name="characterId" placeholder="">
-    <h3>idle</h3>
-    <div>asset.effectVideo</div>
-    <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
-
-    <h3>single</h3>
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="singleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
-    <input class="form-control mb-2" type="text" name="singleAttackSeAudioSrc" placeholder="">
-
-    <h3>double</h3>
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="doubleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
-    <input class="form-control mb-2" type="text" name="doubleAttackSeAudioSrc" placeholder="">
-
-    <h3>triple</h3>
-    <div>asset.effectVideo.src</div>
-    <input class="form-control mb-2" type="text" name="tripleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
-    <input class="form-control mb-2" type="text" name="tripleAttackSeAudioSrc" placeholder="">
-
-    <button type="button" class="btn btn-primary idle-and-attack-submit-button">아이들, 어택 저장</button>
-  </form>
-</div>
 
 <h2>charge attack</h2>
 <div class="charge-attack-input-wrapper">
   <form id="chargeAttackForm">
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="chargeAttackForm" value = "저장">
+    <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="chargeAttackForm" value="복원">
+
     <div>CharacterId</div>
     <input class="form-control mb-2" type="text" name="characterId" placeholder="">
 
@@ -225,10 +219,6 @@
     <input class="form-control mb-2" type="text" name="name" placeholder="">
     <div>info 오의 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
-    <div>effectVideoSrc 이펙트 비디오</div>
-    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
-    <div>seAudioSrc SE 오디오</div>
-    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
 
     <h3>status1</h3>
     <div class="form-check">
@@ -280,7 +270,12 @@
 <h2> ability </h2>
 
 <div class="ability-input-wrapper">
+
   <form id="abilityForm">
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="abilityForm" value = "저장">
+    <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="abilityForm" value="복원">
+
     <div>캐릭터 id</div>
     <input class="form-control mb-2" type="text" name="characterId" placeholder="">
 
@@ -297,23 +292,12 @@
     <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
     <div>coolDown: 어빌리티 쿨타임</div>
     <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
-    <div>duration: 어빌리티 효과시간 (두개 이상일 경우 쉼표로 구분하여 작성, 로직용 아니고 표현용)</div>
-    <input class="form-control mb-2" type="text" name="duration" placeholder="">
 
-    <div>iconSrc: asset.iconImageSrc 에서 사용</div>
-    <input class="form-control mb-2" type="text" name="iconSrc" placeholder="">
+    <div>hasSupportAbilityEffect 서포트 어빌리티가 이펙트를 가지는지 여부 (일반 어빌리티는 상관x)</div>
+    <input class="form-control mb-2" type="text" name="hasSupportAbilityEffect" placeholder="" value="false">
+    <div>hasMotion (모션 있는지 여부, 900p 짜리랑 서포트 어빌리티는 없음(false). DB저장 x)</div>
+    <input class="form-control mb-2" type="text" name="hasMotion" placeholder="" value="true">
 
-    <div>이펙트 비디오 asset.effectVideo</div>
-    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
-    <div>모션 비디오 asset.motionVideo</div>
-    <input class="form-control mb-2" type="text" name="motionVideoSrc" placeholder="">
-    <div>모션 비디오 풀사이즈 여부 true/false 로 쓸것 boolean 임 asset.motionVideoFull</div>
-    <input class="form-control mb-2" type="text" name="motionVideoFull" placeholder="">
-
-    <div>SE 오디오 asset.seAudioSrc</div>
-    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
-    <div>Voice 오디오 asset.voiceAudioSrc</div>
-    <input class="form-control mb-2" type="text" name="voiceAudioSrc" placeholder="">
 
     <h3>status1</h3>
     <div class="form-check">
@@ -355,18 +339,42 @@
     <div class="status-input-wrapper">
     </div>
 
+    <h3>status6</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status7</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status8</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
     <button type="button" class="btn btn-primary ability-submit-button">어빌리티</button>
   </form>
 </div>
 
 <!-- 스테이터스 추가 원본 -->
 <div class="status-input-wrapper-origin">
-  <div>type 타입</div>
+  <div>type 타입 BUFF, DEBUFF, ...</div>
   <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
   <div>effectText 이펙트 텍스트 (name 동일값)</div>
   <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
   <div>maxLevel 최대레벨, 없으면 0</div>
-  <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="">
+  <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="" value="0">
   <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ...</div>
   <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
   <div>statusText 스테이터스 텍스트</div>
@@ -374,7 +382,7 @@
   <div>duration 효과시간</div>
   <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
   <div>removable 소거불가, 해제불가, 회복불가 여부, 소거불가이면 false 가능이면 true</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="">
+  <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="" value="true">
   <div>isResistible 필중여부, 필중이면 false 필중 아니면 true</div>
   <input class="form-control mb-2" type="text" name="statuses[0].isResistible" placeholder="" value="true">
 
@@ -382,19 +390,23 @@
   <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
   <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
 
-  <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
-  <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
 </div>
 
 
 <h2>summon 입력, ID = 6 고정</h2>
 <div class="summon-input-wrapper">
   <form id="summonForm">
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="summonForm" value = "저장">
+    <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="summonForm" value="복원">
+
     <div>CharacterId</div>
     <input class="form-control mb-2" type="text" name="characterId" placeholder="" value="6">
 
     <div>name 솬석 이름</div>
     <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>name 솬석 영어 이름 (src 경로용, DB 저장 x)</div>
+    <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
     <div>info 솬석 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
     <div>iconSrc: asset.iconImageSrc 에서 사용, battle-portrait</div>
@@ -405,7 +417,7 @@
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
     <div>hitCount: 히트수</div>
     <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
-    <div>coolDown: 어빌리티 쿨타임</div>
+    <div>coolDown: 솬석 쿨타임</div>
     <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
     <div>effectVideoSrc 이펙트 비디오</div>
     <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="" value="/static/assets/video/summon/이름입력/effect-video.mp4">

@@ -114,3 +114,40 @@ function processGuard(response) {
         audioPlayer.playAllSounds();
     })
 }
+
+/**
+ * 오의 on off
+ * @param chargeAttackActiveChecked
+ */
+function requestToggleChargeAttack(chargeAttackActiveChecked) {
+    console.log(`[requestToggleChargeAttack] chargeAttackActiveChecked = ${chargeAttackActiveChecked}`);
+    window.effectAudioPlayer.loadSound(GlobalSrc.BEEP.audio).then(() => {
+        window.effectAudioPlayer.playAllSounds();
+    })
+    let roomId = $('#roomInfo').data('room-id');
+    $.ajax({
+        url: '/api/toggle-charge-attack',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('#csrfToken').val()
+        },
+        data: JSON.stringify({
+            roomId: roomId,
+            chargeAttackOn: chargeAttackActiveChecked
+        }),
+        async: false,
+        success: function (response) {
+            // console.log(response);
+            $('#chargeAttackActiveCheck').prop('checked', response.chargeAttackOn);
+            if (response.chargeAttackOn === true) {
+                window.effectAudioPlayer.loadSound(GlobalSrc.CHARGE_ATTACK_READY.audio).then(() => {
+                    window.effectAudioPlayer.playAllSounds();
+                })
+            }
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+}

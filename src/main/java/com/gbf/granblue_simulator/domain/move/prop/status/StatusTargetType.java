@@ -8,6 +8,7 @@ public enum StatusTargetType {
     MAIN_CHARACTER, // 주인공
 
     PARTY_MEMBERS,  // 아군 전체
+    PARTY_MEMBERS_NOT_SELF, // 자신을 제외한 아군전체
 
 
     ENEMY,  // 적

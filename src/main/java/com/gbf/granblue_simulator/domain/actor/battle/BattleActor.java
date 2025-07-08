@@ -14,6 +14,7 @@ import org.hibernate.annotations.Type;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @SuperBuilder
@@ -74,6 +75,8 @@ public abstract class BattleActor {
     private Double chargeGaugeIncreaseRate; // 오의 게이지 증가율
 
     private Integer substitute; // 감싸기 (우선순위, 1 2 존재)
+
+    private int strikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
 
     // 어빌리티 쿨다운, 각 어빌리티 1턴당 사용횟수. 나중에 분리할수도
     private Integer firstAbilityCoolDown;
@@ -156,6 +159,38 @@ public abstract class BattleActor {
 
     public void toggleGuard() {
         this.isGuardOn = !this.isGuardOn;
+    }
+
+    public void increaseStrikeCount() {
+        this.strikeCount++;
+    }
+
+    public void resetStrikeCount() {
+        this.strikeCount = 0;
+    }
+
+    /**
+     * 어빌리티의 쿨타임을 단축
+     * @param count 단축할 턴수
+     * @param orders 단축할 어빌리티의 순서들
+     */
+    public void shortenAbilityCoolDowns(int count, int... orders) {
+        for (int order : orders) {
+            switch (order) {
+                case 1:
+                    firstAbilityCoolDown = Math.max(0, firstAbilityCoolDown - count);
+                    break;
+                case 2:
+                    secondAbilityCoolDown = Math.max(0, secondAbilityCoolDown - count);
+                    break;
+                case 3:
+                    thirdAbilityCoolDown = Math.max(0, thirdAbilityCoolDown - count);
+                    break;
+                case 4:
+                    fourthAbilityCoolDown = Math.max(0, fourthAbilityCoolDown - count);
+                    break;
+            }
+        }
     }
 
     /**

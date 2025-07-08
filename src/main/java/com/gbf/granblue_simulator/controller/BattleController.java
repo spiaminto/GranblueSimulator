@@ -1,9 +1,14 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.request.*;
+import com.gbf.granblue_simulator.auth.PrincipalDetails;
+import com.gbf.granblue_simulator.controller.request.battle.GuardRequest;
+import com.gbf.granblue_simulator.controller.request.battle.MoveRequest;
+import com.gbf.granblue_simulator.controller.request.battle.ToggleChargeAttackRequest;
+import com.gbf.granblue_simulator.controller.request.battle.TurnProgressRequest;
 import com.gbf.granblue_simulator.controller.response.battle.BattleResponse;
 import com.gbf.granblue_simulator.controller.response.battle.GuardResponse;
 import com.gbf.granblue_simulator.controller.response.battle.StatusDto;
+import com.gbf.granblue_simulator.controller.response.battle.ToggleChargeAttackResponse;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
@@ -19,9 +24,11 @@ import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleCharacterRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleEnemyRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
+import com.gbf.granblue_simulator.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +48,7 @@ public class BattleController {
     private final MoveRepository moveRepository;
 
     private final BattleLogic battleLogic;
+    private final MemberService memberService;
 
 
     @GetMapping("/api/enemy-src")
@@ -172,11 +180,11 @@ public class BattleController {
                                 battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
                                         .map(battleStatus ->
                                                 StatusDto.builder()
-                                                        .type(battleStatus.getStatus().getType().name())
-                                                        .name(battleStatus.getStatus().getName())
+                                                        .type(battleStatus.getStatusType().name())
+                                                        .name(battleStatus.getName())
                                                         .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getStatus().getEffectText())
-                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .effectText(battleStatus.getEffectText())
+                                                        .statusText(battleStatus.getStatusText())
                                                         .duration(battleStatus.getDuration())
                                                         .build()
                                         ).toList()
@@ -186,11 +194,11 @@ public class BattleController {
                                 battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
                                         .map(battleStatus ->
                                                 StatusDto.builder()
-                                                        .type(battleStatus.getStatus().getType().name())
-                                                        .name(battleStatus.getStatus().getName())
+                                                        .type(battleStatus.getStatusType().name())
+                                                        .name(battleStatus.getName())
                                                         .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getStatus().getEffectText())
-                                                        .statusText(battleStatus.getStatus().getStatusText())
+                                                        .effectText(battleStatus.getEffectText())
+                                                        .statusText(battleStatus.getStatusText())
                                                         .duration(battleStatus.getDuration())
                                                         .build()
                                         ).toList()
@@ -217,10 +225,13 @@ public class BattleController {
 
     @PostMapping("/api/guard")
     @ResponseBody
-    public ResponseEntity<GuardResponse> guard(@RequestBody GuardRequest guardRequest) {
+    public ResponseEntity<GuardResponse> guard(@RequestBody GuardRequest guardRequest,
+                                               @AuthenticationPrincipal PrincipalDetails principalDetails) {
         log.info("guard request: {}", guardRequest);
         long memberId = guardRequest.getMemberId();
         long characterId = guardRequest.getCharacterId();
+        
+        // TODO 검증
 
         List<BattleActor> partyMembers = battleCharacterRepository.findByMemberIdOrderByCurrentOrderAsc(memberId);
         List<BattleActor> allActors = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).stream().sorted(Comparator.comparing(BattleActor::getCurrentOrder)).toList();
@@ -233,6 +244,22 @@ public class BattleController {
                 .guardResults(guardResults)
                 .build();
         return ResponseEntity.ok(guardResponse);
+    }
+
+    @PostMapping("/api/toggle-charge-attack")
+    @ResponseBody
+    public ResponseEntity<ToggleChargeAttackResponse> chargeAttackOn(@RequestBody ToggleChargeAttackRequest request,
+                                                                     @AuthenticationPrincipal PrincipalDetails principalDetails) {
+        log.info("chargeAttackOnRequest = {}", request);
+        
+        // TODO 검증
+        Long userId = principalDetails == null ? 1L : principalDetails.getId();
+        
+        boolean chargeAttackOn = memberService.updateChargeAttackOn(request.getRoomId(), userId, request.isChargeAttackOn());
+        ToggleChargeAttackResponse response = ToggleChargeAttackResponse.builder()
+                .chargeAttackOn(chargeAttackOn)
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     public void init() {

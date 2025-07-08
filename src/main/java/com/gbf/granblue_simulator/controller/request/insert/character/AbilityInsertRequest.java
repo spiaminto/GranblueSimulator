@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class AbilityRequest {
+public class AbilityInsertRequest {
     private Long characterId;
 
     private String type;
@@ -15,15 +15,8 @@ public class AbilityRequest {
     private Double damageRate;
     private Integer hitCount;
     private Integer coolDown;
-    private String duration;
-
-
-    private String iconSrc;
-    private String effectVideoSrc;
-    private String motionVideoSrc;
-    private boolean motionVideoFull;
-    private String seAudioSrc;
-    private String voiceAudioSrc;
+    private String hasMotion;
+    private String hasSupportAbilityEffect;
 
     private List<AbilityStatus> statuses; // 최대 5개
 
@@ -39,7 +32,6 @@ public class AbilityRequest {
         private Integer duration;
         private String removable;
         private String isResistible;
-        private String iconSrcs;
 
         private String statusEffects; // type, value \n
     }

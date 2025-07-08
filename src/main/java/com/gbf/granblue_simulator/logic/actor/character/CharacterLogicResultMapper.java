@@ -4,7 +4,9 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
@@ -37,7 +39,23 @@ public class CharacterLogicResultMapper {
      * @return
      */
     public ActorLogicResult attackToResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult) {
-        return map(mainActor, enemy, partyMembers, move, damageLogicResult, null, null);
+        return map(mainActor, enemy, partyMembers, move, damageLogicResult, null, false, null);
+    }
+
+    /**
+     * 오의 결과 맵핑
+     * 오의는 재발동 여부를 체크함
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @param move
+     * @param damageLogicResult
+     * @param statusResult
+     * @param executeChargeAttack 오의 재발동 여부
+     * @return
+     */
+    public ActorLogicResult chargeAttackToResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult, boolean executeChargeAttack) {
+        return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, executeChargeAttack, null);
     }
 
     /**
@@ -53,11 +71,11 @@ public class CharacterLogicResultMapper {
      * @return
      */
     public ActorLogicResult toResult(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult) {
-        return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, null);
+        return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, false, null);
     }
 
     /**
-     * 일반 결과 맵핑에 후 행동이 있을 경우 후행동과 함께 결과 맵핑
+     * 턴 진행 없이 공격 포함하는 결과
      *
      * @param mainActor
      * @param enemy
@@ -67,15 +85,14 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResultWithNextMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult, NextMoveRequest nextMoveRequest) {
-        return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, nextMoveRequest);
+    public ActorLogicResult toResultWithExecuteAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult, StatusTargetType executeAttackTargetType) {
+        return map(mainActor, enemy, partyMembers, move, damageLogicResult, statusResult, false, executeAttackTargetType);
     }
 
-    protected ActorLogicResult map(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult setStatusResult, NextMoveRequest nextMoveRequest) {
+    protected ActorLogicResult map(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, SetStatusResult setStatusResult, boolean executeChargeAttack, StatusTargetType executeAttackTargetType) {
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
         if (damageLogicResult == null)
             damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
-        if (nextMoveRequest == null) nextMoveRequest = NextMoveRequest.of(false, null, null); // 후행동이 없을경우 기본객체 생성
         int hitCount = damageLogicResult.getDamages().stream().filter(damage -> damage > 0).toList().size();
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream()
                 .map(additionalDamages -> additionalDamages.stream()
@@ -83,10 +100,7 @@ public class CharacterLogicResultMapper {
                         .toList())
                 .mapToInt(List::size)
                 .sum();
-        int fatalChainGauge = partyMembers.stream()
-                .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
-                .map(BattleActor::getFatalChainGauge).orElseGet(() -> 0);
-
+        
         // 체력
         List<Integer> hps = new ArrayList<>();
         List<Integer> hpRates = new ArrayList<>();
@@ -103,19 +117,26 @@ public class CharacterLogicResultMapper {
         List<Integer> partyMemberChargeGauges = partyMembers.stream().map(BattleActor::getChargeGauge).toList();
         chargeGauges.addAll(partyMemberChargeGauges);
 
-        // 추가된 스테이터스
-        List<BattleStatus> enemyAddedStatus = setStatusResult.getEnemyAddedStatuses();
-        List<List<BattleStatus>> partyMemberAddedStatus = setStatusResult.getPartyMemberAddedStatuses();
-        List<List<BattleStatus>> resultStatusList = new ArrayList<>();
-        resultStatusList.add(enemyAddedStatus);
-        resultStatusList.addAll(partyMemberAddedStatus);
+        // 페이탈 체인 게이지
+        int fatalChainGauge = partyMembers.stream()
+                .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
+                .map(BattleActor::getFatalChainGauge).orElseGet(() -> 0);
 
+        // 추가된 스테이터스
+        List<List<BattleStatusDto>> addedStatusList = setStatusResult.getAddedStatusesList().stream()
+                .map(addedBattleStatuses -> addedBattleStatuses.stream()
+                        .map(BattleStatusDto::of).toList())
+                .toList();
         // 삭제된 스테이터스
-        List<BattleStatus> enemyRemovedStatuses = setStatusResult.getEnemyRemovedStatuses();
-        List<List<BattleStatus>> partyMemberRemovedStatuses = setStatusResult.getPartyMemberRemovedStatuses();
-        List<List<BattleStatus>> removedStatusList = new ArrayList<>();
-        removedStatusList.add(enemyRemovedStatuses);
-        removedStatusList.addAll(partyMemberRemovedStatuses);
+        List<List<BattleStatusDto>> removedStatusList = setStatusResult.getRemovedStatuesList().stream()
+                .map(removedBattleStatuses -> removedBattleStatuses.stream()
+                        .map(BattleStatusDto::of).toList())
+                .toList();
+        // 힐
+        List<Integer> healValues = new ArrayList<>(setStatusResult.getHealValues());
+
+        log.info("[map] addedStatusList = {}", addedStatusList);
+        log.info("[map] removedStatusList = {}", removedStatusList);
 
         // 쿨다운
         List<List<Integer>> cooldownList = new ArrayList<>();
@@ -137,9 +158,9 @@ public class CharacterLogicResultMapper {
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
                 .fatalChainGauge(fatalChainGauge)
-                .addedBattleStatusesList(resultStatusList)
+                .addedBattleStatusesList(addedStatusList)
                 .removedBattleStatusesList(removedStatusList)
-                .heals(setStatusResult.getHealValues())
+                .heals(healValues)
 
                 .totalHitCount(totalHitCount)
                 .attackMultiHitCount(damageLogicResult.getAttackMultiHitCount())
@@ -148,9 +169,8 @@ public class CharacterLogicResultMapper {
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
 
-                .hasNextMove(nextMoveRequest.hasNextMove())
-                .nextMoveType(nextMoveRequest.getNextMoveType())
-                .nextMoveTarget(nextMoveRequest.getNextMoveTarget())
+                .executeChargeAttack(executeChargeAttack)
+                .executeAttackTargetType(executeAttackTargetType)
                 .build();
     }
 

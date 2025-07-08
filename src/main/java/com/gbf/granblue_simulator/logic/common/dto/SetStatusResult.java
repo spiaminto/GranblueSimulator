@@ -10,15 +10,11 @@ import java.util.List;
 @Data
 @Builder
 public class SetStatusResult {
+    // order by currentOrder [적][아군][아군][아군][아군]
     @Builder.Default
-    private List<BattleStatus> enemyAddedStatuses = new ArrayList<>();
+    private List<List<BattleStatus>> addedStatusesList = new ArrayList<>();
     @Builder.Default
-    private List<BattleStatus> enemyRemovedStatuses = new ArrayList<>();
-    @Builder.Default
-    private List<List<BattleStatus>> partyMemberAddedStatuses = new ArrayList<>(); // order by currentOrder, 내부원소도 빈리스트로 초기화됨
-    @Builder.Default
-    private List<List<BattleStatus>> partyMemberRemovedStatuses = new ArrayList<>();
+    private List<List<BattleStatus>> removedStatuesList = new ArrayList<>();
     @Builder.Default
     private List<Integer> healValues = new ArrayList<>();
-
 }

@@ -7,7 +7,9 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
@@ -21,6 +23,7 @@ public class EnemyLogicResultMapper {
 
     /**
      * 적 로직에서 아무것도 하지않았을때 리턴 (null X)
+     *
      * @return
      */
     public ActorLogicResult emptyResult() {
@@ -30,6 +33,7 @@ public class EnemyLogicResultMapper {
     /**
      * 적의 경우 무브만 필요한때 사용
      * break
+     *
      * @param mainActor
      * @param partyMembers
      * @param move
@@ -42,6 +46,7 @@ public class EnemyLogicResultMapper {
     /**
      * 적의 Omen 결과를 같이 맵핑해야할때 사용
      * STANDBY 시작, 적의 피격으로인한 STANDBY 갱신(전조 갱신), BREAK 때 사용
+     *
      * @param mainActor
      * @param partyMembers
      * @param move
@@ -54,17 +59,19 @@ public class EnemyLogicResultMapper {
 
     /**
      * 데미지만 발생하는 일반공격 결과
+     *
      * @param mainActor
      * @param partyMembers
      * @param move
      * @return
      */
-    public ActorLogicResult attackToResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, MoveType nextMovetype) {
-        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, null, nextMovetype, null, false, false);
+    public ActorLogicResult attackToResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders) {
+        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, null, null, null, false, false);
     }
 
     /**
      * 데미지와 스테이터스가 발생하는 기본결과 맵핑
+     *
      * @param mainActor
      * @param partyMembers
      * @param move
@@ -74,19 +81,10 @@ public class EnemyLogicResultMapper {
         return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, null, null, false, false);
     }
 
-    /**
-     * 데미지와 스테이터스와 후행동이 발생하는 결과 맵핑
-     * @param mainActor
-     * @param partyMembers
-     * @param move
-     * @return
-     */
-    public ActorLogicResult toResult(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> damageTargetOrders, SetStatusResult statusResult, MoveType nextMoveType) {
-        return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, nextMoveType, null, false, false);
-    }
 
     /**
      * 데미지와 스테이터스가 발생하는 기본결과 맵핑
+     *
      * @param mainActor
      * @param partyMembers
      * @param move
@@ -96,13 +94,12 @@ public class EnemyLogicResultMapper {
         return map(mainActor, partyMembers, move, damageLogicResult, damageTargetOrders, statusResult, null, null, powerUp, ctMax);
     }
 
-    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, MoveType nextMoveType, Omen omen, boolean powerUp, boolean ctMax) {
-        List<BattleActor> allActors = new ArrayList<>(partyMembers);
-        allActors.addFirst(mainActor); // 순서 유지
+    protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, StatusTargetType executeAttackTargetType, Omen omen, boolean powerUp, boolean ctMax) {
         if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
-        if (damageLogicResult == null) damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
+        if (damageLogicResult == null)
+            damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
 
-        int hitCount = move.getHitCount() == null ? 0 : move.getHitCount(); // 적은 공격횟수가 가변인경우가 없음
+        int hitCount = move.getHitCount(); // 적은 공격횟수가 가변인경우가 없음
         int totalHitCount = hitCount + damageLogicResult.getAdditionalDamages().stream()
                 .map(additionalDamages -> additionalDamages.stream()
                         .filter(damage -> damage > 0)
@@ -130,18 +127,17 @@ public class EnemyLogicResultMapper {
         chargeGauges.addAll(partyMemberChargeGauges);
 
         // 추가된 스테이터스
-        List<BattleStatus> enemyAddedStatus = setStatusResult.getEnemyAddedStatuses();
-        List<List<BattleStatus>> partyMemberAddedStatus = setStatusResult.getPartyMemberAddedStatuses();
-        List<List<BattleStatus>> addedStatusesList = new ArrayList<>();
-        addedStatusesList.add(enemyAddedStatus);
-        addedStatusesList.addAll(partyMemberAddedStatus);
-
+        List<List<BattleStatusDto>> addedStatusList = setStatusResult.getAddedStatusesList().stream()
+                .map(addedBattleStatuses -> addedBattleStatuses.stream()
+                        .map(BattleStatusDto::of).toList())
+                .toList();
         // 삭제된 스테이터스
-        List<BattleStatus> enemyRemovedStatuses = setStatusResult.getEnemyRemovedStatuses();
-        List<List<BattleStatus>> partyMemberRemovedStatuses = setStatusResult.getPartyMemberRemovedStatuses();
-        List<List<BattleStatus>> removedStatusList = new ArrayList<>();
-        removedStatusList.add(enemyRemovedStatuses);
-        removedStatusList.addAll(partyMemberRemovedStatuses);
+        List<List<BattleStatusDto>> removedStatusList = setStatusResult.getRemovedStatuesList().stream()
+                .map(removedBattleStatuses -> removedBattleStatuses.stream()
+                        .map(BattleStatusDto::of).toList())
+                .toList();
+        // 힐
+        List<Integer> healValues = new ArrayList<>(setStatusResult.getHealValues());
 
         // 쿨다운
         List<List<Integer>> cooldownList = new ArrayList<>();
@@ -170,9 +166,9 @@ public class EnemyLogicResultMapper {
                 .hpRates(hpRates)
                 .chargeGauges(chargeGauges)
                 .fatalChainGauge(fatalChainGauge)
-                .addedBattleStatusesList(addedStatusesList)
+                .addedBattleStatusesList(addedStatusList)
                 .removedBattleStatusesList(removedStatusList)
-                .heals(setStatusResult.getHealValues())
+                .heals(healValues)
 
                 .omenType(omenType)
                 .omenCancelCondInfo(omenCancelCondInfo)
@@ -190,14 +186,14 @@ public class EnemyLogicResultMapper {
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
 
-                .nextMoveType(nextMoveType)
+                .executeChargeAttack(false) // 적은 오의 2회발동 없음
+                .executeAttackTargetType(null) // 적은 턴 진행 없이 일반공격 없음
 
                 .enemyPowerUp(powerUp)
                 .enemyCtMax(ctMax)
 
                 .build();
     }
-
 
 
 }

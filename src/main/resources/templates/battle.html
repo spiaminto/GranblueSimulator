@@ -90,6 +90,15 @@
           //     console.log('mousedown')
           // }
 
+          // 오의 on off 리스너
+          $('#chargeAttackActiveCheck').on('change', function () {
+              $(this).prop('disabled', true);
+              requestToggleChargeAttack($(this).prop('checked'));
+              setTimeout(() => {
+                  $(this).prop('disabled', false);
+              }, 500);
+          });
+
           // 어빌리티 커맨드에서 스테이터스 12개 이상인경우 끊어서 보여주기
           let statusShowHideInterval = null;
           $('#abilitySlider').on('afterChange', function (event, slick, currentSlideIndex) {
@@ -295,7 +304,7 @@
     </div>
   </div>
 
-  <div id="battleCanvas" class="battle-canvas">
+  <div id="battleCanvas">
 
     <div class="waiting-video-container">
       <video class="waiting-video" muted playsinline loop preload="auto"
@@ -306,7 +315,8 @@
 
     <div class="omen-container omen-container-bottom enemy blinking-element"
          th:classappend="${battleEnemyInfo.omenActivated ? 'activated' : ''}">
-      <div class="omen-text" th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
+      <div class="omen-text"
+           th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
       <span class="omen-prefix"
             th:text="${battleEnemyInfo.omenType == null ? '' : '[' + battleEnemyInfo.omenType.info + '] ' + battleEnemyInfo.omenName}">전조이름</span>
       </div>
@@ -343,7 +353,8 @@
         </div>
         <div class="omen-container enemy omen-container-top"
              th:classappend="${battleEnemyInfo.omenActivated ? 'activated' : ''}">
-          <div class="omen-text" th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
+          <div class="omen-text"
+               th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
             <span class="omen-prefix" th:text="${battleEnemyInfo.omenPrefix + ': '}">전조 조건: </span>
             <span class="omen-value" th:text="${battleEnemyInfo.omenValue}">값</span>
             <span class="omen-info" th:text="${battleEnemyInfo.omenInfo}">전조 설명</span>
@@ -356,23 +367,18 @@
       <div class="enemy-audio-container">
         <audio class="audio actor-0"
                th:each="entry : ${enemyAudioSrcMap}"
+               th:if="${entry.key.length() > 0}"
                th:src="${entry.key}"
                th:classappend="${#strings.listJoin(entry.value, ' ')}">
         </audio>
       </div>
       <div class="party-audio-container">
-        <div class="party-1">
-          <audio class="audio actor-1"
-                 th:each="entry : ${characterAudioSrcMaps.get(0)}"
+        <div class="party-audio-wrapper" th:each="characterAudioSrcMap : ${characterAudioSrcMaps}"
+             th:classappend="'party-' + ${characterAudioSrcMapStat.count}">
+          <audio class="audio"
+                 th:each="entry : ${characterAudioSrcMap}"
                  th:src="${entry.key}"
-                 th:classappend="${entry.value}">
-          </audio>
-        </div>
-        <div class="party-2">
-          <audio class="audio actor-2"
-                 th:each="entry : ${characterAudioSrcMaps.get(1)}"
-                 th:src="${entry.key}"
-                 th:classappend="${entry.value}">
+                 th:classappend="${entry.value} + ' actor-' + ${characterAudioSrcMapStat.count}">">
           </audio>
         </div>
       </div>
@@ -395,6 +401,7 @@
            th:data-standby-move-class="${battleEnemyInfo.initialMoveType.parentType.className.equals('standby') ? battleEnemyInfo.initialMoveType.className : 'none'}">
         <video class="hidden enemy-video actor-0" muted playsinline preload="auto"
                th:each="entry : ${enemyVideoSrcMap}"
+               th:if="${entry.key.length() > 0}"
                th:data-move-type="${entry}"
                th:src="${entry.key}"
                th:data-effect-hit-delay="${entry.value.effectHitDelay}"
@@ -407,12 +414,14 @@
 
       </div>
       <div class="party-video-container">
-        <div class="party-1">
-          <video class="hidden party-video actor-1" muted playsinline preload="auto"
-                 th:each="entry : ${characterVideoSrcMaps.get(0)}"
+        <div class="party-video-wrapper" th:each="characterVideoSrcMap : ${characterVideoSrcMaps}"
+             th:classappend="'party-' + ${characterVideoSrcMapStat.count}">
+          <video class="party-video hidden" muted playsinline preload="auto"
+                 th:each="entry : ${characterVideoSrcMap}"
                  th:src="${entry.key}"
-                 th:classappend="${entry.value}">
+                 th:classappend="${entry.value} + ' actor-' + ${characterVideoSrcMapStat.count}">
           </video>
+
           <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
           <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
           <!--          ></video>-->
@@ -430,30 +439,23 @@
           <!--          <video class="party-video attack for-test" loop muted autoplay playsinline preload="auto"-->
           <!--                 src="/static/assets/video/gl/hauhet1.webm">-->
           <!--          </video>-->
-
         </div>
-        <div class="party-2">
-          <video class="hidden party-video actor-2" muted playsinline preload="auto"
-                 th:each="entry : ${characterVideoSrcMaps.get(1)}"
-                 th:src="${entry.key}"
-                 th:classappend="${entry.value}">
-          </video>
-          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-          <!--          ></video>-->
-        </div>
-        <div class="party-3">
-          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-          <!--          ></video>-->
-        </div>
-        <div class="party-4">
-          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-          <!--          ></video>-->
-        </div>
+        <!--        <div class="party-2">-->
+        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+        <!--          ></video>-->
+        <!--        </div>-->
+        <!--        <div class="party-3">-->
+        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+        <!--          ></video>-->
+        <!--        </div>-->
+        <!--        <div class="party-4">-->
+        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+        <!--          ></video>-->
+        <!--        </div>-->
       </div>
-
 
       <div class="summon-video-container">
         <video class="hidden summon-video" muted playsinline
@@ -553,8 +555,7 @@
 
     </div> <!-- #videoContainer -->
 
-    <!-- 적 피격 데미지 -->
-    <div id="damageContainer" class="battle-canvas">
+    <div id="attackDamageContainer" class="battle-canvas damage-container">
       <!--           일반공격 데미지가 겹칠수 있기 때문에 각 캐릭터별 wrapper 까지 추가-->
       <!--      <div class="attack-damage-wrapper actor-2">-->
       <!--        <div class="attack-damage actor-2 element-type-water attack-damage-0 damage-show">36372</div>-->
@@ -608,19 +609,23 @@
       <!--          <div class="additional-damage element-type-water">17916</div>-->
       <!--        </div>-->
       <!--      </div>-->
+    </div>
 
-
+    <div id="abilityDamageContainer" class="battle-canvas damage-container">
       <!-- max 12, 10에서 컷-->
-      <div class="ability-damage-wrapper">
-        <!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
-        <!--              <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
-      </div>
+      <!--        <div class="ability-damage-wrapper ability-index-0">-->
+      <!--          <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
+      <!--          <div class="ability-damage element-type-water" style="opacity: 1">10000</div>-->
+      <!--        </div>-->
+    </div>
 
-      <div class="charge-attack-damage-wrapper">
-        <!--      <div class="charge-attack-damage">1000000</div>-->
-      </div>
+    <div id="chargeAttackDamageContainer" class="battle-canvas damage-container">
+      <!--        <div class="charge-attack-damage-wrapper">-->
+      <!--      <div class="charge-attack-damage">1000000</div>-->
+      <!--        </div>-->
+    </div>
 
-
+    <div id="enemyAttackDamageContainer" class="battle-canvas damage-container">
       <!--      적 공격 데미지, actor 마다 추가되며 재공격시 이전공격 데미지와 공존가능 -->
       <!--            <div class="enemy-damage-wrapper actor-1">-->
       <!--              <div class="damage enemy-attack-damage actor-1 element-type-earth heal">4998</div>-->
@@ -637,21 +642,24 @@
       <!--                <div class="damage additional-damage element-type-earth enemy-damage-show">4979</div>-->
       <!--              </div>-->
       <!--            </div>-->
-
     </div>
 
-    <!--적 피격 버프 디버프-->
-    <div class="status-effect-container actor-0 enemy"></div>
-    <!-- 아군 피격 버프 디버프 -->
-    <div class="status-effect-container actor-1 party">
-      <!--      <div class="status-effect status-effect-0" style="opacity: 0;">-->
-      <!--        <img src="/static/assets/img/ch/yachima/status-ability-1.png" class="">-->
-      <!--        <span class="status-effect-text">추격 (A)</span>-->
+    <div class="status-effect-container battle-canvas">
+      <!--      <div class="status-effect-wrapper actor-2 status-index-0 party">-->
+      <!--        <div class="status-effect status-effect-0" style="opacity: 1;">-->
+      <!--          <img src="/static/assets/img/ch/yachima/status-ability-1-3.png" class="">-->
+      <!--          <span class="status-effect-text">난격 (3회)</span></div>-->
+      <!--        <div class="status-effect status-effect-1" style="opacity: 1;">-->
+      <!--          <img src="/static/assets/img/ch/yachima/status-ability-1.png" class="">-->
+      <!--          <span class="status-effect-text">추격 (A)</span></div>-->
+      <!--      </div>-->
+      <!--      <div class="status-effect-wrapper actor-0 status-index-0 enemy">-->
+      <!--        <div class="status-effect status-effect-0">-->
+      <!--          <img src="/static/assets/img/ch/yachima/status-de-ability-1-5.png" class="">-->
+      <!--          <span class="status-effect-text">디그레이드 스피넬</span>-->
+      <!--        </div>-->
       <!--      </div>-->
     </div>
-    <div class="status-effect-container actor-2 party"></div>
-    <div class="status-effect-container actor-3 party"></div>
-    <div class="status-effect-container actor-4 party"></div>
 
     <div class="ability-back-button-wrapper">
       <button class="ability-back-button btn btn-outline-primary">
@@ -659,7 +667,7 @@
       </button>
     </div>
 
-  </div><!-- .battle-canvas -->
+  </div><!-- #battleCanvas -->
 
   <div id="commandContainer">
     <div id="abilityRail">

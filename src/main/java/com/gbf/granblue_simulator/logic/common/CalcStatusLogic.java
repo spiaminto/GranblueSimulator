@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +28,10 @@ public class CalcStatusLogic {
         Map<StatusEffectType, List<StatusEffect>> statusEffects = getStatusEffectMap(battleActor);
 
         if (battleActor.isEnemy()) {
-            // 첫 스테이터스 설정시 적은 weapon 항 전부 0으로 초기화
-            battleActor.clearWeaponRate();
+            battleActor.clearWeaponRate(); // 적은 weapon 항 전부 0으로 초기화
+            BattleEnemy enemy = (BattleEnemy) battleActor;
+            enemy.setLatestTriggeredHp(100);
+            enemy.setCurrentForm(1);
         }
 
         setMaxHp(battleActor, statusEffects);
@@ -106,7 +109,7 @@ public class CalcStatusLogic {
         double maxJammedRate = getSum(statusEffects.get(StatusEffectType.JAMMED));
         double jammedRate = currentHpRate < 0.5 ? maxJammedRate * (1 - currentHpRate) : maxJammedRate * 0.5; // 아군의 체력이 50% 초과면 최소배율 (50%) 적용
         // 별항
-        double uniqueRate = getSum(statusEffects.get(StatusEffectType.ATK_UNIQUE_UP));
+        double uniqueUpRate = getSum(statusEffects.get(StatusEffectType.ATK_UP_UNIQUE));
 
         // 상한 하한처리
         double atkRate = Math.max(atkUpRate - atkDownRate, -0.99); // 공격력 상승 X 공격력 감소 99%
@@ -120,7 +123,7 @@ public class CalcStatusLogic {
                 * (1 + atkRate)
                 * (1 + strengthRate)
                 * (1 + jammedRate)
-                * (1 + uniqueRate)
+                * (1 + uniqueUpRate)
         ;
 
 //        battleActor.setAtkRate(atkRate);
@@ -258,7 +261,7 @@ public class CalcStatusLogic {
         double chargeGaugeIncreaseDownRate = getSum(statusEffects.get(StatusEffectType.CHARGE_GAUGE_INCREASE_DOWN));
 
         // 상한 하한처리
-        double chargeGaugeIncreaseRate = Math.max(baseChargeGaugeIncreaseRate + chargeGaugeIncreaseUpRate - chargeGaugeIncreaseDownRate, -0.99); // 상한 X 하한 -99%
+        double chargeGaugeIncreaseRate = Math.clamp(baseChargeGaugeIncreaseRate + chargeGaugeIncreaseUpRate - chargeGaugeIncreaseDownRate, -1, 1); // 상한 100% 하한 -100%
 
         battleActor.setChargeGaugeIncreaseRate(chargeGaugeIncreaseRate);
         return 0;

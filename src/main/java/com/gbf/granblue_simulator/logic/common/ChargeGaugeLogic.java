@@ -121,9 +121,28 @@ public class ChargeGaugeLogic {
     protected int increaseChargeGauge(BattleActor actor, double value) {
         if (value < 0) throw new IllegalArgumentException("[increaseChargeGauge] value 가 음수임. value = " + value);
         Integer maxGauge = actor.getMaxChargeGauge();
-        double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // 최소 0
+        double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // -1 ~ 1
         int increasedChargeGauge = Math.min(
                 (int) Math.ceil(actor.getChargeGauge() + value * (1 + gaugeIncreaseRate)),
+                maxGauge
+        );
+        actor.setChargeGauge(increasedChargeGauge);
+        return increasedChargeGauge;
+    }
+
+    /**
+     * 다른 스테이터스(공포, 오의게이지다운) 등의 영향 없이 오의게이지를 직접 조작, 캐릭터 로직에서 직접 호출해야함.
+     * 자신이 오의 즉시 사용가능, 특정 상황에서만 오의게이지 증가하는 캐릭터에서 사용
+     * 스테이터스는 사용자에게 표시를 위해 그대로 set 하되 수치는 해당 메서드로 적용
+     *
+     * @param actor
+     * @param value
+     */
+    public int modifyChargeGaugeManual(BattleActor actor, double value) {
+        if (value < 0) throw new IllegalArgumentException("[increaseChargeGauge] value 가 음수임. value = " + value);
+        Integer maxGauge = actor.getMaxChargeGauge();
+        int increasedChargeGauge = Math.min(
+                (int) Math.ceil(actor.getChargeGauge() + value),
                 maxGauge
         );
         actor.setChargeGauge(increasedChargeGauge);

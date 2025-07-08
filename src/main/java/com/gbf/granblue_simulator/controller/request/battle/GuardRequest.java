@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.controller.request;
+package com.gbf.granblue_simulator.controller.request.battle;
 
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import lombok.Data;

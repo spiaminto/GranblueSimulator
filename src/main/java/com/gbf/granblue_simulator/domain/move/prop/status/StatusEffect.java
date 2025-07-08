@@ -21,7 +21,7 @@ public class StatusEffect {
     @Enumerated(EnumType.STRING)
     private StatusEffectType type;
 
-    private Double value;
+    private double value;
 
     @Transient
     private Integer currentLevel; // DB 에 저장되지 않고, CommonLogic.getStatusEffectMap 에서 초기화 되고 사용됨. 사용후엔 휘발됨.

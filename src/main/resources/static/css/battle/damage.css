@@ -1,4 +1,4 @@
-#damageContainer .element-type-fire {
+.damage-container .element-type-fire {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #faf5ed 35%, #f0ada2 55%, #d06556);
     -webkit-text-stroke: 1px #5f281b;
@@ -6,7 +6,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-water {
+.damage-container .element-type-water {
     letter-spacing: -0.025em;
     background: linear-gradient(to bottom, #e1feff 35%, #88cffb 55%, #60bbf8);
     -webkit-text-stroke: 1px #2d67a2;
@@ -14,7 +14,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-wind {
+.damage-container .element-type-wind {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #f4fce9 35%, #b8e6a2 55%, #85c072);
     -webkit-text-stroke: 1px #2c7e25;
@@ -22,7 +22,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-earth {
+.damage-container .element-type-earth {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #f8f4e7 35%, #d1b58e 55%, #bc9970);
     -webkit-text-stroke: 1px #53351e;
@@ -30,7 +30,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-light {
+.damage-container .element-type-light {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #fefdee 35%, #fcf4a8 55%, #f1c758);
     -webkit-text-stroke: 1px #8a651c;
@@ -38,7 +38,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-dark {
+.damage-container .element-type-dark {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #fbfaff 35%, #dbd5fa 55%, #b593dd);
     -webkit-text-stroke: 1px #4d3768;
@@ -46,7 +46,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .element-type-none {
+.damage-container .element-type-none {
     letter-spacing: -0.05em;
     background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb);
     -webkit-text-stroke: 1px #55443e;
@@ -54,7 +54,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-#damageContainer .damage-miss {
+.damage-container .damage-miss {
     background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb) !important;
     -webkit-text-stroke: 1px #55443e !important;
     -webkit-background-clip: text !important;
@@ -62,7 +62,7 @@
     font-size: 35px !important;
 }
 
-#damageContainer .enemy-damage-wrapper .damage-miss {
+.damage-container .enemy-damage-wrapper .damage-miss {
     background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb) !important;
     -webkit-text-stroke: 1px #55443e !important;
     -webkit-background-clip: text !important;
@@ -70,7 +70,7 @@
     font-size: 20px !important;
 }
 
-#damageContainer .enemy-damage-wrapper .heal {
+.damage-container .enemy-damage-wrapper .heal {
     background: linear-gradient(to bottom, #ebe9e0 35%, #2c8626 55%, #ebe9e0 85%) !important;
     -webkit-text-stroke: 1px #0f280c !important;
     -webkit-background-clip: text !important;
@@ -80,7 +80,7 @@
     z-index: 40; /* status effect 39 보다 높게 */
 }
 
-#damageContainer .additional-damage-wrapper.damage-miss {
+.damage-container .additional-damage-wrapper.damage-miss {
     display: none !important;
 }
 

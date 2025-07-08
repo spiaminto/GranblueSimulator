@@ -53,6 +53,14 @@ public class YachimaLogic extends CharacterLogic {
         return resultMapper.toResult(mainActor, enemy, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), chargeAttackResult.getSetStatusResult());
     }
 
+    // 자신이 레코데이션 싱크 효과중 오의 발동 후 1어빌 자동발동
+    protected ActorLogicResult chargeAttackAfter(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
+        if (hasBattleStatus(mainActor, "레코데이션")) {
+            return firstAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_ABILITY));
+        }
+        return resultMapper.emptyResult();
+    }
+
     @Override
     public ActorLogicResult postProcessToPartyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult) {
         if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId()) && partyMoveResult.getMoveType().getParentType() == MoveType.ATTACK) {
@@ -61,7 +69,7 @@ public class YachimaLogic extends CharacterLogic {
         }
         if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId()) && partyMoveResult.getMoveType() == MoveType.CHARGE_ATTACK_DEFAULT) {
             // 자신이 오의 사용시 서포트 어빌리티 4 발동 (어빌리티 1 자동발동)
-            return fourthSupportAbility(mainActor, enemy, partyMembers, null);
+            return chargeAttackAfter(mainActor, enemy, partyMembers, null);
         }
         return resultMapper.emptyResult();
     }
@@ -112,8 +120,7 @@ public class YachimaLogic extends CharacterLogic {
         }
         // 쿨타임 적용
         mainActor.setThirdAbilityCoolDown(thirdAbility.getCoolDown());
-        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, thirdAbility, null, setStatusResult,
-                NextMoveRequest.of(true, MoveType.ATTACK, afterMoveTarget));
+        return resultMapper.toResultWithExecuteAttack(mainActor, enemy, partyMembers, thirdAbility, null, setStatusResult, afterMoveTarget);
     }
 
     // 자신이 공격행동시 사포아비1 적용 (알파레벨 증가)
@@ -146,20 +153,12 @@ public class YachimaLogic extends CharacterLogic {
                 setStatusLogic.setStatus(mainActor, enemy, partyMembers, List.of(statusAlpha, statusDelta), StatusTargetType.PARTY_MEMBERS); // 이쪽결과는 이펙트 표시 x
 
                 // 재적용 된 알파, 델타 레벨 4로 변경 및 스탯 갱신
-                partyMembers.forEach(partyMember -> setStatusLogic.addBattleStatusesLevel(partyMember, 3, true, statusAlpha.getId(), statusDelta.getId()));
+                partyMembers.forEach(partyMember -> setStatusLogic.addBattleStatusesLevel(partyMember, 3, statusAlpha.getId(), statusDelta.getId()));
 
                 // 자신의 3어빌 쿨타임 0으로 감소
                 mainActor.setThirdAbilityCoolDown(0);
                 return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, setStatusResult);
             }
-        }
-        return resultMapper.emptyResult();
-    }
-
-    @Override // 자신이 레코데이션 싱크 효과중 오의 발동 후 1어빌 자동발동
-    protected ActorLogicResult fourthSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
-        if (hasBattleStatus(mainActor, "레코데이션")) {
-            return firstAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_ABILITY));
         }
         return resultMapper.emptyResult();
     }

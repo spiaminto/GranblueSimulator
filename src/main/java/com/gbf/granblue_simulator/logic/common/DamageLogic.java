@@ -50,7 +50,7 @@ public class DamageLogic {
         log.info("[processEnemy] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
         ElementType elementType = move.getElementType();
         double damageRate = modifiedDamageRate == null ? move.getDamageRate() : modifiedDamageRate;
-        int damageConstant = move.getDamageConstant() != null ? move.getDamageConstant() : 0;
+        int damageConstant = move.getDamageConstant();
 
         List<Integer> resultDamages = new ArrayList<>();
         List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
@@ -669,21 +669,21 @@ public class DamageLogic {
         private final StatusEffectType moveAmplifyDamageRateCapEffectType; // 데미지업 이펙트타입
 
         @Builder.Default
-        private final Double damageCapRateCap = 0.2; // 데미지 상한 상한
-        private final Double moveDamageCapRateCap; // [행동] 데미지 상한
+        private final Double damageCapRateCap = 1.0; // 데미지 상한 상한 100% (어쌔신 고려)
+        private final Double moveDamageCapRateCap; // [행동별] 데미지 상한 각
         @Builder.Default
-        private final Integer supplementalDamageCap = 10000; // 공격 데미지 상승 상한
-        private final Integer moveSupplementalDamageCap; // [행동] 공격 데미지 상승 상한
+        private final Integer supplementalDamageCap = 50000; // 공격 데미지 상승 상한 50000
+        private final Integer moveSupplementalDamageCap; // [행동별] 공격 데미지 상승 상한 각
         @Builder.Default
-        private final Double amplifyDamageRateCap = 0.2; // 공격 데미지 업 상한
-        private final Double moveAmplifyDamageRateCap; // [행동] 공격 데미지 업 상한
+        private final Double amplifyDamageRateCap = 0.5; // 공격 데미지 업 상한 50%
+        private final Double moveAmplifyDamageRateCap; // [행동별] 공격 데미지 업 상한 각
 
         private final StatusEffectType moveTakenAmplifyDamageUpType;
         private final StatusEffectType moveTakenAmplifyDamageDownType;
 
         private final Integer takenSupplementalDamageCap = 10000; // 피격 데미지 상승 상한
-        private final Double takenAmplifyDamageRateCap = 0.2; // 피격 데미지 업 상한
-        private final Double moveTakenAmplifyDamageRateCap = 0.5; // 행동별 피격 데미지 업 상한
+        private final Double takenAmplifyDamageRateCap = 0.5; // 피격 데미지 업 상한 50%
+        private final Double moveTakenAmplifyDamageRateCap = 1.0; // 행동별 피격 데미지 업 상한 100%
     }
 
     @PostConstruct
@@ -693,11 +693,11 @@ public class DamageLogic {
                 .baseHardCap(60000)
                 .exDamageCap(660000)
                 .moveDamageCapRateCapEffectType(StatusEffectType.ATTACK_DAMAGE_CAP_UP)
-                .moveDamageCapRateCap(0.2)
+                .moveDamageCapRateCap(0.5)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ATTACK_DAMAGE_UP)
-                .moveSupplementalDamageCap(10000)
+                .moveSupplementalDamageCap(20000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ATTACK_DAMAGE_UP)
-                .moveAmplifyDamageRateCap(0.2)
+                .moveAmplifyDamageRateCap(0.3)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_UP)
                 .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_DOWN)
                 .build());
@@ -708,7 +708,7 @@ public class DamageLogic {
                 .moveDamageCapRateCapEffectType(StatusEffectType.ABILITY_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.5)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ABILITY_DAMAGE_UP)
-                .moveSupplementalDamageCap(10000)
+                .moveSupplementalDamageCap(20000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ABILITY_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.3)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ABILITY_AMPLIFY_DAMAGE_UP)
@@ -721,7 +721,7 @@ public class DamageLogic {
                 .moveDamageCapRateCapEffectType(StatusEffectType.CHARGE_ATTACK_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.75)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_CHARGE_ATTACK_DAMAGE_UP)
-                .moveSupplementalDamageCap(20000)
+                .moveSupplementalDamageCap(50000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_CHARGE_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.5)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP)
@@ -734,7 +734,7 @@ public class DamageLogic {
                 .moveDamageCapRateCapEffectType(StatusEffectType.ABILITY_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.5)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ABILITY_DAMAGE_UP)
-                .moveSupplementalDamageCap(10000)
+                .moveSupplementalDamageCap(20000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ABILITY_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.3)
                 .build());

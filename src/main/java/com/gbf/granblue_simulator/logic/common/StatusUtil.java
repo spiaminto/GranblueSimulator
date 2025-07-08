@@ -25,7 +25,8 @@ public final class StatusUtil {
 
     /**
      * 주어진 battleActor 의 battleStatus 중 statusEffectType 을 가진 battleStatus 의 statusEffect.value 의 합
-     * @param battleActor 
+     *
+     * @param battleActor
      * @param statusEffectType 합산할 이펙트 타입
      * @return
      */
@@ -46,7 +47,8 @@ public final class StatusUtil {
      * @param battleActor
      * @param statusEffectType 합산할 이펙트 타입
      * @return
-     */static double getEffectValueMax(BattleActor battleActor, StatusEffectType statusEffectType) {
+     */
+    public static double getEffectValueMax(BattleActor battleActor, StatusEffectType statusEffectType) {
         List<StatusEffect> statusEffects = getStatusEffectMap(battleActor).getOrDefault(statusEffectType, Collections.emptyList());
         return statusEffects == null || statusEffects.isEmpty() ?
                 0 :
@@ -191,6 +193,19 @@ public final class StatusUtil {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getType() == statusType)
                 .toList();
+    }
+
+    /**
+     * 해당 statusEffectType 을 가진 BattleStatus 반환, findFirst, orElse null
+     * 오의 재발동에서만 사용중
+     * @param battleActor
+     * @param statusEffectType
+     * @return
+     */
+    public static BattleStatus getBattleStatusByEffectType(BattleActor battleActor, StatusEffectType statusEffectType) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().containsKey(statusEffectType))
+                .findFirst().orElse(null);
     }
 
     /**

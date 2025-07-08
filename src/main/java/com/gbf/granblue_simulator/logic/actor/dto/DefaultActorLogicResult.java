@@ -20,9 +20,9 @@ public class DefaultActorLogicResult {
     private final DamageLogicResult damageLogicResult;
     private final SetStatusResult setStatusResult;
 
-    private final StatusTargetType nextMoveTargetType; // 아군 기준 후행동 전체화때 사용
-    private final MoveType nextMoveType; // 재공격 등 후행동에서 사용할 타입
-
     private final List<BattleActor> enemyAttackTargets;
     private final Omen resultOmen; // 브레이크 할경우 Move 가 break 가 되서 이전 전조정보를 가져올수 없음
+
+    private final boolean executeChargeAttack; // 다음 행동으로 오의 재발동 시 true (오의 재발동 효과 가진채로 오의발동)
+    private final StatusTargetType executeAttackTargetType; // 턴 진행없이 일반공격 할 대상
 }

@@ -21,8 +21,14 @@ function processAttack(response) {
     // 오디오 재생
     let audioSrcs = [];
     audioSrcs.push($('#audioContainer .actor-' + response.charOrder + '.' + response.moveType.className + ".voice").attr('src')); // 보이스
-    let effectSrc = $('#audioContainer .actor-' + response.charOrder + '.' + MoveType.SINGLE_ATTACK.className + ".effect").attr('src')
-    audioSrcs.push(...Array(attackHitCount).fill(effectSrc)); // 타수만큼 싱글어택 사운드 준비
+    if (multiAttackCount > 1) {
+        // 난격이면 타수만큼 싱글어택 사운드 준비
+        let effectSrc = $('#audioContainer .actor-' + response.charOrder + '.' + MoveType.SINGLE_ATTACK.className + ".effect").attr('src');
+        audioSrcs.push(...Array(attackHitCount).fill(effectSrc));
+    } else {
+        let effectSrc = $('#audioContainer .actor-' + response.charOrder + '.' + response.moveType.className + ".effect").attr('src');
+        audioSrcs.push(effectSrc);
+    }
     window.effectAudioPlayer.loadSounds(audioSrcs).then(() => {
         window.effectAudioPlayer.playAttackSounds(attackHitCount, multiAttackCount, attackDelay);
     });
@@ -30,11 +36,10 @@ function processAttack(response) {
     // 아군 일반공격 이펙트 재생
     playVideo($partyVideo.effect, $partyVideo.motion, $partyVideo.idle);
 
-    // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
-    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper party actor-' + response.charOrder});
-    $('#damageContainer').append($attackDamageWrapper);
 
-    const damageFragment = document.createDocumentFragment();
+    // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
+    let currentAttackDamageWrapperIndex = $('.attack-damage-wrapper.actor-' + response.charOrder).length; // 남아있는 이전 공격데미지 래퍼 (겹침방지 새로생성용)
+    let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper party actor-' + response.charOrder + ' attack-index-' + currentAttackDamageWrapperIndex});
     response.damages.forEach(function (damage, index) {
         // 데미지 채우기
         let attackIndex = Math.floor(index / multiAttackCount); // 현재 인덱스의 기본타수 순서 (0, 1, 2 현재 트리플 어택까지 구현했으므로 여기까지)
@@ -48,9 +53,9 @@ function processAttack(response) {
             class: 'attack-damage actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
             text: damage,
         });
-        damageFragment.append($attackDamage[0]);
+        $attackDamageWrapper.append($attackDamage[0]);
         let $additionalDamage = $('<div>', { // 추격
-            class: 'additional-damage-wrapper actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName  + missClassName,
+            class: 'additional-damage-wrapper actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
             text: damage // 공간 사용을 위해
         }).append((response.additionalDamages[index] || []).map(additionalDamage =>
             $('<div>', {
@@ -58,7 +63,7 @@ function processAttack(response) {
                 text: additionalDamage
             })
         ))
-        damageFragment.append($additionalDamage[0]);
+        $attackDamageWrapper.append($additionalDamage[0]);
 
         let startDelay = attackDelay * attackIndex; // 1타당 시작시 걸어줄 딜레이, 난격이 있을경우 난격마다 딜레이가 같아짐 ([1,2,3,4,5,6] 2회난격시 승수가 0, 0, 1, 1, 2, 2)
         let multiHitDelay = multiAttackIndex * 115; // 난격마다 추가 딜레이
@@ -66,7 +71,7 @@ function processAttack(response) {
         // console.log('[processAttack] baseDelay = ', attackDelay, ' startDelay = ', startDelay, ' multiHitDealy = ', multiHitDelay, ' totalDelay = ', totalDelay);
 
         // 마지막에 데미지 요소 추가
-        index >= attackHitCount - 1 ? $attackDamageWrapper.append(damageFragment) : null;
+        index >= attackHitCount - 1 ? $('#attackDamageContainer').append($attackDamageWrapper) : null;
 
         setTimeout(function () {
             // 적 피격 이펙트 재생 (난격일땐 재생 x)
@@ -81,9 +86,8 @@ function processAttack(response) {
             });
 
             if (index >= attackHitCount - 1) {
-                // 데미지 제거 데미지갯수 * 2 (추격컨테이너 까지 지움)
                 setTimeout(function () {
-                    $('.attack-damage-wrapper.actor-' + response.charOrder).slice(0, attackHitCount * 2).remove();
+                    $attackDamageWrapper.remove(); // 이번 공격의 데미지 래퍼 삭제
                 }, 1300); // 마지막 데미지 페이드아웃 딜레이 대기, 현재 1200ms
             }
         }, totalDelay)
@@ -103,8 +107,8 @@ function processAttack(response) {
 
 function processEnemyAttack(response) {
     let attackCount = response.moveType === MoveType.SINGLE_ATTACK ? 1 : response.moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
-    let targetOrders = response.enemyAttackTargetOrders;
-    let uniqueTargetOrders = [...new Set(targetOrders)];
+    // let targetOrders = response.enemyAttackTargetOrders;
+    // let uniqueTargetOrders = [...new Set(targetOrders)];
     let isAllTarget = response.allTarget; // 전체공격여부
 
     // 준비 - 적
@@ -145,49 +149,7 @@ function processEnemyAttack(response) {
         }, (effectDuration / attackCount) * i)
     }
 
-    // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
-    let $appendedEnemyDamageWrappers = [];
-    uniqueTargetOrders.forEach(targetOrder => {
-        $appendedEnemyDamageWrappers.push($('<div>', {class: 'enemy-damage-wrapper actor-' + targetOrder}).appendTo($('#damageContainer')));
-    })
-    //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
-    let effectHitDuration = effectDuration / attackCount; // 1타가 사용할 길이
-    response.damages.forEach(function (damage, index) {
-        let startDelay = isAllTarget ?
-            effectHitDuration * (index / response.enemyAttackTargetOrders.length) :
-            effectHitDuration * index;
-        let targetOrder = isAllTarget ?
-            response.enemyAttackTargetOrders[index % targetOrders.length] :
-            response.enemyAttackTargetOrders[index];
-        let elementType = response.elementTypes[index];
-
-        // 데미지 채우기
-        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, response.additionalDamages[index], true);
-        let $enemyDamageWrapper = $('.enemy-damage-wrapper.actor-' + targetOrder).last(); // 이전 행동 공격데미지와 겹치지 않도록 추가한 래퍼 사용
-        $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
-
-        // 데미지 표시
-        setTimeout(function () {
-            // 데미지 및 표시
-            $damageElements.$damage.addClass('enemy-damage-show');
-            // 추가데미지 표시
-            $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
-                setTimeout(function () {
-                    $(additionalDamage).addClass('enemy-damage-show');
-                }, index + 100);
-            });
-            // 아군 피격 재생
-            playVideo($partyVideos[targetOrder].effect, null, $partyVideos[targetOrder].idle);
-            // 마지막 공격시 종료후 데미지 삭제.
-            if (index >= response.damages.length - 1) {
-                setTimeout(function () {
-                    $appendedEnemyDamageWrappers.forEach(function (wrapper) {
-                        $(wrapper).remove();
-                    })
-                }, 1000);
-            }
-        }, startDelay)
-    })
+    enemyDamagesPostProcess(response, $enemyVideo, $partyVideos);
 
     let totalEndTime = isAllTarget ? effectDuration + 100 : effectDuration * response.damages.length + 100;
     console.log("[processEnemyAttack] total = " + totalEndTime)

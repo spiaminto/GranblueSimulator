@@ -71,7 +71,7 @@ public class EnemyInsertController {
 
         Move formChange = Move.builder()
                 .name("form change")
-                .type(MoveType.FORM_CHANGE)
+                .type(MoveType.FORM_CHANGE_DEFAULT)
                 .info("form change")
                 .actor(enemy)
                 .build();
@@ -263,8 +263,6 @@ public class EnemyInsertController {
                 .randomStatusCount(request.getRandomStatusCount())
                 .damageRate(request.getDamageRate() + 0.0)
                 .damageConstant(request.getDamageConstant())
-                .coolDown(null)
-                .duration(null)
                 .actor(enemy)
                 .build();
         chargeAttack = moveRepository.save(chargeAttack);
@@ -331,8 +329,6 @@ public class EnemyInsertController {
                 .hitCount(request.getHitCount())
                 .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
                 .coolDown(request.getCoolDown())
-                .duration(request.getDuration())
-                .damageRate(null)
                 .actor(enemy)
                 .build();
         ability = moveRepository.save(ability);

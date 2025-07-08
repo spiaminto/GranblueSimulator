@@ -40,15 +40,16 @@ public class ActorLogicResult {
     private List<Integer> chargeGauges = new ArrayList<>();
     private int fatalChainGauge;
     @Builder.Default
-    private List<List<BattleStatus>> addedBattleStatusesList = new ArrayList<>();
+    private List<List<BattleStatusDto>> addedBattleStatusesList = new ArrayList<>();
     @Builder.Default
-    private List<List<BattleStatus>> removedBattleStatusesList = new ArrayList<>();
+    private List<List<BattleStatusDto>> removedBattleStatusesList = new ArrayList<>();
     @Builder.Default
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
     @Builder.Default
     private List<Integer> heals = new ArrayList<>();
 
     // 비필수, 중요
+    private int strikeCount; // 공격 행동 횟수
     private int totalHitCount; // 통상공격의 경우 추격까지 모두 더함
     private int attackMultiHitCount; // 난격시 난격 카운트
     @Builder.Default
@@ -71,8 +72,6 @@ public class ActorLogicResult {
     private boolean enemyCtMax;
 
     @Accessors(fluent = true)
-    private boolean hasNextMove; // 후행동
-    private MoveType nextMoveType;
-    private StatusTargetType nextMoveTarget;
-
+    private boolean executeChargeAttack; // 오의 재발동 여부
+    private StatusTargetType executeAttackTargetType; // 턴 진행 없이 일반공격 대상, 없으면 null
 }

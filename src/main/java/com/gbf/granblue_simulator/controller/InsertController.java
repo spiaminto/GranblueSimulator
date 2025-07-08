@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.character.*;
-import com.gbf.granblue_simulator.controller.request.insert.character.AbilityRequest;
+import com.gbf.granblue_simulator.controller.request.insert.character.AbilityInsertRequest;
 import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Character;
@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.gbf.granblue_simulator.controller.request.insert.InsertSrcMapper.*;
+
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -40,23 +42,17 @@ public class InsertController {
     @PostMapping("/insert/character")
     public ResponseEntity<InsertResponse> insertCharacter(@RequestBody CharacterInsertRequest characterInsertRequest) {
         log.info("characterInsertRequest: {}", characterInsertRequest);
+        String nameEn = characterInsertRequest.getNameEn();
+
         Character character = Character.builder()
                 .name(characterInsertRequest.getName())
-                .nameEn(characterInsertRequest.getNameEn())
-                .battlePortraitSrc(characterInsertRequest.getBattlePortraitSrc())
+                .nameEn(nameEn)
+                .battlePortraitSrc(getBattlePortraitSrc(nameEn))
                 .elementType(characterInsertRequest.getElementType())
                 .isMainCharacter(Boolean.parseBoolean(characterInsertRequest.getIsMainCharacter()))
                 .build();
         character = characterRepository.save(character);
         log.info("savedChar = {}", character);
-
-        return ResponseEntity.ok(InsertResponse.ok(character.getId()));
-    }
-
-    @PostMapping("/insert/idle-and-attack")
-    public ResponseEntity<InsertResponse> insertIdleAndAttack(@RequestBody IdleAndAttackRequest idleAndAttackRequest) {
-        log.info("idleAttackREquest: {}", idleAndAttackRequest);
-        Character character = characterRepository.findById(idleAndAttackRequest.getCharacterId()).orElseThrow();
 
         // idle
         Move idle = Move.builder()
@@ -64,15 +60,12 @@ public class InsertController {
                 .name("idle")
                 .info("idle")
                 .elementType(character.getElementType())
-                .damageRate(0.0)
-                .coolDown(0)
-                .duration(null)
                 .actor(character)
                 .build();
         idle = moveRepository.save(idle);
 
         Asset idleAsset = Asset.builder()
-                .motionVideoSrc(idleAndAttackRequest.getIdleEffectVideoSrc())
+                .motionVideoSrc(getMotionVideoSrc(nameEn, MoveType.IDLE_DEFAULT))
                 .move(idle)
                 .build();
         idleAsset = assetRepository.save(idleAsset);
@@ -85,7 +78,6 @@ public class InsertController {
                 .elementType(character.getElementType())
                 .damageRate(0.0)
                 .coolDown(0)
-                .duration(null)
                 .actor(character)
                 .build();
         moveRepository.save(guard);
@@ -102,15 +94,15 @@ public class InsertController {
                 .info("single attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
-                .coolDown(null)
-                .duration(null)
+                .hitCount(1)
                 .actor(character)
                 .build();
         singleAttack = moveRepository.save(singleAttack);
 
         Asset singleAttackAsset = Asset.builder()
-                .effectVideoSrc(idleAndAttackRequest.getSingleAttackEffectVideoSrc())
-                .seAudioSrc(idleAndAttackRequest.getSingleAttackSeAudioSrc())
+                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.SINGLE_ATTACK))
+                .motionVideoSrc(character.isMainCharacter() ? getMotionVideoSrc(nameEn, MoveType.SINGLE_ATTACK) : null) // 주인공은 모션 별도
+                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.SINGLE_ATTACK))
                 .move(singleAttack)
                 .build();
         singleAttackAsset = assetRepository.save(singleAttackAsset);
@@ -122,15 +114,15 @@ public class InsertController {
                 .info("double attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
-                .coolDown(null)
-                .duration(null)
+                .hitCount(2)
                 .actor(character)
                 .build();
         doubleAttack = moveRepository.save(doubleAttack);
 
         Asset doubleAttackAsset = Asset.builder()
-                .effectVideoSrc(idleAndAttackRequest.getDoubleAttackEffectVideoSrc())
-                .seAudioSrc(idleAndAttackRequest.getDoubleAttackSeAudioSrc())
+                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.DOUBLE_ATTACK))
+                .motionVideoSrc(character.isMainCharacter() ? getMotionVideoSrc(nameEn, MoveType.DOUBLE_ATTACK) : null) // 주인공은 모션 별도
+                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.DOUBLE_ATTACK))
                 .move(doubleAttack)
                 .build();
         doubleAttackAsset = assetRepository.save(doubleAttackAsset);
@@ -142,20 +134,20 @@ public class InsertController {
                 .info("triple attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
-                .coolDown(null)
-                .duration(null)
+                .hitCount(3)
                 .actor(character)
                 .build();
         tripleAttack = moveRepository.save(tripleAttack);
 
         Asset tripleAttackAsset = Asset.builder()
-                .effectVideoSrc(idleAndAttackRequest.getTripleAttackEffectVideoSrc())
-                .seAudioSrc(idleAndAttackRequest.getTripleAttackSeAudioSrc())
+                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.TRIPLE_ATTACK))
+                .motionVideoSrc(character.isMainCharacter() ? getMotionVideoSrc(nameEn, MoveType.TRIPLE_ATTACK) : null) // 주인공은 모션 별도
+                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.TRIPLE_ATTACK))
                 .move(tripleAttack)
                 .build();
         tripleAttackAsset = assetRepository.save(tripleAttackAsset);
 
-        return ResponseEntity.ok(InsertResponse.ok(1L));
+        return ResponseEntity.ok(InsertResponse.ok(character.getId()));
     }
 
     @PostMapping("/insert/charge-attack")
@@ -169,15 +161,14 @@ public class InsertController {
                 .info(request.getInfo())
                 .elementType(character.getElementType())
                 .damageRate(4.5) // 일단 극대 캐릭의 경우 따로 수정
-                .coolDown(null)
-                .duration(null)
+                .hitCount(1)
                 .actor(character)
                 .build();
         chargeAttack = moveRepository.save(chargeAttack);
 
         Asset chargeAttackAsset = Asset.builder()
-                .effectVideoSrc(request.getEffectVideoSrc())
-                .seAudioSrc(request.getSeAudioSrc())
+                .effectVideoSrc(getEffectVideoSrc(character.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT))
+                .seAudioSrc(getSeAudioSrc(character.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT)) // 보이스 포함
                 .move(chargeAttack)
                 .build();
         chargeAttackAsset = assetRepository.save(chargeAttackAsset);
@@ -186,6 +177,7 @@ public class InsertController {
         final Move chargeAttackFinal = chargeAttack;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            int statusOrder = request.getStatuses().indexOf(status) + 1;
             // 스테이터스
             Status statusEntity = Status.builder()
                     .type(StatusType.valueOf(status.getType()))
@@ -197,7 +189,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .iconSrcs(getStatusIconSrcs(character.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT, statusOrder, status.getMaxLevel()))
                     .move(chargeAttackFinal)
                     .build();
             log.info("statusEntity = {}", statusEntity);
@@ -207,7 +199,7 @@ public class InsertController {
             status.getStatusEffects().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
                 StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
-                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
                 StatusEffect statusEffectEntity = StatusEffect.builder()
                         .status(statusEntity)
                         .type(statusEffectType)
@@ -217,24 +209,28 @@ public class InsertController {
             });
         });
 
-        return ResponseEntity.ok(InsertResponse.ok(1L));
+        return ResponseEntity.ok(InsertResponse.ok(character.getId()));
     }
 
     @PostMapping("/insert/ability")
-    public ResponseEntity<InsertResponse> insertAbility(@RequestBody AbilityRequest request) {
+    public ResponseEntity<InsertResponse> insertAbility(@RequestBody AbilityInsertRequest request) {
         log.info("request: {}", request);
+        MoveType moveType = MoveType.valueOf(request.getType());
+        boolean hasMotion = Boolean.parseBoolean(request.getHasMotion());
+        boolean hasSupportAbilityEffect = Boolean.parseBoolean(request.getHasSupportAbilityEffect());
+        boolean hasEffect = moveType != MoveType.SUPPORT_ABILITY || hasSupportAbilityEffect; // 서포아비가 아니거나, 서포아비임에도 이펙트가 있는 경우는 이펙트 존재
 
         Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
+        String nameEn = character.getNameEn();
+
         Move ability = Move.builder()
-                .type(MoveType.valueOf(request.getType()))
+                .type(moveType)
                 .name(request.getName())
                 .info(request.getInfo())
                 .elementType(character.getElementType())
                 .damageRate(request.getDamageRate())
                 .hitCount(request.getHitCount())
                 .coolDown(request.getCoolDown())
-                .duration(request.getDuration())
-                .damageRate(null)
                 .actor(character)
                 .build();
         ability = moveRepository.save(ability);
@@ -242,12 +238,11 @@ public class InsertController {
 
         Asset abilityAsset = Asset.builder()
                 .move(ability)
-                .effectVideoSrc(request.getEffectVideoSrc())
-                .motionVideoSrc(request.getMotionVideoSrc())
-                .motionVideoFull(request.isMotionVideoFull())
-                .seAudioSrc(request.getSeAudioSrc())
-                .voiceAudioSrc(request.getVoiceAudioSrc())
-                .iconImageSrc(request.getIconSrc())
+                .effectVideoSrc(hasEffect ? getEffectVideoSrc(nameEn, moveType) : null)
+                .motionVideoSrc(hasMotion ? getMotionVideoSrc(nameEn, moveType) : null)
+                .seAudioSrc(hasEffect ? getSeAudioSrc(nameEn, moveType) : null)
+                .voiceAudioSrc(hasEffect ? getVoiceAudioSrc(nameEn, moveType) : null)
+                .iconImageSrc(moveType.getParentType() != MoveType.SUPPORT_ABILITY ? getAbilityIconSrc(nameEn, moveType) : null)
                 .build();
         abilityAsset = assetRepository.save(abilityAsset);
 
@@ -255,6 +250,7 @@ public class InsertController {
         final Move abilityFinal = ability;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            int statusOrder = request.getStatuses().indexOf(status) + 1;
             Status statusEntity = Status.builder()
                     .type(StatusType.valueOf(status.getType()))
                     .name(status.getEffectText())
@@ -265,7 +261,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .iconSrcs(getStatusIconSrcs(nameEn, moveType, statusOrder, status.getMaxLevel()))
                     .move(abilityFinal)
                     .build();
             log.info("statusEntity = {}", statusEntity);
@@ -275,7 +271,7 @@ public class InsertController {
             status.getStatusEffects().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
                 StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
-                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
                 StatusEffect statusEffectEntity = StatusEffect.builder()
                         .status(statusEntity)
                         .type(statusEffectType)
@@ -285,12 +281,13 @@ public class InsertController {
             });
         });
 
-        return ResponseEntity.ok(InsertResponse.ok(1L));
+        return ResponseEntity.ok(InsertResponse.ok(character.getId()));
     }
 
     @PostMapping("/insert/summon")
     public ResponseEntity<InsertResponse> insertSummon(@RequestBody SummonInsertRequest request) {
         log.info("summonRequest: {}", request);
+        String nameEn = request.getNameEn();
 
         // 소환용 캐릭터 ID = 6 으로 고정됨
         Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
@@ -302,15 +299,14 @@ public class InsertController {
                 .damageRate(request.getDamageRate())
                 .coolDown(request.getCoolDown())
                 .hitCount(request.getHitCount())
-                .duration(null)
                 .actor(character)
                 .build();
         summon = moveRepository.save(summon);
 
         Asset summonAsset = Asset.builder()
-                .iconImageSrc(request.getIconSrc())
-                .effectVideoSrc(request.getEffectVideoSrc())
-                .seAudioSrc(request.getSeAudioSrc())
+                .iconImageSrc(getBattlePortraitSrc(nameEn)) // 얘는 portrait 가 이걸로
+                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.SUMMON_DEFAULT))
+                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.SUMMON_DEFAULT))
                 .move(summon)
                 .build();
         summonAsset = assetRepository.save(summonAsset);
@@ -319,6 +315,7 @@ public class InsertController {
         final Move summonFinal = summon;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
+            int statusOrder = request.getStatuses().indexOf(status) + 1;
             // 스테이터스
             Status statusEntity = Status.builder()
                     .type(StatusType.valueOf(status.getType()))
@@ -330,7 +327,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+                    .iconSrcs(getSummonStatusIconSrcs(nameEn, statusOrder, status.getMaxLevel()))
                     .move(summonFinal)
                     .build();
             log.info("statusEntity = {}", statusEntity);
@@ -340,7 +337,7 @@ public class InsertController {
             status.getStatusEffects().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
                 StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
-                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
+                double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
                 StatusEffect statusEffectEntity = StatusEffect.builder()
                         .status(statusEntity)
                         .type(statusEffectType)
@@ -350,99 +347,7 @@ public class InsertController {
             });
         });
 
-        return ResponseEntity.ok(InsertResponse.ok(1L));
-    }
-
-//    @RequestMapping("/insert/fatalchain")
-    // for manual insert
-    public void insertFatalChain () {
-        // 소환용 캐릭터 ID = 6 으로 고정됨
-        Character character = characterRepository.findById(6L).orElseThrow();
-        SummonInsertRequest request = new SummonInsertRequest();
-        request.setCharacterId(6L);
-        request.setName("페이탈체인");
-        request.setInfo("적에게 20만 고정데미지, 페이탈 체인 효과 부여");
-        request.setDamageRate(0.0);
-        request.setCoolDown(0);
-        request.setHitCount(1);
-
-        request.setEffectVideoSrc("/static/assets/video/gl/gl-fatal-dark.webm");
-        request.setSeAudioSrc("/static/assets/audio/gl/gl-fatal-dark.mp3");
-        request.setElementType(ElementType.DARK);
-        
-        Move summon = Move.builder()
-                .name(request.getName())
-                .type(MoveType.FATAL_CHAIN)
-                .info(request.getInfo())
-                .elementType(request.getElementType())
-                .damageRate(request.getDamageRate())
-                .coolDown(request.getCoolDown())
-                .hitCount(request.getHitCount())
-                .duration(null)
-                .actor(character)
-                .damageConstant(200000)
-                .build();
-        summon = moveRepository.save(summon);
-
-        Asset summonAsset = Asset.builder()
-                .iconImageSrc(request.getIconSrc())
-                .effectVideoSrc(request.getEffectVideoSrc())
-                .seAudioSrc(request.getSeAudioSrc())
-                .move(summon)
-                .build();
-        summonAsset = assetRepository.save(summonAsset);
-
-        // 스테이터스
-
-        moveRepository.findById(summon.getId()).orElseThrow();
-        SummonInsertRequest.SummonStatus fatalStatus = new SummonInsertRequest.SummonStatus();
-        fatalStatus.setType("DEBUFF");
-        fatalStatus.setName("페이탈체인");
-        fatalStatus.setTargetType("ENEMY");
-        fatalStatus.setMaxLevel(0);
-        fatalStatus.setEffectText("페이탈체인");
-        fatalStatus.setStatusText("받는데미지가 증가한 상태 (별항, 해제불가, 필중)");
-        fatalStatus.setDuration(1);
-        fatalStatus.setRemovable("false");
-        fatalStatus.setIsResistible("false");
-        fatalStatus.setIconSrcs("/static/assets/img/gl/status-fatal-dark.png");
-        fatalStatus.setStatusEffects("TAKEN_AMPLIFY_DAMAGE_UP_UNIQUE, 0.2");
-        request.setStatuses(List.of(fatalStatus));
-
-        final Move summonFinal = summon;
-        request.getStatuses().forEach(status -> {
-            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
-            // 스테이터스
-            Status statusEntity = Status.builder()
-                    .type(StatusType.valueOf(status.getType()))
-                    .name(status.getName())
-                    .target(StatusTargetType.valueOf(status.getTargetType()))
-                    .maxLevel(status.getMaxLevel())
-                    .effectText(status.getEffectText())
-                    .statusText(status.getStatusText())
-                    .duration(status.getDuration())
-                    .removable(Boolean.parseBoolean(status.getRemovable()))
-                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
-                    .move(summonFinal)
-                    .build();
-            log.info("statusEntity = {}", statusEntity);
-            statusRepository.save(statusEntity);
-
-            // 스테이터스 효과 ("type, value \n ...")
-            status.getStatusEffects().lines().forEach(statusEffect -> {
-                String[] splitStatusEffect = statusEffect.split(",");
-                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
-                Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
-                StatusEffect statusEffectEntity = StatusEffect.builder()
-                        .status(statusEntity)
-                        .type(statusEffectType)
-                        .value(statusEffectValue)
-                        .build();
-                statusEffectRepository.save(statusEffectEntity);
-            });
-        });
-
+        return ResponseEntity.ok(InsertResponse.ok(character.getId()));
     }
 
 }

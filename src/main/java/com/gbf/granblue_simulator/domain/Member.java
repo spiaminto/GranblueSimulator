@@ -1,8 +1,6 @@
 package com.gbf.granblue_simulator.domain;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,8 +29,14 @@ public class Member {
     @Builder.Default
     private Integer currentTurn = 1; // 현재 자신의 턴, 1부터 시작
 
+    private boolean chargeAttackOn; // 오의 발동 여부
+
     public void increaseTurn() {
         this.currentTurn++;
+    }
+
+    public void setChargeAttackOn(boolean chargeAttackOn) {
+        this.chargeAttackOn = chargeAttackOn;
     }
 
 }

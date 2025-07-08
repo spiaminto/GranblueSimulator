@@ -11,8 +11,6 @@ public class ChargeAttackRequest {
 
     private String name;
     private String info;
-    private String effectVideoSrc;
-    private String seAudioSrc;
 
     private List<ChargeAttackStatus> statuses;
 
@@ -27,7 +25,6 @@ public class ChargeAttackRequest {
         private Integer duration;
         private String removable;
         private String isResistible;
-        private String iconSrcs; // 엔터로 구분되는 src 들
 
         private String statusEffects; // type, value \n
     }

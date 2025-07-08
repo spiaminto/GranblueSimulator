@@ -8,7 +8,7 @@
 }
 
 /* 적 */
-.status-effect-container.enemy {
+.status-effect-wrapper.enemy {
     position: absolute;
     width: 50%;
     height: 60%;
@@ -17,17 +17,17 @@
     align-content: center;
 }
 
-.status-effect-container.enemy .status-effect {
+.status-effect-wrapper.enemy .status-effect {
     margin-top: -2%;
 }
 
-.status-effect-container.enemy .status-effect img {
+.status-effect-wrapper.enemy .status-effect img {
     display: inline-block;
     width: 16%;
     max-width: 40px;
 }
 
-.status-effect-container.enemy .status-effect-text {
+.status-effect-wrapper.enemy .status-effect-text {
     font-size: 18px;
     margin-left: -3px;
     font-weight: bold;
@@ -39,24 +39,24 @@
 }
 
 /* 아군 */
-.status-effect-container.party {
+.status-effect-wrapper.party {
     text-align: right;
     position: absolute;
     width: 50%;
     height: 60%;
 }
 
-.status-effect-container.party .status-effect {
+.status-effect-wrapper.party .status-effect {
     margin-top: -4%;
 }
 
-.status-effect-container.party .status-effect img {
+.status-effect-wrapper.party .status-effect img {
     display: inline-block;
     width: 13%;
     max-width: 35px;
 }
 
-.status-effect-container.party .status-effect-text {
+.status-effect-wrapper.party .status-effect-text {
     font-size: 16px;
     margin-left: -2px;
     font-weight: bold;
@@ -64,22 +64,22 @@
 }
 
 
-.status-effect-container.actor-1 {
+.status-effect-wrapper.actor-1 {
     top: 35%;
     right: 8%;
 }
 
-.status-effect-container.actor-2 {
+.status-effect-wrapper.actor-2 {
     top: 49%;
     right: 3%;
 }
 
-.status-effect-container.actor-3 {
+.status-effect-wrapper.actor-3 {
     top: 65%;
     right: 8%;
 }
 
-.status-effect-container.actor-4 {
+.status-effect-wrapper.actor-4 {
     top: 81%;
     right: 3%;
 }

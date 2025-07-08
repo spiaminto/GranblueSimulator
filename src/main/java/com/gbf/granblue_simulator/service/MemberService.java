@@ -45,6 +45,12 @@ public class MemberService {
     private final CalcStatusLogic calcStatusLogic;
     private final BattleStatusRepository battleStatusRepository;
 
+    public boolean updateChargeAttackOn(Long roomId, Long userId, boolean chargeAttackOn) {
+        Member member = memberRepository.findByRoomIdAndUserId(roomId, userId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        member.setChargeAttackOn(chargeAttackOn);
+        return member.isChargeAttackOn();
+    }
+
     public Member enterRoom(Long roomId, Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("없는 유저"));
         Room room = roomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("없는 방"));
@@ -73,6 +79,7 @@ public class MemberService {
                 .map(actorMap::get)
                 .filter(Objects::nonNull)
                 .toList(); // in 쿼리 순서고정
+        actors.forEach(actor -> log.info("[createBattleActors] actor = {}", actor) );
 
         Actor enemyActor = actorRepository.findById(7L).get(); // CHECK 현재 디아스포라로 고정
 
@@ -87,6 +94,7 @@ public class MemberService {
                                     Collections.emptyList();
                             List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
                             List<Integer> summonCoolDowns = summons.stream().map(Move::getCoolDown).toList();
+                            log.info("[createBattleActors] actor.name = {}, indexOf = {}", actor.getName(), actors.indexOf(actor));
                             return BattleCharacter.builder()
                                     .name(actor.getName())
                                     .member(member)
@@ -121,6 +129,7 @@ public class MemberService {
 
     public void exitRoom(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Room room = member.getRoom();
         List<BattleActor> battleActors = member.getBattleActors();
 
         // 배틀 엑터, 배틀 스테이터스 삭제
@@ -130,6 +139,14 @@ public class MemberService {
         });
         // 멤버 삭제
         memberRepository.delete(member);
+
+        // 방 삭제
+        if (room != null) {
+            room.getMembers().remove(member);
+            if (room.getMembers().isEmpty()) {
+                roomRepository.delete(room);
+            }
+        }
     }
 
 }

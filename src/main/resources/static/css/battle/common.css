@@ -20,10 +20,19 @@ body::-webkit-scrollbar {
     pointer-events: none;
 }
 
-.battle-canvas {
+#battleCanvas {
     height: 390px;
     overflow: hidden;
     position: relative;
+}
+
+.battle-canvas {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+    height: 390px;
+    overflow: hidden;
 }
 
 #videoContainer, #damageContainer, .container-bg {
