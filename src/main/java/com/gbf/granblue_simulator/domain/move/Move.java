@@ -17,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = {"actor", "statuses", "asset", "omen"})
+@EqualsAndHashCode @ToString
 public class Move {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,13 +29,13 @@ public class Move {
     @Enumerated(EnumType.STRING)
     private MoveType type;
 
-    @OneToOne(mappedBy = "move")
+    @OneToOne(mappedBy = "move") @EqualsAndHashCode.Exclude @ToString.Exclude
     private Asset asset;
 
-    @OneToMany(mappedBy = "move") @Builder.Default
+    @OneToMany(mappedBy = "move") @Builder.Default  @EqualsAndHashCode.Exclude @ToString.Exclude
     private List<Status> statuses = new ArrayList<>();
 
-    @OneToOne(mappedBy = "move")
+    @OneToOne(mappedBy = "move")  @EqualsAndHashCode.Exclude @ToString.Exclude
     private Omen omen;
 
     private String name;

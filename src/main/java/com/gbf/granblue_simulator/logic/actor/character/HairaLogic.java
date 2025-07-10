@@ -50,7 +50,9 @@ public class HairaLogic extends CharacterLogic {
     protected ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         DefaultActorLogicResult defaultResult = defaultChargeAttack(mainActor, enemy, partyMembers, null);
         // 자신의 어빌리티 쿨타임 2턴 단축
-        mainActor.shortenAbilityCoolDowns(2, 1, 2, 3);
+        mainActor.updateAbilityCoolDown(mainActor.getFirstAbilityCoolDown() - 2, MoveType.FIRST_ABILITY);
+        mainActor.updateAbilityCoolDown(mainActor.getSecondAbilityCoolDown() - 2, MoveType.SECOND_ABILITY);
+        mainActor.updateAbilityCoolDown(mainActor.getThirdAbilityCoolDown() - 2, MoveType.THIRD_ABILITY);
         return resultMapper.chargeAttackToResult(mainActor, enemy, partyMembers, defaultResult.getResultMove(), defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult(), false);
     }
 
@@ -119,7 +121,7 @@ public class HairaLogic extends CharacterLogic {
     @Override // 아군이 2회이상 행동할때마다 자신에게 지보의 황성, 오의게이지 20% 상승
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
         DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability);
-        chargeGaugeLogic.modifyChargeGaugeManual(mainActor, 20); // 오의게이지 직접 조작
+        chargeGaugeLogic.addChargeGauge(mainActor, 20); // 오의게이지 직접 조작
         return resultMapper.toResult(mainActor, enemy, partyMembers, defaultResult.getResultMove(), null, defaultResult.getSetStatusResult());
     }
 

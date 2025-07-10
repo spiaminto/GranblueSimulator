@@ -6,9 +6,12 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.common.*;
+import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
+import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
+import com.gbf.granblue_simulator.logic.common.DamageLogic;
+import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
+import com.gbf.granblue_simulator.logic.common.StatusUtil;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import jakarta.transaction.Transactional;
@@ -18,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Collections;
 import java.util.List;
 
-import static com.gbf.granblue_simulator.domain.move.MoveType.*;
+import static com.gbf.granblue_simulator.domain.move.MoveType.GUARD_DEFAULT;
 
 /**
  * 모든 캐릭터로직의 반환값은 null 을 사용하지 않는다.
@@ -233,14 +236,9 @@ public abstract class CharacterLogic {
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, statuses);
         // 쿨다운 설정
         MoveType abilityType = ability.getType();
-        Integer coolDown = ability.getCoolDown();
+        int coolDown = ability.getCoolDown();
         if (abilityType.getParentType() == MoveType.ABILITY) {
-            switch (abilityType) {
-                case FIRST_ABILITY -> mainActor.setFirstAbilityCoolDown(coolDown);
-                case SECOND_ABILITY -> mainActor.setSecondAbilityCoolDown(coolDown);
-                case THIRD_ABILITY -> mainActor.setThirdAbilityCoolDown(coolDown);
-                case FOURTH_ABILITY -> mainActor.setFourthAbilityCoolDown(coolDown);
-            }
+            mainActor.updateAbilityCoolDown(coolDown, abilityType);
         }
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
@@ -248,7 +246,7 @@ public abstract class CharacterLogic {
     public ActorLogicResult defaultFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, fatalChain);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, Collections.emptyList(), fatalChain);
-        mainActor.setFatalChainGauge(0); // 페이탈 체인 게이지 초기화
+        chargeGaugeLogic.setFatalChainGauge(mainActor, 0); // 페이탈 체인 게이지 초기화
         return resultMapper.toResult(mainActor, enemy, Collections.emptyList(), fatalChain, damageLogicResult, setStatusResult);
     }
 

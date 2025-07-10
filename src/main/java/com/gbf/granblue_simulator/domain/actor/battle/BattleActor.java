@@ -3,6 +3,8 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.logic.common.dto.SyncStatusDto;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,18 +16,17 @@ import org.hibernate.annotations.Type;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@Setter
-@EqualsAndHashCode
-@ToString(exclude = {"member"})
-@Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
+@EqualsAndHashCode @ToString
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn
 public abstract class BattleActor {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(insertable = false, updatable = false)
     private String dtype;
@@ -42,7 +43,7 @@ public abstract class BattleActor {
     // 체력
     private Integer hp;
     private Integer maxHp;
-    
+
     // 장비항 -> 나중에 장비 추가시 스테이터스로 전환 예정
     @Builder.Default
     private Double atkWeaponRate = 12.0; // 장비항 (200, 100, 100 상정, 12배율 상정, 속성가호 계산x)
@@ -100,7 +101,7 @@ public abstract class BattleActor {
 
     // 페이탈체인 id
     private Long fatalChainMoveId;
-    
+
     // 페이탈 체인 게이지
     private Integer fatalChainGauge;
 
@@ -119,7 +120,6 @@ public abstract class BattleActor {
     @JoinColumn(name = "actor_id")
     private Actor actor;
 
-
     public void setMember(Member member) {
         this.member = member;
         member.getBattleActors().add(this);
@@ -130,28 +130,69 @@ public abstract class BattleActor {
         this.actor.getBattleActors().add(this);
     }
 
-    // lombok getter 안먹혀서 생성
     public String getdType() {
-        return dtype;
+        return dtype; // lombok getter 안먹혀서 생성
     }
-
 
     public boolean isEnemy() {
         return "BattleEnemy".equals(this.dtype);
     }
 
     /**
-     * 적의 경우 무기공인항 및 무기수호항을 0 으로 초기화
+     * 기타 스테이터스 초기화
      */
-    public void clearWeaponRate() {
-        this.atkWeaponRate = 0.0;
-        this.hpWeaponRate = 0.0;
+    public void initStatus() {
+        if (this.isEnemy()) {
+            this.atkWeaponRate = 0.0;
+            this.hpWeaponRate = 0.0;
+        }
+        this.maxChargeGauge = this.getActor().getMaxChargeGauge();
+        this.chargeGauge = 0;
+        this.maxHp = this.getHp(); // HP 가 먼저 세팅 되어 있어야함
+        this.elementType = this.getActor().getElementType();
+        this.fatalChainGauge = 0;
+        this.firstAbilityCoolDown = 0;
+        this.secondAbilityCoolDown = 0;
+        this.thirdAbilityCoolDown = 0;
+        this.fourthAbilityCoolDown = 0;
+        this.firstAbilityUseCount = 0;
+        this.secondAbilityUseCount = 0;
+        this.thirdAbilityUseCount = 0;
+        this.fourthAbilityUseCount = 0;
+    }
+
+    public void updateMaxHp(int maxHp) {
+        this.maxHp = maxHp;
+    }
+
+    public void updateHp(int hp) {
+        this.hp = hp;
+    }
+
+    public void updateChargeGauge(int chargeGauge) {
+        this.chargeGauge = chargeGauge;
+    }
+
+    public void updateFatalChainGauge(int gauge) {
+        this.fatalChainGauge = gauge;
+    }
+
+    public void syncStatus(SyncStatusDto dto) {
+        this.atk = dto.getAtk();
+        this.def = dto.getDef();
+        this.doubleAttackRate = dto.getDoubleAttackRate();
+        this.tripleAttackRate = dto.getTripleAttackRate();
+        this.accuracyRate = dto.getAccuracyRate();
+        this.dodgeRate = dto.getDodgeRate();
+        this.deBuffSuccessRate = dto.getDeBuffSuccessRate();
+        this.deBuffResistRate = dto.getDeBuffResistRate();
+        this.criticalRate = dto.getCriticalRate();
+        this.criticalDamageRate = dto.getCriticalDamageRate();
+        this.chargeGaugeIncreaseRate = dto.getChargeGaugeIncreaseRate();
     }
 
     /**
      * 현재 체력 비율을 NN% 로 반환
-     *
-     * @return
      */
     public Integer calcHpRate() {
         return (int) (((double) hp / maxHp) * 100);
@@ -170,26 +211,27 @@ public abstract class BattleActor {
     }
 
     /**
-     * 어빌리티의 쿨타임을 단축
-     * @param count 단축할 턴수
-     * @param orders 단축할 어빌리티의 순서들
+     * 어빌리티의 쿨타임 update
+     *
+     * @param coolDown 적용할 쿨타임
+     * @param abilityType 어빌리티 타입
      */
-    public void shortenAbilityCoolDowns(int count, int... orders) {
-        for (int order : orders) {
-            switch (order) {
-                case 1:
-                    firstAbilityCoolDown = Math.max(0, firstAbilityCoolDown - count);
-                    break;
-                case 2:
-                    secondAbilityCoolDown = Math.max(0, secondAbilityCoolDown - count);
-                    break;
-                case 3:
-                    thirdAbilityCoolDown = Math.max(0, thirdAbilityCoolDown - count);
-                    break;
-                case 4:
-                    fourthAbilityCoolDown = Math.max(0, fourthAbilityCoolDown - count);
-                    break;
-            }
+    public void updateAbilityCoolDown(int coolDown, MoveType abilityType) {
+        switch (abilityType) {
+            case FIRST_ABILITY:
+                firstAbilityCoolDown = Math.max(0, coolDown);
+                break;
+            case SECOND_ABILITY:
+                secondAbilityCoolDown = Math.max(0, coolDown);
+                break;
+            case THIRD_ABILITY:
+                thirdAbilityCoolDown = Math.max(0, coolDown);
+                break;
+            case FOURTH_ABILITY:
+                fourthAbilityCoolDown = Math.max(0, coolDown);
+                break;
+            default:
+                throw new IllegalArgumentException("invalid ability type " + abilityType.name());
         }
     }
 

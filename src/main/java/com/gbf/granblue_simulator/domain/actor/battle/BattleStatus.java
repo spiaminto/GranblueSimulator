@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = {"battleActor", "status"})
+@EqualsAndHashCode @ToString
 public class BattleStatus {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

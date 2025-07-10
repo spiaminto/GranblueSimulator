@@ -25,7 +25,7 @@ public class Room {
     @Builder.Default
     private Integer maxUserCount = 3; // 최대 유저 수
 
-    @OneToMany(mappedBy = "room") @Builder.Default
+    @OneToMany(mappedBy = "room") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
     private List<Member> members = new ArrayList<>(); // 방에 있는 유저들
 
     private Long enemyActorId; // 편의용 적 id

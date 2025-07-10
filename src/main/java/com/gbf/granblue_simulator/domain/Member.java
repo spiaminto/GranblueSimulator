@@ -11,7 +11,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Getter @EqualsAndHashCode @ToString(exclude = {"user", "room"})
+@Getter @EqualsAndHashCode @ToString
 public class Member {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,7 +23,7 @@ public class Member {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "room_id")
     private Room room;
 
-    @OneToMany(mappedBy = "member") @Builder.Default
+    @OneToMany(mappedBy = "member") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
     private List<BattleActor> battleActors = new ArrayList<>();
 
     @Builder.Default

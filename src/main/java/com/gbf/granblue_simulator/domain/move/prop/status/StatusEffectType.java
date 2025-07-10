@@ -5,7 +5,7 @@ package com.gbf.granblue_simulator.domain.move.prop.status;
  */
 public enum StatusEffectType {
 
-// 공격력
+    // 공격력
     // 공인항
     ATK_UP,     // [상승배율]
     ATK_DOWN,   // [감소배율]
@@ -15,7 +15,7 @@ public enum StatusEffectType {
     JAMMED, // [최대상승배율] - 감소없음
     // 별항
     ATK_UP_UNIQUE, //[상승배율]
-//    ATK_DOWN_UNIQUE, // [감소배율]
+    //    ATK_DOWN_UNIQUE, // [감소배율]
     // 공격 데미지 상승
     SUPPLEMENTAL_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
     SUPPLEMENTAL_ATTACK_DAMAGE_UP, // 공격 데미지 상승 [상승(가산)수치]
@@ -32,7 +32,7 @@ public enum StatusEffectType {
     ABILITY_DAMAGE_CAP_UP, // [상승배율]
     CHARGE_ATTACK_DAMAGE_CAP_UP, // [상승배율]
 
-// 방어력
+    // 방어력
     DEF_UP, // [상승배율]
     DEF_DOWN, // [감소배율]
     TAKEN_DAMAGE_CUT, // [데미지컷 배율]
@@ -95,7 +95,6 @@ public enum StatusEffectType {
     MOUNT, // 마운트 [1]
 
     // 오의게이지
-    ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
     CHARGE_GAUGE_INCREASE_UP, // [증가배율]
     CHARGE_GAUGE_INCREASE_DOWN, // [감소배율]
     CHARGE_TURN_INCREASE_UP, // [증가수치]
@@ -105,56 +104,53 @@ public enum StatusEffectType {
     CHARGE_ATTACK_SEALED, // 오의 봉인 [1]
     MULTI_CHARGE_ATTACK, // 오의 다회발동 [2] 현재 구현상 2회발동 밖에 없음
 
-    // 페이탈 체인
-    ACT_FATAL_CHAIN_GAUGE_UP, // 페이탈 체인 게이지 상승 [상승할 페이탈 체인 게이지 수치]
-
     // 어빌리티
     ABILITY_SEALED, // 어빌리티 봉인[1]
     // 쿨다운은 로직에서 처리
-
-    // 도트데미지 류
-    BURNED, // 작열 [턴당 받을 데미지]
 
     // 방어 특수
     IMMORTAL, // 불사신 효과 [버틸 횟수 1]
     SUBSTITUTE, // 감싸기 [우선순위 1 or 2] -> value 가 클수록 우선순위 높음
     GUARD_DISABLED, // 방어불가 [1]
-    
+
     // 체력
     MAX_HP_DOWN, // 최대 체력 감소 [감소배율]
 
     // 힐
-    ACT_HEAL, // 힐 사용 [힐 수치]
     HEAL_UP, // 회복 성능 업 [상승배율]
     HEAL_DOWN, // 회복 성능 다운 [감소배율]
 
-    // 없음
-    NONE, // 표시 이외의 효과 없음 [0]
-    
-    // 트리거
-    TRIGGER, // 다른 스테이터스의 트리거가 될경우 사용 [TRIGGERED 와 동일한 값]
-    TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
 
-    // 디스펠 클리어
+    // 행동이 발생하는 스테이터스 =====================================================================
     ACT_DISPEL, // 디스펠 [디스펠 횟수 1 ~ , 적은 99 (모두디스펠)]
     ACT_DISPEL_GUARD, // 디스펠 가드 [1]
     ACT_CLEAR, // 클리어 [클리어 횟수 1 ~ 99]
-    
-    // 차지게이지 증가
 
-    // 후 행동류 (재행동류 제외)
+    ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
+    ACT_FATAL_CHAIN_GAUGE_UP, // 페이탈 체인 게이지 상승 [상승할 페이탈 체인 게이지 수치]
+
+    ACT_HEAL, // 힐 사용 [힐 수치]
+
+    ACT_DAMAGE, // 데미지 [수치 고정값]
+    ACT_RATE_DAMAGE, // 데미지 [수치 rate]
+
+
+    // 후 행동류 (재행동류 제외) =====================================================================
     ACT_FIRST_ABILITY, // 1어빌 자동발동
     ACT_SECOND_ABILITY, // 2어빌 자동발동
     ACT_THIRD_ABILITY, // 3어빌 자동발동
     ACT_NORMAL_ATTACK, // 통상공격 자동발동
     ACT_CHARGE_ATTACK, // 오의 자동발동 (오의 연속 2회, 오의 재발동과 별개임)
-    ACT_TURN_DAMAGE, // 턴 종료시 ~ 데미지 등 기타 데미지
+
+    // 트리거
+    TRIGGER, // 다른 스테이터스의 트리거가 될경우 사용 [TRIGGERED 와 동일한 값]
+    TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
+
+    // 없음
+    NONE, // 표시 이외의 효과 없음 [0]
 
     // 테스트
     TEST,
-
-    // 턴종 처리
-    TURN_RECOVERY // 재생효과
 
 
     ;
@@ -165,6 +161,7 @@ public enum StatusEffectType {
      * 효과를 합산하지 않고 덮어씌우는 이펙트의 경우 true 로 반환
      * 추격, 베리어, 감싸기
      * value 가 큰쪽이 우선되며, value 다음으로 duration 이 긴쪽이 우선된다.
+     *
      * @return 효과를 덮어씌우는 경우 true
      */
     public boolean isCoveringEffect() {
@@ -179,6 +176,7 @@ public enum StatusEffectType {
 
     /**
      * 추격인경우 true 반환
+     *
      * @return
      */
     public boolean isAdditionalDamage() {

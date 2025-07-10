@@ -123,6 +123,9 @@ const MoveType = {
     FATAL_CHAIN : {name: 'FATAL_CHAIN', parentType: 'ROOT', className: 'fatal-chain'},
     FATAL_CHAIN_DEFAULT : {name: 'FATAL_CHAIN_DEFAULT', parentType: 'FATAL_CHAIN', className: 'fatal-chain'},
 
+    TURN_END : {name: 'TURN_END', parentType: 'ROOT', className: 'turn-end'},
+    TURN_END_PROCESS : {name: 'TURN_END_PROCESS', parentType: 'TURN_END', className: 'turn-end'},
+
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };

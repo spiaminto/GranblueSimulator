@@ -14,7 +14,7 @@ import java.util.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = {"move"})
+@EqualsAndHashCode @ToString
 /**
  * 온전히 표현을 위해사용
  * 값과 계산은 캐릭터 로직에서 담당
@@ -44,7 +44,7 @@ public class Status {
     private boolean removable; // 소거불가, 해제불가, 회복불가
     private boolean resistible; // 필중인지 확인
 
-    @OneToMany(mappedBy = "status") @MapKey(name = "type") @Builder.Default
+    @OneToMany(mappedBy = "status") @MapKey(name = "type") @Builder.Default @EqualsAndHashCode.Exclude @ToString.Exclude
     Map<StatusEffectType, StatusEffect> statusEffects = new LinkedHashMap<>();
 
     @Type(ListArrayType.class)

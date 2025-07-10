@@ -339,6 +339,10 @@
     animation: enemy-damage-show 1s linear forwards;
 }
 
+.heal-show {
+    animation: enemy-damage-show 0.7s linear forwards;
+}
+
 @keyframes multiple-damage-show {
     0% {
         opacity: 0;

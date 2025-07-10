@@ -91,7 +91,6 @@ public class Diaspora1Logic extends EnemyLogic {
 
     @Override
     public List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
-        BattleEnemy enemy = (BattleEnemy) mainActor;
         List<ActorLogicResult> results = new ArrayList<>();
 
         // TEST 서포어비 4
@@ -99,6 +98,14 @@ public class Diaspora1Logic extends EnemyLogic {
 
         // 서포어비 2
         secondSupportAbility(mainActor, partyMembers, null, null);
+
+        return results;
+    }
+
+    @Override
+    public List<ActorLogicResult> activateOmen(BattleActor mainActor, List<BattleActor> partyMembers) {
+        BattleEnemy enemy = (BattleEnemy) mainActor;
+        List<ActorLogicResult> results = new ArrayList<>();
 
         // 5의 배수턴 마다 자괴인자 발동
         if ((mainActor.getMember().getCurrentTurn() + 1) % 5 == 0)

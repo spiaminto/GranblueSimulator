@@ -2,20 +2,21 @@
  * 적의 데미지 발생관련 후처리
  * 적은 일반공격, (서포트)어빌리티, 차지어택의 데미지 표시방식 및 아군 피격처리가 거의 동일하므로 통합하여 사용
  * @param response
- * @param $enemyVideo
+ * @param $enemyVideo nullable, null 일시 effectDuration 이 0으로 set됨
  * @param $partyVideos
  */
 function enemyDamagesPostProcess(response, $enemyVideo, $partyVideos) {
-    if ($enemyVideo.effect === null) return;
     let attackCount =
         response.moveType === MoveType.SINGLE_ATTACK ? 1 :
             response.moveType === MoveType.DOUBLE_ATTACK ? 2 :
                 response.moveType === MoveType.TRIPLE_ATTACK ? 3 : 0;
-    let isAllTarget = response.allTarget;
+    let isAllTarget = response.moveType !== MoveType.TURN_END_PROCESS
+        ? response.allTarget
+        : response.totalHitCount >= 2 // 턴종 데미지시 데미지가 2회이상 발생하면 allTarget 으로 간주 (캐릭터별 딜레이 적용 위함)
     let uniqueTargetOrders = [...new Set(response.enemyAttackTargetOrders)];
     if (isAllTarget && uniqueTargetOrders.length === 1) uniqueTargetOrders = Array($('.party-video-wrapper').length).fill(uniqueTargetOrders[0]); // 전체공격 감싸기 상황. 파티 인원만큼 감싸기 캐릭터의 order 늘림. CHECK 파티 인원 구하는 방식은 차후에 더 나은방법이 있으면 수정
-    let effectDuration = $enemyVideo.effect ? $enemyVideo.effect.get(0).duration * 1000 : 0;
-    let effectHitDelay = Number($enemyVideo.effect.attr('data-effect-hit-delay')) || 0; // 이펙트 시작 ~ 데미지 표시 까지 딜레이, 없으면 0
+    let effectDuration = $enemyVideo?.effect ? $enemyVideo.effect.get(0).duration * 1000 : 0;
+    let effectHitDelay = Number($enemyVideo?.effect?.attr('data-effect-hit-delay')) || 0; // 이펙트 시작 ~ 데미지 표시 까지 딜레이, 없으면 0
     let effectHitDuration = attackCount === 0
         ? (effectDuration - effectHitDelay) / response.damages.length // 어빌리티, 오의시 1타가 사용할 길이
         : effectDuration; // 일반공격시 1타가 사용할 길이 (일반공격은 singleAttack * 3회 재생하므로 그대로 사용)
@@ -42,7 +43,7 @@ function enemyDamagesPostProcess(response, $enemyVideo, $partyVideos) {
         index >= response.damages.length - 1 ? $('#enemyAttackDamageContainer').append(Array.from($enemyDamageWrappers.values())) : null;
 
         setTimeout(function () {
-            console.log('[processEnemyChargeAttack] index = ', index, ' startDelay = ', startDelay, ' effectHitDelay = ', effectHitDelay, ` attackCount = ${attackCount}`);
+            // console.log('[enemyDamagePostProcess] index = ', index, ' startDelay = ', startDelay, ' effectHitDelay = ', effectHitDelay, ` attackCount = ${attackCount}`);
             // 데미지 표시
             $damageElements.$damage.addClass('enemy-damage-show');
             // 추가데미지 표시
@@ -132,7 +133,11 @@ function processStatusIconSync(currentBattleStatusesList, effectVideoDuration) {
             $statusContainer.find('.status').remove(); // 스테이터스 비움
             currentBattleStatuses.forEach(function (status, index) {
                 // 어빌리티 패널에 갱신된 스테이터스 추가
-                let $statusInfo = $('<div>', {class: 'status status', 'data-status-type': status.type})
+                let displayClassName = index > 0 && currentBattleStatuses[index - 1].name === status.name ? 'd-none' : ''; // 이전과 이름 같으면 숨김
+                let $statusInfo = $('<div>', {
+                    class: 'status status',
+                    'data-status-type': status.type
+                }).addClass(displayClassName)
                     .append(
                         $('<img>', {
                             src: status.imageSrc,
@@ -173,7 +178,7 @@ function processHealEffect(healArray, effectVideoDuration) {
                 let $healElements = getDamageElement(actorIndex, 'NONE', 'attack', 0, heal, []);
                 $healValueWrapper.append($healElements.$damage).appendTo($('#enemyAttackDamageContainer'));
                 setTimeout(function () {
-                    $healElements.$damage.addClass('heal enemy-damage-show'); // 약간 느리게
+                    $healElements.$damage.addClass('heal heal-show'); // 약간 느리게
                 }, 100)
             }, startDelay);
 
@@ -201,9 +206,15 @@ function processHealEffect(healArray, effectVideoDuration) {
 function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, effectVideoDuration) {
     let longestBuffEndTime = effectVideoDuration; // 버프 없을땐 이전 딜레이 (이펙트 딜레이) 만큼
     let statusesList = addedBuffStatusesList.map((_, idx) => {
-            const removedDebuffs = (removedDebuffStatusesList[idx] || []).map(x => ({value: x, type: 'removedDebuffs'}));
-            const addedBuffes = (addedBuffStatusesList[idx] || []).map(x => ({value: x, type: 'addedBuffs'}));
-            const removedBuffes = (removedBuffStatusesList[idx] || []).map(x => ({value: x, type: 'removedBuffs'}));
+            let removedDebuffs = (removedDebuffStatusesList[idx] || []).map(debuff => ({
+                value: debuff,
+                type: 'removedDebuffs'
+            }));
+            // 버프는 같은 스테이터스가 여러개로 나뉘는 경우가 존재하므로 표시할때 중복제거
+            let addedBuffes = (addedBuffStatusesList[idx] || []).map(buff => ({value: buff, type: 'addedBuffs'}));
+            addedBuffes = [...new Map(addedBuffes.map(statusObject => [statusObject.value.name, statusObject])).values()];
+            let removedBuffes = (removedBuffStatusesList[idx] || []).map(buff => ({value: buff, type: 'removedBuffs'}));
+            removedBuffes = [...new Map(removedBuffes.map(statusObject => [statusObject.value.name, statusObject])).values()];
             return [...removedDebuffs, ...addedBuffes, ...removedBuffes];
         }
     );
@@ -444,19 +455,15 @@ class MoveResponse {
         this.fatalChainGauge = data.fatalChainGauge ?? 0;
 
         // 스테이터스 매핑 [적][아군][아군][아군][아군]
-        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(
-            statusList => statusList.map(s => new StatusDto(s))
-        );
+        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
         this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
         this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
-        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(
-            statusList => statusList.map(s => new StatusDto(s))
-        );
-        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedBattleStatuses => removedBattleStatuses.filter(status => status.type === 'BUFF' || status.type === 'DISPEL_GUARD'));
-        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedDebuffStatuses => removedDebuffStatuses.filter(status => status.type === 'DEBUFF'));
-        this.currentBattleStatusesList = data.currentBattleStatusesList
-            .map(currentBattleStatuses => currentBattleStatuses.filter(status => status.type !== 'PASSIVE'))
-            .map(statusList => statusList.map(s => new StatusDto(s)));
+
+        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
+        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF'));
+        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF'));
+
+        this.currentBattleStatusesList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type !== 'PASSIVE').map(s => new StatusDto(s)));
 
         this.enemyAttackTargetOrders = data.enemyAttackTargetOrders ?? null;
         this.allTarget = data.allTarget ?? false;
@@ -478,8 +485,9 @@ function parseMoveResponseList(jsonArray) {
 }
 
 const GlobalSrc = {
-    BEEP : {video : '' , audio : '/static/assets/audio/gl/gl-beep.mp3',},
-    CHARGE_ATTACK_READY : {video : '' , audio : '/static/assets/audio/gl/gl-charge-attack-ready.mp3',},
+    BEEP: {video: '', audio: '/static/assets/audio/gl/gl-beep.mp3',},
+    CHARGE_ATTACK_READY: {video: '', audio: '/static/assets/audio/gl/gl-charge-attack-ready.mp3',},
+    TURN_DAMAGE: {video: '', audio: '/static/assets/audio/gl/gl-turn-damage.mp3',},
 }
 Object.freeze(GlobalSrc);
 

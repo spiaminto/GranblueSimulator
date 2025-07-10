@@ -94,6 +94,9 @@ public enum MoveType {
     FATAL_CHAIN(ROOT, "fatal-chain"), // 페이탈 체인
         FATAL_CHAIN_DEFAULT(FATAL_CHAIN, "fatal-chain"),
 
+    TURN_END(ROOT, "turn-end"), // 턴종처리용 (DB 저장 X)
+        TURN_END_PROCESS(TURN_END, "turn-end-process"),
+
     ETC(ROOT, "etc"),
 
     NONE(ROOT, "none"),

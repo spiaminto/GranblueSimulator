@@ -8,9 +8,12 @@ import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.common.*;
+import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
+import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
+import com.gbf.granblue_simulator.logic.common.DamageLogic;
+import com.gbf.granblue_simulator.logic.common.OmenLogic;
+import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
@@ -25,7 +28,6 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectiveCoveringEffect;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.hasBattleStatus;
 
 /**
  * 모든 에너미로직 반환값은 null 을 사용하지 않는다.
@@ -64,6 +66,9 @@ public abstract class EnemyLogic {
 
     // 턴 종료시 효과
     public abstract List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers);
+
+    // 턴 종료후 전조 발동
+    public abstract List<ActorLogicResult> activateOmen(BattleActor mainActor, List<BattleActor> partyMembers);
 
     /**
      * 공격 행동을 수행
@@ -203,17 +208,7 @@ public abstract class EnemyLogic {
                 null;
         // 스테이터스 적용
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, ability.getStatuses());
-        // 쿨다운 설정
-        MoveType abilityType = ability.getType();
-        Integer coolDown = ability.getCoolDown();
-        if (abilityType.getParentType() == MoveType.ABILITY) {
-            switch (abilityType) {
-                case FIRST_ABILITY -> mainActor.setFirstAbilityCoolDown(coolDown);
-                case SECOND_ABILITY -> mainActor.setSecondAbilityCoolDown(coolDown);
-                case THIRD_ABILITY -> mainActor.setThirdAbilityCoolDown(coolDown);
-                case FOURTH_ABILITY -> mainActor.setFourthAbilityCoolDown(coolDown);
-            }
-        }
+        // 적은 어빌리티 및 쿨타임 존재 X
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
 
@@ -242,7 +237,7 @@ public abstract class EnemyLogic {
             resultOmen = standby.getOmen();
             mainEnemy.setCurrentStandbyType(null);
             mainEnemy.setNextIncantStandbyType(null);
-            if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) mainEnemy.setChargeGauge(0);
+            if (standbyOmen.getOmenType() == OmenType.CHARGE_ATTACK) chargeGaugeLogic.setChargeGauge(mainActor, 0);
         } else {
             resultMove = standby;
             resultOmen = standby.getOmen();

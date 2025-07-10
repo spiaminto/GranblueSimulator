@@ -13,11 +13,11 @@ class AudioPlayer {
     async loadSound(src) {
         if (this.audioContext == null || src == null || src === '') return;
         if (this.bufferCache.has(src)) {
-            console.log('[AudioPlayer.loadSound] cache Hit src = ', src)
+            // console.log('[AudioPlayer.loadSound] cache Hit src = ', src)
             this.buffers.push(this.bufferCache.get(src));
             return;
         }
-        console.log('[AudioPlayer.loadSounds] audioSrc = ', src);
+        // console.log('[AudioPlayer.loadSounds] audioSrc = ', src);
         const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
@@ -35,6 +35,12 @@ class AudioPlayer {
         } else {
             console.log('[AudioPlayer.loadSounds] invalid audioSrcs = ', audioSrcs);
         }
+    }
+
+    async loadAndPlay(audioSrc) {
+        this.loadSound(audioSrc).then(() => {
+            this.playAllSounds();
+        })
     }
 
     #playSound(audioBuffer, delay = 0) {

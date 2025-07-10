@@ -104,7 +104,7 @@
           $('#abilitySlider').on('afterChange', function (event, slick, currentSlideIndex) {
               // console.log('current', currentSlideIndex);
               clearInterval(statusShowHideInterval);
-              let $currentStatuses = $('.slick-active .status-container .status');
+              let $currentStatuses = $('.slick-active .status-container .status:not(.d-none)'); // 안보이는거 제외한 스테이터스
               if ($currentStatuses.length > 11) {
                   let statusShowHideCallback = function () {
                       // console.log('interval', currentSlideIndex + 1);
@@ -144,9 +144,8 @@
           // 배틀 초상화 클릭 -> 어빌리티 슬라이더 오픈
           $('.battle-portrait').on('click', function () {
               let abilitySliderWidth = $('#abilitySlider .slick-track').width();
-              console.log(abilitySliderWidth)
               let battlePortraitIndex = $(this).index();
-              console.log('battlePortraitindex = ' + battlePortraitIndex);
+              // console.log('[.battle-portrait.onClick] battlePortraitindex = ' + battlePortraitIndex);
               $('#abilitySlider').slick('slickGoTo', battlePortraitIndex, true, {speed: 0})
               $('#abilitySlider').css('z-index', '1');
               $('.present-container').addClass('hidden');
@@ -172,7 +171,7 @@
           })
 
           function openStatusWrapperInfo($statusContainer) {
-              console.log('[openStatusWrapperInfo] statusContainer = ', $statusContainer);
+              // console.log('[openStatusWrapperInfo] statusContainer = ', $statusContainer);
               let $statusInfoModal = $('#statusInfoModal .status-info-wrapper');
               $statusInfoModal.children().remove();
               let isEnemy = $statusContainer.is('.enemy');
@@ -185,11 +184,15 @@
                   $statusInfoModal.append($omenInfo).append($('<hr>'));
               }
               $statusContainer.find('.status').each(function (index, status) {
-                  let iconSrc = $(status).find('.status-icon').attr('src');
-                  let statusInfoText = $(status).find('.status-info-text').text();
-                  let statusName = $(status).find('.status-name').text();
-                  let statusType = $(status).data('status-type') === 'BUFF' ? 'status-buff' : 'status-debuff'
-                  let statusDuration = $(status).find('.status-duration').text();
+                  let $status = $(status);
+                  let iconSrc = $status.find('.status-icon').attr('src');
+                  let statusInfoText = $status.find('.status-info-text').text();
+                  let statusName = $status.find('.status-name').text();
+                  let statusType =
+                      $status.data('status-type') === 'BUFF' || $status.data('status-type') === 'DISPEL_GUARD'
+                          ? 'status-buff'
+                          : 'status-debuff';
+                  let statusDuration = $status.find('.status-duration').text();
                   statusDuration = Number.parseInt(statusDuration) > 999 ? '영속' : statusDuration + '턴';
                   let $statusInfo = $('<div>').addClass('status-info ' + statusType)
                       .append($('<div>').addClass('status-info-icon-wrapper')
@@ -818,7 +821,9 @@
                 <button class="btn btn-outline-light button-xsm">상세</button>
               </div>
               <div class="status" th:each="status : ${characterInfo.statuses}"
-                   th:data-status-type="${status.status.type}">
+                   th:data-status-type="${status.status.type}"
+                   th:classappend="${statusStat.index > 0 && characterInfo.statuses.get(statusStat.index - 1).status.name.equals(status.status.name) ? 'd-none' : ''}">
+                <!--중복 이름 스테이터스 안보이게 렌더링-->
                 <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
                      th:src="${status.iconSrc}"/>
                 <div class="status-name d-none" th:text="${status.status.name}">스테이터스 이름</div>
@@ -867,7 +872,7 @@
         <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
       </div>
       <div class="form-check form-switch charge-attack-check-wrapper">
-        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck">
+        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck" th:checked="${member.isChargeAttackOn()}">
         <label class="form-check-label" for="chargeAttackActiveCheck">오의 발동</label>
       </div>
     </div>

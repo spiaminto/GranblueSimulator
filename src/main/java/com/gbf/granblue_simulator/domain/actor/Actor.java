@@ -18,7 +18,7 @@ import java.util.Map;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode(exclude = {"moves", "battleActors"}) @ToString(exclude = "battleActors")
+@EqualsAndHashCode @ToString
 @Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
 public abstract class Actor {
     @Id
@@ -67,10 +67,10 @@ public abstract class Actor {
     @Builder.Default
     private Double baseDodgeRate = 0.01; // 회피율
 
-    @OneToMany(mappedBy = "actor") @MapKey(name = "type")
+    @OneToMany(mappedBy = "actor") @MapKey(name = "type") @ToString.Exclude @EqualsAndHashCode.Exclude
     private Map<MoveType, Move> moves = new HashMap<>();
 
-    @OneToMany(mappedBy = "actor") @Builder.Default
+    @OneToMany(mappedBy = "actor") @Builder.Default  @ToString.Exclude @EqualsAndHashCode.Exclude
     private List<BattleActor> battleActors = new ArrayList<>();
 
     // Asset

@@ -15,7 +15,7 @@ async function processChargeAttack(response) {
 
     // 데미지 채우기
     let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'chargeAttack', 0, response.damages[0], []);
-    $('<div>', {class: 'charge-attack-damage-wrapper'}).append($damageElements.$damage).appendTo($('#chargeAttackDamageContainer'))
+    let $chargeAttackDamageWrapper = $('<div>', {class: 'charge-attack-damage-wrapper'}).append($damageElements.$damage).appendTo($('#chargeAttackDamageContainer'))
 
     // 이펙트 종료 직전부터 데미지, 피격이펙트 재생
     let effectHitDelay = effectDuration - 250; // 히트 시점을 끝나기 0.25초전으로
@@ -28,9 +28,9 @@ async function processChargeAttack(response) {
             $('#videoContainer').removeClass('push-left-down-effect');
         }, 150);
         // 데미지 표시 및 제거
-        $('.charge-attack-damage-wrapper .charge-attack-damage').addClass('damage-show');
+        $chargeAttackDamageWrapper.find('.charge-attack-damage').addClass('damage-show');
         setTimeout(function () {
-            $('.charge-attack-damage-wrapper').empty();
+            $chargeAttackDamageWrapper.remove();
         }, 1000);
     }, effectHitDelay);
 
@@ -78,10 +78,14 @@ async function processEnemyChargeAttack(response) {
     $('.enemy-video-container').attr('data-standby-move-class', MoveType.NONE.className);
     // 전조 컨테이너 deActivate
     setTimeout(function () {
-        $(".omen-container").removeClass('activated')
-            .find('.omen-text').removeClass().addClass('omen-text') // 해당 컨디션 찾기 귀찮아서 그냥 밀어버리고 omen-text 추가
-            .find('.omen-prefix').text('')
-            .find('.omen-value').text('');
+        $('.omen-container-top').removeClass('activated')
+            .find('.omen-text').attr('class', 'omen-text')
+            .find('.omen-prefix').text('').end()
+            .find('.omen-value').text('').end()
+            .find('.omen-info').text('');
+        $('.omen-container-bottom.enemy').removeClass('activated')
+            .find('.omen-text').attr('class', 'omen-text')
+            .find('.omen-prefix').text('');
     }, effectDuration);
 
 // EFFECT 이펙트 시작

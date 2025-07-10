@@ -16,6 +16,7 @@ import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
 import com.gbf.granblue_simulator.logic.common.StatusUtil;
+import com.gbf.granblue_simulator.logic.common.TurnEndStatusLogic;
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
@@ -45,6 +46,7 @@ public class BattleLogic {
     private final BattleActorRepository battleActorRepository;
     private final BattleLogRepository battleLogRepository;
     private final SetStatusLogic setStatusLogic;
+    private final TurnEndStatusLogic turnEndStatusLogic;
 
     public void startBattle(List<BattleActor> partyMembers, BattleActor enemy) {
         partyMembers.forEach(partyMember -> {
@@ -75,6 +77,12 @@ public class BattleLogic {
         return progressTurnResults;
     }
 
+    /**
+     * 턴 종료처리
+     * @param enemy
+     * @param partyMembers
+     * @return
+     */
     private List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
         // 아군 턴종 처리
@@ -88,6 +96,12 @@ public class BattleLogic {
         EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
         List<ActorLogicResult> enemyTurnEndResults = enemyLogic.processTurnEnd(enemy, partyMembers);
         turnEndResults.addAll(enemyTurnEndResults);
+
+        // 턴종 스테이터스 처리
+        turnEndResults.addAll(turnEndStatusLogic.processTurnEnd(enemy, partyMembers));
+        
+        // 전조 발동 (턴종 마지막 처리)
+        turnEndResults.addAll(enemyLogic.activateOmen(enemy, partyMembers));
 
         saveBattleLogAll(turnEndResults);
         return turnEndResults;

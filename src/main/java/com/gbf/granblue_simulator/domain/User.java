@@ -22,7 +22,7 @@ public class User {
 
     private String role;
 
-    @OneToMany(mappedBy = "user") @Builder.Default
+    @OneToMany(mappedBy = "user") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
     private List<Member> members = new ArrayList<>(); // 이거 나중에 지울 예정
 
     private Long primaryPartyId; // 현재 선택중인 파티 id

@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString(exclude = {"status"})
+@EqualsAndHashCode @ToString
 public class StatusEffect {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

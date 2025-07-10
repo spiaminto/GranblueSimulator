@@ -30,7 +30,7 @@ function processAbility(response) {
     response.damages.forEach(function (damage, damageIndex, damageArray) {
         let startDelay = effectDuration / damageArray.length * damageIndex;
         if (damageIndex === 0) {
-            $enemyVideo.idle.addClass('hidden').get(0).pause();
+            $enemyVideo.idle.addClass('left-hidden').get(0).pause();
             $enemyVideo.idle.get(0).currentTime = 0;
             $enemyVideo.effect.removeClass('hidden');
         }
@@ -39,17 +39,17 @@ function processAbility(response) {
             $enemyVideo.effect.get(0).currentTime = 0; // 빼면 부자연스러워짐
             $enemyVideo.effect.get(0).play();
             // 데미지 표시
-            $('.ability-damage-wrapper .damage-index-' + damageIndex).addClass(damageShowClass);
+            $abilityDamageWrapper.find('.ability-damage').eq(damageIndex).addClass(damageShowClass);
             if (damageIndex >= damageArray.length - 1) { // 마지막
                 // 적 모션 정상화
                 setTimeout(function () {
-                    $enemyVideo.idle.removeClass('hidden').get(0).play(); // 가끔 멈춰서 재생갱신
+                    $enemyVideo.idle.removeClass('left-hidden').get(0).play(); // 가끔 멈춰서 재생갱신
                     $enemyVideo.effect.addClass('hidden');
                 }, 200) // 막타에 대한 대기 (임의길이)
                 // 마지막 데미지 페이드 아웃시 전체 제거
                 setTimeout(function () {
                     $abilityDamageWrapper.remove();
-                }, 1000); // 바지막 데미지 페이드 아웃 대기
+                }, 1000); //
             }
         }, startDelay);
     });

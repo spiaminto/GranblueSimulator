@@ -75,7 +75,7 @@ public class DamageLogic {
                 for (Integer additionalDamage : additionalDamages) {
                     targetHp = damage > 0 ? targetHp - additionalDamage : targetHp;
                 }
-                targetActor.setHp(Math.max(targetHp, 0));
+                targetActor.updateHp(Math.max(targetHp, 0));
 
                 resultDamages.add(damage);
                 resultAdditionalDamages.add(additionalDamages);
@@ -216,7 +216,7 @@ public class DamageLogic {
                 enemyHp = additionalDamage > 0 ? enemyHp - additionalDamage : enemyHp;
             }
         }
-        targetActor.setHp(Math.max(enemyHp, 0));
+        targetActor.updateHp(Math.max(enemyHp, 0));
         boolean isEnemyHpZero = targetActor.getHp() == 0;
 
         return DamageLogicResult.builder()

@@ -84,11 +84,18 @@ public class Diaspora2Logic extends EnemyLogic {
 
     @Override
     public List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
-        BattleEnemy enemy = (BattleEnemy) mainActor;
         List<ActorLogicResult> results = new ArrayList<>();
 
         // 서포어비 1
         results.add(firstSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY), null));
+
+        return results;
+    }
+
+    @Override
+    public List<ActorLogicResult> activateOmen(BattleActor mainActor, List<BattleActor> partyMembers) {
+        BattleEnemy enemy = (BattleEnemy) mainActor;
+        List<ActorLogicResult> results = new ArrayList<>();
 
         // 5턴마다 영창기 이성임계 발동
         if ((mainActor.getMember().getCurrentTurn() + 1) % 5 == 0)

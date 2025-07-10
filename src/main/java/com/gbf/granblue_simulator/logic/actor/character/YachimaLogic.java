@@ -119,7 +119,7 @@ public class YachimaLogic extends CharacterLogic {
             setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility.getStatuses());
         }
         // 쿨타임 적용
-        mainActor.setThirdAbilityCoolDown(thirdAbility.getCoolDown());
+        mainActor.updateAbilityCoolDown(thirdAbility.getCoolDown(), MoveType.THIRD_ABILITY);
         return resultMapper.toResultWithExecuteAttack(mainActor, enemy, partyMembers, thirdAbility, null, setStatusResult, afterMoveTarget);
     }
 
@@ -156,7 +156,7 @@ public class YachimaLogic extends CharacterLogic {
                 partyMembers.forEach(partyMember -> setStatusLogic.addBattleStatusesLevel(partyMember, 3, statusAlpha.getId(), statusDelta.getId()));
 
                 // 자신의 3어빌 쿨타임 0으로 감소
-                mainActor.setThirdAbilityCoolDown(0);
+                mainActor.updateAbilityCoolDown(0, MoveType.THIRD_ABILITY);
                 return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, setStatusResult);
             }
         }

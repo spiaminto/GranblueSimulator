@@ -1,7 +1,7 @@
 async function processResponseMoves(responses) {
     // 파싱
     let moveResponses = parseMoveResponseList(responses);
-    console.log('[processResponseMoves] moveResponses = ', moveResponses);
+    console.log('===[processResponseMoves]============== \n moveResponses = \n', moveResponses);
 
     // 결과 리스트에 폼체인지가 있을경우 비디오 미리로드
     if (moveResponses.some(response => response.moveType === MoveType.FORM_CHANGE.name)) {
@@ -42,6 +42,9 @@ async function processResponseMoves(responses) {
             case MoveType.SUMMON:
                 await processSummon(response);
                 break;
+            case MoveType.TURN_END:
+                await processTurnEndProcess(response);
+                break;
             case MoveType.ROOT:
             default:
                 console.log('[processResponseMoves] invalid type]', response.moveType);
@@ -55,7 +58,7 @@ async function processResponseMoves(responses) {
     if (firstMoveResponse.moveType.getParentType() === MoveType.ABILITY) {
         // 어빌리티 후처리 (서폿어빌 X) -> 어빌리티 레일 에서 삭제 및 오버레이
         $('.ability-rail-wrapper .rail-ability').eq(0).remove();
-        let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' [data-ability-id=' +  + ']');
+        let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' [data-ability-id=' + +']');
         $processedAbility.find('.ability-overlay').show();
     }
 }
@@ -75,11 +78,14 @@ function processSummon(response) {
         window.effectAudioPlayer.playAllSounds();
     });
 
-    // 데미지 채우기 -> 어빌리티 에다가 채움
-    response.damages.forEach(function (damage, index) {
-        let $damageElement = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', index, damage, []);
-        $('.ability-damage-wrapper').prepend($damageElement.$damage);
+    // 데미지 삽입 -> 어빌리티에 채움
+    let currentAbilityDamageWrapperIndex = $('.ability-damage-wrapper').length;
+    let $abilityDamageWrapper = $('<div>', {class: 'ability-damage-wrapper ability-index-' + currentAbilityDamageWrapperIndex});
+    response.damages.forEach(function (damage, damageIndex) {
+        let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', damageIndex, damage, []);
+        $abilityDamageWrapper.prepend($damageElements.$damage);
     })
+    $('#abilityDamageContainer').append($abilityDamageWrapper);
 
     // 소환 이펙트 재생
     playVideo($effectVideo, null, null);
@@ -94,8 +100,8 @@ function processSummon(response) {
             $('#videoContainer').removeClass('push-left-down-effect');
         }, 150);
         // 데미지 표시
-        let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show'
-        let $abilityDamages = $('.ability-damage-wrapper .ability-damage');
+        let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show';
+        let $abilityDamages = $abilityDamageWrapper.find('.ability-damage')
         $abilityDamages.each(function (index, abilityDamage) {
             setTimeout(function () {
                 $(abilityDamage).addClass(damageShowClass);
@@ -103,7 +109,7 @@ function processSummon(response) {
             if (index >= $abilityDamages.length - 1) {
                 // 마지막에 제거
                 setTimeout(function () {
-                    $abilityDamages.remove();
+                    $abilityDamageWrapper.remove();
                 }, 1000);
             }
         })
@@ -251,7 +257,7 @@ function processEnemyStandBy(response) {
     let $defaultIdleVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className);
     if ($defaultIdleVideo.hasClass('hidden')) {
         // 적이 현재 스탠바이 상태일경우 전조 갱신후 아래의 내용은 무시
-        $('.omen-container-top.enemy').find('.omen-text .omen-value').text(response.omenValue);
+        $('.omen-container-top').find('.omen-text .omen-value').text(response.omenValue);
         return;
     }
 
@@ -261,10 +267,10 @@ function processEnemyStandBy(response) {
     // 적 비디오 컨테이너에 스탠바이 상태 추가
     $('.enemy-video-container').attr('data-standby-move-class', response.moveType.className);
     // 전조 컨테이너 activate
-    $('.omen-container-top.enemy').addClass('activated')
+    $('.omen-container-top').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
         .find('.omen-prefix').text(response.omenCancelCondInfo).end()
-        .find('.omen-value').text(response.omenValue)
+        .find('.omen-value').text(response.omenValue).end()
         .find('.omen-info').text(response.omenInfo);
     $('.omen-container-bottom.enemy').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
@@ -303,11 +309,14 @@ function processEnemyBreak(response) {
     syncEnemyChargeTurn(response.chargeGauges);
 
     // 전조 컨테이너 deactivate
-    $(".omen-container").removeClass('activated')
+    $('.omen-container-top').removeClass('activated')
         .find('.omen-text').removeClass(response.omenType.className)
-        .find('.omen-prefix').text('')
-        .find('.omen-value').text('')
+        .find('.omen-prefix').text('').end()
+        .find('.omen-value').text('').end()
         .find('.omen-info').text('');
+    $('.omen-container-bottom.enemy').removeClass('activated')
+        .find('.omen-text').removeClass(response.omenType.className)
+        .find('.omen-prefix').text('');
 
     // 오디오 재생
     let audioSrc = $('.enemy-audio-container').find('.' + response.moveType.className).attr('src');
@@ -331,6 +340,35 @@ function processEnemyBreak(response) {
         console.log('BREAK done', response.moveType);
         resolve();
     }, totalEndTime + 200));
+
+}
+
+function processTurnEndProcess(response) {
+    let totalEndTime = 0; // 기본적으로 아래의 처리들 중 1개만 실행된다.
+
+    // 힐 값 있으면 턴종힐
+    if (response.heals.reduce((acc, item) => acc + item, 0) > 0)
+    totalEndTime = processHealEffect(response.heals, 0);
+
+    // 추가된 버프 있으면 오의게이지 증가 (일반 버프 스테이터스는 턴종이 아닌 캐릭터 로직으로 처리된다)
+    if (response.addedBuffStatusesList.reduce((acc, item) => acc + item.length, 0) > 0) {
+        totalEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, 0);
+        totalEndTime /= 2; // 가속
+    }
+
+    // 데미지 있으면 턴종데미지
+    if (response.damages.reduce((acc, item) => acc + item, 0) > 0) {
+        let $partyVideos = [-1, 1, 2, 3, 4]
+            .map(number => getVideo(number, MoveType.DAMAGED_DEFAULT, MoveType.IDLE_DEFAULT));
+        enemyDamagesPostProcess(response, null, $partyVideos);
+        window.effectAudioPlayer.loadAndPlay(GlobalSrc.TURN_DAMAGE.audio);
+        totalEndTime = 600;
+    }
+
+    return new Promise(resolve => setTimeout(function () {
+        console.log('TURN_END_PROCESS done', response.moveType);
+        resolve();
+    }, totalEndTime));
 
 }
 

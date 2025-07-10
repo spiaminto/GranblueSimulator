@@ -198,6 +198,7 @@ public final class StatusUtil {
     /**
      * 해당 statusEffectType 을 가진 BattleStatus 반환, findFirst, orElse null
      * 오의 재발동에서만 사용중
+     *
      * @param battleActor
      * @param statusEffectType
      * @return
@@ -206,6 +207,22 @@ public final class StatusUtil {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().containsKey(statusEffectType))
                 .findFirst().orElse(null);
+    }
+
+    /**
+     * 해당 statusEffectType 중 하나라도 가진 BattleStatus 모두 반환
+     * 턴종 스테이터스 처리시 사용
+     *
+     * @param battleActor
+     * @param statusEffectTypes
+     * @return
+     */
+    public static List<BattleStatus> getBattleStatusesByEffectType(BattleActor battleActor, StatusEffectType... statusEffectTypes) {
+        return battleActor.getBattleStatuses().stream()
+                .filter(battleStatus -> Arrays.stream(statusEffectTypes)
+                        .anyMatch(statusEffectType -> battleStatus.getStatus().getStatusEffects().containsKey(statusEffectType)
+                        ))
+                .toList();
     }
 
     /**
