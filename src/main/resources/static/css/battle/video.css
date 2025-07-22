@@ -8,10 +8,10 @@ video.left-hidden {
 }
 
 #videoContainer .attack.large, #videoContainer .ability.large {
-    width: 120%;
+    width: 125%;
     height: 120%;
     top: 0;
-    left: -15%;
+    left: -5%;
 }
 
 /*#videoContainer .charge-attack.large {*/
@@ -44,13 +44,19 @@ video.left-hidden {
 
 .party-video {
     position: absolute;
-    width: 80%;
+    width: 85%;
 }
 
-.party-video.attack.motion {
-    width: 80%; /* 주인공 공격모션 크기 보정 */
+.party-video.attack.motion { /* 공격모션 크기 보정 */
+    width: 85%;
     top: 10%;
     right: 10%;
+}
+
+#videoContainer .party-video-container .attack.effect:not(.large) { /* 모션 있는 공격 이펙트 크기 보정*/
+    width: 99%;
+    top: 5%;
+    left: 0;
 }
 
 .party-video.motion:not(.idle) {
@@ -58,33 +64,27 @@ video.left-hidden {
 }
 
 .party-video-container .party-1 video {
-    top: -2%;
-    right: 3%;
+    top: -1%;
+    right: 2%;
     z-index: 1;
 }
 
 .party-video-container .party-2 video {
-    top: 8%;
+    top: 10%;
     right: -9%;
     z-index: 2;
 }
 
 .party-video-container .party-3 video {
-    top: 18%;
-    right: 3%;
+    top: 21%;
+    right: 2%;
     z-index: 3;
 }
 
 .party-video-container .party-4 video {
-    top: 28%;
-    right: -10%;
+    top: 32%;
+    right: -9%;
     z-index: 4;
-}
-
-#videoContainer .party-video-container .attack.effect:not(.large) {
-    width: 99%;
-    top: 5%;
-    left: 0;
 }
 
 .party-video-container .effect:not(.damaged) {
@@ -127,114 +127,86 @@ video.left-hidden {
     z-index: 5;
 }
 
-.heal-video-wrapper .heal {
+/* 캐릭터별 글로벌 이펙트 */ /* 300 * 500 */
+.global-effect-video-wrapper {
+    position: absolute;
     width: 40%;
     height: 50%;
     z-index: 5;
+    text-align: center;
 }
 
-.heal-video-wrapper.heal .actor-0 {
+.global-effect-video-wrapper .global-effect-video {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+
+.global-effect-video-wrapper.actor-0 {
     top: -22%;
     left: -37%;
     width: 130%;
     height: 130%;
 }
 
-.heal-video-wrapper .actor-1 {
-    top: 18%;
-    right: 2%;
+.global-effect-video-wrapper.actor-1 {
+    top: 20%;
+    right: 3%;
 }
 
-.heal-video-wrapper .actor-2 {
-    top: 28%;
+.global-effect-video-wrapper.actor-2 {
+    top: 31%;
     right: -9%;
 }
 
-.heal-video-wrapper .actor-3 {
-    top: 38%;
-    right: 2%;
+.global-effect-video-wrapper.actor-3 {
+    top: 42%;
+    right: 3%;
 }
 
-.heal-video-wrapper .actor-4 {
-    top: 48%;
-    right: -5%;
+.global-effect-video-wrapper.actor-4 {
+    top: 53%;
+    right: -9%;
 }
 
-
-#videoContainer .full-size {
-    width: 100%;
-    top: 5%;
+.global-effect-video-wrapper .guard-status {
+    position: absolute;
+    top: 0;
     left: 0;
-}
-
-.waiting-video-container {
-    position: absolute;
-    visibility: hidden;
-    z-index: 999;
-    width: 90px;
-    top: 70px;
-}
-
-.waiting-video {
     width: 100%;
+    height: 100%;
 }
 
-.global-image-container {
-    position: absolute;
-    width: 100%;
-}
-
-.guard-status-wrapper {
-    width: 100%;
-    position: relative;
-}
-
-.guard-status img {
-    width: 100%;
-}
-
-.guard-status-wrapper .guard-status {
-    position: absolute;
-    width: 55px;
-    z-index: 4;
+.global-effect-video-wrapper .guard-status-image {
     opacity: 0;
+    position: absolute;
+    z-index: 1;
+    top: 16%;
+    left: 17%;
+    width: 60%;
 }
 
-.guard-status-wrapper .guard-status.effect {
+.global-effect-video-wrapper .guard-status-effect {
+    opacity: 0;
+    position: absolute;
+    top: 53%;
+    left: 30%;
     border-radius: 50%;
     margin: 15px 15px;
     z-index: 0;
-    width: 30px;
-    height: 30px;
-    box-shadow: 0 0 10px 13px rgba(255, 255, 255, 0.6); /* x, y, blur, spread, color */
+    width: 25px;
+    height: 25px;
+    box-shadow: 0 0 10px 13px rgba(255, 255, 255, 0.7); /* x, y, blur, spread, color */
 }
 
-.guard-status-wrapper .guard-status.guard-on {
+.global-effect-video-wrapper .guard-status.guard-on .guard-status-image {
     animation: guard-on-effect 0.5s forwards;
 }
 
-.guard-status-wrapper .guard-status.effect.guard-on {
+.global-effect-video-wrapper .guard-status.guard-on .guard-status-effect {
     animation: guard-status-effect 1.5s infinite alternate;
-}
-
-.guard-status-wrapper .guard-status.party-1 {
-    top: 165px;
-    right: 60px;
-}
-
-.guard-status-wrapper .guard-status.party-2 {
-    top: 205px;
-    right: 15px;
-}
-
-.guard-status-wrapper .guard-status.party-3 {
-    top: 245px;
-    right: 60px;
-}
-
-.guard-status-wrapper .guard-status.party-4 {
-    top: 285px;
-    right: 15px
 }
 
 @keyframes guard-on-effect {
@@ -244,7 +216,7 @@ video.left-hidden {
     }
     3% {
         opacity: 1;
-        transform: scale(1.3);
+        transform: scale(1.4);
     }
     20% {
         transform: scale(1.0);
@@ -261,6 +233,26 @@ video.left-hidden {
     100% {
         opacity: 1;
     }
+}
+
+/* 로딩 */
+.waiting-video-container {
+    position: absolute;
+    visibility: hidden;
+    z-index: 999;
+    width: 90px;
+    top: 70px;
+}
+
+.waiting-video {
+    width: 100%;
+}
+
+
+/* 기타 */
+.global-image-container {
+    position: absolute;
+    width: 100%;
 }
 
 

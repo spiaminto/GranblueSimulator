@@ -6,6 +6,7 @@ function processAttack(response) {
 
     // 준비 - 아군
     let $partyVideo = getVideo(response.charOrder, response.moveType);
+    if ($partyVideo.motion == null) $partyVideo.effect.addClass('large'); // 모션이 없는 공격은 900p -> large 클래스 추가
     let effectDuration = $partyVideo.effect.get(0).duration * 1000;
     // 준비 - 아군 (난격) : 난격이 붙은경우 이펙트, 모션을 전체적으로 천천히 재생한다.
     let playBackRate = 1.0 - 0.1 * (multiAttackCount - 1); // 난격시 느리게
@@ -36,12 +37,10 @@ function processAttack(response) {
     // 아군 일반공격 이펙트 재생
     playVideo($partyVideo.effect, $partyVideo.motion, $partyVideo.idle);
 
-
-    // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
+    // 데미지 채우기
     let currentAttackDamageWrapperIndex = $('.attack-damage-wrapper.actor-' + response.charOrder).length; // 남아있는 이전 공격데미지 래퍼 (겹침방지 새로생성용)
     let $attackDamageWrapper = $('<div>', {class: 'attack-damage-wrapper party actor-' + response.charOrder + ' attack-index-' + currentAttackDamageWrapperIndex});
     response.damages.forEach(function (damage, index) {
-        // 데미지 채우기
         let attackIndex = Math.floor(index / multiAttackCount); // 현재 인덱스의 기본타수 순서 (0, 1, 2 현재 트리플 어택까지 구현했으므로 여기까지)
         let multiAttackIndex = index % multiAttackCount; // 현재 인덱스의 난격 타수 순서 (공격마다 0-1-2-3-... 씩으로 진행, 0이면 난격이 아님)
         let missClassName = damage === 'MISS' ? ' damage-miss' : '';
@@ -53,7 +52,7 @@ function processAttack(response) {
             class: 'attack-damage actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
             text: damage,
         });
-        $attackDamageWrapper.append($attackDamage[0]);
+        $attackDamageWrapper.append($attackDamage);
         let $additionalDamage = $('<div>', { // 추격
             class: 'additional-damage-wrapper actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
             text: damage // 공간 사용을 위해
@@ -63,32 +62,41 @@ function processAttack(response) {
                 text: additionalDamage
             })
         ))
-        $attackDamageWrapper.append($additionalDamage[0]);
+        $attackDamageWrapper.append($additionalDamage);
+        // 마지막에 DOM 에 추가
+        index >= attackHitCount - 1 ? $('#attackDamageContainer').append($attackDamageWrapper) : null;
+    });
 
+    // 데미지 표시, 적 피격 모션 재생 (히트수 만큼 반복)
+    let $attackDamages = $attackDamageWrapper.find('.attack-damage');
+    let $additionalDamages = $attackDamageWrapper.find('.additional-damage-wrapper');
+    response.damages.forEach(function (damage, index) {
+        // 데미지 채우기
+        let attackIndex = Math.floor(index / multiAttackCount); // 현재 인덱스의 기본타수 순서 (0, 1, 2 현재 트리플 어택까지 구현했으므로 여기까지)
+        let multiAttackIndex = index % multiAttackCount; // 현재 인덱스의 난격 타수 순서 (공격마다 0-1-2-3-... 씩으로 진행, 0이면 난격이 아님)
         let startDelay = attackDelay * attackIndex; // 1타당 시작시 걸어줄 딜레이, 난격이 있을경우 난격마다 딜레이가 같아짐 ([1,2,3,4,5,6] 2회난격시 승수가 0, 0, 1, 1, 2, 2)
         let multiHitDelay = multiAttackIndex * 115; // 난격마다 추가 딜레이
         let totalDelay = startDelay + multiHitDelay; // 최종 딜레이
         // console.log('[processAttack] baseDelay = ', attackDelay, ' startDelay = ', startDelay, ' multiHitDealy = ', multiHitDelay, ' totalDelay = ', totalDelay);
 
-        // 마지막에 데미지 요소 추가
-        index >= attackHitCount - 1 ? $('#attackDamageContainer').append($attackDamageWrapper) : null;
-
+        let $attackDamage = $attackDamages.eq(index);
+        let $additionalDamage = $additionalDamages.eq(index);
         setTimeout(function () {
             // 적 피격 이펙트 재생 (난격일땐 재생 x)
             multiAttackIndex === 0 ? playVideo($enemyVideo.effect, null, $enemyVideo.idle) : null;
             // 데미지 표시
-            $attackDamage.addClass('damage-show');
+            $attackDamage.addClass('party-attack-damage-show');
             // 추가데미지 표시
             $additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
-                    $(additionalDamage).addClass('damage-show'); // 추가데미지는 부모와의 fadeIn 겹침을 피하기 위해 display none 설정되어있음
-                }, (index + 1) * 100);
+                    $(additionalDamage).addClass('party-additional-damage-show'); // 추가데미지는 부모와의 fadeIn 겹침을 피하기 위해 display none 설정되어있음
+                }, 50 * (index + 1));
             });
 
             if (index >= attackHitCount - 1) {
                 setTimeout(function () {
                     $attackDamageWrapper.remove(); // 이번 공격의 데미지 래퍼 삭제
-                }, 1300); // 마지막 데미지 페이드아웃 딜레이 대기, 현재 1200ms
+                }, 1500);
             }
         }, totalDelay)
     })
@@ -109,13 +117,13 @@ function processEnemyAttack(response) {
     let attackCount = response.moveType === MoveType.SINGLE_ATTACK ? 1 : response.moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
     // let targetOrders = response.enemyAttackTargetOrders;
     // let uniqueTargetOrders = [...new Set(targetOrders)];
-    let isAllTarget = response.allTarget; // 전체공격여부
 
     // 준비 - 적
     let standbyMoveClassName = $('.enemy-video-container').attr('data-standby-move-class');
     let idleMoveType = standbyMoveClassName === 'none' ? MoveType.IDLE_DEFAULT : MoveType.byClassName(standbyMoveClassName).getIdleType();
     let $enemyVideo = getVideo(0, MoveType.SINGLE_ATTACK, idleMoveType)
-    let effectDuration = $enemyVideo.effect.get(0).duration * 1000 * attackCount;
+    let effectDuration = $enemyVideo.effect.get(0).duration * 1000;
+    let effectTotalDuration = effectDuration * attackCount;
     // 준비 - 아군 (0번은 사용안함)
     let $partyVideos = [-1, 1, 2, 3, 4]
         .map(number => getVideo(number, MoveType.DAMAGED_DEFAULT, MoveType.IDLE_DEFAULT));
@@ -144,14 +152,14 @@ function processEnemyAttack(response) {
                             $enemyVideo.effect.addClass('hidden');
                         }, 50)
                     })
-                }, effectDuration / attackCount)
+                }, effectDuration)
             }
-        }, (effectDuration / attackCount) * i)
+        }, effectDuration * i)
     }
 
     enemyDamagesPostProcess(response, $enemyVideo, $partyVideos);
 
-    let totalEndTime = isAllTarget ? effectDuration + 100 : effectDuration * response.damages.length + 100;
+    let totalEndTime = effectTotalDuration;
     console.log("[processEnemyAttack] total = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
         console.log('ENEMY ATTACK done');

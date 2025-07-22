@@ -63,6 +63,7 @@ public enum StatusEffectType {
 
     // 공격 행동관련
     MULTI_STRIKE, // 다회공격 [공격횟수]
+    STRIKE_SEALED, // 공격행동 불가 [1], < 장악, 수면 >
     SUBJUGATED, // 장악 [1]
 
     // 크리티컬
@@ -97,6 +98,7 @@ public enum StatusEffectType {
     // 오의게이지
     CHARGE_GAUGE_INCREASE_UP, // [증가배율]
     CHARGE_GAUGE_INCREASE_DOWN, // [감소배율]
+    ATTACK_CHARGE_GAUGE_INCREASE_DOWN, // 일반공격 오의게이지 감소율 [감소배율]
     CHARGE_TURN_INCREASE_UP, // [증가수치]
     CHARGE_TURN_INCREASE_DOWN, // [감소수치]
     CHARGE_TURN_FIX, // 공포, 장악 효과 [0]
@@ -127,6 +129,7 @@ public enum StatusEffectType {
     ACT_CLEAR, // 클리어 [클리어 횟수 1 ~ 99]
 
     ACT_CHARGE_GAUGE_UP, // 오의게이지 업 [상승할 오의게이지 수치]
+    ACT_WEAPON_BURST, // 즉시 오의 사용 가능 [1]
     ACT_FATAL_CHAIN_GAUGE_UP, // 페이탈 체인 게이지 상승 [상승할 페이탈 체인 게이지 수치]
 
     ACT_HEAL, // 힐 사용 [힐 수치]

@@ -282,7 +282,7 @@ public class DamageLogic {
     }
 
     /**
-     * 전처리 - 공격력을 배율에 따라 데미지로 변환, 공격력 전처리와 데미지 처리를 나누는 기준
+     * 전처리 - 공격력을 배율에 따라 데미지로 변환,
      *
      * @param atk
      * @return
@@ -354,7 +354,7 @@ public class DamageLogic {
 
         // 데미지 상한 상승 적용 
         double damageSoftCap = (baseCap.getBaseSoftCap() * (1 + totalDamageCapRate));
-        damageSoftCap = type == ProcessType.ABILITY ? damageSoftCap * damageRate : damageSoftCap; // 어빌리티는 배율 곱해서 상한 계산
+        damageSoftCap = type == ProcessType.ABILITY ? damageSoftCap * Math.sqrt(damageRate) : damageSoftCap; // 어빌리티는 루트배율 만큼 상한지정 (10000기준 5배 22360, 10배 31622, 15배 38729, 20배 44721)
         double damageHardCap = (baseCap.getBaseHardCap() * (1 + totalDamageCapRate));
         damageHardCap = type == ProcessType.ABILITY ? damageHardCap * damageRate : damageHardCap;
 
@@ -695,33 +695,33 @@ public class DamageLogic {
                 .moveDamageCapRateCapEffectType(StatusEffectType.ATTACK_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.5)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ATTACK_DAMAGE_UP)
-                .moveSupplementalDamageCap(20000)
+                .moveSupplementalDamageCap(100000) // CHECK 어쌔신
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.3)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_UP)
                 .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_ATTACK_AMPLIFY_DAMAGE_DOWN)
                 .build());
         baseCapMap.put(ProcessType.ABILITY, BaseCap.builder()
-                .baseSoftCap(30000)
-                .baseHardCap(50000)
+                .baseSoftCap(10000)
+                .baseHardCap(20000)
                 .exDamageCap(1300000)
                 .moveDamageCapRateCapEffectType(StatusEffectType.ABILITY_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.5)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_ABILITY_DAMAGE_UP)
-                .moveSupplementalDamageCap(20000)
+                .moveSupplementalDamageCap(30000)
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_ABILITY_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.3)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_ABILITY_AMPLIFY_DAMAGE_UP)
                 .moveTakenAmplifyDamageDownType(StatusEffectType.TAKEN_ABILITY_AMPLIFY_DAMAGE_DOWN)
                 .build());
         baseCapMap.put(ProcessType.CHARGE_ATTACK, BaseCap.builder()
-                .baseSoftCap(370000)
-                .baseHardCap(480000)
+                .baseSoftCap(480000)
+                .baseHardCap(660000)
                 .exDamageCap(1300000)
                 .moveDamageCapRateCapEffectType(StatusEffectType.CHARGE_ATTACK_DAMAGE_CAP_UP)
                 .moveDamageCapRateCap(0.75)
                 .moveSupplementalDamageCapEffectType(StatusEffectType.SUPPLEMENTAL_CHARGE_ATTACK_DAMAGE_UP)
-                .moveSupplementalDamageCap(50000)
+                .moveSupplementalDamageCap(100000) // CHECK 어쌔신
                 .moveAmplifyDamageRateCapEffectType(StatusEffectType.AMPLIFY_CHARGE_ATTACK_DAMAGE_UP)
                 .moveAmplifyDamageRateCap(0.5)
                 .moveTakenAmplifyDamageUpType(StatusEffectType.TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP)

@@ -107,9 +107,9 @@ const MoveType = {
     CHARGE_ATTACK_F: {name: 'CHARGE_ATTACK_F', parentType: 'CHARGE_ATTACK', className: 'charge-attack-f'},
     CHARGE_ATTACK_G: {name: 'CHARGE_ATTACK_G', parentType: 'CHARGE_ATTACK', className: 'charge-attack-g'},
 
-    FORM_CHANGE: {name: 'FORM_CHANGE', parentType: 'ROOT', className: 'phase-change'},
-    FORM_CHANGE_DEFAULT: {name: 'FORM_CHANGE_DEFAULT', parentType: 'FORM_CHANGE', className: 'phase-change-default'},
-    FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'FORM_CHANGE', className: 'phase-change-entry'},
+    FORM_CHANGE: {name: 'FORM_CHANGE', parentType: 'ROOT', className: 'form-change'},
+    FORM_CHANGE_DEFAULT: {name: 'FORM_CHANGE_DEFAULT', parentType: 'FORM_CHANGE', className: 'form-change-default'},
+    FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'FORM_CHANGE', className: 'form-change-entry'},
 
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
     SUMMON_DEFAULT: {name: 'SUMMON_DEFAULT', parentType: 'SUMMON', className: 'summon'},
@@ -127,6 +127,7 @@ const MoveType = {
     TURN_END_PROCESS : {name: 'TURN_END_PROCESS', parentType: 'TURN_END', className: 'turn-end'},
 
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
+    STRIKE_SEALED: {name: 'STRIKE_SEALED', parentType: 'ETC', className: 'strike-sealed'},
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };
 

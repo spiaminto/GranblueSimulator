@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static com.gbf.granblue_simulator.domain.move.MoveType.STRIKE_SEALED;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectiveCoveringEffect;
 
 /**
@@ -79,6 +81,12 @@ public abstract class EnemyLogic {
      * @return
      */
     public ActorLogicResult processStrike(BattleActor mainActor, List<BattleActor> partyMembers) {
+        // 공격행동 봉인시 즉시 반환
+        ActorLogicResult sealedStrikeResult = getBattleStatusByEffectType(mainActor, StatusEffectType.STRIKE_SEALED)
+                .map(battleStatus -> resultMapper.toResult(mainActor, partyMembers, Move.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null))
+                .orElseGet(() -> null);
+        if (sealedStrikeResult != null) return sealedStrikeResult;
+        // 공격행동 결정 및 수행
         BattleEnemy mainEnemy = (BattleEnemy) mainActor;
         MoveType currentStandbyType = mainEnemy.getCurrentStandbyType();
         return currentStandbyType != null ?

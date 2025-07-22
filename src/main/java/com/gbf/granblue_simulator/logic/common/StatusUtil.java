@@ -196,17 +196,17 @@ public final class StatusUtil {
     }
 
     /**
-     * 해당 statusEffectType 을 가진 BattleStatus 반환, findFirst, orElse null
+     * 해당 statusEffectType 을 가진 BattleStatus 반환, findFirst, optional
      * 오의 재발동에서만 사용중
      *
      * @param battleActor
      * @param statusEffectType
      * @return
      */
-    public static BattleStatus getBattleStatusByEffectType(BattleActor battleActor, StatusEffectType statusEffectType) {
+    public static Optional<BattleStatus> getBattleStatusByEffectType(BattleActor battleActor, StatusEffectType statusEffectType) {
         return battleActor.getBattleStatuses().stream()
                 .filter(battleStatus -> battleStatus.getStatus().getStatusEffects().containsKey(statusEffectType))
-                .findFirst().orElse(null);
+                .findFirst();
     }
 
     /**
@@ -227,7 +227,6 @@ public final class StatusUtil {
 
     /**
      * BattleActor.battleStatuses 에서 동일한 id의 status 찾아 Optional 로 반환
-     * 주의) id 가 아닌 status.name 으로 동일여부를 판단함. 따라서 status.statusEffect 는 다를수 있음.
      *
      * @param battleActor
      * @param status

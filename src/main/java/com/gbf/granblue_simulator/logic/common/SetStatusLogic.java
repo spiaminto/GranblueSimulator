@@ -3,7 +3,10 @@ package com.gbf.granblue_simulator.logic.common;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.prop.status.*;
+import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.BattleStatusRepository;
 import lombok.Builder;
@@ -13,8 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -28,7 +33,6 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 public class SetStatusLogic {
 
     private final BattleStatusRepository battleStatusRepository;
-    private final ChargeGaugeLogic chargeGaugeLogic;
     private final CalcStatusLogic calcStatusLogic;
     private final ProcessStatusLogic processStatusLogic;
 
@@ -197,6 +201,8 @@ public class SetStatusLogic {
                 gaugeUpStatus = processStatusLogic.processChargeGaugeUpStatus(targetActor, status);
             else if (status.getStatusEffects().containsKey(StatusEffectType.ACT_FATAL_CHAIN_GAUGE_UP))
                 gaugeUpStatus = processStatusLogic.processFatalGaugeUpStatus(targetActor, status);
+            else if (status.getStatusEffects().containsKey(StatusEffectType.ACT_WEAPON_BURST))
+                gaugeUpStatus = processStatusLogic.processWeaponBurstStatus(targetActor, status);
 
             if (gaugeUpStatus != null) return ApplyStatusToActorResult.builder().addedBattleStatus(gaugeUpStatus).build();
         }
@@ -227,7 +233,7 @@ public class SetStatusLogic {
                 .level(status.getMaxLevel() > 0 ? 1 : 0) // maxLevel 이 존재하는 레벨제의 경우 시작레벨 1
                 .iconSrc(status.getIconSrcs().isEmpty() ? "" : status.getIconSrcs().getFirst())
                 .build()
-                .setBattleActor(targetActor);
+                .mapBattleActor(targetActor);
         battleStatusRepository.save(addedBattleStatus);
         return ApplyStatusToActorResult.builder().addedBattleStatus(addedBattleStatus).build();
     }
@@ -253,17 +259,19 @@ public class SetStatusLogic {
     private BattleStatus applyDebuffResistance(BattleActor mainActor, BattleActor targetActor, Status status) {
         if (!status.isResistible()) return null; // 필중 : 마운트와 약체명중을 관통한다
         // 마운트 처리 - RESIST
-        BattleStatus mountBattleStatus = getBattleStatusByEffectType(targetActor, StatusEffectType.MOUNT);
-        if (mountBattleStatus != null) {
-            mountBattleStatus.expireAtTurnEnd(); // 마운트는 발동시 해당 턴 종료시 삭제됨
-            return BattleStatus.builder()
-                    .duration(0)
-                    .status(Status.builder().type(status.getType()).name("RESIST").effectText("RESIST").build())
-                    .level(0)
-                    .iconSrc("")
-                    .build()
-                    .setBattleActor(targetActor);
-        }
+        BattleStatus mountResultBattleStatus = getBattleStatusByEffectType(targetActor, StatusEffectType.MOUNT)
+                .map(mountBattleStatus -> {
+                    mountBattleStatus.expireAtTurnEnd(); // 마운트는 발동시 해당 턴 종료시 삭제됨
+                    return BattleStatus.builder()
+                            .duration(0)
+                            .status(Status.builder().type(status.getType()).name("RESIST").effectText("RESIST").build())
+                            .level(0)
+                            .iconSrc("")
+                            .build()
+                            .setBattleActor(targetActor);
+                }).orElse(null);
+        if (mountResultBattleStatus != null)  return mountResultBattleStatus;
+
         // 약체 명중 처리 - MISS
         Double deBuffSuccessRate = mainActor.getDeBuffSuccessRate(); // 기본 약체명중 + 약체명중UP - 약체명중 DOWN (하한 0 상한 X)
         Double deBuffResistRate = targetActor.getDeBuffResistRate(); // 타겟 기본 약체내성 + 약체내성UP - 약체내성 DOWN (하한 -0.99 상한 x)
@@ -277,7 +285,8 @@ public class SetStatusLogic {
                     .iconSrc("")
                     .build()
                     .setBattleActor(targetActor);
-        return null;
+
+        return null; // 마운트, 명중처리에서 결과가 없다면 명중 -> 새로 추가하기 위해 null 반환
     }
 
     /**
@@ -437,18 +446,24 @@ public class SetStatusLogic {
      * @param battleStatuses
      * @param duration
      */
-    public void shortenBattleStatuses(List<BattleStatus> battleStatuses, Integer duration) {
+    public List<BattleStatus> shortenBattleStatuses(List<BattleStatus> battleStatuses, Integer duration) {
         battleStatuses.forEach(battleStatus -> this.shortenBattleStatus(battleStatus, duration));
+        return battleStatuses;
     }
 
     /**
-     * 배틀 스테이터스의 효과를 duration 만큼 단축
+     * 배틀 스테이터스의 효과를 duration 만큼 단축, duration 이 0 이되면 삭제
      *
      * @param battleStatus
      * @param duration
      */
-    public void shortenBattleStatus(BattleStatus battleStatus, Integer duration) {
+    public BattleStatus shortenBattleStatus(BattleStatus battleStatus, Integer duration) {
         battleStatus.subtractDuration(duration);
+        if (battleStatus.getDuration() <= 0) {
+            battleStatusRepository.delete(battleStatus);
+            battleStatus.getBattleActor().getBattleStatuses().remove(battleStatus);
+        }
+        return battleStatus;
     }
 
     /**
@@ -458,8 +473,9 @@ public class SetStatusLogic {
      * @param battleActor
      * @param battleStatuses
      */
-    public void removeBattleStatuses(BattleActor battleActor, List<BattleStatus> battleStatuses) {
+    public List<BattleStatus> removeBattleStatuses(BattleActor battleActor, List<BattleStatus> battleStatuses) {
         battleStatuses.forEach(battleStatus -> removeBattleStatus(battleActor, battleStatus));
+        return battleStatuses;
     }
 
     /**
@@ -469,10 +485,11 @@ public class SetStatusLogic {
      * @param battleActor
      * @param battleStatus
      */
-    public void removeBattleStatus(BattleActor battleActor, BattleStatus battleStatus) {
-        if (battleStatus == null) return;
+    public BattleStatus removeBattleStatus(BattleActor battleActor, BattleStatus battleStatus) {
+        if (battleStatus == null) return null;
         battleActor.getBattleStatuses().remove(battleStatus);
         battleStatusRepository.delete(battleStatus);
+        return battleStatus;
     }
 
     /**
@@ -504,6 +521,9 @@ public class SetStatusLogic {
                 battleStatusRepository.deleteAll(battleStatuses);
             }
         });
+
+        // 스테이터스 갱신
+        allActors.forEach(calcStatusLogic::syncStatus);
 
     }
 

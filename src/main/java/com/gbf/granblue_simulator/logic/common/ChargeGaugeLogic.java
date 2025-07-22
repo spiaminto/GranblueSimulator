@@ -34,10 +34,12 @@ public class ChargeGaugeLogic {
      * @param moveType
      */
     public void afterAttack(BattleActor mainActor, List<BattleActor> partyMembers, MoveType moveType) {
+        double attackChargeGaugeIncreaseDownRate = StatusUtil.getEffectValueSum(mainActor, StatusEffectType.ATTACK_CHARGE_GAUGE_INCREASE_DOWN); // 일반공격 오의데미지 상승률 감소율
+        double attackChargeGaugeMultiplier = 1 - Math.clamp(attackChargeGaugeIncreaseDownRate, 0, 1); // 최대 100%, 최소 0
         switch (moveType) {
-            case SINGLE_ATTACK -> addChargeGauge(mainActor, baseSingleAttackGaugePoint);
-            case DOUBLE_ATTACK -> addChargeGauge(mainActor, baseDoubleAttackGaugePoint);
-            case TRIPLE_ATTACK -> addChargeGauge(mainActor, baseTripleAttackGaugePoint);
+            case SINGLE_ATTACK -> addChargeGauge(mainActor, baseSingleAttackGaugePoint * attackChargeGaugeMultiplier);
+            case DOUBLE_ATTACK -> addChargeGauge(mainActor, baseDoubleAttackGaugePoint * attackChargeGaugeMultiplier);
+            case TRIPLE_ATTACK -> addChargeGauge(mainActor, baseTripleAttackGaugePoint * attackChargeGaugeMultiplier);
             case CHARGE_ATTACK_DEFAULT -> {
                 setChargeGauge(mainActor, 0); // 사용자는 초기화
                 partyMembers.stream() // 페이탈 체인 게이지 증가
@@ -109,10 +111,10 @@ public class ChargeGaugeLogic {
      * @param actor
      * @param setValue set 할 값
      */
-    public int setChargeGauge(BattleActor actor, int setValue) {
+    public int setChargeGauge(BattleActor actor, double setValue) {
         if (setValue < 0) throw new IllegalArgumentException("setValue 가 음수");
-        Integer maxGauge = actor.getMaxChargeGauge();
-        int setChargeGauge = Math.min(setValue, maxGauge);
+        double maxGauge = actor.getMaxChargeGauge().doubleValue();
+        int setChargeGauge = (int) Math.min(setValue, maxGauge);
         actor.updateChargeGauge(setChargeGauge);
         return setChargeGauge;
     }
@@ -124,7 +126,7 @@ public class ChargeGaugeLogic {
      * @param addValue 더할 값
      * @return
      */
-    public int addChargeGauge(BattleActor actor, int addValue) {
+    public int addChargeGauge(BattleActor actor, double addValue) {
         Integer maxGauge = actor.getMaxChargeGauge();
         double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // -1 ~ 1
         int increasedChargeGauge = Math.min(

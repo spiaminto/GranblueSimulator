@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.gbf.granblue_simulator.domain.move.MoveType.GUARD_DEFAULT;
+import static com.gbf.granblue_simulator.domain.move.MoveType.STRIKE_SEALED;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
 
 /**
  * 모든 캐릭터로직의 반환값은 null 을 사용하지 않는다.
@@ -69,8 +71,14 @@ public abstract class CharacterLogic {
      * @return
      */
     public ActorLogicResult processStrike(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        // 공격행동 봉인시 즉시 반환
+        ActorLogicResult sealedStrikeResult = getBattleStatusByEffectType(mainActor, StatusEffectType.STRIKE_SEALED)
+                .map(battleStatus -> resultMapper.toResult(mainActor, enemy, partyMembers, Move.getTransientMove(STRIKE_SEALED), null, null))
+                .orElseGet(() -> null);
+        if (sealedStrikeResult != null) return sealedStrikeResult;
+        // 공격행동 결정 및 수행
         boolean readyChargeAttack = mainActor.getChargeGauge() >= mainActor.getActor().getMaxChargeGauge();
-        boolean chargeAttackSealed = StatusUtil.getBattleStatusByEffectType(mainActor, StatusEffectType.CHARGE_ATTACK_SEALED) != null;
+        boolean chargeAttackSealed = getBattleStatusByEffectType(mainActor, StatusEffectType.CHARGE_ATTACK_SEALED).isPresent();
         boolean isChargeAttackOn = mainActor.getMember().isChargeAttackOn(); // 오의 발동 on 여부
         if (mainActor.isGuardOn()) return defaultGuard(mainActor, enemy, partyMembers);
         mainActor.increaseStrikeCount(); // 공격행동 횟수 증가, 가드와 턴진행없이 일반공격에서는 이 카운트를 건드리지 않음
@@ -151,20 +159,37 @@ public abstract class CharacterLogic {
      * @return DefaultActorLogicResult
      */
     protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Double modifiedDamageRate) {
+        return defaultChargeAttack(mainActor, enemy, partyMembers, modifiedDamageRate, null);
+    }
+
+    /**
+     * 기본적인 오의 처리 (스테이터스 선택식)
+     * 오의 및 데미지 배율 결정 -> 데미지 계산 -> 선택된 스테이터스 추가 -> 오의게이지 갱신
+     *
+     * @param mainActor
+     * @param enemy
+     * @param partyMembers
+     * @param modifiedDamageRate : 변경할 오의 배율 (기본배율 사용시 null)
+     * @return DefaultActorLogicResult
+     */
+    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Double modifiedDamageRate, List<Status> selectedStatuses) {
         Move chargeAttack = mainActor.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT);
         // 오의 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : chargeAttack.getDamageRate();
+        // 스테이터스 변경 확인
+        List<Status> statuses = selectedStatuses != null ? selectedStatuses : chargeAttack.getStatuses();
         // 데미지 계산
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, chargeAttack.getType(), chargeAttack.getElementType(), damageRate, chargeAttack.getHitCount());
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, chargeAttack.getStatuses());
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, statuses);
         // 오의게이지
         chargeGaugeLogic.afterAttack(mainActor, partyMembers, chargeAttack.getType());
         // 오의 재발동
-        BattleStatus multiChargeAttackStatus = StatusUtil.getBattleStatusByEffectType(mainActor, StatusEffectType.MULTI_CHARGE_ATTACK);
-        boolean isMultiChargeAttack = multiChargeAttackStatus != null;
-        if (isMultiChargeAttack)
-            setStatusLogic.removeBattleStatus(mainActor, multiChargeAttackStatus); // 오의 재발동 플래그 체크후 스테이터스 삭제
+        boolean isMultiChargeAttack = getBattleStatusByEffectType(mainActor, StatusEffectType.MULTI_CHARGE_ATTACK)
+                .map(battleStatus -> {
+                    setStatusLogic.removeBattleStatus(mainActor, battleStatus); // 오의 재발동 스테이터스 삭제
+                    return true;
+                }).orElseGet(() -> false);
 
         return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).executeChargeAttack(isMultiChargeAttack).build();
     }
@@ -234,11 +259,10 @@ public abstract class CharacterLogic {
                 null;
         // 스테이터스 적용
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, statuses);
-        // 쿨다운 설정
-        MoveType abilityType = ability.getType();
-        int coolDown = ability.getCoolDown();
-        if (abilityType.getParentType() == MoveType.ABILITY) {
-            mainActor.updateAbilityCoolDown(coolDown, abilityType);
+        // 쿨다운, 사용횟수 설정
+        if (ability.getType().getParentType() == MoveType.ABILITY) {
+            mainActor.updateAbilityCoolDown(ability.getCoolDown(), ability.getType());
+            mainActor.increaseAbilityUseCount(ability.getType());
         }
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }

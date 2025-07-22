@@ -102,9 +102,9 @@ function processGuard(response) {
     let isGuardActivated = response.guardActivated; //
     response.guardResults.forEach(function (guardResult) {
         if (guardResult.guardOn) {
-            $('.guard-status-wrapper .guard-status.party-' + guardResult.currentOrder).addClass('guard-on');
+            $(`.global-effect-video-wrapper.actor-${guardResult.currentOrder}`).find('.guard-status').addClass('guard-on');
         } else {
-            $('.guard-status-wrapper .guard-status.party-' + guardResult.currentOrder).removeClass('guard-on');
+            $(`.global-effect-video-wrapper.actor-${guardResult.currentOrder}`).find('.guard-status').removeClass('guard-on');
         }
     });
 

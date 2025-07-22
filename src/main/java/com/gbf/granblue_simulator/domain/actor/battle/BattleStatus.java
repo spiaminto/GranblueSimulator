@@ -1,12 +1,10 @@
 package com.gbf.granblue_simulator.domain.actor.battle;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 
@@ -35,12 +33,27 @@ public class BattleStatus {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp @Builder.Default
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    @CreationTimestamp
+    private LocalDateTime updatedAt;
 
-    public BattleStatus setBattleActor(BattleActor battleActor) {
+    /**
+     * 연관관계 함께 매핑
+     * @param battleActor
+     * @return
+     */
+    public BattleStatus mapBattleActor(BattleActor battleActor) {
         this.battleActor = battleActor;
         battleActor.getBattleStatuses().add(this);
+        return this;
+    }
+
+    /**
+     * 정보 전달을 위해 set 만 (연관관계 X)
+     * @param battleActor
+     * @return
+     */
+    public BattleStatus setBattleActor(BattleActor battleActor) {
+        this.battleActor = battleActor;
         return this;
     }
 
@@ -96,14 +109,18 @@ public class BattleStatus {
      */
     public void addDuration(int duration) {
         this.duration += duration;
+        this.updatedAt = LocalDateTime.now();
+
     }
 
     public void decreaseDuration() {
         this.duration = Math.max(0, this.duration - 1);
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void subtractDuration(int duration) {
         this.duration = Math.max(0, this.duration - duration);
+        this.updatedAt = LocalDateTime.now();
     }
 
     /**

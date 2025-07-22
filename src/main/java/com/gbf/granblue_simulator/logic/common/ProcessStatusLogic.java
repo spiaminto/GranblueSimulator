@@ -67,7 +67,28 @@ public class ProcessStatusLogic {
                 .duration(0)
                 .status(Status.builder().type(StatusType.BUFF).name("오의게이지 상승").effectText("오의게이지 상승").build())
                 .level(0)
-                .iconSrc("")
+                .iconSrc(chargeGaugeUpStatus.getIconSrcs().getFirst())
+                .build()
+                .setBattleActor(targetActor);
+    }
+
+    /**
+     * 웨폰버스트 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
+     *
+     * @param targetActor
+     * @param weaponBurstStatus
+     * @return
+     */
+    public BattleStatus processWeaponBurstStatus(BattleActor targetActor, Status weaponBurstStatus) {
+        if (!weaponBurstStatus.getStatusEffects().containsKey(StatusEffectType.ACT_WEAPON_BURST))
+            throw new IllegalArgumentException("폼버 아님, Status.id = " + weaponBurstStatus.getId());
+        chargeGaugeLogic.setChargeGauge(targetActor, 100);
+
+        return BattleStatus.builder()
+                .duration(0)
+                .status(Status.builder().type(StatusType.BUFF).name("오의게이지 충전").effectText("오의게이지 충전").build())
+                .level(0)
+                .iconSrc(weaponBurstStatus.getIconSrcs().getFirst())
                 .build()
                 .setBattleActor(targetActor);
     }

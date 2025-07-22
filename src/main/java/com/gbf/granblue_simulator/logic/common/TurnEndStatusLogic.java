@@ -43,8 +43,7 @@ public class TurnEndStatusLogic {
      */
     public List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
         List<ActorLogicResult> results = new ArrayList<>();
-        Move turnEndMove = Move.builder()
-                .type(MoveType.TURN_END_PROCESS).asset(null).build(); // CHECK Move 에서 null 나오면 확인
+        Move turnEndMove = Move.getTransientMove(MoveType.TURN_END_PROCESS);
 
         // 아군 턴종 힐 처리
         results.addAll(processPartyHeal(partyMembers).stream()

@@ -50,7 +50,7 @@ function enemyDamagesPostProcess(response, $enemyVideo, $partyVideos) {
             $damageElements.$additionalDamage.children().each(function (index, additionalDamage) {
                 setTimeout(function () {
                     $(additionalDamage).addClass('enemy-damage-show');
-                }, (index + 1) * 100);
+                }, (index + 1) * 50);
             });
             // 아군 피격 재생
             playVideo($partyVideos[targetOrder].effect, null, $partyVideos[targetOrder].idle);
@@ -76,10 +76,10 @@ function enemyDamagesPostProcess(response, $enemyVideo, $partyVideos) {
  * @param index 데미지 인덱스
  * @param damage
  * @param additionalDamages
- * @param isEnemy optional
+ * @param isEnemyDamage optional boolean
  * @returns {{$damage: (*|jQuery), $additionalDamage: (*|jQuery)}}
  */
-function getDamageElement(charOrder, elementType, type, index, damage, additionalDamages, isEnemy = false) {
+function getDamageElement(charOrder, elementType, type, index, damage, additionalDamages, isEnemyDamage = false) {
     let typeClassName;
     switch (type) {
         case 'attack':
@@ -97,7 +97,7 @@ function getDamageElement(charOrder, elementType, type, index, damage, additiona
     let actorClassName = ' actor-' + charOrder;
     let elementClassName = ' element-type-' + elementType.toLowerCase();
     let damageIndexClassName = ' damage-index-' + index;
-    let enemyClassName = isEnemy ? ' enemy' : '';
+    let enemyClassName = isEnemyDamage ? ' enemy' : '';
     let missClassName = damage === 'MISS' ? ' damage-miss' : '';
 
 
@@ -133,7 +133,10 @@ function processStatusIconSync(currentBattleStatusesList, effectVideoDuration) {
             $statusContainer.find('.status').remove(); // 스테이터스 비움
             currentBattleStatuses.forEach(function (status, index) {
                 // 어빌리티 패널에 갱신된 스테이터스 추가
-                let displayClassName = index > 0 && currentBattleStatuses[index - 1].name === status.name ? 'd-none' : ''; // 이전과 이름 같으면 숨김
+                let displayClassName = index > 0 && (
+                    currentBattleStatuses[index - 1].name === status.name // 이름이 같거나
+                    || currentBattleStatuses[index - 1].imageSrc === status.imageSrc //아이콘 같으면
+                ) ? 'd-none' : ''; // 안보이게 설정
                 let $statusInfo = $('<div>', {
                     class: 'status status',
                     'data-status-type': status.type
@@ -164,34 +167,38 @@ function processHealEffect(healArray, effectVideoDuration) {
         // console.log('[processHealEffect] heal = ', heal, ' actorIndex = ', actorIndex);
         if (heal !== 0) {
             $enemyDamageWrappers.set(actorIndex, $('<div>', {class: 'enemy-damage-wrapper actor-' + actorIndex}));
+            let currentAttackDamageWrapperIndex = $('.attack-damage-wrapper').length;
+            let $attackDamageWrapper = $('<div>', {class: 'ability-damage-wrapper ability-index-' + currentAttackDamageWrapperIndex});
             let startDelay = effectVideoDuration + (100 * actorIndex); // 캐릭터 순서대로 100씩 딜레이
+
             setTimeout(function () {
                 // 이펙트 재생
-                let $healVideo = $('.heal-video-wrapper .heal.actor-' + actorIndex);
+                let $healVideo = $(`.global-effect-video-wrapper.actor-${actorIndex} .global-effect-video`);
+                $healVideo.attr('src', GlobalSrc.HEAL.video);
                 playVideo($healVideo, null, null);
                 // 사운드 재생
-                audioPlayer.loadSound($('.global-audio-container .heal').attr('src')).then(function () {
-                    audioPlayer.playAllSoundsWithoutClear();
-                });
+                audioPlayer.loadAndPlay(GlobalSrc.HEAL.audio);
+                // });
                 // 데미지(힐 수치) 채우기 및 돔추가
-                let $healValueWrapper = $enemyDamageWrappers.get(actorIndex);
-                let $healElements = getDamageElement(actorIndex, 'NONE', 'attack', 0, heal, []);
-                $healValueWrapper.append($healElements.$damage).appendTo($('#enemyAttackDamageContainer'));
-                setTimeout(function () {
-                    $healElements.$damage.addClass('heal heal-show'); // 약간 느리게
-                }, 100)
+                let isEnemyDamage = actorIndex !== 0; // 아군인 경우 적의 공격데미지 클래스를 사용하기 위함
+                let $healWrapper = actorIndex === 0 ? $attackDamageWrapper : $enemyDamageWrappers.get(actorIndex); // 힐 수치가 들어갈 래퍼선택
+                let $damageContainer = actorIndex === 0 ? $('#attackDamageContainer') : $('#enemyAttackDamageContainer'); // 실제 추가할 컨테이너
+                let $damageElements = getDamageElement(0, 'NONE', 'attack', 0, heal, [], isEnemyDamage);
+                $healWrapper.append($damageElements.$damage.addClass('heal heal-show')).appendTo($damageContainer);
             }, startDelay);
 
             healDelay = startDelay + healEffectDuration; // 버프 이펙트 시작할 딜레이 지정
+
+            if (actorIndex === healArray.length - 1) { // 힐 (데미지 요소) 삭제 (적과 아군 동시 힐 발생까지 고려)
+                setTimeout(function () {
+                    $attackDamageWrapper.remove();
+                    $enemyDamageWrappers.values().forEach(function (wrapper) {
+                        $(wrapper).remove();
+                    })
+                }, startDelay + 1000);
+            }
         }
-        if (actorIndex === healArray.length - 1) { // 힐 (데미지 요소) 삭제
-            setTimeout(function () {
-                $enemyDamageWrappers.values().forEach(function (wrapper) {
-                    $(wrapper).remove();
-                })
-            }, effectVideoDuration + 1000);
-        }
-    })
+    });
     return healDelay;
 }
 
@@ -204,7 +211,8 @@ function processHealEffect(healArray, effectVideoDuration) {
  * @returns longestBuffEndTime 가장 긴 버프 끝시간 (다음 시작 딜레이로 사용)
  */
 function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, removedDebuffStatusesList, effectVideoDuration) {
-    let longestBuffEndTime = effectVideoDuration; // 버프 없을땐 이전 딜레이 (이펙트 딜레이) 만큼
+    let lastBuffFadeoutStartTime = effectVideoDuration; // 버프 없을땐 이전 딜레이 (이펙트 딜레이) 만큼
+    let buffShowDuration = 1000; // 버프이펙트 fadeTo ~ fadeOut 까지 총 duration, ms
     let statusesList = addedBuffStatusesList.map((_, idx) => {
             let removedDebuffs = (removedDebuffStatusesList[idx] || []).map(debuff => ({
                 value: debuff,
@@ -220,15 +228,17 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
     );
     // console.log('[processBuffEffect] statusesList = {}', statusesList);
     // 표시 순서 removedDebuff -> addedBuff -> removedBuff
+    let audioPlayer = new AudioPlayer().init();
     statusesList.forEach(function (statuses, actorIndex) { // [[적][아군][아군][아군][아군]]
         if (statuses.length === 0) return;
         let currentEffectContainerIndex = $('.status-effect-wrapper.actor-' + actorIndex).length;
         let $statusEffectWrapper = $('<div>', {class: 'status-effect-wrapper actor-' + actorIndex + ' status-index-' + currentEffectContainerIndex}).appendTo($('.status-effect-container'))
         $statusEffectWrapper.addClass(actorIndex === 0 ? 'enemy' : 'party');
-
         statuses.forEach(function (statusObject, statusIndex) {
             let status = statusObject.value;
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + statusIndex})
+            let statusTypeName = status.type.toLowerCase();
+            statusTypeName = ['NONE', 'NO EFFECT', "MISS", 'RESIST'].includes(status.name) ? 'none' : statusTypeName;
+            let $statusEffect = $('<div>', {class: `status-effect status-effect-index-${statusIndex} ${statusTypeName}`})
                 .append(
                     $('<img>', {src: status.imageSrc, class: status.imageSrc.length < 1 ? 'none-icon' : ''}),
                     $('<span>', {class: 'status-effect-text', text: status.effectText})
@@ -236,12 +246,8 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
             $statusEffectWrapper.append($statusEffect);
 
             let type = statusObject.type;
-            let audioPlayer = null;
             let $statusRemovedEffect = null;
             if (type === 'removedDebuffs' || type === 'removedBuffs') {
-                audioPlayer = new AudioPlayer().init();
-                audioPlayer.loadSound($('.global-audio-container .status-removed').attr('src')); // 일단 실행까지 여유가 있으니 놔둠
-
                 let statusEffectPosition = $statusEffect.position();
                 $statusRemovedEffect = $('<div>', {class: 'status-effect status-removed-effect'}).css({
                     top: statusEffectPosition.top - 5,
@@ -254,17 +260,17 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
 
             let statusForPage = actorIndex === 0 ? 7 : 4; // 한 페이지에 표시할 스테이터스 이펙트 갯수 적은 한번에 7개, 아군은 4개까지 표시
             let statusPageCount = Math.floor(statusIndex / statusForPage); // 현재 표시할 스테이터스의 페이지 (0 부터)
-            let startDelay = effectVideoDuration + (1100 * statusPageCount) + (50 * (statusIndex % statusForPage)); // 페이드 길이 1100,
-            longestBuffEndTime = Math.max(longestBuffEndTime, startDelay + 1100); // 마지막 버프 이펙트 끝나는 시간
+            let startDelay = effectVideoDuration + (buffShowDuration * statusPageCount) + (150 * (statusIndex % statusForPage)); // 이펙트당 buffShowDuration 만큼 보여줌
+            lastBuffFadeoutStartTime = startDelay + 800; // 가장 늦게 시작하는 버프가 fadeout 하는 시점
 
             setTimeout(() => {
-                if (audioPlayer != null && $statusRemovedEffect != null) {
+                if ($statusRemovedEffect != null) {
                     // 스테이터스 제거 효과
-                    audioPlayer.playAllSoundsWithoutClear();
+                    audioPlayer.loadAndPlay(GlobalSrc.STATUS_REMOVED.audio);
                     $statusEffect.addClass('status-removed');
                     $statusRemovedEffect.addClass('active');
                 } else {
-                    $statusEffect.fadeTo(100, 1).delay(800).fadeTo(200, 0);
+                    $statusEffect.fadeTo(100, 1).delay(700).fadeTo(200, 0); // CHECK buffShowDuration 과 맞춰야함
                 }
 
                 if (statusIndex % statusForPage + 1 === statusForPage) {
@@ -274,12 +280,12 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
 
                 if (statusIndex >= statuses.length - 1) {
                     // 마지막 스테이터스일시 래퍼 통째로 제거
-                    setTimeout(() => $statusEffectWrapper.remove(), 1100);
+                    setTimeout(() => $statusEffectWrapper.remove(), buffShowDuration);
                 }
             }, startDelay);
         });
     });
-    return longestBuffEndTime;
+    return lastBuffFadeoutStartTime;
 }
 
 /**
@@ -289,7 +295,8 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
  * @returns longestDebuffEndTime 가장 긴 디버프 딜레이 (다음 시작 딜레이로 사용)
  */
 function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
-    let longestDebuffEndTime = debuffStartDelay; // 디버프 없을댄 이전 딜레이 (이펙트 + 버프 딜레이) 만큼
+    let lastDebuffFadeoutStartTime = debuffStartDelay; // 디버프 없을댄 이전 딜레이 (이펙트 + 버프 딜레이) 만큼
+    let debuffShowDuration = 1000; // 디버프 버프이펙트 fadeTo ~ fadeOut 까지 총 duration, ms
     addedDebuffStatusesList.forEach(function (addedDebuffStatuses, actorIndex) { // [적][아][아][아][아]
         if (addedDebuffStatuses.length === 0) return;
         let currentEffectContainerIndex = $('.status-effect-wrapper.actor-' + actorIndex).length;
@@ -297,7 +304,9 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
         $statusEffectWrapper.addClass(actorIndex === 0 ? 'enemy' : 'party');
 
         addedDebuffStatuses.forEach(function (debuffStatus, debuffIndex) {
-            let $statusEffect = $('<div>', {class: 'status-effect status-effect-' + debuffIndex})
+            let statusTypeName = debuffStatus.type.toLowerCase();
+            statusTypeName = ['NONE', 'NO EFFECT', "MISS", 'RESIST'].includes(debuffStatus.name) ? 'none' : statusTypeName;
+            let $statusEffect = $('<div>', {class: `status-effect status-effect-${debuffIndex} ${statusTypeName}`})
                 .append(
                     $('<img>', {
                         src: debuffStatus.imageSrc,
@@ -309,11 +318,11 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
 
             let debuffForPage = actorIndex === 0 ? 7 : 4; // 한 페이지에 표시할 디버프 이펙트 갯수 적은 한번에 7개, 아군은 4개까지 표시
             let debuffPageCount = Math.floor(debuffIndex / debuffForPage); // 현재 표시할 디버프의 페이지 (0 부터)
-            let startDelay = debuffStartDelay + (1100 * debuffPageCount) + (50 * (debuffIndex % debuffForPage)); // 페이드 길이 1100
-            longestDebuffEndTime = Math.max(longestDebuffEndTime, startDelay + 1100); // 마지막 디버프 이펙트 끝나는 시간
+            let startDelay = debuffStartDelay + (debuffShowDuration * debuffPageCount) + (150 * (debuffIndex % debuffForPage)); // 이펙트당 debuffShowDuration 만큼 보여줌
+            lastDebuffFadeoutStartTime = debuffStartDelay + 800; // 마지막 디버프가 페이드아웃 시작하는 시점
 
             setTimeout(() => {
-                $statusEffect.fadeTo(100, 1).delay(800).fadeTo(200, 0);
+                $statusEffect.fadeTo(100, 1).delay(700).fadeTo(200, 0); // CHECK debuffShowDuration 이랑 맞춰야함
 
                 if (debuffIndex % debuffForPage + 1 === debuffForPage) {
                     // 스테이터스 페이지 마지막 마다 페이지 제거
@@ -322,12 +331,12 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
 
                 if (debuffIndex >= addedDebuffStatuses.length - 1) {
                     // 마지막 스테이터스일시 래퍼 통째로 제거
-                    setTimeout(() => $statusEffectWrapper.remove(), 1100);
+                    setTimeout(() => $statusEffectWrapper.remove(), debuffShowDuration);
                 }
             }, startDelay);
         });
     });
-    return longestDebuffEndTime;
+    return lastDebuffFadeoutStartTime;
 }
 
 /**
@@ -338,9 +347,10 @@ function processDebuffEffect(addedDebuffStatusesList, debuffStartDelay) {
  * @returns {{motion: (jQuery|HTMLElement|*), effect: (jQuery|HTMLElement|*), idle: (jQuery|HTMLElement|*)}}, 없으면 null 로 대체됨
  */
 function getVideo(actorOrder, moveType, idleType = MoveType.IDLE_DEFAULT) {
-    let $effectVideo = $('#videoContainer .actor-' + actorOrder + '.' + moveType.className + '.effect').eq(0);
-    let $motionVideo = $('#videoContainer .actor-' + actorOrder + '.' + moveType.className + '.motion').eq(0);
-    let $idleVideo = $('#videoContainer .actor-' + actorOrder + '.' + idleType.className).eq(0);
+    let videoContainer = actorOrder === 0 ? $('.enemy-video-container') : $('.party-video-container');
+    let $effectVideo = videoContainer.find('.actor-' + actorOrder + '.' + moveType.className + '.effect').eq(0);
+    let $motionVideo = videoContainer.find('.actor-' + actorOrder + '.' + moveType.className + '.motion').eq(0);
+    let $idleVideo = videoContainer.find('.actor-' + actorOrder + '.' + idleType.className).eq(0);
     // 없으면 null 로 대체
     $effectVideo = $effectVideo.length > 0 ? $effectVideo : null;
     $motionVideo = $motionVideo.length > 0 ? $motionVideo : null;
@@ -485,9 +495,13 @@ function parseMoveResponseList(jsonArray) {
 }
 
 const GlobalSrc = {
+    HEAL: {video: '/static/assets/video/gl/gl-heal.webm', audio: '/static/assets/audio/gl/gl-heal.mp3',},
     BEEP: {video: '', audio: '/static/assets/audio/gl/gl-beep.mp3',},
     CHARGE_ATTACK_READY: {video: '', audio: '/static/assets/audio/gl/gl-charge-attack-ready.mp3',},
     TURN_DAMAGE: {video: '', audio: '/static/assets/audio/gl/gl-turn-damage.mp3',},
+    STATUS_REMOVED: {video: '', audio: '/static/assets/audio/gl/gl-status-removed.mp3',},
+    SHOCKED: {video: '/static/assets/video/gl/gl-shocked.webm', audio: '/static/assets/audio/gl/gl-shocked.mp3',},
+    DEBUFF: {video: '', audio: '/static/assets/audio/gl/gl-debuff.mp3'}
 }
 Object.freeze(GlobalSrc);
 

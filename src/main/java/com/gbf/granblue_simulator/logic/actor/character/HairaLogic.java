@@ -121,7 +121,7 @@ public class HairaLogic extends CharacterLogic {
     @Override // 아군이 2회이상 행동할때마다 자신에게 지보의 황성, 오의게이지 20% 상승
     protected ActorLogicResult secondSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
         DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability);
-        chargeGaugeLogic.addChargeGauge(mainActor, 20); // 오의게이지 직접 조작
+        chargeGaugeLogic.setChargeGauge(mainActor, mainActor.getChargeGauge() + 20); // 오의게이지 직접 조작
         return resultMapper.toResult(mainActor, enemy, partyMembers, defaultResult.getResultMove(), null, defaultResult.getSetStatusResult());
     }
 

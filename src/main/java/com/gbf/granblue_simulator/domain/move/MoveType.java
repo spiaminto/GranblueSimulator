@@ -79,8 +79,8 @@ public enum MoveType {
         CHARGE_ATTACK_G(CHARGE_ATTACK, "charge-attack-g"),
 
     FORM_CHANGE(ROOT, "form-change"),
-        FORM_CHANGE_DEFAULT(FORM_CHANGE, "form-change"),
-        FORM_CHANGE_ENTRY(FORM_CHANGE, "form-change"),
+        FORM_CHANGE_DEFAULT(FORM_CHANGE, "form-change-default"),
+        FORM_CHANGE_ENTRY(FORM_CHANGE, "form-change-entry"),
 
     DEAD(ROOT, "dead"),
         DEAD_DEFAULT(DEAD, "dead"),
@@ -98,6 +98,7 @@ public enum MoveType {
         TURN_END_PROCESS(TURN_END, "turn-end-process"),
 
     ETC(ROOT, "etc"),
+        STRIKE_SEALED(ETC, "strike-sealed"), // 공격불가일때 사용 (DB 저장 X)
 
     NONE(ROOT, "none"),
     ;

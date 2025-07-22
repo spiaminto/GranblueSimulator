@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.getStatusEffectMap;
 
 @Component
@@ -62,7 +63,8 @@ public class BattleLogic {
         progressTurnResults.addAll(processStrike(enemy, partyMembers)); // 아군의 공격 추가
         progressTurnResults.addAll(processEnemyStrike(enemy, partyMembers)); // 적의 공격 추가
         progressTurnResults.addAll(processTurnEnd(enemy, partyMembers)); // 턴종 처리 추가
-        partyMembers.forEach(BattleActor::progressAbilityCoolDown); // 배틀 액터 쿨다운 진행
+        partyMembers.forEach(BattleActor::progressAbilityCoolDown); // 어빌리티 쿨다운 진행
+        partyMembers.forEach(BattleActor::resetAbilityUseCount); // 어빌리티 사용횟수 초기화
         partyMembers.forEach(BattleActor::resetStrikeCount); // 공격 행동 횟수 초기화
 
         setStatusLogic.progressBattleStatus(enemy, partyMembers); // 배틀 스테이터스 남은 턴수 진행
@@ -79,6 +81,7 @@ public class BattleLogic {
 
     /**
      * 턴 종료처리
+     *
      * @param enemy
      * @param partyMembers
      * @return
@@ -87,7 +90,7 @@ public class BattleLogic {
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
         // 아군 턴종 처리
         partyMembers.forEach(partyMember -> {
-            if (partyMember.isGuardOn()) partyMember.toggleGuard(); // 가드 off
+            partyMember.changeGuard(false); // 가드 off
             CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
             turnEndResults.addAll(characterLogic.processTurnEnd(partyMember, enemy, partyMembers));
         });
@@ -99,7 +102,7 @@ public class BattleLogic {
 
         // 턴종 스테이터스 처리
         turnEndResults.addAll(turnEndStatusLogic.processTurnEnd(enemy, partyMembers));
-        
+
         // 전조 발동 (턴종 마지막 처리)
         turnEndResults.addAll(enemyLogic.activateOmen(enemy, partyMembers));
 
@@ -133,7 +136,8 @@ public class BattleLogic {
                 // 반응
                 results.addAll(postProcessToMove(mainActor, partyMembers, enemy, strikeResult));
 
-                if (strikeCount > 5) throw new IllegalStateException("[processEnemyStrike] strikeCount exceeded, strikeCount = " + strikeCount);
+                if (strikeCount > 5)
+                    throw new IllegalStateException("[processEnemyStrike] strikeCount exceeded, strikeCount = " + strikeCount);
             } while (strikeCount < multiStrikeCount);
         }
         return results;
@@ -152,7 +156,8 @@ public class BattleLogic {
             // 반응
             results.addAll(postProcessToMove(mainActor, partyMembers, enemy, strikeResult));
 
-            if (strikeCount > 5) throw new IllegalStateException("[processEnemyStrike] strikeCount exceeded, strikeCount = " + strikeCount);
+            if (strikeCount > 5)
+                throw new IllegalStateException("[processEnemyStrike] strikeCount exceeded, strikeCount = " + strikeCount);
         } while (strikeCount < multiStrikeCount);
 
         return results;
@@ -222,18 +227,17 @@ public class BattleLogic {
      */
     public List<GuardResult> processGuard(BattleActor mainActor, List<BattleActor> partyMembers, StatusTargetType targetType) {
         if (targetType == StatusTargetType.SELF) {
-            List<StatusEffect> guardDisabledStatusEffects = getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
-            if (guardDisabledStatusEffects == null) {
-                mainActor.toggleGuard();
-            }
+            getBattleStatusByEffectType(mainActor, StatusEffectType.GUARD_DISABLED).ifPresentOrElse(
+                    battleStatus -> mainActor.changeGuard(false), // 가드불가면 무조건 false 로 변경
+                    () -> mainActor.changeGuard(!mainActor.isGuardOn()) // 가드 가능하면 토글
+            );
         } else if (targetType == StatusTargetType.PARTY_MEMBERS) {
             boolean mainActorIsGuardOn = mainActor.isGuardOn(); // 파티전체의 경우, 가드 누른 캐릭터와 동일한 상태의 가드만 토글
-            partyMembers.forEach(partyMember -> {
-                        List<StatusEffect> guardDisabledStatusEffects = getStatusEffectMap(mainActor).get(StatusEffectType.GUARD_DISABLED);
-                        if (guardDisabledStatusEffects == null && partyMember.isGuardOn() == mainActorIsGuardOn) {
-                            partyMember.toggleGuard();
-                        }
-                    }
+            partyMembers.forEach(partyMember ->
+                    getBattleStatusByEffectType(partyMember, StatusEffectType.GUARD_DISABLED).ifPresentOrElse(
+                            battleStatus -> partyMember.changeGuard(false),
+                            () -> { if (mainActorIsGuardOn == partyMember.isGuardOn()) partyMember.changeGuard(!partyMember.isGuardOn()); }
+                    )
             );
         }
 
@@ -307,22 +311,6 @@ public class BattleLogic {
         return results.stream().filter(actorLogicResult -> actorLogicResult.getMoveType() != MoveType.NONE).toList();
     }
 
-
-    @Data
-    class BattleLogicRequest {
-        private final Long mainActorId;
-        private final List<Long> partyMemberIds; // mainActor 포함 전체 id
-        private final Long enemyId;
-
-        private final RequestType requestType;
-        private final Long requestMoveId;
-    }
-
-    enum RequestType {
-        ABILITY, ATTACK, SUMMON // 소환
-        , PORTION // 포션
-    }
-
     protected void saveBattleLogAll(List<ActorLogicResult> results) {
         results.forEach(this::saveBattleLog);
     }
@@ -366,41 +354,5 @@ public class BattleLogic {
                         .build());
 
     }
-
-    //    /**
-//     * 아군의 공격 행동에 따른 아군과 적의 반응 재귀처리
-//     * 파라미터로 들어온 기본 공격행동결과 -> (적 반응 , 아군 반응) 아군반응 있으면 재귀
-//     * 아군메인무브 -> 적반응 -> 아군반응1
-//     *
-//     * @param partyMembers
-//     * @param enemy
-//     * @param partyPostProcessResult
-//     * @return
-//     */
-//    private List<ActorLogicResult> postProcessToMove(BattleActor mainActor, List<BattleActor> partyMembers, BattleActor enemy, ActorLogicResult partyPostProcessResult) {
-//        List<ActorLogicResult> results = new ArrayList<>();
-//        results.add(partyPostProcessResult);
-//        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
-//        // 이전 캐릭터 행동에 대한 적의 반응 (주로 전조처리에 쓰임. 여기에 다시 반응하는 캐릭터는 미구현)
-//        List<ActorLogicResult> enemyPostProcessResult = enemyLogic.postProcessToPartyMove(enemy, partyMembers, partyPostProcessResult);
-//        saveBattleLogAll(enemyPostProcessResult);
-//        results.addAll(enemyPostProcessResult);
-//
-//        List<BattleActor> modifiedPartyMembers = new ArrayList<>(partyMembers);
-//        modifiedPartyMembers.remove(mainActor);
-//        modifiedPartyMembers.addFirst(mainActor);
-//        for (BattleActor partyMember : modifiedPartyMembers) {
-//            // 이전 캐릭터 행동에 대한 현재 캐릭터의 반응
-//            CharacterLogic partyMemberLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
-//            partyPostProcessResult = partyMemberLogic.postProcessToPartyMove(partyMember, enemy, partyMembers, partyPostProcessResult);
-//            saveBattleLog(partyPostProcessResult);
-//            results.add(partyPostProcessResult);
-//            // 이전 캐릭터 행동에 대한 현재 캐릭터의 반응이 있을시 현재 캐릭터의 반응에 대한 반응 재귀호출
-//            if (partyPostProcessResult.getMoveType() != MoveType.NONE) {
-//                results.addAll(postProcessToMove(partyMember, partyMembers, enemy, partyPostProcessResult));
-//            }
-//        }
-//        return results;
-//    }
 
 }

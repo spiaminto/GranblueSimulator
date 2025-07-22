@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.common.dto.SyncStatusDto;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
@@ -21,7 +22,8 @@ import java.util.List;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
+@EqualsAndHashCode
+@ToString
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn
 public abstract class BattleActor {
@@ -46,9 +48,9 @@ public abstract class BattleActor {
 
     // 장비항 -> 나중에 장비 추가시 스테이터스로 전환 예정
     @Builder.Default
-    private Double atkWeaponRate = 12.0; // 장비항 (200, 100, 100 상정, 12배율 상정, 속성가호 계산x)
+    private Double atkWeaponRate = 50.0; // 장비항 (마그나 400, 일반 100, ex 100, 속성 150 상정, 5 * 2 * 2 * 2.5 50배율 상정)
     @Builder.Default
-    private Double hpWeaponRate = 1.0; // 수호항 -> 장비항이므로 100% 로 고정
+    private Double hpWeaponRate = 3.0; // 수호항 -> 장비 수호항 3배율 상정
 
     // 방어
     private Integer def; // 방어력
@@ -80,14 +82,14 @@ public abstract class BattleActor {
     private int strikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
 
     // 어빌리티 쿨다운, 각 어빌리티 1턴당 사용횟수. 나중에 분리할수도
-    private Integer firstAbilityCoolDown;
-    private Integer secondAbilityCoolDown;
-    private Integer thirdAbilityCoolDown;
-    private Integer fourthAbilityCoolDown;
-    private Integer firstAbilityUseCount;
-    private Integer secondAbilityUseCount;
-    private Integer thirdAbilityUseCount;
-    private Integer fourthAbilityUseCount;
+    private int firstAbilityCoolDown;
+    private int secondAbilityCoolDown;
+    private int thirdAbilityCoolDown;
+    private int fourthAbilityCoolDown;
+    private int firstAbilityUseCount;
+    private int secondAbilityUseCount;
+    private int thirdAbilityUseCount;
+    private int fourthAbilityUseCount;
 
     // 소환석 id, MC 에 귀속시켜야함, 나중에 isMC 같은거 추가해야할듯
     @Type(ListArrayType.class)
@@ -108,8 +110,7 @@ public abstract class BattleActor {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "battleActor")
-    @Builder.Default
+    @OneToMany(mappedBy = "battleActor") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
     private List<BattleStatus> battleStatuses = new ArrayList<>();
 
     @ManyToOne
@@ -130,12 +131,12 @@ public abstract class BattleActor {
         this.actor.getBattleActors().add(this);
     }
 
-    public String getdType() {
-        return dtype; // lombok getter 안먹혀서 생성
-    }
+//    public String getdType() {
+//        return dtype; // lombok getter 안먹혀서 생성
+//    }
 
     public boolean isEnemy() {
-        return "BattleEnemy".equals(this.dtype);
+        return "Enemy".equals(this.actor.getDtype());
     }
 
     /**
@@ -148,7 +149,6 @@ public abstract class BattleActor {
         }
         this.maxChargeGauge = this.getActor().getMaxChargeGauge();
         this.chargeGauge = 0;
-        this.maxHp = this.getHp(); // HP 가 먼저 세팅 되어 있어야함
         this.elementType = this.getActor().getElementType();
         this.fatalChainGauge = 0;
         this.firstAbilityCoolDown = 0;
@@ -198,8 +198,8 @@ public abstract class BattleActor {
         return (int) (((double) hp / maxHp) * 100);
     }
 
-    public void toggleGuard() {
-        this.isGuardOn = !this.isGuardOn;
+    public void changeGuard(boolean isGuardOn) {
+        this.isGuardOn = isGuardOn;
     }
 
     public void increaseStrikeCount() {
@@ -213,7 +213,7 @@ public abstract class BattleActor {
     /**
      * 어빌리티의 쿨타임 update
      *
-     * @param coolDown 적용할 쿨타임
+     * @param coolDown    적용할 쿨타임
      * @param abilityType 어빌리티 타입
      */
     public void updateAbilityCoolDown(int coolDown, MoveType abilityType) {
@@ -236,6 +236,32 @@ public abstract class BattleActor {
     }
 
     /**
+     * 어빌리티의 사용횟수 증가 (이전값 상관없이 ++)
+     *
+     * @param abilityType 어빌리티 타입
+     */
+    public int increaseAbilityUseCount(MoveType abilityType) {
+        return switch (abilityType) {
+            case FIRST_ABILITY -> ++firstAbilityUseCount;
+            case SECOND_ABILITY -> ++secondAbilityUseCount;
+            case THIRD_ABILITY -> ++thirdAbilityUseCount;
+            case FOURTH_ABILITY -> ++fourthAbilityUseCount;
+            default -> throw new IllegalArgumentException("invalid ability type " + abilityType.name());
+        };
+    }
+
+    /**
+     *  어빌리티 사용횟수 초기화 (턴 종료시, 어빌리티 사용횟수는 감소없이 초기화만)
+     */
+    public void resetAbilityUseCount() {
+        this.firstAbilityUseCount = 0;
+        this.secondAbilityUseCount = 0;
+        this.thirdAbilityUseCount = 0;
+        this.fourthAbilityUseCount = 0;
+    }
+
+
+    /**
      * 어빌리티 쿨타임 진행
      */
     public void progressAbilityCoolDown() {
@@ -243,6 +269,10 @@ public abstract class BattleActor {
         this.secondAbilityCoolDown = Math.max(0, this.secondAbilityCoolDown - 1);
         this.thirdAbilityCoolDown = Math.max(0, this.thirdAbilityCoolDown - 1);
         this.fourthAbilityCoolDown = Math.max(0, this.fourthAbilityCoolDown - 1);
+    }
+
+    public Move getMove(MoveType moveType) {
+        return this.getActor().getMoves().getOrDefault(moveType, Move.getTransientMove(MoveType.NONE));
     }
 
 }

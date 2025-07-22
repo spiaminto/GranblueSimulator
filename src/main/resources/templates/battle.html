@@ -32,7 +32,6 @@
   <!--  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>-->
   <script type="text/javascript" src="/static/slick/slick.js"></script>
   <script src="/static/js/battle/common.js"></script>
-  <script src="/static/js/battle/process-turn.js"></script>
   <script src="/static/js/battle/attack.js"></script>
   <script src="/static/js/battle/ability.js"></script>
   <script src="/static/js/battle/audio-player.js"></script>
@@ -49,46 +48,38 @@
               window.effectAudioPlayer.init();
           })
 
+          // 스케일 초기화
           let scale = window.innerWidth / 390;
           scale = scale > 2 ? 2 : scale;
-          console.log('bodywidth = scale = ', window.innerWidth, scale)
-          let container = document.querySelector('#container');
-          container.style.transform = `scale(${scale})`;
-          container.style.transformOrigin = 'top left';
+          console.log(`[scaleInit] innerWidth = ${window.innerWidth} scale = ${scale}`);
+          $('#container').css({
+              'transform' : `scale(${scale})`,
+              'transform-origin' : 'top left',
+          });
 
-          // 테스트용
-          $('.sound-button-wrapper button').on('click', {}, triggerShake);
+          // slick 초기화
+          $('#abilitySlider').slick({speed: 200, arrows: false});
 
+          // 모든 idle 무브에 loop 추가
+          $('#videoContainer .idle').attr('loop', true);
 
-          // 테스트용 흔들기
-          function triggerShake() {
-              let $videoContainer = $('#videoContainer');
-              $videoContainer.addClass('shake-right-effect');
+          // 적 시작 이펙트 및 사운드 재생
+          setTimeout(function () {
+              let standbyMoveType = MoveType.byClassName($('.enemy-video-container').attr('data-standby-move-class'));
+              console.log(`[enemyMoveInit] standbyMoveType`, standbyMoveType);
+              if (standbyMoveType == MoveType.NONE) { // 스탠바이 없으면 IDLE 보이게 하고 끝
+                  $('.enemy-video-container .idle-default').removeClass('hidden').get(0).play();
+                  return;
+              }
+              let $enemyVideo = getVideo(0, standbyMoveType, standbyMoveType.getIdleType());
+              playVideo($enemyVideo.effect, null, $enemyVideo.idle);
+              window.effectAudioPlayer.loadAndPlay($('.enemy-audio-container').find('.' + standbyMoveType.className).attr('src'));
+          }, 1000); // CHECK 나중에 적절한 로드 시점으로 변경
 
-              // 애니메이션 종료 후 클래스 제거
-              setTimeout(() => {
-                  $videoContainer.removeClass('shake-right-effect');
-              }, 200);
-          }
-
-          // 소환석 창 크기 조정
-          // let resizeTimer;
-          // $(window).on('resize', function () {
-          //     clearTimeout(resizeTimer);
-          //     resizeTimer = setTimeout(function () {
-          //         console.log('resize');
-          //         let width = $('.battle-member-wrapper').width();
-          //         $('.summon-display-wrapper').width(width);
-          //         $('.summon-collapse').width(width);
-          //     }, 300); // 300ms 동안 추가 resize가 없으면 실행
-          // });
-          // $(window).trigger('resize');
-
-          // $('.ability-panel .status-container').on('dragstart', function (e) {
-          //     e.preventDefault();
-          //     e.stopImmediatePropagation();
-          //     console.log('mousedown')
-          // }
+          // 아군 시작시 idle 보이게 및 재생
+          $('.party-video-container .idle-default').each(function (index, partyVideo) {
+              $(partyVideo).removeClass('hidden').get(0).play();
+          });
 
           // 오의 on off 리스너
           $('#chargeAttackActiveCheck').on('change', function () {
@@ -116,17 +107,9 @@
               }
           })
 
-          $('#audioPlayButton').on('click', function () {
-              document.getElementById('audioPlaying').currentTime = 0;
-              document.getElementById('audioPlaying').play();
-          })
-
           $('#attackButton').on('click', function () {
               requestTurnProgress();
           })
-
-          $('#abilitySlider').slick({speed: 200, arrows: false});
-
 
           // 소환석 클릭 이벤트리스너
           $('#commandContainer .summon-list .summon-list-item:not(.empty)').on('click', function () {
@@ -134,7 +117,6 @@
               let summonId = $(this).data('summon-id');
               requestMove(characterId, summonId);
           });
-
 
           // 어빌리티 슬라이더 버튼 클릭
           $('.ability-slider-slide-button-wrapper').on('click', function () {
@@ -154,6 +136,7 @@
               $('.ability-back-button').show();
           })
 
+          // 어빌리티 뒤로 버튼 -> 어빌리티 슬라이더 닫기
           $('.ability-back-button').on('click', function () {
               $('#abilitySlider').css('z-index', '-1');
               $('.ability-slider-slide-button-wrapper').hide();
@@ -162,14 +145,10 @@
               $(this).hide();
           });
 
-          // $('.status-wrapper').each(function (index, statusWrapper) {
-          //     onLongPress(statusWrapper, 1000, () => openStatusWrapperInfo.call(this))
-          // })
-
+          // 어빌리티 슬라이더에서 스테이터스 상세확인
           $('.show-status-info-button-wrapper').on('click', function () {
               openStatusWrapperInfo($(this).closest('.status-container'));
           })
-
           function openStatusWrapperInfo($statusContainer) {
               // console.log('[openStatusWrapperInfo] statusContainer = ', $statusContainer);
               let $statusInfoModal = $('#statusInfoModal .status-info-wrapper');
@@ -201,48 +180,11 @@
                           .prepend($('<span>').addClass('status-info-name fw-bold').text(statusName + ": "))
                           .append($('<span>').addClass('status-info-duration fw-bold').text(' [남은시간: ' + statusDuration + ']')));
                   $statusInfoModal.append($statusInfo).append($('<hr>'));
-                  /*
-                  <div class="status-info">
-                    <div class="status-info-icon-wrapper>
-                      <img class="status-info-icon" src="">
-                    </div>
-                    <div class="status-info-text"></div>
-                  </div>
-                   */
               })
               $('.status-modal-button').click();
           }
 
-          // initial
-          // 서버로 부터 받은 적의 첫 무브 hidden 해제
-          // 첫 무브는 IDLE_DEFAULT or STANDBY_X 중 하나이다.
-          let initialMoveClassName = $('.enemy-video-container').data('initial-move-class');
-          // 모든 idle 무브에 loop 추가
-          $('.enemy-video-container .idle').attr('loop', true);
-          $('.party-video-container .idle').attr('loop', true);
-          // party-1 (주인공) 을 제외한 attack 에 large 추가
-          $('.party-video-container div:not(.party-1) .attack').addClass('large');
-          // 적의 첫무브 재생
-          let $enemyInitialVideo = $('.enemy-video-container .' + initialMoveClassName);
-          $enemyInitialVideo.attr('preload', 'auto')
-          setTimeout(function () {
-              $enemyInitialVideo.removeClass('hidden').get(0)?.play();
-              if ($enemyInitialVideo.hasClass('standby')) {
-                  // 스탠바이 일경우 오디오 재생
-                  let audioSrc = $('.enemy-audio-container').find('.' + initialMoveClassName).attr('src');
-                  window.effectAudioPlayer.loadSound(audioSrc).then(() => window.effectAudioPlayer.playAllSounds());
-                  $enemyInitialVideo.one('ended', function () {
-                      // stnadby 일 경우 이어서 standbyIdle 재생
-                      $('.enemy-video-container').find('.' + MoveType.byClassName(initialMoveClassName).getIdleType().className).removeClass('hidden').get(0).play();
-                      $(this).addClass('hidden');
-                  });
-              }
-          }, 500) // 로드할 시간 줌
-          // 아군 무브 idle 보이게 설정
-          $('.party-video-container .idle-default').each(function (index, partyVideo) {
-              $(partyVideo).removeClass('hidden').get(0)?.play();
-          });
-
+          // 가드버튼 이벤트 등록
           $('.guard-button').each(function (index, guardButton) {
               let pressStart = 0;
               const executionDelay = 500; // 최소 실행 딜레이
@@ -279,12 +221,38 @@
               });
           });
 
+          // 방 나가기 이벤트 등록
           $('.exit-room-button').on('click', function () {
               if (!confirm("방에서 퇴장하면 클리어시 획득 가능한 아이템이나 공헌도를 모두 잃습니다")) return;
               $('#exitRoomForm').submit();
           })
-
       });
+  </script>
+  <script>
+  $(function () { // 테스트
+
+      // 테스트용 버튼 클릭
+      // $('.sound-button-wrapper button').on('click', {}, triggerShake);
+      $('.sound-button-wrapper button').on('click', function () {
+          processHealEffect([1,1,1,1], 0)
+      });
+
+      // 테스트용 흔들기
+      function triggerShake() {
+          let $videoContainer = $('#videoContainer');
+          $videoContainer.addClass('shake-right-effect');
+          // 애니메이션 종료 후 클래스 제거
+          setTimeout(() => {
+              $videoContainer.removeClass('shake-right-effect');
+          }, 200);
+      }
+
+      // 글로벌 이펙트 테스트
+      // $('.global-effect-video').attr('src', GlobalSrc.HEAL.video).removeClass('hidden').attr('loop', true).each(function () {
+      //     this.play();
+      // })
+
+  })
   </script>
   <link rel="stylesheet" href="../static/css/battle/ability.css">
 </head>
@@ -358,8 +326,8 @@
              th:classappend="${battleEnemyInfo.omenActivated ? 'activated' : ''}">
           <div class="omen-text"
                th:classappend="${battleEnemyInfo.isOmenActivated() ? battleEnemyInfo.omenType.className : ''}">
-            <span class="omen-prefix" th:text="${battleEnemyInfo.omenPrefix + ': '}">전조 조건: </span>
-            <span class="omen-value" th:text="${battleEnemyInfo.omenValue}">값</span>
+            <span class="omen-prefix" th:text="${battleEnemyInfo.omenPrefix}">전조 조건 </span>
+            <span class="omen-value" th:text="${battleEnemyInfo.isOmenActivated() && battleEnemyInfo.omenPrefix.contains('해제불가') ? '' : battleEnemyInfo.omenValue}">값</span>
             <span class="omen-info" th:text="${battleEnemyInfo.omenInfo}">전조 설명</span>
           </div>
         </div>
@@ -400,12 +368,10 @@
       </div>
 
       <div class="enemy-video-container" th:data-phase="${battleEnemyInfo.getPhase()}"
-           th:data-initial-move-class="${battleEnemyInfo.initialMoveType.className}"
            th:data-standby-move-class="${battleEnemyInfo.initialMoveType.parentType.className.equals('standby') ? battleEnemyInfo.initialMoveType.className : 'none'}">
         <video class="hidden enemy-video actor-0" muted playsinline preload="auto"
                th:each="entry : ${enemyVideoSrcMap}"
                th:if="${entry.key.length() > 0}"
-               th:data-move-type="${entry}"
                th:src="${entry.key}"
                th:data-effect-hit-delay="${entry.value.effectHitDelay}"
                th:classappend="${#strings.listJoin(entry.value.classNames, ' ')}">
@@ -417,17 +383,13 @@
 
       </div>
       <div class="party-video-container">
-        <div class="party-video-wrapper" th:each="characterVideoSrcMap : ${characterVideoSrcMaps}"
+        <div class="party-video-wrapper party-1" th:each="characterVideoSrcMap : ${characterVideoSrcMaps}"
              th:classappend="'party-' + ${characterVideoSrcMapStat.count}">
           <video class="party-video hidden" muted playsinline preload="auto"
                  th:each="entry : ${characterVideoSrcMap}"
                  th:src="${entry.key}"
                  th:classappend="${entry.value} + ' actor-' + ${characterVideoSrcMapStat.count}">
           </video>
-
-          <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-          <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-          <!--          ></video>-->
 
           <!-- TEST ================================================= -->
           <!--                    <video class="party-video attack motion" loop muted autoplay playsinline preload="auto"-->
@@ -443,22 +405,28 @@
           <!--                 src="/static/assets/video/gl/hauhet1.webm">-->
           <!--          </video>-->
         </div>
-        <!--        <div class="party-2">-->
-        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-        <!--          ></video>-->
-        <!--        </div>-->
-        <!--        <div class="party-3">-->
-        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-        <!--          ></video>-->
-        <!--        </div>-->
-        <!--        <div class="party-4">-->
-        <!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
-        <!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
-        <!--          ></video>-->
-        <!--        </div>-->
-      </div>
+
+<!--        <div class = "party-1">-->
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"></video>-->
+<!--        </div>-->
+<!--        <div class="party-2">-->
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
+<!--        </div>-->
+<!--        <div class="party-3">-->
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
+<!--        </div>-->
+<!--        <div class="party-4">-->
+<!--          <video class="party-video idle motion" loop muted autoplay playsinline preload="auto"-->
+<!--                 src="/static/assets/video/ch/paladin/idle.webm"-->
+<!--          ></video>-->
+<!--        </div>-->
+
+      </div><!-- .party-video-container -->
 
       <div class="summon-video-container">
         <video class="hidden summon-video" muted playsinline
@@ -470,28 +438,38 @@
 
 
       <div class="global-video-container">
-        <div class="heal-video-wrapper">
-          <video muted playsinline
-                 class="global-video heal actor-0 hidden"
-                 src="/static/assets/video/gl/gl-heal.webm">
-          </video>
-          <video muted playsinline
-                 class="global-video heal actor-1 hidden"
-                 src="/static/assets/video/gl/gl-heal.webm">
-          </video>
-          <video muted playsinline
-                 class="global-video heal actor-2 hidden"
-                 src="/static/assets/video/gl/gl-heal.webm">
-          </video>
-          <video muted playsinline
-                 class="global-video heal actor-3 hidden"
-                 src="/static/assets/video/gl/gl-heal.webm">
-          </video>
-          <video muted playsinline
-                 class="global-video heal actor-4 hidden"
-                 src="/static/assets/video/gl/gl-heal.webm">
-          </video>
+        <div class="global-effect-video-wrapper actor-0">
+          <video muted playsinline class="global-effect-video actor-0 hidden" src=""></video>
         </div>
+        <div class="global-effect-video-wrapper actor-1">
+          <div class="guard-status">
+            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status">
+            <div class="guard-status-effect"></div>
+          </div>
+          <video muted playsinline class="global-effect-video actor-1 hidden" src=""></video>
+        </div>
+        <div class="global-effect-video-wrapper actor-2">
+          <div class="guard-status">
+            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status">
+            <div class="guard-status-effect"></div>
+          </div>
+          <video muted playsinline class="global-effect-video actor-2 hidden" src=""></video>
+        </div>
+        <div class="global-effect-video-wrapper actor-3">
+          <div class="guard-status">
+            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status">
+            <div class="guard-status-effect"></div>
+          </div>
+          <video muted playsinline class="global-effect-video actor-3 hidden" src=""></video>
+        </div>
+        <div class="global-effect-video-wrapper actor-4">
+          <div class="guard-status">
+            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status">
+            <div class="guard-status-effect"></div>
+          </div>
+          <video muted playsinline class="global-effect-video actor-4 hidden" src=""></video>
+        </div>
+
         <video muted playsinline
                class="global-video hidden fatal-chain-video"
                src="" th:src="${fatalChainInfo.effectVideoSrc}"
@@ -536,24 +514,6 @@
 
       </div>
       <div class="global-image-container">
-        <div class="guard-status-wrapper">
-          <div class="guard-status party-1">
-            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status-1">
-          </div>
-          <div class="guard-status effect party-1"></div>
-          <div class="guard-status party-2">
-            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status-2">
-          </div>
-          <div class="guard-status effect party-2"></div>
-          <div class="guard-status party-3">
-            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status-3">
-          </div>
-          <div class="guard-status effect party-3"></div>
-          <div class="guard-status party-4">
-            <img class="guard-status-image" src="/static/assets/img/gl/ui-guard-status.png" alt="guard-status-4">
-          </div>
-          <div class="guard-status effect party-4"></div>
-        </div>
       </div>
 
     </div> <!-- #videoContainer -->
@@ -648,20 +608,34 @@
     </div>
 
     <div class="status-effect-container battle-canvas">
-      <!--      <div class="status-effect-wrapper actor-2 status-index-0 party">-->
-      <!--        <div class="status-effect status-effect-0" style="opacity: 1;">-->
-      <!--          <img src="/static/assets/img/ch/yachima/status-ability-1-3.png" class="">-->
-      <!--          <span class="status-effect-text">난격 (3회)</span></div>-->
-      <!--        <div class="status-effect status-effect-1" style="opacity: 1;">-->
-      <!--          <img src="/static/assets/img/ch/yachima/status-ability-1.png" class="">-->
-      <!--          <span class="status-effect-text">추격 (A)</span></div>-->
-      <!--      </div>-->
-      <!--      <div class="status-effect-wrapper actor-0 status-index-0 enemy">-->
-      <!--        <div class="status-effect status-effect-0">-->
-      <!--          <img src="/static/assets/img/ch/yachima/status-de-ability-1-5.png" class="">-->
-      <!--          <span class="status-effect-text">디그레이드 스피넬</span>-->
-      <!--        </div>-->
-      <!--      </div>-->
+      <div class="status-effect-wrapper dummy actor-0 status-index-9999 enemy"></div>
+      <div class="status-effect-wrapper dummy actor-1 status-index-9999 party"></div>
+      <div class="status-effect-wrapper dummy actor-2 status-index-9999 party"></div>
+      <div class="status-effect-wrapper dummy actor-3 status-index-9999 party"></div>
+      <div class="status-effect-wrapper dummy actor-4 status-index-9999 party"></div>
+
+<!--            <div class="status-effect-wrapper actor-2 status-index-0 party">-->
+<!--              <div class="status-effect status-effect-index-0 buff" style="opacity: 1;">-->
+<!--                <img src="/static/assets/img/ch/yachima/status-ability-1-3.png" class="">-->
+<!--                <span class="status-effect-text">난격 (3회)</span></div>-->
+<!--              <div class="status-effect status-effect-index-1 buff" style="opacity: 1;">-->
+<!--                <img src="/static/assets/img/ch/yachima/status-ability-1.png" class="">-->
+<!--                <span class="status-effect-text">추격 (A)</span></div>-->
+<!--            </div>-->
+<!--            <div class="status-effect-wrapper actor-0 status-index-0 enemy">-->
+<!--              <div class="status-effect status-effect-index-0 debuff" style="opacity: 1;">-->
+<!--                <img src="/static/assets/img/ch/yachima/status-de-ability-1-5.png" class="">-->
+<!--                <span class="status-effect-text">디그레이드 스피넬</span>-->
+<!--              </div>-->
+<!--              <div class="status-effect status-effect-index-0 debuff" style="opacity: 1;">-->
+<!--                <img src="/static/assets/img/ch/yachima/status-de-ability-1-5.png" class="">-->
+<!--                <span class="status-effect-text">디그레이드 스피넬</span>-->
+<!--              </div>-->
+<!--              <div class="status-effect status-effect-index-0 debuff" style="opacity: 1;">-->
+<!--                <img src="/static/assets/img/ch/yachima/status-de-ability-1-5.png" class="">-->
+<!--                <span class="status-effect-text">디그레이드 스피넬</span>-->
+<!--              </div>-->
+<!--            </div>-->
     </div>
 
     <div class="ability-back-button-wrapper">
@@ -709,16 +683,12 @@
           </div>
         </div>
 
-        <!-- 더미 -->
-        <div class="battle-portrait">
-          <img src="/static/assets/img/gl/ch-empty.jpg">
+        <!--더미-->
+        <div class="battle-portrait empty" th:each="index : ${#numbers.sequence(0, 3 - battleCharacterInfos.size(), 1)}">
+          <img src="/static/assets/img/gl/ch-empty.jpg" th:data-seq="${index}">
         </div>
-        <div class="battle-portrait">
-          <img src="/static/assets/img/gl/ch-empty.jpg">
-        </div>
-        <div class="battle-portrait">
-          <img src="/static/assets/img/gl/ch-empty.jpg">
-        </div>
+
+
       </div>
 
 
@@ -746,7 +716,7 @@
                 </div>
               </div>
 
-              <div class="summon-list-item empty" th:each="index : ${#numbers.sequence(1, 4 - summonInfos.size())}">
+              <div class="summon-list-item empty" th:each="index : ${#numbers.sequence(0, 3 - summonInfos.size(), 1)}">
                 <img src="/static/assets/img/summon/empty.jpg">
               </div>
 
@@ -807,9 +777,9 @@
                      th:data-ability-id="${ability.id}" th:data-ability-order="${abilityStat.count}">
                   <img src="/static/assets/img/ch/paladin/ability-1.png"
                        th:src="${ability.iconImageSrc}"/>
-                  <div class="ability-cooldown-text" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}"
+                  <div class="ability-cooldown-text"
                        th:classappend="${characterInfo.abilityCoolDowns.get(abilityStat.index).equals(0) ? 'active' : 'inactive'}">
-                    쿨다운
+                    <span class="value" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}">00</span>턴
                   </div>
                   <div class="ability-overlay"></div>
                   <div class="ability-info-text" th:text="${ability.info}">어빌리티 설명</div>
@@ -822,8 +792,10 @@
               </div>
               <div class="status" th:each="status : ${characterInfo.statuses}"
                    th:data-status-type="${status.status.type}"
-                   th:classappend="${statusStat.index > 0 && characterInfo.statuses.get(statusStat.index - 1).status.name.equals(status.status.name) ? 'd-none' : ''}">
-                <!--중복 이름 스테이터스 안보이게 렌더링-->
+                   th:classappend="${statusStat.index > 0 && (
+                   characterInfo.statuses.get(statusStat.index - 1).status.name.equals(status.status.name)
+                   || characterInfo.statuses.get(statusStat.index - 1).iconSrc.equals(status.iconSrc)
+                    ) ? 'd-none' : ''}">
                 <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
                      th:src="${status.iconSrc}"/>
                 <div class="status-name d-none" th:text="${status.status.name}">스테이터스 이름</div>
@@ -872,7 +844,8 @@
         <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
       </div>
       <div class="form-check form-switch charge-attack-check-wrapper">
-        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck" th:checked="${member.isChargeAttackOn()}">
+        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck"
+               th:checked="${member.isChargeAttackOn()}">
         <label class="form-check-label" for="chargeAttackActiveCheck">오의 발동</label>
       </div>
     </div>
@@ -916,6 +889,10 @@
         <h1 class="modal-title fs-5" id="menuModalLabel">메뉴</h1>
       </div>
       <div class="modal-body">
+        <div class="test-menu-container m-1 p-2 border border-danger">
+          <p>테스트메뉴</p>
+          <button class="btn btn-outline-success me-2" onclick="requestResetCoolDown()">쿨타임 초기화</button>
+        </div>
 
       </div>
       <div class="modal-footer">

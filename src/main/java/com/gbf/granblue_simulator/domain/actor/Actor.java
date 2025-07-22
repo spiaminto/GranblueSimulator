@@ -36,9 +36,9 @@ public abstract class Actor {
     private boolean isMainCharacter; // 주인공 여부, Character 로 분리?
 
     @Builder.Default
-    private Integer baseAttackPoint = 1000; // 공력력
+    private Integer baseAttackPoint = 10000; // 공력력
     @Builder.Default
-    private Integer baseHitPoint = 10000; // 체력
+    private Integer baseHitPoint = 20000; // 체력
     @Builder.Default
     private Integer baseDefencePoint = 10; // 방어력
 

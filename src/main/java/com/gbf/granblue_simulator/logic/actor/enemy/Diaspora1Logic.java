@@ -33,11 +33,8 @@ public class Diaspora1Logic extends EnemyLogic {
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
-
-        Move firstSupportAbility = mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY);
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, firstSupportAbility.getStatuses());
-
-        return List.of(resultMapper.toResult(mainActor, partyMembers, firstSupportAbility, null, null, setStatusResult));
+        // 사포아비4 -> 전투시작시 자신에게 활성부여
+        return List.of(fourthSupportAbility(mainActor, partyMembers, mainActor.getMove(MoveType.FOURTH_SUPPORT_ABILITY), null));
     }
 
     @Override
@@ -93,8 +90,8 @@ public class Diaspora1Logic extends EnemyLogic {
     public List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers) {
         List<ActorLogicResult> results = new ArrayList<>();
 
-        // TEST 서포어비 4
-        results.add(fourthSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FOURTH_SUPPORT_ABILITY), null));
+        // CHECK 테스트용 서포어비 4
+//        results.add(fourthSupportAbility(mainActor, partyMembers, mainActor.getActor().getMoves().get(MoveType.FOURTH_SUPPORT_ABILITY), null));
 
         // 서포어비 2
         secondSupportAbility(mainActor, partyMembers, null, null);
@@ -138,7 +135,8 @@ public class Diaspora1Logic extends EnemyLogic {
                 return resultMapper.emptyResult();
             }
             // log.info("[firstSupportAbility] otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
-            int levelFromTakenDamage = takenDamageSum / 3000000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
+            // TEST 값 3000000 (삼백만) -> 300000 (삼십만)
+            int levelFromTakenDamage = takenDamageSum / 300000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
             if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
                 // 스테이터스 레벨 상승 - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
@@ -173,7 +171,8 @@ public class Diaspora1Logic extends EnemyLogic {
     protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
         // 현재 활성 제거
         BattleStatus currentActivateStatus = getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
-        String currentActivateStatusType = currentActivateStatus.getStatus().getName().substring(4, 6); // 활성 『알파』 에서 알파만 남김. 일단 구리지만 이렇게.
+        String currentActivateStatusName = currentActivateStatus.getStatus().getName();
+        String currentActivateStatusNameType = currentActivateStatusName.substring(currentActivateStatusName.indexOf("『"), currentActivateStatusName.indexOf("』")); // "활성『알파』" 에서 "『알파" 만 남김.
         setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
 
         // 2회차 전조부터 붙어있는 긴급 수복모드 제거
@@ -181,8 +180,9 @@ public class Diaspora1Logic extends EnemyLogic {
         setStatusLogic.removeBattleStatus(mainActor, recoveryStatus);
 
         // 활성 효과에 맞는 모드 적용
-        Status modeStatus = getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusType);
+        Status modeStatus = getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusNameType);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(modeStatus));
+        setStatusResult.getRemovedStatuesList().get(mainActor.getCurrentOrder()).add(currentActivateStatus); // 활성 지우는 효과 추가
 
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }

@@ -16,19 +16,22 @@ function processAbility(response) {
         playVideo($partyVideo.effect, $partyVideo.motion, $partyVideo.idle);
     }
 
-    // 데미지 삽입
+    // 데미지 삽입 (미리 삽입해놔야됨)
     let currentAbilityDamageWrapperIndex = $('.ability-damage-wrapper').length;
     let $abilityDamageWrapper = $('<div>', {class: 'ability-damage-wrapper ability-index-' + currentAbilityDamageWrapperIndex});
-    response.damages.forEach(function (damage, damageIndex) {
-        let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', damageIndex, damage, []);
-        $abilityDamageWrapper.prepend($damageElements.$damage);
-    })
-    $('#abilityDamageContainer').append($abilityDamageWrapper);
+    if (response.damages.length > 0) {
+        response.damages.forEach(function (damage, damageIndex) {
+            let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', damageIndex, damage, []);
+            $abilityDamageWrapper.prepend($damageElements.$damage);
+        })
+        $('#abilityDamageContainer').append($abilityDamageWrapper);
+    }
 
     // 데미지 마다 표시, 적 피격 모션 재생
-    let damageShowClass = response.totalHitCount > 2 ? 'multiple-damage-show' : 'damage-show'
+    let damageShowClass = response.totalHitCount > 3 ? 'multiple-ability-damage-show' : 'ability-damage-show'
+    let effectHitDuration = (effectDuration - 200) / response.damages.length;
     response.damages.forEach(function (damage, damageIndex, damageArray) {
-        let startDelay = effectDuration / damageArray.length * damageIndex;
+        let startDelay = effectHitDuration * damageIndex; // CHECK /2 했는데 추이를 지켜보고 수정
         if (damageIndex === 0) {
             $enemyVideo.idle.addClass('left-hidden').get(0).pause();
             $enemyVideo.idle.get(0).currentTime = 0;
@@ -39,17 +42,16 @@ function processAbility(response) {
             $enemyVideo.effect.get(0).currentTime = 0; // 빼면 부자연스러워짐
             $enemyVideo.effect.get(0).play();
             // 데미지 표시
-            $abilityDamageWrapper.find('.ability-damage').eq(damageIndex).addClass(damageShowClass);
+            $abilityDamageWrapper.find('.ability-damage').eq(response.damages.length - 1 - damageIndex).addClass(damageShowClass);
             if (damageIndex >= damageArray.length - 1) { // 마지막
-                // 적 모션 정상화
+                console.log('[processDamageAbility] $abilityDamageWrapper', $abilityDamageWrapper)
                 setTimeout(function () {
+                    // 적 모션 정상화
                     $enemyVideo.idle.removeClass('left-hidden').get(0).play(); // 가끔 멈춰서 재생갱신
                     $enemyVideo.effect.addClass('hidden');
-                }, 200) // 막타에 대한 대기 (임의길이)
-                // 마지막 데미지 페이드 아웃시 전체 제거
-                setTimeout(function () {
-                    $abilityDamageWrapper.remove();
-                }, 1000); //
+                    // 마지막 데미지 페이드 아웃시 전체 제거
+                    setTimeout(() => $abilityDamageWrapper.remove() , 1000);
+                }, effectHitDuration); // 막타대기
             }
         }, startDelay);
     });
@@ -57,26 +59,20 @@ function processAbility(response) {
     // 스테이터스 아이콘 갱신
     processStatusIconSync(response.currentBattleStatusesList, effectDuration);
 
-    // 어빌리티는 타수가 많을경우 데미지 표시길이만큼 딜레이 보정
-    effectDuration = effectDuration += response.totalHitCount * 50;
     // 힐 이펙트 처리
     let healEndTime = processHealEffect(response.heals, effectDuration);
     // 버프 이펙트 처리
     let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 서포트 어빌리티, 이펙트 비디오가 없는경우 처리 단축
-    if ($partyVideo.effect == null) buffEndTime /= 2;
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
-    // 서포트 어빌리티, 이펙트 비디오가 없는경우 처리 단축
-    if ($partyVideo.effect == null) debuffEndTime /= 2;
 
-    let totalEndTime = Math.max(effectDuration + 100, buffEndTime, debuffEndTime);
+    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
     console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
 
     return new Promise(resolve => setTimeout(function () {
         console.log(response.moveType.name + ' done');
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 }
 
 
@@ -117,24 +113,26 @@ function processEnemyAbility(response) {
     }
 
     // 데미지 후처리 (데미지 표시, 아군 피격 재생)
-    enemyDamagesPostProcess(response, $enemyVideo, $partyVideos);
+    if (response.damages.length > 0) enemyDamagesPostProcess(response, $enemyVideo, $partyVideos);
 
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
+    // 이펙트가 없는 서포트 어빌리티는 기다리지 않음
+    let effectEndTime = effectDuration === 0 ? 0 : effectDuration + 500;
+    processStatusIconSync(response.currentBattleStatusesList, effectEndTime);
     // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration);
+    let healEndTime = processHealEffect(response.heals, effectEndTime);
     // 버프 이펙트 처리
     let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
-    let totalEndTime = Math.max(effectDuration + 100, buffEndTime, debuffEndTime);
+    let totalEndTime = Math.max(effectDuration, buffEndTime, debuffEndTime);
     console.log('[processEnemyAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
 
     return new Promise(resolve => setTimeout(function () {
         console.log(response.moveType.name + ' done');
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 }
 
 function processFatalChain(response) {
@@ -142,7 +140,6 @@ function processFatalChain(response) {
     let $effectVideo = $('.global-video-container .fatal-chain-video');
     let effectStartDelay = 100; // 파티 공격 ~ 페이탈 체인 이펙트 시작까지 딜레이
     let effectDuration = $effectVideo.get(0).duration * 1000 + effectStartDelay;
-    let damageHitDelay = effectDuration - 250; // 데미지 히트 딜레이
     let $partyFirstAbilityVideos = [1, 2, 3, 4] // 아군의 어빌리티 모션 전체 재생
         .map(number => getVideo(number, MoveType.FIRST_ABILITY, MoveType.IDLE_DEFAULT));
     // 준비 - 적
@@ -155,11 +152,11 @@ function processFatalChain(response) {
         setTimeout(() => window.effectAudioPlayer.playAllSounds(), effectStartDelay);
     });
 
-    // 데미지 채우기 -> 어빌리티 에다가 채움
-    response.damages.forEach(function (damage, index) {
-        let $damageElement = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', index, damage, []);
-        $('.ability-damage-wrapper').prepend($damageElement.$damage);
-    })
+    // 데미지 삽입 (페이탈 체인은 데미지 1회)
+    let currentAbilityDamageWrapperIndex = $('.ability-damage-wrapper').length;
+    let $abilityDamageWrapper = $('<div>', {class: 'ability-damage-wrapper ability-index-' + currentAbilityDamageWrapperIndex});
+    let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], 'ability', 0, response.damages[0], []);
+    $abilityDamageWrapper.prepend($damageElements.$damage).appendTo($('#abilityDamageContainer'));
 
     // 파티 전체 모션 재생
     $partyFirstAbilityVideos.forEach(function (partyVideo) {
@@ -169,35 +166,22 @@ function processFatalChain(response) {
     setTimeout(() => playVideo($effectVideo, null, null), effectStartDelay);
 
     // 피격 이펙트, 데미지 표시
+    let effectHitDelay = effectDuration - 500; // 데미지 히트 딜레이
     setTimeout(function () {
         // 적 피격 이펙트 재생
         playVideo($enemyVideo.effect, null, $enemyVideo.idle);
-        // 화면 흔들기
-        // $('#videoContainer').addClass('push-left-down-effect');
-        // setTimeout(function () {
-        //     $('#videoContainer').removeClass('push-left-down-effect');
-        // }, 150);
         // 데미지 표시
-        let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show'
-        let $abilityDamages = $('.ability-damage-wrapper .ability-damage');
-        $abilityDamages.each(function (index, abilityDamage) {
-            setTimeout(function () {
-                $(abilityDamage).addClass(damageShowClass);
-            }, index * 100)
-            if (index >= $abilityDamages.length - 1) {
-                // 마지막에 제거
-                setTimeout(function () {
-                    $abilityDamages.remove();
-                }, 1000);
-            }
-        })
-    }, damageHitDelay);
+        $abilityDamageWrapper.find('.ability-damage').addClass('party-attack-damage-show');
+        setTimeout(function () {
+            $abilityDamageWrapper.remove();
+        }, 1500);
+    }, effectHitDelay);
 
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
+    processStatusIconSync(response.currentBattleStatusesList, effectHitDelay + 600);
 
     // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, effectDuration + 500);
+    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, effectHitDelay + 600);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
@@ -207,5 +191,5 @@ function processFatalChain(response) {
     return new Promise(resolve => setTimeout(function () {
         console.log(response.moveType.name + ' done');
         resolve();
-    }, totalEndTime + 100));
+    }, totalEndTime + 300));
 }

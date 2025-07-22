@@ -23,7 +23,7 @@ public class Status {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne @JoinColumn(name = "move_id")
+    @ManyToOne @JoinColumn(name = "move_id") @EqualsAndHashCode.Exclude @ToString.Exclude
     private Move move;
 
     private String name; // 일단 effectText 와 동일하게 사용

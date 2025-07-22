@@ -45,6 +45,8 @@ public class CalcStatusLogic {
     public void syncStatus(BattleActor battleActor) {
         Map<StatusEffectType, List<StatusEffect>> statusEffects = getStatusEffectMap(battleActor);
 
+        log.info("battleActor = {}, isEnemy = {}, dtype = {}", battleActor.getName(), battleActor.isEnemy(), battleActor.getDtype());
+
         // hp, maxHp 는 미리 set
         int maxHp = getMaxHp(battleActor, statusEffects);
         battleActor.updateMaxHp(maxHp);
@@ -154,17 +156,17 @@ public class CalcStatusLogic {
         // 최대 체력 감소
         double maxHpDownRate = getSum(statusEffects.get(StatusEffectType.MAX_HP_DOWN));
         //상한 하한처리
-        maxHpDownRate = Math.max(maxHpDownRate, -0.99); // 상한 x 하한 -99%
+        maxHpDownRate = Math.min(maxHpDownRate, 0.99); // 상한 99%
 
         double maxHp = (double) battleActor.getActor().getBaseHitPoint()
                 * (1 + hpWeaponRate)
-                * (1 + maxHpDownRate);
+                * (1 - maxHpDownRate);
 
         return (int) maxHp;
     }
 
     protected int getHp(BattleActor battleActor, Map<StatusEffectType, List<StatusEffect>> statusEffects) {
-        double hp = battleActor.getHp();
+        double hp = battleActor.getHp() == null ? battleActor.getMaxHp() : battleActor.getHp(); // hp 없으면 max (init 상황)
         double maxHp = battleActor.getMaxHp();
         hp = Math.min(hp, maxHp); // maxHp 가 줄어든경우 hp 도 따라감
 

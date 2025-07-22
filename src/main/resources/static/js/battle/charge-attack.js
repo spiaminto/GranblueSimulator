@@ -18,32 +18,28 @@ async function processChargeAttack(response) {
     let $chargeAttackDamageWrapper = $('<div>', {class: 'charge-attack-damage-wrapper'}).append($damageElements.$damage).appendTo($('#chargeAttackDamageContainer'))
 
     // 이펙트 종료 직전부터 데미지, 피격이펙트 재생
-    let effectHitDelay = effectDuration - 250; // 히트 시점을 끝나기 0.25초전으로
+    let effectHitDelay = effectDuration - 500; // 히트 시점을 끝나기 0.5초전으로
+    // 적 피격 이펙트 재생 - 데미지 보다 약간 빠르게
+    setTimeout(() => playVideo($enemyVideo.effect, null, $enemyVideo.idle), effectHitDelay - 100);
     setTimeout(function () {
-        // 적 피격 이펙트 재생
-        playVideo($enemyVideo.effect, null, $enemyVideo.idle);
-        // 화면 흔들기
-        $('#videoContainer').addClass('push-left-down-effect');
-        setTimeout(function () {
-            $('#videoContainer').removeClass('push-left-down-effect');
-        }, 150);
         // 데미지 표시 및 제거
-        $chargeAttackDamageWrapper.find('.charge-attack-damage').addClass('damage-show');
+        $chargeAttackDamageWrapper.find('.charge-attack-damage').addClass('party-attack-damage-show');
         setTimeout(function () {
             $chargeAttackDamageWrapper.remove();
-        }, 1000);
+        }, 1500);
     }, effectHitDelay);
 
+    // 데미지 표시후 600ms 경과부터 후처리 시작
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration + 500);
+    processStatusIconSync(response.currentBattleStatusesList, effectHitDelay + 600); 
     // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration + 500)
+    let healEndTime = processHealEffect(response.heals, effectHitDelay + 600)
     // 버프 이펙트 처리
     let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
-    let totalEndTime = Math.max(effectDuration, buffEndTime, debuffEndTime);
+    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
     console.log('[processChargeAttack] chargeAttackDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
 
     return new Promise(resolve => setTimeout(function () {
@@ -109,7 +105,7 @@ async function processEnemyChargeAttack(response) {
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
-    let totalEndTime = Math.max(effectDuration + 100, buffEndTime, debuffEndTime);
+    let totalEndTime = Math.max(effectDuration, buffEndTime, debuffEndTime);
     console.log('[processEnemyChargeAttack] chargeAttackDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
 
     return new Promise(resolve => setTimeout(function () {

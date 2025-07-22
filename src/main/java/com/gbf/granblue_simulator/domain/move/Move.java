@@ -65,6 +65,19 @@ public class Move {
     public void setCharacter(Actor actor) {
         this.actor = actor;
     }
+
+    /**
+     * 타입만 설정된 무브를 생성 및 반환
+     * TURN_END_PROCESS, STRIKE_SEALED, NONE 외 사용금지
+     * CHECK Move 에서 null 나오면 확인
+     * @return
+     */
+    public static Move getTransientMove(MoveType type) {
+        return Move.builder()
+                .type(type)
+                .statuses(new ArrayList<>())
+                .build();
+    }
 }
 
 /*

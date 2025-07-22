@@ -1,12 +1,15 @@
 package com.gbf.granblue_simulator.controller.request.insert;
 
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.stream.IntStream;
 
 @Slf4j
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class InsertSrcMapper {
 
     private static final String CHARACTER_IMG_BASE_URL = "/static/assets/img/ch/";

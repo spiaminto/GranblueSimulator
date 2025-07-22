@@ -3,7 +3,9 @@ package com.gbf.granblue_simulator.domain.actor;
 import com.gbf.granblue_simulator.domain.Member;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SortComparator;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Entity
@@ -42,4 +44,6 @@ public class Party {
     public List<Long> getSummonMoveIds() {
         return List.of(this.firstSummonMoveId, this.secondSummonMoveId, this.thirdSummonMoveId, this.fourthSummonMoveId);
     }
+
+
 }

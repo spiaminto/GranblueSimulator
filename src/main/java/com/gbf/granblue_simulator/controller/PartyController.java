@@ -14,6 +14,7 @@ import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
+import com.gbf.granblue_simulator.service.ActorService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Controller
@@ -34,7 +36,7 @@ public class PartyController {
 
     private final PartyRepository partyRepository;
     private final UserRepository userRepository;
-    private final ActorRepository actorRepository;
+    private final ActorService actorService;
     private final MoveRepository moveRepository;
 
     @GetMapping("/party")
@@ -47,7 +49,7 @@ public class PartyController {
                         .name(party.getName())
                         .info(party.getInfoText())
                         .characterInfos(
-                                actorRepository.findAllById(party.getActorIds()).stream()
+                                actorService.findAllByIdsOrdered(party.getActorIds()).stream()
                                         .map(actor ->
                                                 PartyCharacterInfo.builder()
                                                         .id(actor.getId())
@@ -83,7 +85,7 @@ public class PartyController {
 
     @GetMapping("/character/{characterId}")
     public String character(@PathVariable Long characterId, Model model) {
-        Actor actor = actorRepository.findById(characterId).orElseThrow(() -> new IllegalArgumentException("없는 캐릭터"));
+        Actor actor = actorService.findById(characterId).orElseThrow(() -> new IllegalArgumentException("없는 캐릭터"));
         PartyCharacterInfo characterInfo = PartyCharacterInfo.builder()
                 .id(characterId)
                 .name(actor.getName())

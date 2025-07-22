@@ -4,7 +4,7 @@ async function processResponseMoves(responses) {
     console.log('===[processResponseMoves]============== \n moveResponses = \n', moveResponses);
 
     // 결과 리스트에 폼체인지가 있을경우 비디오 미리로드
-    if (moveResponses.some(response => response.moveType === MoveType.FORM_CHANGE.name)) {
+    if (moveResponses.some(response => response.moveType === MoveType.FORM_CHANGE_DEFAULT)) {
         waitingProcess(true);
         await preloadNextEnemyVideo();
         waitingProcess(false);
@@ -32,7 +32,7 @@ async function processResponseMoves(responses) {
                 await processEnemyBreak(response);
                 break;
             case MoveType.FORM_CHANGE:
-                await processFormChange(response);
+                response.moveType == MoveType.FORM_CHANGE_DEFAULT ? await processFormChange(response) : null; // FORM_CHANGE_ENTRY 는 무시
                 break;
             case MoveType.GUARD:
                 break; // 가드시 아무것도 안함
@@ -44,13 +44,19 @@ async function processResponseMoves(responses) {
                 break;
             case MoveType.TURN_END:
                 await processTurnEndProcess(response);
+                $('.global-effect-video-wrapper .guard-status').removeClass('guard-on'); // 턴종 프로세스 있으면 여기서 가드 해제
                 break;
+            case MoveType.ETC:
+                if (response.moveType === MoveType.STRIKE_SEALED) await processStrikeSealed(response);
             case MoveType.ROOT:
             default:
                 console.log('[processResponseMoves] invalid type]', response.moveType);
         }
         syncHpsAndChargeGauges(response.hps, response.hpRates, response.chargeGauges, response.fatalChainGauge);
     }
+
+    // 가드 해제
+    $('.global-effect-video-wrapper .guard-status').removeClass('guard-on');
 
     // 어빌리티 커맨드시 후처리
     let firstMoveResponse = moveResponses[0];
@@ -63,6 +69,36 @@ async function processResponseMoves(responses) {
     }
 }
 
+function processStrikeSealed(response) {
+    let charOrder = response.charOrder;
+    let $effectVideo = $(`.global-effect-video-wrapper.actor-${charOrder} .global-effect-video`);
+    let $damagedVideo = charOrder === 0
+        ? getEnemyDamagedVideo()
+        : getVideo(charOrder, MoveType.DAMAGED_DEFAULT);
+    $effectVideo.attr('src', GlobalSrc.SHOCKED.video);
+
+    // 이펙트 재생
+    playVideo($damagedVideo.effect, null, $damagedVideo.idle);
+    playVideo($effectVideo, null, null);
+    // 사운드 재생
+    window.effectAudioPlayer.loadAndPlay(GlobalSrc.SHOCKED.audio);
+
+    processBuffEffect([new StatusDto({
+        type: 'BUFF',
+        name: '공격불가',
+        imageSrc: '',
+        effectText: '공격불가',
+        duration: '1'
+    })], [], [], 0);
+
+    let totalEndTime = $effectVideo.get(0).duration * 1000;
+    return new Promise(resolve => setTimeout(function () {
+        console.log(response.moveType.name + ' done');
+        resolve();
+    }, totalEndTime + 300));
+
+}
+
 function processSummon(response) {
     // 준비
     let $effectVideo = $('.summon-video-container .summon-video[data-summon-id=' + response.summonId + ']')
@@ -70,6 +106,8 @@ function processSummon(response) {
     let effectHitDelay = effectDuration - 250;
     // 준비 - 적
     let $enemyVideo = getEnemyDamagedVideo();
+
+    $('.summon-display-button').click();
 
 // EFFECT 시작
 // 오디오 재생
@@ -139,15 +177,15 @@ function processFormChange(formChangeResponse) {
     let $enemyVideoContainerNext = $('.enemy-video-container-next');
     let $enemyAudioContainer = $('.enemy-audio-container');
     let $enemyAudioContainerNext = $('.enemy-audio-container-next');
-    let $formChangeVideo = $enemyVideoContainer.find('.form-change');
+    let $formChangeVideo = $enemyVideoContainer.find('.form-change-default');
     let $idleDefaultVideo = $enemyVideoContainer.find('.idle-default');
     let $formChangeEntryVideo = $enemyVideoContainerNext.find('.form-change-entry');
     let $formChangeEntryAudio = $enemyAudioContainerNext.find('.form-change-entry');
     let $nextIdleDefaultVideo = $enemyVideoContainerNext.find('.idle-default');
+    $enemyAudioContainer.find('.form-change-default').get(0)?.play();
 
     $formChangeVideo.removeClass('hidden').get(0)?.play();
-    $enemyAudioContainer.find('.form-change').get(0)?.play();
-    $idleDefaultVideo.addClass('hidden');
+    $idleDefaultVideo.addClass('hidden')
     $formChangeVideo.one('ended', function () {
         // 폼체인지 끝나면 폼체인지 엔트리
         $formChangeEntryVideo.removeClass('hidden').get(0)?.play();
@@ -165,11 +203,11 @@ function processFormChange(formChangeResponse) {
         })
     })
 
-    let totalEndTime = $formChangeVideo.get(0).duration * 1000 + $formChangeEntryVideo.get(0).duration * 1000 + 100;
+    let totalEndTime = $formChangeVideo.get(0).duration * 1000 + $formChangeEntryVideo.get(0).duration * 1000 + 100; // 미리구함
     return new Promise(resolve => setTimeout(function () {
         console.log('FORM_CHANGE and FORM_CHANGE_ENTRY done', formChangeResponse.moveType);
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 
 }
 
@@ -194,28 +232,25 @@ async function preloadNextEnemyVideo() {
         }
     });
 
-    let $videoContainer = $('#videoContainer');
     let $enemyNextVideoContainer = $('<div>', {
         class: 'enemy-video-container-next',
         'data-phase': '2',
         'data-standby-move-class': 'none'
     })
-    $videoContainer.append($enemyNextVideoContainer);
-
-    const videoPromises = Object.entries(videoMap).map(([src, classList]) => {
+    const videoPromises = Object.entries(videoMap).map(([src, enemyVideoInfo]) => {
         return new Promise((resolve, reject) => {
             const video = document.createElement('video');
-            video.preload = 'auto';
-            video.muted = true;
-            video.playsinline = true;
-            classList.forEach(cls => video.classList.add(cls)); // 클래스추가
-            video.dataset.moveType = classList.join(' ');
-            video.loop = classList.some(className => className === 'idle');
-            video.classList.add('hidden', 'enemy-video', 'actor-0');
+            let classList = enemyVideoInfo.classNames;
 
-            // src가 비어있지 않으면 할당, 비엇으면 즉시 리졸브 (로드 이벤트 발생x)
-            if (!src) return resolve(video);
+            if (!src) return resolve(video); // src가 비어있지 않으면 할당, 비엇으면 즉시 리졸브 (로드 이벤트 발생x)
             video.src = src;
+            video.preload = 'auto';
+            video.setAttribute('playsinline', 'playsinline');
+            video.setAttribute('muted', 'muted');
+            classList.forEach(cls => video.classList.add(cls)); // 클래스추가
+            video.loop = classList.some(className => className === 'idle');
+            video.classList.add('hidden', 'enemy-video', 'actor-0', 'effect');
+            video.dataset.effectHitDelay = enemyVideoInfo.effectHitDelay;
 
             // 로드 완료 이벤트
             video.addEventListener('canplaythrough', () => resolve(video), {once: true});
@@ -226,38 +261,33 @@ async function preloadNextEnemyVideo() {
         });
     });
 
-    let $audioContainer = $('#audioContainer');
     let $enemyNextAudioContainer = $('<div>', {
         class: 'enemy-audio-container-next'
     })
-    $audioContainer.append($enemyNextAudioContainer);
-
     $.each(audioMap, function (src, classList) {
-        // classList가 배열이 아니라면 배열로 변환
-        // if (!Array.isArray(classList)) classList = [classList];
-
-        // 기본 클래스
         let baseClasses = 'audio actor-0';
-        // 추가 클래스
-        let extraClasses = classList.join(' ');
-
+        let extraClasses = classList.join(' '); // 무브별 추가 클래스
         // audio 태그 생성
         let $audio = $('<audio>', {
             'class': baseClasses + (extraClasses ? ' ' + extraClasses : ''),
             'src': src
         });
-
         $enemyNextAudioContainer.append($audio);
     });
 
-    return await Promise.all(videoPromises); // 비디오 로드 다되면 리턴
+    return await Promise.all(videoPromises).then(
+        () => {
+            $('.enemy-video-container').after($enemyNextVideoContainer);
+            $('.enemy-audio-container').after($enemyNextAudioContainer);
+        }); // 비디오 로드 다되면 리턴
 }
 
 function processEnemyStandBy(response) {
+    let omenValue = response.omenCancelCondInfo.indexOf('해제불가') >= 0 ? '' : response.omenValue; // 해제불가인경우 렌더 x
     let $defaultIdleVideo = $('.enemy-video-container .' + MoveType.IDLE_DEFAULT.className);
     if ($defaultIdleVideo.hasClass('hidden')) {
         // 적이 현재 스탠바이 상태일경우 전조 갱신후 아래의 내용은 무시
-        $('.omen-container-top').find('.omen-text .omen-value').text(response.omenValue);
+        $('.omen-container-top').find('.omen-text .omen-value').text(omenValue);
         return;
     }
 
@@ -270,7 +300,7 @@ function processEnemyStandBy(response) {
     $('.omen-container-top').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
         .find('.omen-prefix').text(response.omenCancelCondInfo).end()
-        .find('.omen-value').text(response.omenValue).end()
+        .find('.omen-value').text(omenValue).end()
         .find('.omen-info').text(response.omenInfo);
     $('.omen-container-bottom.enemy').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
@@ -293,7 +323,7 @@ function processEnemyStandBy(response) {
     return new Promise(resolve => setTimeout(function () {
         console.log('STANDBY done', response.moveType.name);
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 
 }
 
@@ -339,7 +369,7 @@ function processEnemyBreak(response) {
     return new Promise(resolve => setTimeout(function () {
         console.log('BREAK done', response.moveType);
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime + 300));
 
 }
 
@@ -348,7 +378,7 @@ function processTurnEndProcess(response) {
 
     // 힐 값 있으면 턴종힐
     if (response.heals.reduce((acc, item) => acc + item, 0) > 0)
-    totalEndTime = processHealEffect(response.heals, 0);
+        totalEndTime = processHealEffect(response.heals, 0);
 
     // 추가된 버프 있으면 오의게이지 증가 (일반 버프 스테이터스는 턴종이 아닌 캐릭터 로직으로 처리된다)
     if (response.addedBuffStatusesList.reduce((acc, item) => acc + item.length, 0) > 0) {
@@ -358,18 +388,31 @@ function processTurnEndProcess(response) {
 
     // 데미지 있으면 턴종데미지
     if (response.damages.reduce((acc, item) => acc + item, 0) > 0) {
-        let $partyVideos = [-1, 1, 2, 3, 4]
-            .map(number => getVideo(number, MoveType.DAMAGED_DEFAULT, MoveType.IDLE_DEFAULT));
-        enemyDamagesPostProcess(response, null, $partyVideos);
-        window.effectAudioPlayer.loadAndPlay(GlobalSrc.TURN_DAMAGE.audio);
-        totalEndTime = 600;
+        if (response.enemyAttackTargetOrders.length === 0) {
+            // 적에 대한 턴종 데미지 (1개만 발생, 타겟 오더 없음)
+            let currentAbilityDamageWrapperIndex = $('.ability-damage-wrapper').length;
+            let $abilityDamageWrapper = $('<div>', {class: 'ability-damage-wrapper ability-index-' + currentAbilityDamageWrapperIndex});
+            let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 0, response.damages[0], []);
+            $abilityDamageWrapper.append($damageElements.$damage.addClass('multiple-ability-damage-show')).appendTo($('#abilityDamageContainer'));
+            window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
+            setTimeout(function () {
+                $abilityDamageWrapper.remove();
+            }, 1000);
+            totalEndTime = 600;
+        } else {
+            let $partyVideos = [-1, 1, 2, 3, 4]
+                .map(number => getVideo(number, MoveType.DAMAGED_DEFAULT, MoveType.IDLE_DEFAULT));
+            enemyDamagesPostProcess(response, null, $partyVideos);
+            window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
+            totalEndTime = 600;
+        }
+
+        return new Promise(resolve => setTimeout(function () {
+            console.log('TURN_END_PROCESS done', response.moveType.name);
+            resolve();
+        }, totalEndTime + 300));
+
     }
-
-    return new Promise(resolve => setTimeout(function () {
-        console.log('TURN_END_PROCESS done', response.moveType);
-        resolve();
-    }, totalEndTime));
-
 }
 
 // 체력 및 오의게이지 갱신 메서드 -> 나중에 버프, 디버프로 아군 적군의 갱신타이밍이 달라지는 지점이 있으니 미리 분리

@@ -181,7 +181,7 @@ public class InsertController {
             // 스테이터스
             Status statusEntity = Status.builder()
                     .type(StatusType.valueOf(status.getType()))
-                    .name(status.getName())
+                    .name(status.getEffectText())
                     .target(StatusTargetType.valueOf(status.getTargetType()))
                     .maxLevel(status.getMaxLevel())
                     .effectText(status.getEffectText())
@@ -218,7 +218,7 @@ public class InsertController {
         MoveType moveType = MoveType.valueOf(request.getType());
         boolean hasMotion = Boolean.parseBoolean(request.getHasMotion());
         boolean hasSupportAbilityEffect = Boolean.parseBoolean(request.getHasSupportAbilityEffect());
-        boolean hasEffect = moveType != MoveType.SUPPORT_ABILITY || hasSupportAbilityEffect; // 서포아비가 아니거나, 서포아비임에도 이펙트가 있는 경우는 이펙트 존재
+        boolean hasEffect = moveType.getParentType() != MoveType.SUPPORT_ABILITY || hasSupportAbilityEffect; // 서포아비가 아니거나, 서포아비임에도 이펙트가 있는 경우는 이펙트 존재
 
         Character character = characterRepository.findById(request.getCharacterId()).orElseThrow();
         String nameEn = character.getNameEn();
