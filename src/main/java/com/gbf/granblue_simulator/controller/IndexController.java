@@ -2,21 +2,14 @@ package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.auth.PrincipalDetails;
 import com.gbf.granblue_simulator.controller.response.info.RoomInfo;
-import com.gbf.granblue_simulator.controller.response.info.battle.*;
 import com.gbf.granblue_simulator.controller.response.info.party.PartyCharacterInfo;
 import com.gbf.granblue_simulator.controller.response.info.party.PartyInfo;
 import com.gbf.granblue_simulator.controller.response.info.party.PartySummonInfo;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.Room;
-import com.gbf.granblue_simulator.domain.User;
 import com.gbf.granblue_simulator.domain.actor.Party;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.repository.MemberRepository;
 import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.RoomRepository;
@@ -30,11 +23,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
-import org.springframework.util.ObjectUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -90,14 +84,14 @@ public class IndexController {
                                     ).toList()
                     )
                     .summonInfos(
-                            moveRepository.findAllById(party.getSummonMoveIds()).stream()
+                            moveRepository.findAllById(party.getSummonIds()).stream()
                                     .map(move ->
                                             PartySummonInfo.builder()
                                                     .id(move.getId())
                                                     .name(move.getName())
                                                     .info(move.getInfo())
                                                     .cooldown(move.getCoolDown())
-                                                    .portraitSrc(move.getAsset().getIconImageSrc())
+                                                    .portraitSrc(move.getIconImageSrc())
                                                     .build()
                                     ).toList()
                     )

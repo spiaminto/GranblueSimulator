@@ -2,12 +2,14 @@ package com.gbf.granblue_simulator.domain.move;
 
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.move.prop.asset.Asset;
+import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,11 +28,16 @@ public class Move {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "actor_id")
     private Actor actor;
 
+    @OneToOne(mappedBy = "move")  @EqualsAndHashCode.Exclude @ToString.Exclude
+    private LegacyAsset asset;
+
     @Enumerated(EnumType.STRING)
     private MoveType type;
 
-    @OneToOne(mappedBy = "move") @EqualsAndHashCode.Exclude @ToString.Exclude
-    private Asset asset;
+    @Enumerated(EnumType.STRING)
+    @Type(ListArrayType.class)
+    @Column(name = "motion_types", columnDefinition = "text[]") @Builder.Default
+    private List<MotionType> motionTypes = new ArrayList<>();
 
     @OneToMany(mappedBy = "move") @Builder.Default  @EqualsAndHashCode.Exclude @ToString.Exclude
     private List<Status> statuses = new ArrayList<>();
@@ -60,6 +67,8 @@ public class Move {
     // 오의
     @Accessors(fluent = true)
     private boolean isAllTarget; // 적 전체 대상 공격인지 (보스용)
+
+    private String iconImageSrc; // 어빌리티 아이콘, 소환석 portrait
 
     // set character
     public void setCharacter(Actor actor) {

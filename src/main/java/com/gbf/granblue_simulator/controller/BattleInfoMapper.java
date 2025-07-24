@@ -1,9 +1,14 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.response.info.battle.*;
+import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.actor.Party;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.asset.Asset;
+import com.gbf.granblue_simulator.domain.asset.AssetType;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
@@ -40,7 +45,7 @@ public final class BattleInfoMapper {
                                 .name(move.getName())
                                 .info(move.getInfo())
                                 .cooldown(move.getCoolDown())
-                                .iconImageSrc(move.getAsset().getIconImageSrc())
+                                .iconImageSrc(move.getIconImageSrc())
                                 .build())
                         .toList())
                 .chargeAttack(partyMember.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
@@ -84,14 +89,82 @@ public final class BattleInfoMapper {
                 .build();
     }
 
+    public static List<AssetInfo> toAssetInfo(BattleActor mainCharacter, BattleActor enemy, List<Asset> assets, List<Asset> summonAssets) {
+        BattleEnemy battleEnemy = (BattleEnemy) enemy;
+        MoveType enemyStartMoveType = battleEnemy.getCurrentStandbyType() != null ? battleEnemy.getCurrentStandbyType() : MoveType.IDLE_DEFAULT;
+        Move enemyStartMove = enemy.getMove(enemyStartMoveType);
+        // rootCjsName 를 key 로 하는 Map
+        Map<String, List<Asset>> assetMapByRootCjsName = assets.stream().collect(Collectors.groupingBy(Asset::getRootCjsName));
+        log.info("assetMapByRootCjsName: {}", assetMapByRootCjsName);
+        // 각 rootCjsName 별 Map.values 을 다시 MotionType 을 key 로 하는 Map 으로 변환
+        List<Map<AssetType, List<Asset>>> assetMapList = assetMapByRootCjsName.values().stream()
+                .map(assetList -> assetList.stream().collect(Collectors.groupingBy(Asset::getType)))
+                .toList();
+
+        return assetMapList.stream()
+                .map(assetMap -> { // key: AssetType, mainCjs 별로 분리되어있음
+                    log.info("assetMap = {}", assetMap);
+                    // main cjs
+                    List<Asset> actorAssets = assetMap.get(AssetType.ACTOR);
+                    log.info("actorAssets = {}", actorAssets);
+                    Asset mainActorAsset = actorAssets.getFirst();
+                    String mainCjs = mainActorAsset.getCjsName();
+                    // attack cjs
+                    String attackCjs = assetMap.get(AssetType.ATTACK).getFirst().getCjsName();
+                    // ability cjs
+                    List<String> abilityCjses = assetMap.getOrDefault(AssetType.ABILITY, new ArrayList<>()).stream().map(Asset::getCjsName).toList();
+                    // charge attack (special cjs)
+                    List<Asset> specialAssets = assetMap.get(AssetType.SPECIAL);
+                    List<String> specialCjses = specialAssets.stream().map(Asset::getCjsName).toList();
+                    int chargeAttackStartFrame = specialAssets.getFirst().getChargeAttackStartFrame();
+                    boolean isChargeAttackSkip = mainCharacter.getMember().isChargeAttackSkip();
+                    // additional main cjs and additional special cjs
+                    boolean hasAdditionalAsset = actorAssets.size() > 1;
+                    String additionalMainCjs = hasAdditionalAsset ? actorAssets.get(1).getCjsName() : null;
+                    List<String> additionalSpecialCjses = hasAdditionalAsset ? specialAssets.stream()
+                            .filter(asset -> asset.getRootCjsName().equals(additionalMainCjs))
+                            .map(Asset::getCjsName).toList() : new ArrayList<>();
+
+                    // summons and weapon from mainCharacter
+                    boolean isMainCharacter = mainActorAsset.getActorId().equals(mainCharacter.getActor().getId());
+                    List<String> summonCjses = isMainCharacter ? summonAssets.stream().map(Asset::getRootCjsName).distinct().toList() : new ArrayList<>();
+                    String weaponId = isMainCharacter ? mainCharacter.getActor().getWeaponId() : null;
+
+                    // start motion
+                    boolean isEnemy = mainActorAsset.getActorId().equals(enemy.getActor().getId());
+                    String startMotion = isEnemy
+                            ? enemyStartMove.getMotionType().getMotion()
+                            : "stbwait";
+                    isChargeAttackSkip = !isEnemy; // 적이면 false 로
+
+                    return AssetInfo.builder()
+                            .actorId(mainActorAsset.getActorId())
+                            .mainCjs(mainCjs)
+                            .attackCjs(attackCjs)
+                            .abilityCjses(abilityCjses)
+                            .specialCjses(specialCjses)
+                            .summonCjses(summonCjses)
+                            .additionalMainCjs(additionalMainCjs)
+                            .additionalSpecialCjses(additionalSpecialCjses)
+                            .weaponId(weaponId)
+                            .startMotion(startMotion)
+                            .isEnemy(isEnemy)
+                            .isMainCharacter(isMainCharacter)
+                            .isChargeAttackSkip(isChargeAttackSkip)
+                            .chargeAttackStartFrame(chargeAttackStartFrame)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
     public static FatalChainInfo toFatalChainInfo(BattleActor mainCharacter, Move fatalChainMove) {
         return FatalChainInfo.builder()
                 .id(fatalChainMove.getId())
                 .name(fatalChainMove.getName())
                 .info(fatalChainMove.getInfo())
                 .gaugeValue(mainCharacter.getFatalChainGauge())
-                .effectVideoSrc(fatalChainMove.getAsset().getEffectVideoSrc())
-                .seAudioSrc(fatalChainMove.getAsset().getSeAudioSrc())
+                .effectVideoSrc("")
+                .seAudioSrc("")
                 .build();
 
     }
@@ -101,7 +174,7 @@ public final class BattleInfoMapper {
                 .id(move.getId())
                 .name(move.getName())
                 .info(move.getInfo())
-                .iconImageSrc(move.getAsset().getIconImageSrc())
+                .iconImageSrc(move.getIconImageSrc())
                 .cooldown(mainCharacter.getSummonCoolDowns().get(mainCharacter.getSummonMoveIds().indexOf(move.getId())))
                 .build();
     }

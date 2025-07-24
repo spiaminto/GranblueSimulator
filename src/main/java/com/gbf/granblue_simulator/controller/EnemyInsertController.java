@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Enemy;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.asset.Asset;
+import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelType;
@@ -33,7 +33,7 @@ public class EnemyInsertController {
 
     private final EnemyRepository enemyRepository;
     private final MoveRepository moveRepository;
-    private final AssetRepository assetRepository;
+    private final LegacyAssetRepository legacyAssetRepository;
     private final OmenRepository omenRepository;
     private final StatusRepository statusRepository;
     private final StatusEffectRepository statusEffectRepository;
@@ -62,12 +62,12 @@ public class EnemyInsertController {
                 .build();
         moveRepository.save(dead);
 
-        Asset deadAsset = Asset.builder()
+        LegacyAsset deadLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getDeadEffectVideoSrc())
                 .seAudioSrc(request.getDeadSeAudioSrc())
                 .move(dead)
                 .build();
-        assetRepository.save(deadAsset);
+        legacyAssetRepository.save(deadLegacyAsset);
 
         Move formChange = Move.builder()
                 .name("form change")
@@ -77,12 +77,12 @@ public class EnemyInsertController {
                 .build();
         moveRepository.save(formChange);
 
-        Asset formChangeAsset = Asset.builder()
+        LegacyAsset formChangeLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getFormChangeEffectVideoSrc())
                 .seAudioSrc(request.getFormChangeSeAudioSrc())
                 .move(formChange)
                 .build();
-        assetRepository.save(formChangeAsset);
+        legacyAssetRepository.save(formChangeLegacyAsset);
 
         return EnemyInsertResponse.ok(enemy.getId());
     }
@@ -101,12 +101,12 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(singleAttack);
-        Asset singleAttackAsset = Asset.builder()
+        LegacyAsset singleAttackLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getSingleAttackEffectVideoSrc())
                 .seAudioSrc(request.getSingleAttackSeAudioSrc())
                 .move(singleAttack)
                 .build();
-        assetRepository.save(singleAttackAsset);
+        legacyAssetRepository.save(singleAttackLegacyAsset);
 
         Move doubleAttack = Move.builder()
                 .name("double attack")
@@ -118,12 +118,12 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(doubleAttack);
-        Asset doubleAttackAsset = Asset.builder()
+        LegacyAsset doubleAttackLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getDoubleAttackEffectVideoSrc())
                 .seAudioSrc(request.getDoubleAttackSeAudioSrc())
                 .move(doubleAttack)
                 .build();
-        assetRepository.save(doubleAttackAsset);
+        legacyAssetRepository.save(doubleAttackLegacyAsset);
 
         Move tripleAttack = Move.builder()
                 .name("triple attack")
@@ -135,12 +135,12 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(tripleAttack);
-        Asset tripleAttackAsset = Asset.builder()
+        LegacyAsset tripleAttackLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getTripleAttackEffectVideoSrc())
                 .seAudioSrc(request.getTripleAttackSeAudioSrc())
                 .move(tripleAttack)
                 .build();
-        assetRepository.save(tripleAttackAsset);
+        legacyAssetRepository.save(tripleAttackLegacyAsset);
 
         return EnemyInsertResponse.ok(enemy.getId());
     }
@@ -156,11 +156,11 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(idle);
-        Asset idleAsset = Asset.builder()
+        LegacyAsset idleLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getIdleEffectVideoSrc())
                 .move(idle)
                 .build();
-        assetRepository.save(idleAsset);
+        legacyAssetRepository.save(idleLegacyAsset);
         return EnemyInsertResponse.ok(enemy.getId());
     }
 
@@ -175,11 +175,11 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(damaged);
-        Asset damagedAsset = Asset.builder()
+        LegacyAsset damagedLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getDamagedEffectVideoSrc())
                 .move(damaged)
                 .build();
-        assetRepository.save(damagedAsset);
+        legacyAssetRepository.save(damagedLegacyAsset);
         return EnemyInsertResponse.ok(enemy.getId());
     }
 
@@ -194,12 +194,12 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(breakMove);
-        Asset breakAsset = Asset.builder()
+        LegacyAsset breakLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getBreakEffectVideoSrc())
                 .seAudioSrc(request.getBreakSeAudioSrc())
                 .move(breakMove)
                 .build();
-        assetRepository.save(breakAsset);
+        legacyAssetRepository.save(breakLegacyAsset);
         return EnemyInsertResponse.ok(enemy.getId());
     }
 
@@ -214,12 +214,12 @@ public class EnemyInsertController {
                 .actor(enemy)
                 .build();
         moveRepository.save(standby);
-        Asset standbyAsset = Asset.builder()
+        LegacyAsset standbyLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getStandbyEffectVideoSrc())
                 .seAudioSrc(request.getStandbySeAudioSrc())
                 .move(standby)
                 .build();
-        assetRepository.save(standbyAsset);
+        legacyAssetRepository.save(standbyLegacyAsset);
         Omen omen = Omen.builder()
                 .name(request.getOmen().getName())
                 .omenType(OmenType.valueOf(request.getOmen().getType()))
@@ -267,13 +267,13 @@ public class EnemyInsertController {
                 .build();
         chargeAttack = moveRepository.save(chargeAttack);
 
-        Asset chargeAttackAsset = Asset.builder()
+        LegacyAsset chargeAttackLegacyAsset = LegacyAsset.builder()
                 .effectVideoSrc(request.getEffectVideoSrc())
                 .seAudioSrc(request.getSeAudioSrc())
                 .effectHitDelay(request.getEffectHitDelay())
                 .move(chargeAttack)
                 .build();
-        chargeAttackAsset = assetRepository.save(chargeAttackAsset);
+        chargeAttackLegacyAsset = legacyAssetRepository.save(chargeAttackLegacyAsset);
 
         // 스테이터스
         final Move chargeAttackFinal = chargeAttack;
@@ -334,14 +334,14 @@ public class EnemyInsertController {
         ability = moveRepository.save(ability);
         log.info("ability = {}", ability);
 
-        Asset abilityAsset = Asset.builder()
+        LegacyAsset abilityLegacyAsset = LegacyAsset.builder()
                 .move(ability)
                 .effectVideoSrc(request.getEffectVideoSrc())
                 .motionVideoSrc(request.getMotionVideoSrc())
                 .seAudioSrc(request.getSeAudioSrc())
                 .voiceAudioSrc(request.getVoiceAudioSrc())
                 .build();
-        abilityAsset = assetRepository.save(abilityAsset);
+        abilityLegacyAsset = legacyAssetRepository.save(abilityLegacyAsset);
 
         // Status 저장
         final Move abilityFinal = ability;

@@ -4,6 +4,7 @@ import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -75,4 +76,6 @@ public abstract class Actor {
 
     // Asset
     private String battlePortraitSrc;
+    // weapon
+    private String weaponId;
 }

@@ -14,16 +14,20 @@ import com.gbf.granblue_simulator.controller.response.info.battle.*;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.Room;
 import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.actor.Party;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.asset.Asset;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
+import com.gbf.granblue_simulator.repository.AssetRepository;
 import com.gbf.granblue_simulator.repository.MemberRepository;
+import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.RoomRepository;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
@@ -60,6 +64,8 @@ public class BattleController {
     private final BattleLogic battleLogic;
     private final MemberService memberService;
     private final RoomRepository roomRepository;
+    private final PartyRepository partyRepository;
+    private final AssetRepository assetRepository;
 
 
     @GetMapping("/api/enemy-src")
@@ -179,6 +185,11 @@ public class BattleController {
             return "redirect:/";
         }
         Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Party party = partyRepository.findById(member.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
+        List<Asset> assets = assetRepository.findAllById(party.getActorAssetIds()).stream()
+                .sorted(Comparator.comparing(asset -> party.getActorIds().indexOf(asset.getId())))
+                .toList();
+        List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
 
         List<BattleActor> battleActors = member.getBattleActors();
         if (battleActors.isEmpty()) {
@@ -248,18 +259,29 @@ public class BattleController {
     public String battle(Model model) {
 
         Room findRoom = roomRepository.findById(1L).orElseThrow(() -> new IllegalArgumentException("방을 찾을수 없음"));
-        Member findMember = memberRepository.findByRoomIdAndUserId(135L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+
+        Member findMember = memberRepository.findByRoomIdAndUserId(139L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         List<BattleActor> battleActors = findMember.getBattleActors();
+        battleActors.sort(Comparator.comparing(BattleActor::getCurrentOrder));
+
+        BattleActor enemyActor = battleActors.getFirst();
+        List<BattleActor> partyMembers = battleActors.subList(1, battleActors.size());
+        BattleActor mainCharacter = partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().orElseThrow(() -> new IllegalArgumentException("메인 캐릭터 찾을수 없음"));
+
+        Party party = partyRepository.findById(findMember.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
+
+        List<Asset> assets = assetRepository.findWithChildrenByAssetId(party.getActorAssetIds()).stream()
+                .sorted(Comparator.comparing(asset -> party.getActorIds().indexOf(asset.getId())))
+                .collect(Collectors.toList());
+        List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
+        List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getActor().getId());
+        assets.addAll(enemyAsset);
 
         if (battleActors.isEmpty()) {
             return "redirect:/";
         }
 
         // 인포 추가 시작
-        battleActors.sort(Comparator.comparing(BattleActor::getCurrentOrder));
-        BattleActor enemyActor = battleActors.getFirst();
-        List<BattleActor> partyMembers = battleActors.subList(1, battleActors.size());
-        BattleActor mainCharacter = partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().orElseThrow(() -> new IllegalArgumentException("메인 캐릭터 찾을수 없음"));
 
         // 캐릭터 인포
         List<BattleCharacterInfo> battleCharacterInfos = partyMembers.stream().map(BattleInfoMapper::toCharacterInfo).toList();
@@ -281,31 +303,39 @@ public class BattleController {
         FatalChainInfo fatalChainInfo = moveRepository.findById(fatalChainMoveId).map(move -> toFatalChainInfo(mainCharacter, move)).orElseGet(() -> null);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 
-        // 에셋 추가 시작
-        // 캐릭터 에셋 추가
-        List<Map<String, String>> characterVideoSrcMaps = new ArrayList<>();
-        List<Map<String, String>> characterAudioSrcMaps = new ArrayList<>();
-        partyMembers.forEach(partyMember -> {
-            List<Move> characterMoves = partyMember.getActor().getMoves().values().stream().toList();
-            Map<String, String> characterVideoSrcMap = getVideoSrcMap(characterMoves);
-            Map<String, String> characterAudioSrcMap = getAudioSrcMap(characterMoves);
-            characterVideoSrcMaps.add(characterVideoSrcMap);
-            characterAudioSrcMaps.add(characterAudioSrcMap);
-        });
-        model.addAttribute("characterVideoSrcMaps", characterVideoSrcMaps);
-        model.addAttribute("characterAudioSrcMaps", characterAudioSrcMaps);
+        // 에셋
+        List<AssetInfo> assetInfos = toAssetInfo(mainCharacter, enemyActor, assets, summonAssets);
+        assetInfos.forEach(assetInfo -> log.info("assertInfo = {} {}", assetInfo.getActorId(), assetInfo.getMainCjs()));
+        List<Long> sortedActorIds = battleActors.stream().map(battleActor -> battleActor.getActor().getId()).toList();
+        log.info("sortedActorIds = {}", sortedActorIds);
+        assetInfos.sort(Comparator.comparing(assetInfo -> sortedActorIds.indexOf(assetInfo.getActorId()) + 1));
+        model.addAttribute("assetInfos", assetInfos);
 
-        // 적 에셋 추가
-        Map<String, EnemyVideoInfo> enemyVideoSrcMap = getEnemyVideoSrcMap(enemy);
-        model.addAttribute("enemyVideoSrcMap", enemyVideoSrcMap);
-        Map<String, List<String>> enemyAudioSrcMap = getEnemyAudioSrcMap(enemy);
-        model.addAttribute("enemyAudioSrcMap", enemyAudioSrcMap);
-
-        // 소환석 에셋 추가
-        Map<String, String> summonVideoSrcMap = getVideoSrcMap(summonMoves);
-        model.addAttribute("summonVideoSrcMap", summonVideoSrcMap);
-        Map<String, String> summonAudioSrcMap = getAudioSrcMap(summonMoves);
-        model.addAttribute("summonAudioSrcMap", summonAudioSrcMap);
+//        // 에셋 추가 시작
+//        // 캐릭터 에셋 추가
+//        List<Map<String, String>> characterVideoSrcMaps = new ArrayList<>();
+//        List<Map<String, String>> characterAudioSrcMaps = new ArrayList<>();
+//        partyMembers.forEach(partyMember -> {
+//            List<Move> characterMoves = partyMember.getActor().getMoves().values().stream().toList();
+//            Map<String, String> characterVideoSrcMap = getVideoSrcMap(characterMoves);
+//            Map<String, String> characterAudioSrcMap = getAudioSrcMap(characterMoves);
+//            characterVideoSrcMaps.add(characterVideoSrcMap);
+//            characterAudioSrcMaps.add(characterAudioSrcMap);
+//        });
+//        model.addAttribute("characterVideoSrcMaps", characterVideoSrcMaps);
+//        model.addAttribute("characterAudioSrcMaps", characterAudioSrcMaps);
+//
+//        // 적 에셋 추가
+//        Map<String, EnemyVideoInfo> enemyVideoSrcMap = getEnemyVideoSrcMap(enemy);
+//        model.addAttribute("enemyVideoSrcMap", enemyVideoSrcMap);
+//        Map<String, List<String>> enemyAudioSrcMap = getEnemyAudioSrcMap(enemy);
+//        model.addAttribute("enemyAudioSrcMap", enemyAudioSrcMap);
+//
+//        // 소환석 에셋 추가
+//        Map<String, String> summonVideoSrcMap = getVideoSrcMap(summonMoves);
+//        model.addAttribute("summonVideoSrcMap", summonVideoSrcMap);
+//        Map<String, String> summonAudioSrcMap = getAudioSrcMap(summonMoves);
+//        model.addAttribute("summonAudioSrcMap", summonAudioSrcMap);
 
         // 멤버 추가
         model.addAttribute("member", findMember);
@@ -316,7 +346,7 @@ public class BattleController {
         });
 
 
-        return "battle";
+        return "battle-canvas";
     }
 
     private static BattleResponse toBattleResponse(ActorLogicResult result, List<BattleActor> allActors) {
