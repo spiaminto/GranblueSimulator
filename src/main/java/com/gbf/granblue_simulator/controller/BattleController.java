@@ -5,7 +5,6 @@ import com.gbf.granblue_simulator.controller.request.battle.GuardRequest;
 import com.gbf.granblue_simulator.controller.request.battle.MoveRequest;
 import com.gbf.granblue_simulator.controller.request.battle.ToggleChargeAttackRequest;
 import com.gbf.granblue_simulator.controller.request.battle.TurnProgressRequest;
-import com.gbf.granblue_simulator.controller.request.insert.InsertSrcMapper;
 import com.gbf.granblue_simulator.controller.response.battle.BattleResponse;
 import com.gbf.granblue_simulator.controller.response.battle.GuardResponse;
 import com.gbf.granblue_simulator.controller.response.battle.StatusDto;
@@ -13,13 +12,12 @@ import com.gbf.granblue_simulator.controller.response.battle.ToggleChargeAttackR
 import com.gbf.granblue_simulator.controller.response.info.battle.*;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.Room;
-import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.Party;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.asset.Asset;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
@@ -71,18 +69,21 @@ public class BattleController {
     @GetMapping("/api/enemy-src")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getEnemySrcMap(@RequestParam Long memberId) {
+
+
         Map<String, Object> result = new HashMap<>();
 
         BattleActor enemy = battleActorRepository.findByMemberIdOrderByCurrentOrderAsc(memberId).getFirst();
-        Map<String, EnemyVideoInfo> enemyVideoSrcMap = getEnemyVideoSrcMap(enemy);
-
-        result.put("video", enemyVideoSrcMap);
-//        enemyVideoSrcMap.entrySet().forEach(
-//                entry -> log.info("key = {}, value = {}", entry.getKey(), entry.getValue())
-//        );
-
-        Map<String, List<String>> enemyAudioSrcMap = getEnemyAudioSrcMap(enemy);
-        result.put("audio", enemyAudioSrcMap);
+        List<Asset> enemyAssets = assetRepository.findAllByActorId(5L);
+        List<AssetInfo.Asset> assetInfoAsset = toAssetInfo(0L, "", enemyAssets, new ArrayList<>(), null);
+        AssetInfo enemyAssetInfo = AssetInfo.builder()
+                .asset(assetInfoAsset.getFirst())
+                .startMotion(MotionType.WAIT)
+                .isChargeAttackSkip(false)
+                .isMainCharacter(false)
+                .isEnemy(true)
+                .build();
+        result.put("assetInfo", enemyAssetInfo);
 
         return ResponseEntity.ok(result);
     }
@@ -274,6 +275,7 @@ public class BattleController {
                 .sorted(Comparator.comparing(asset -> party.getActorIds().indexOf(asset.getId())))
                 .collect(Collectors.toList());
         List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
+        Asset fatalChainAsset = assetRepository.findByMoveId(mainCharacter.getFatalChainMoveId());
         List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getActor().getId());
         assets.addAll(enemyAsset);
 
@@ -304,11 +306,29 @@ public class BattleController {
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 
         // 에셋
-        List<AssetInfo> assetInfos = toAssetInfo(mainCharacter, enemyActor, assets, summonAssets);
-        assetInfos.forEach(assetInfo -> log.info("assertInfo = {} {}", assetInfo.getActorId(), assetInfo.getMainCjs()));
+        List<AssetInfo.Asset> assetInfoAssets = toAssetInfo(mainCharacter.getActor().getId(), mainCharacter.getActor().getWeaponId(), assets, summonAssets, fatalChainAsset);
+
         List<Long> sortedActorIds = battleActors.stream().map(battleActor -> battleActor.getActor().getId()).toList();
+        assetInfoAssets.sort(Comparator.comparing(assetInfo -> sortedActorIds.indexOf(assetInfo.getActorId()) + 1));
+
+        Move enemyStartMove = enemy.getCurrentStandbyType() != null ? enemy.getMove(enemy.getCurrentStandbyType()) : enemy.getMove(MoveType.IDLE_DEFAULT);
+        boolean isChargeAttackSkip = mainCharacter.getMember().isChargeAttackSkip();
+        List<AssetInfo> assetInfos = assetInfoAssets.stream().map(asset -> {
+                    boolean isEnemy = enemyActor.getActor().getId().equals(asset.getActorId());
+                    boolean isMainCharacter = mainCharacter.getActor().getId().equals(asset.getActorId());
+                    MotionType startMotion = isEnemy ? enemyStartMove.getMotionType() : MotionType.STB_WAIT;
+                    return AssetInfo.builder()
+                            .asset(asset)
+                            .isChargeAttackSkip(isChargeAttackSkip)
+                            .isEnemy(isEnemy)
+                            .isMainCharacter(isMainCharacter)
+                            .startMotion(startMotion)
+                            .build();
+                }
+        ).toList();
+
+        assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
         log.info("sortedActorIds = {}", sortedActorIds);
-        assetInfos.sort(Comparator.comparing(assetInfo -> sortedActorIds.indexOf(assetInfo.getActorId()) + 1));
         model.addAttribute("assetInfos", assetInfos);
 
 //        // 에셋 추가 시작
@@ -353,6 +373,7 @@ public class BattleController {
         return BattleResponse.builder()
                 .charOrder(result.getMainBattleActorOrder())
                 .moveType(result.getMoveType())
+                .motions(result.getMotions())
                 .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
                 .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
                 .elementTypes(result.getDamageElementTypes())

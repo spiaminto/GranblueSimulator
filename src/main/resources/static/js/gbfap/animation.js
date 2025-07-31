@@ -11,8 +11,11 @@ class Animation {
         this.specials = obj.specials ?? []; // list of charge attack files
         this.additionalSpecials = obj.additionalSpecials ?? []
         this.summons = obj.summons ?? []; // list of summon files CHECK added, only 'attack' needed
-        this.attack = obj.attack ?? null; // list of auto attack ("phit") files
-        this.abilities = obj.abilities ?? []; // list of skill effect ("ab") files
+        this.attacks = obj.attacks ?? []; // list of auto attack ("phit") files
+        this.abilities = this.getBaseAbilities();
+        Object.entries(obj.abilities).forEach(([key, value]) => {
+            this.abilities[key] = value;
+        }); // list of skill effect ("ab") files
         this.raidAppear = obj.raidAppear ?? []; // list of raid appear ("ra") files
         this.isChargeAttackSkip = obj.isChargeAttackSkip ?? false; // if character charge attack skip
         this.chargeAttackStartFrame = obj.chargeAttackStartFrame ?? -1; // charge attack start frame when skip true
@@ -20,12 +23,76 @@ class Animation {
 
     get manifests() // return a list of file to download
     {
-        let manifests = [this.cjs].concat(this.specials).concat(this.abilities).concat(this.raidAppear).concat(this.summons).concat(this.additionalSpecials);
+        let manifests = [this.cjs].concat(this.attacks).concat(this.specials).concat(this.raidAppear).concat(this.summons).concat(this.additionalSpecials);
+        if (this.abilities) manifests.push(...Object.values(this.abilities).map(ability => ability.cjs));
         if (this.additionalCjs) manifests.push(this.additionalCjs);
-        if (this.attack) manifests.push(this.attack);
         if (this.summons.length > 0) {
             manifests.push(...this.summons.map(summonAttack => summonAttack.replace('attack', 'damage'))); // add also _damage if the summon file ends with attack
         }
         return manifests;
     }
+
+    getBaseAbilities() {
+        return {
+            [BASE_ABILITY.RAID_BUFF]: {
+                cjs: 'raid_effect_buff',
+                isTargetedEnemy: true
+            },
+            [BASE_ABILITY.RAID_DEBUFF]: {
+                cjs: 'raid_effect_debuff',
+                isTargetedEnemy: true
+            },
+            [BASE_ABILITY.RAID_HEAL]: {
+                cjs: 'raid_effect_heal',
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.RAID_ATK_UP_WATER]: {
+                cjs: "raid_effect_atk_up_02",
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.AB_START]: {
+                cjs: 'ab_start',
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.HEAL]: {
+                cjs: 'ab_3000',
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.ENEMY_POWER_UP]: {
+                cjs: 'ab_powerup',
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.ENEMY_AB_START]: {
+                cjs: "ab_enemy_action",
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.ENEMY_CT_MAX]: {
+                cjs: "ab_charge_max",
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.DISPEL]: {
+                cjs: "ab_3100",
+                isTargetedEnemy: false
+            },
+            [BASE_ABILITY.ENEMY_RELEASE_POWER]: {
+                cjs: "ab_enemy_7300293_01",
+                isTargetedEnemy: false
+            }
+        };
+    }
 }
+
+const BASE_ABILITY = {
+    RAID_BUFF: 'RAID_BUFF',
+    RAID_DEBUFF: 'RAID_DEBUFF',
+    RAID_HEAL: 'RAID_HEAL',
+    RAID_ATK_UP_WATER: 'RAID_ATK_UP_WATER',
+    AB_START: 'AB_START',
+    HEAL: 'HEAL',
+    ENEMY_POWER_UP: 'ENEMY_POWER_UP',
+    ENEMY_AB_START: 'ENEMY_AB_START',
+    ENEMY_CT_MAX: 'ENEMY_CT_MAX',
+    DISPEL: 'DISPEL',
+    ENEMY_RELEASE_POWER: 'ENEMY_RELEASE_POWER',
+};
+Object.freeze(BASE_ABILITY);

@@ -1,6 +1,6 @@
 var config = null; // contains the loaded config
 var Game = null; // contains various url, follow the in-game format
-var player = null; // the player instance
+// var player = null; // the player instance
 var loader = null; // the loaded instance
 var _ = null; // contains underscore 3rd party library
 var cjsStage = null;

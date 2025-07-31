@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -45,6 +46,7 @@ public class CharacterLogicResultMapper {
     /**
      * 오의 결과 맵핑
      * 오의는 재발동 여부를 체크함
+     *
      * @param mainActor
      * @param enemy
      * @param partyMembers
@@ -100,7 +102,7 @@ public class CharacterLogicResultMapper {
                         .toList())
                 .mapToInt(List::size)
                 .sum();
-        
+
         // 체력
         List<Integer> hps = new ArrayList<>();
         List<Integer> hpRates = new ArrayList<>();
@@ -145,12 +147,19 @@ public class CharacterLogicResultMapper {
         List<List<Integer>> partyMemberCooldowns = partyMembers.stream().map(actor -> List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown())).toList();
         cooldownList.addAll(partyMemberCooldowns);
 
+        // 모션
+        List<String> motions = new ArrayList<>();
+        if (move.getMotionType() != null) {
+            motions.addAll(Arrays.stream(move.getMotionType().getMotion().split(",")).toList());
+        }
+
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
                 .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
                 .targetActorId(enemy.getActor().getId())
                 .moveType(move.getType())
+                .motions(motions)
 
                 .currentTurn(mainActor.getMember().getCurrentTurn())
 

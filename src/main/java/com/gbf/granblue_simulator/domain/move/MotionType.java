@@ -7,6 +7,8 @@ import lombok.Getter;
  */
 @Getter
 public enum MotionType {
+
+    SUMMON_DEFAULT("summon,summon_atk,summon_dmg"), // 이걸로 쓰고 옛날 소환석 대응해야되면 추가
     SUMMON_ATTACK("summon_atk"),
     SUMMON_DAMAGE("summon_dmg"),
 
@@ -35,6 +37,9 @@ public enum MotionType {
     ABILITY_WAIT("ability_wait"),
 
     MORTAL("mortal"),
+    ADDITIONAL_MORTAL_A("additional_mortal_A"),
+    ADDITIONAL_MORTAL_B("additional_mortal_B"),
+    ADDITIONAL_MORTAL_C("additional_mortal_C"),
     MORTAL_A("mortal_A"),
     MORTAL_A_1("mortal_A_1"),
     MORTAL_A_2("mortal_A_2"),
@@ -72,8 +77,8 @@ public enum MotionType {
     ATTACK("attack"),
     ATTACK_SINGLE("short_attack"),
     ATTACK_FIRST_ADV("short_attack_adv"),
-    ATTACK_DOUBLE("double"),
-    ATTACK_TRIPLE("triple"),
+    ATTACK_DOUBLE("short_attack,double"),
+    ATTACK_TRIPLE("short_attack,double,triple"),
     ATTACK_QUADRUPLE("quadruple"),
 
     SPECIAL_ATTACK("attack_2"),
@@ -111,6 +116,7 @@ public enum MotionType {
     MISS("miss"),
     SUMMON("summon"),
 
+    ABILITY_EFFECT_ONLY("ab_motion_effect_only"),
     ABILITY_OLD("attack_noeffect"),
     ABILITY_1("ab_motion"), // ABILITY -> CA Charged
     ABILITY_2("ab_motion_2"),
@@ -143,6 +149,8 @@ public enum MotionType {
     DAMAGE_STANDBY_B("damage_standby_B"),
     DAMAGE_STANDBY_C("damage_standby_C"),
     DAMAGE_STANDBY_D("damage_standby_D"),
+
+    NONE("none"), // not null
     ;
 
 

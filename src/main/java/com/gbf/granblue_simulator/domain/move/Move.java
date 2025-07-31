@@ -35,9 +35,7 @@ public class Move {
     private MoveType type;
 
     @Enumerated(EnumType.STRING)
-    @Type(ListArrayType.class)
-    @Column(name = "motion_types", columnDefinition = "text[]") @Builder.Default
-    private List<MotionType> motionTypes = new ArrayList<>();
+    private MotionType motionType;
 
     @OneToMany(mappedBy = "move") @Builder.Default  @EqualsAndHashCode.Exclude @ToString.Exclude
     private List<Status> statuses = new ArrayList<>();

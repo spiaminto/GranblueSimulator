@@ -94,28 +94,6 @@ function requestGuard(charOrder, type) {
 }
 
 /**
- * 가드는 ActorLogicResult 가 아니라 별도처리
- * @param response
- */
-function processGuard(response) {
-    console.log('[processGuard] response = ', response);
-    let isGuardActivated = response.guardActivated; //
-    response.guardResults.forEach(function (guardResult) {
-        if (guardResult.guardOn) {
-            $(`.global-effect-video-wrapper.actor-${guardResult.currentOrder}`).find('.guard-status').addClass('guard-on');
-        } else {
-            $(`.global-effect-video-wrapper.actor-${guardResult.currentOrder}`).find('.guard-status').removeClass('guard-on');
-        }
-    });
-
-    let audioPlayer = new AudioPlayer().init();
-    let src = isGuardActivated ? $('.global-audio-container .guard-on').attr('src') : $('.global-audio-container .guard-off').attr('src');
-    audioPlayer.loadSound(src).then(() => {
-        audioPlayer.playAllSounds();
-    })
-}
-
-/**
  * 오의 on off
  * @param chargeAttackActiveChecked
  */

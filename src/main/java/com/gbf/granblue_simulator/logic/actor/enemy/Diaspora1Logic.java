@@ -173,7 +173,7 @@ public class Diaspora1Logic extends EnemyLogic {
         BattleStatus currentActivateStatus = getBattleStatusByName(mainActor, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
         String currentActivateStatusName = currentActivateStatus.getStatus().getName();
         String currentActivateStatusNameType = currentActivateStatusName.substring(currentActivateStatusName.indexOf("『"), currentActivateStatusName.indexOf("』")); // "활성『알파』" 에서 "『알파" 만 남김.
-        setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
+//        setStatusLogic.removeBattleStatus(mainActor, currentActivateStatus);
 
         // 2회차 전조부터 붙어있는 긴급 수복모드 제거
         BattleStatus recoveryStatus = getBattleStatusByName(mainActor, "긴급 회복 시스템").orElse(null);
@@ -213,7 +213,7 @@ public class Diaspora1Logic extends EnemyLogic {
         Move formChangeEntryMove = diaspora2.getMoves().get(MoveType.FORM_CHANGE_ENTRY);
         // 다음 폼으로 set
         mainActor.setActor(diaspora2);
-        enemy.setCurrentForm(2);
+        enemy.setCurrentForm(1);
         // 폼체인지 후 2페이즈의 인자방출 영창기 등록
         enemy.setNextIncantStandbyType(MoveType.STANDBY_D);
 

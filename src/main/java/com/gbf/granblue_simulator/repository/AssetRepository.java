@@ -17,4 +17,5 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     @Query("SELECT a FROM Asset a WHERE a.rootCjsName IN (SELECT a1.cjsName FROM Asset a1 WHERE a1.id IN :assetIds)")
     List<Asset> findWithChildrenByAssetId(List<Long> assetIds);
 
+    Asset findByMoveId(Long moveId);
 }

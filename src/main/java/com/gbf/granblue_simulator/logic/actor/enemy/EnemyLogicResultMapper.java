@@ -16,6 +16,7 @@ import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -153,12 +154,19 @@ public class EnemyLogicResultMapper {
         String omenName = omen != null ? omen.getName() : null;
         String omenInfo = omen != null ? omen.getInfo() : null;
 
+        // 모션
+        List<String> motions = new ArrayList<>();
+        if (move.getMotionType() != null) {
+            motions.addAll(Arrays.stream(move.getMotionType().getMotion().split(",")).toList());
+        }
+
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
                 .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
                 .targetActorId(partyMembers.getFirst().getActor().getId()) // 적의 경우 타겟id 는 일단 아군 주인공으로 고정
                 .moveType(move.getType())
+                .motions(motions)
 
                 .currentTurn(mainActor.getMember().getCurrentTurn())
 

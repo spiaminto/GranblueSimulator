@@ -43,6 +43,7 @@ public class Asset {
     private int chargeAttackStartFrame; // 오의 스킵시 시작프레임
     private int chargeAttackSkipStartFrame; // 오의 스킵시 시작 프레임 (예비, 최소시간)
     private int hitStartFrame; // 실제 hit 하는 프레임
+    private boolean isTargetedEnemy; // targeted 어빌리티의 이펙트 target
 
 //    @Builder.Default // CHECK 얘는 MOVE 로 옮겨야 될듯.
 //    private Integer effectHitDelay = 0; // 이펙트 ~ 히트 까지 간격(ms). 이 딜레이 이후로 피격이펙트 표시 (일부 적의 오의)

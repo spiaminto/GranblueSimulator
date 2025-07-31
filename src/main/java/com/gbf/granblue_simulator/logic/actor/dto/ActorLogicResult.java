@@ -23,6 +23,8 @@ public class ActorLogicResult {
     private int mainBattleActorOrder;
     private Long targetActorId; // 적의 현재 폼을 확인하기 위해 사용
     private MoveType moveType;
+    @Builder.Default
+    private List<String> motions = new ArrayList<>();
 
     private Integer currentTurn;
 

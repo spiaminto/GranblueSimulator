@@ -1,7 +1,7 @@
 .enemy-info-container {
     position: absolute;
     width: 85%;
-    top: 7px;
+    top: 3px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 20;
