@@ -10,18 +10,18 @@
 
 .hp-container.enemy .value-hp {
     color: white;
-    width: 45px;
-    font-size: 14px;
+    width: 37px;
+    font-size: 12px;
     align-content: center;
     font-weight: bold;
-    text-indent: 5px;
+    text-indent: 2px;
 }
 
 .hp-container.enemy .hp-bar {
     border: solid 1px grey;
     position: relative;
     background-color: transparent;
-    height: 16px;
+    height: 9px;
 }
 
 /* 트리거 hp 강조 */
@@ -29,16 +29,16 @@
     position: absolute;
     background-color: yellow;
     left: 25%;
-    height: 16px;
+    height: 13px;
     width: 3px;
 }
 
 .status-container.enemy {
     display: flex;
     position: absolute;
-    top: 3px; /* .enemy-info-container 의 상하 padding 에 맞춰 살짝 작게 */
+    top: 0;
     left: 45px;
-    width: 280px; /* 18 * 15 + 10*/
+    width: 234px; /* 16 * 14 + 10*/
 }
 
 .status-container .show-status-info-button-wrapper.enemy {
@@ -48,7 +48,7 @@
 }
 
 .status-container.enemy .status {
-    width: 18px;
+    width: 16px;
 }
 
 .status-container.enemy .status img{
@@ -62,17 +62,17 @@
 }
 
 .charge-turn-container {
-    padding: 4px 4px;
+    padding: 3px 3px;
     display: flex;
 }
 
 .charge-turn-container .charge-turn {
     border-radius: 100%;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border: 2px solid darkred;
     background-color: dimgrey;
-    margin-right: 3px;
+    margin-right: 2px;
 }
 
 .omen-container {
@@ -85,7 +85,7 @@
 
 .omen-text {
     color: black;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: bold;
     padding: 2px 3px;
     margin-top: 3px;
@@ -109,7 +109,7 @@
 }
 
 .charge-turn.active {
-    background-color: gold;
+    background-color: yellow;
 }
 
 /* 하단 전조 표시 */
@@ -121,7 +121,7 @@
 }
 
 .omen-container-bottom .omen-text {
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .omen-container:not(.activated) {

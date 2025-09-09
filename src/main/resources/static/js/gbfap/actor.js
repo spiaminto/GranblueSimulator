@@ -20,7 +20,6 @@ class Actor {
         this.durationSkip = false;
 
         // animation callback
-        this.animationCompletedCallback = this.animationCompleted.bind(this);
         this.syncPlayCallback = this.syncPlay.bind(this);
 
         // textures
@@ -32,16 +31,12 @@ class Actor {
         // cjs
         this.mainCjs = null; // store the instantied associated objects : Array<createjs.MovieClip> (DisplayObject → Container → MovieClip)
         this.effectCjs = null; // the playing attack, ability, summon, charge attack effect cjs : createjs.MovieClip
-        this.playingEffectCjses = [];
         this.multiAttackEffectCjses = []; // 난격용 이펙트
         this.additionalCjs = null; // for boss's another specials
 
         // motions
         this.allMotions = []; // list of list of available motions for all animations : Array<String>, ['attack', 'wait', ...], 캐릭터 상한 별로 최대 2개인듯. 선택가능한 모든 모션이 포함됨, 표시용으로만 사용하는듯 현재는 값이 유효하지 않아도 됨.
-        this.playingMotions = []; // the current play list of motions // Array<String>, m_motion_lists 중 선택된 현재 재생중인 모션이름
-        this.playingMotionDurations = []; // playingMotions 설정 직후 해당 motion 들의 duration 을 미리 구해논 값. : Array<Number>
-        this.playingMotionIndex = 0; // the currently playing motion in the list : Number (index)
-
+        this.playingMotion = null;
 
         // motion specifics
         // attack
@@ -53,14 +48,7 @@ class Actor {
 
         // mortal skip
         this.isChargeAttackSkip = false;
-        this.chargeAttackStartFrame = -1;
-
-        // summons
-        this.summonCjsNameIndex = 0; // current playing summon effect index from Animation.summons
-
-        // internal use
-        // tweens
-        this.mainTween = null; // main animation tween : createjs.Tween , 캐릭터 트윈
+        this.chargeAttackStartFrame = 0;
 
         // offset, scaling -> setOffset 에서 초기화
         this.m_offset = {
@@ -110,7 +98,7 @@ class Actor {
         stage.global[charaId] = this.animation.cjs.replace(/\D/g, ''); // charaID 는 숫자만 추출해서 구성된걸로 추정
 
         // 오프셋 설정
-        this.setOffset(this.player.width, this.player.height, this.actorId);
+        this.setOffset(this.player.m_canvas.width, this.player.m_canvas.height, this.actorId);
 
         this.mainCjs = (this.instantiateMainCjs(this.animation.cjs));
         this.mainCjs.name = this.animation.cjs;
@@ -124,90 +112,93 @@ class Actor {
 
         // fetch and store the motion list for all animations
         this.setMotionLists();
-        this.playingMotionIndex = 0;
         // set list of playing motion to demo
-        this.playingMotions = [this.animation.startMotion];
+        this.playingMotion = this.isCharacter()
+            ? Player.getCharacterWaitMotion(this.actorIndex) //  캐릭터는 별도설정
+            : this.animation.startMotion;
         // play our animation
         if (this.isActor()) {
-            this.playMotion(this.playingMotions[this.playingMotionIndex]);
+            this.playMotion(this.playingMotion);
         }
     }
 
-    /**
-     * 실제 플레이
-     * @param playRequest Player.XXrequest()
-     * @param synced
-     */
-    playMotions(playRequest, synced = false) {
-        this.playingMotions = playRequest.motions;
-        let playingMotionEffectIndex = playRequest.index;
-
-        // 인덱스 설정 (어빌 또는 소환인데 나중에 필드를 통합하거나 그럴지도?
-        if (playRequest.type === Player.c_animations.SUMMON) this.summonCjsNameIndex = playingMotionEffectIndex;
-
-        // 전처리
-        switch (playRequest.type) {
-            case Player.c_animations.ABILITY:
-                this.abilityCjsType = playRequest.moveType !== 'NONE' ? playRequest.moveType : null;
-                this.isAbilityTargetedEnemy = this.abilityCjsType ? this.animation.abilities[this.abilityCjsType]?.isTargetedEnemy : false;
-                break;
-            case Player.c_animations.ATTACK:
-                this.attackMultiHitCount = playRequest.multiHitCount;
-                break;
-            default: // nothing
-                break;
+    play(playRequest, synced = false) {
+        // 자신의 이펙트 실행중엔 다음 요청이 이펙트가 아닌경우 무시
+        if (this.player.effectPlaying && this.player.effectPlayingActorIndex === this.actorIndex && !playRequest.isEffecting) return -1;
+        
+        if (this.playingTimeout) {
+            this.animationCompleted(false);
         }
 
-        // playMotion 전처리
-        this.playingMotionDurations = this.playingMotions.map(motion => this.preProcessPlayMotion(motion));
+        this.playingMotion = playRequest.motion;
+        this.playingOptions = {
+            isEffectOnly: playRequest.isEffectOnly || false,
+            isMotionOnly: playRequest.isMotionOnly || false,
+            isLastAttack: playRequest.isLastAttack || false,
+        }
+
+        // 옵션 - 어빌리티
+        this.abilityCjsType = playRequest.abilityType;
+        this.isAbilityTargetedEnemy = this.abilityCjsType ? this.animation.abilities[this.abilityCjsType]?.isTargetedEnemy : false;
+        // 옵션 - 일반공격
+        this.attackMultiHitCount = playRequest.multiHitCount;
 
         // playMotion 실제 재생
+        let duration = 0;
         if (synced) {
             this.mainCjs.addEventListener('syncPlay', this.syncPlayCallback); // sync 중이면 이벤트리스너 붙이고 재생 x
         } else {
-            this.playMotion(this.playingMotions[0]) // 재생 시작, 자동 loop
+            duration = this.playMotion(this.playingMotion);
         }
-
-        let motionDurationSum = this.playingMotionDurations.reduce((acc, duration) => {
-            let durationSeconds = duration / createjs.Ticker.framerate; // fps -> s
-            let ceiledDurationSeconds = Math.ceil(durationSeconds * 10) / 10; // ceil to X.Y
-            return acc + ceiledDurationSeconds;
-        }, 0);
 
         if (this.durationSkip) { // 계산한 duration 을 무시, 이펙트와 관계없이 처리를 진행 (주로 서포트 어빌리티 계열)
-            motionDurationSum = 0;
+            duration = 0;
         }
-        console.debug('motion = ', playRequest.motions, 'motionDurationSum (s)', motionDurationSum, 'motionDurationSum (ms)', motionDurationSum * 1000, ' durationSkip = ', this.durationSkip);
         this.durationSkip = false;
-        return motionDurationSum * 1000; // ms
+        console.debug('actor = ', this.actorId, ' motion = ', playRequest.motion, 'duration = ', duration, ' durationSkip = ', this.durationSkip);
+
+        return duration;
     }
 
-    preProcessPlayMotion(motion) {
-        // console.log('[preProcessPlayMotion] this.actor = ', this.actorId, 'motion = ', motion, 'mainCjs = ', this.mainCjs);
+    playMotion(motion) {
+        console.debug("[playMotion] actor.index = ", this.actorIndex, "motion = ", motion, " animation = ", this.animation, " cjs = ", this.mainCjs);
+        if (!(this.mainCjs instanceof createjs.MovieClip)) throw new Error("Invalid animation, cjs = " + JSON.stringify(cjs)); // check if it's a valid animation
+        this.mainCjs.visible = true; // default to visible
+        if (motion === Player.c_animations.NONE) return 0;
+
+
         let duration = 0;
+        let stageIndex = Player.z_index.UNDER_TOP; // 이펙트 발생시 기본 모션위치는 TOP - 1, 이펙트는 TOP (자동)
         if (Player.c_animations.isMortal(motion)) { // Charge attacks / specials
+            // stageIndex 갱신
+            stageIndex = this.isCharacter() ? Player.z_index.UUNDER_TOP : Player.z_index.TOP; // 캐릭터는 오의모션 - 오의이펙트 - 오의스킵이펙트, 적은 맨 위로 (이펙트 x, 모션이 최상위)
             if (motion.includes('additional')) {
                 // additional 모션 초기화
-                let additionalCjs = this.instantiateMainCjs(this.animation.additionalCjs);
-                additionalCjs.name = this.animation.additionalCjs;
-                this.additionalCjs = additionalCjs;
+                this.additionalCjs = this.instantiateMainCjs(this.animation.additionalCjs);
+                cjsStage.addChild(this.additionalCjs);
+                this.mainCjs.visible = false;
+                cjsStage.update(); // 스테이지 갱신
+                let replacedMotion = motion.replace('additional_', ''); // additional_mortal_A -> mortal_A
+                this.additionalCjs[this.additionalCjs.name].gotoAndPlay(replacedMotion); // force load
                 // additional 이펙트 초기화
                 let specialIndex = 0; // 문제생기면 변경
-                let additionalSpecialCjs = this.instantiateEffectCjs(this.animation.additionalSpecials[specialIndex]);
-                this.playingEffectCjses.push(additionalSpecialCjs);
+                this.effectCjs = this.instantiateEffectCjs(this.animation.additionalSpecials[specialIndex]);
+                cjsStage.addChild(this.effectCjs);
+                player.alterStageIndex(this.additionalCjs, Player.z_index.TOP);
+                this.addSpecial();
                 // 모션 duration 계산
-                let replacedMotion = motion.replace('additional_', '');  // additional_mortal_A -> mortal_A
                 duration = this.getCjsDuration(this.additionalCjs.getMotionCjs(replacedMotion));
             } else {
                 // 이펙트 초기화
                 let specialIndex = 0; // 문제생기면 변경
-                let specialCjs = this.instantiateEffectCjs(this.animation.specials[specialIndex]);
-                this.playingEffectCjses.push(specialCjs);
+                this.effectCjs = this.instantiateEffectCjs(this.animation.specials[specialIndex]);
+                cjsStage.addChild(this.effectCjs);
+                this.addSpecial();
                 // 모션 duration 계산
                 duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
                 if (this.isMainCharacter && this.weaponTextures.length > 0) { // 무기 sp 파일의 duration 구해 더함
                     let weaponSpecialCjs = this.instantiateEffectCjs(this.animation.specials[0]);
-                    duration += this.getCjsDuration(weaponSpecialCjs.getPlayableCjs('_special'));
+                    duration += this.getCjsDuration(weaponSpecialCjs.getPlayableCjs('special'));
                 }
             }
             // duration 보정
@@ -222,13 +213,14 @@ class Actor {
                         : motion === Player.c_animations.ATTACK_TRIPLE ? 2 : 3;
             if (attackEffectIndex >= this.animation.attacks.length) attackEffectIndex = this.animation.attacks.length - 1; // index 초과시 마지막 (이펙트 1~2 개짜리도 있음)
             let attackCjsName = this.animation.attacks[attackEffectIndex];
-            console.log('attack index', attackEffectIndex, 'cjs', attackCjsName)
-            let attackCjs = this.instantiateEffectCjs(attackCjsName);
-            this.playingEffectCjses.push(attackCjs);
+            this.effectCjs = this.instantiateEffectCjs(attackCjsName);
+            cjsStage.addChild(this.effectCjs);
+            if (this.isEnemy) stageIndex = Player.z_index.TOP; // 적은 모션이 최상위
+            this.addAttack();
             // 모션 duration 계산
-            let isLastAttack = this.playingMotions.lastIndexOf(motion) >= this.playingMotions.length - 1;
-            duration = isLastAttack ? this.getCjsDuration(this.mainCjs.getMotionCjs(motion)) : 10; // 마지막 공격이 아니면 10프레임으로 고정
-            if (this.attackMultiHitCount > 1) duration += 4 * (this.attackMultiHitCount - 1); // 난격 보정
+            let isLastAttack = this.playingOptions.isLastAttack;
+            duration = this.isCharacter() && !isLastAttack ? 10 : this.getCjsDuration(this.mainCjs.getMotionCjs(motion)); // 캐릭터의 마지막이 아닌 공격은 10fps 으로 고정
+            if (this.attackMultiHitCount) duration += 4 * (this.attackMultiHitCount - 1 || 0); // 난격 보정
             if (motion === Player.c_animations.ATTACK_MOTION_ONLY) duration = 30; // 어택 모션만 있는경우 30으로 설정 (모션: attack)
 
         } else if (Player.c_animations.isAbilityMotion(motion)) { // ab_motion, to_stb_wait, win, ab_motion_damage 등
@@ -241,17 +233,18 @@ class Actor {
             let abilityCjsName = this.getAbilityCjsName(this.abilityCjsType); // abilityCjsType 은 요청에서 채워옴
             if (abilityCjsName) { // 어빌리티의 이펙트 cjs 가 존재
                 // 이펙트 초기화
-                let isChainEffect = abilityCjsName.includes('burst'); // chainBurst, fatalChain (테스트는 페이탈체인만)
-                if (isChainEffect) abilityCjsName = 'mc_' + abilityCjsName + '_root';
-                let abilityCjs = this.instantiateEffectCjs(abilityCjsName);
-                this.playingEffectCjses.push(abilityCjs);
+                let isChainEffect = abilityCjsName.includes('burst'); // burst_341, ... chainBurst, fatalChain (테스트는 페이탈체인만)
+                // if (isChainEffect) abilityCjsName = 'mc_' + abilityCjsName + '_root';
+                this.effectCjs = this.instantiateEffectCjs(abilityCjsName);
+                cjsStage.addChild(this.effectCjs);
+                let isAoe = isChainEffect || abilityCjsName.includes('_all_') || abilityCjsName.includes('raid'); // force chain effect to AOE
+                this.addAbility(isAoe);
                 // 이펙트 duration 계산
-                if (isChainEffect) {
+                if (isChainEffect) { // 참고, postfix = 'effect' 라 별도처리
                     abilityEffectDuration = 40; // 페이탈 체인 기준, 40fps 고정
                 } else { // normal abilities
-                    let isAoe = abilityCjsName.includes("_all_") || abilityCjsName.includes("raid");
                     let childNamePostfix = isAoe ? "end" : "effect";
-                    abilityEffectDuration = this.getCjsDuration(abilityCjs.getPlayableCjs(childNamePostfix));
+                    abilityEffectDuration = this.getCjsDuration(this.effectCjs.getPlayableCjs(childNamePostfix));
                 }
             }
             // duration 계산 (최종)
@@ -265,103 +258,37 @@ class Actor {
             // 이펙트 초기화
             let currentSummonCjsName = this.animation.summons[summonIndex];
             if (motion === Player.c_animations.SUMMON_DAMAGE) currentSummonCjsName = currentSummonCjsName.replace('attack', 'damage'); // update attack to damage accordingly
-            let summonCjs = this.instantiateEffectCjs(currentSummonCjsName);
-            this.playingEffectCjses.push(summonCjs);
+            this.effectCjs = this.instantiateEffectCjs(currentSummonCjsName);
+            cjsStage.addChild(this.effectCjs);
+            this.addSummon();
             // 이펙트 duration 계산
-            if (!(summonCjs.name in summonCjs)) console.error("faisafe, summon_cjs_name = " + summonCjs.name + " not found in summon_cjs"); // CHECK 필요하면 추가
-            duration = this.getCjsDuration(summonCjs.getPlayableCjs());
-            if (summonCjs.name.includes("2040425000")) duration -= 2; // adjust for triple zero
+            if (!(this.effectCjs.name in this.effectCjs)) console.error("faisafe, summon_cjs_name = " + this.effectCjs.name + " not found in summon_cjs"); // CHECK 필요하면 추가
+            duration = this.getCjsDuration(this.effectCjs.getPlayableCjs());
+            if (this.effectCjs.name.includes("2040425000")) duration -= 2; // adjust for triple zero
 
+        } else if (Player.c_animations.isFormChange(motion)) {
+            // Note: does nothing different from default, keeping it this way in case it must be changed / improved
         } else if (Player.c_animations.isRaidAppear(motion)) {
             // 이펙트 초기화
             let appearIndex = parseInt(motion.split('_')[2]);
             let appearCjsName = this.animation.raidAppear[appearIndex]; // get file to play
-            let appearCjs = this.instantiateEffectCjs(appearCjsName);
-            this.playingEffectCjses.push(appearCjs);
+            this.effectCjs = this.instantiateEffectCjs(appearCjsName);
+            cjsStage.addChild(this.effectCjs);
+            this.addAppear();
             // 이펙트 duration 계산
             duration = this.getCjsDuration(appearCjs.getPlayableCjs()); // get duration
 
         } else if (Player.c_animations.isDamage(motion)) {
             // 모션 duration 계산
             duration = this.isCharacter() ? 15 : 8; // 캐릭터는 기본 0.5s (15fps), 적은 0.27s (8fps) 로 보임, 연타등 최적화를 위해 계산하지 않음.
-            if (!this.mainCjs.hasEventListener('syncPlay') && this.isEnemy && Player.c_animations.isDamage(this.nextMotion())) { // 적의 연타 피격 대응
-                duration = Math.max(duration - this.playingMotions.length, 2) // damage 많이 재생해야할수록 줄임, 최소 2프레임
-            }
-
-        } else if (Player.c_animations.SUMMON === motion) {
-            // 이펙트 초기화 - 연속재생시 이펙트가 없는 모션이 섞이면 안됨... CHECK 나중에 고민
-            this.playingEffectCjses.push(null);
-            // 모션 duration 계산
+            stageIndex = null;
+        } else if (Player.c_animations.isWaiting(motion) || Player.c_animations.isDamage(motion)) {
+            stageIndex = null; // actorIndex 를 따라감
             duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
         } else { // default
             // 모션 duration 계산
+            console.log('else default = ', this.mainCjs, 'motion = ', motion, 'cjs = ', this.mainCjs.getMotionCjs(motion));
             duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
-        }
-
-        // console.log('motion = ', motion, ' duration', duration)
-
-        return duration; // frames
-    }
-
-    // play an animation
-    // the most important function
-    // motion is the specific animation to play
-    playMotion(motion) {
-        console.debug("[playMotion] actor.index = ", this.actorIndex, "motion = ", motion, " animation = ", this.animation, " cjs = ", this.mainCjs);
-        if (!(this.mainCjs instanceof createjs.MovieClip)) throw new Error("Invalid animation, cjs = " + JSON.stringify(cjs)); // check if it's a valid animation
-        this.isLooping = !(Player.c_animations.isWaiting(motion) || motion.includes(Player.c_animations.ENEMY_FORM_CHANGE)); // waiting, 폼체인지 일땐 반복재생 x
-        this.effectCjs = this.playingEffectCjses[this.playingMotionIndex];
-        this.mainCjs.visible = true; // default to visible
-        let stageIndex = Player.z_index.UNDER_TOP; // 이펙트 발생시 기본 모션위치는 TOP - 1, 이펙트는 TOP (자동)
-
-        // add to stage
-        if (Player.c_animations.isMortal(motion)) { // Charge attacks / specials
-            if (this.isCharacter()) {
-                stageIndex = Player.z_index.UUNDER_TOP; // 오의모션 - 오의이펙트 - 오의스킵이펙트
-            } else {
-                stageIndex = Player.z_index.TOP; // 적과 global.mortal_skip 은 TOP. 특히 적은 이펙트가 아닌 모션의 index 를 따라가므로 반드시 TOP
-            }
-            if (motion.includes('additional')) { // for additional mortal, has no mortal skip only for enemy now
-                cjsStage.addChild(this.additionalCjs);
-                cjsStage.getChildByName(this.mainCjs.name).visible = false; // mainCjs 를 invisible 로
-                cjsStage.update(); // 스테이지 갱신
-                let replacedMotion = motion.replace('additional_', '');
-                this.additionalCjs[this.additionalCjs.name].gotoAndPlay(replacedMotion); // force load
-                stageIndex = Player.z_index.BOTTOM; // mainCjs 는 BOTTOM 으로.
-                // motion's additional_ prefix will removed before gotoAndPlay() because preProcessPlayMotion need additional prefix
-            }
-            this.addEffectsToStage();
-            this.addSpecial();
-
-        } else if (Player.c_animations.isAttack(motion)) {
-            if (motion !== Player.c_animations.ATTACK_MOTION_ONLY) {
-                this.addEffectsToStage();
-                this.addAttack()
-            } else {
-                motion = motion.replace('_motion_only', '');
-            }
-            if (this.isEnemy) stageIndex = Player.z_index.TOP; // 적은 이펙트가 아닌 모션의 index 를 따라가므로 TOP
-            attack_num = (attack_num + 1) % 2; // cycling atk num here (it seems to control which arm attack, see line 1 for concerned monsters)
-
-        } else if (Player.c_animations.isAbilityMotion(motion)) {
-            if (this.effectCjs) {
-                this.addEffectsToStage();
-                let isAoe = this.effectCjs.name.includes("_all_") || this.effectCjs.name.includes("raid");
-                this.addAbility(isAoe);
-            }
-            motion = Player.c_animations.getCleanAbilityMotion(motion); // 원래 모션으로 변환
-
-        } else if (Player.c_animations.isSummoning(motion)) {
-            this.addEffectsToStage();
-            this.addSummon();
-
-        } else if (Player.c_animations.isFormChange(motion)) {
-            // Note: does nothing different from default, keeping it this way in case it must be changed / improved
-        } else if (Player.c_animations.isRaidAppear(motion)) {
-            this.addEffectsToStage();
-            this.addAppear();
-        } else if (Player.c_animations.isWaiting(motion) || Player.c_animations.isDamage(motion)) {
-            stageIndex = null; // actorIndex 를 따라감
         }
 
         // stageIndex 설정
@@ -375,16 +302,7 @@ class Actor {
                 .forEach(actor => setTimeout(() => actor.mainCjs.dispatchEvent('syncPlay'), 100)); // 약간 지연
         }
 
-        // console.log('motion = ', motion, 'cjs = ', cjs, 'cjs.motion = ', cjs[cjsName + '_' + motion]);
-        let duration = this.playingMotionDurations[this.playingMotionIndex];
-        if (!duration) {
-            console.warn('[playMotion] unexpected preProcessPlayMotion, motion = ', motion, 'playingMotionIndex = ', this.playingMotionIndex, ' playingMotions = ', this.playingMotions, ' playingMotionDurations = ', this.playingMotionDurations);
-            duration = this.preProcessPlayMotion(motion);
-        }
-        // console.log('duration = ', duration);
-
-        // set listener for animation completion
-        this.mainCjs.addEventListener("animationComplete", this.animationCompletedCallback);
+        console.log('motion = ', motion, 'cjs = ', this.mainCjs, 'cjs.motion = ', this.mainCjs.getMotionCjs(motion));
 
         let notPlayMotion =
             motion.includes('additional') // additional_mortal_A 등은 메인 모션 재생 x
@@ -397,26 +315,33 @@ class Actor {
             }
         }
 
-        // create main tween, all the tweens are merely used to keep track of the animation durations
-        let isLooping = this.isLooping;
-        this.mainTween = createjs.Tween.get(this.mainCjs, { // instead of stage, use individual cjs to getTween
-            useTicks: true,
-            override: true,
-            paused: false, // we do not pause
-        }).wait(duration).call(function (tween, cjs) {
-            if (isLooping)
-                cjs.dispatchEvent('animationComplete')
-        }, [this, this.mainCjs]);
+        if (duration === 0) {
+            duration = 30;
+            console.log('mainCjs = ', this.mainCjs)
+        }
+        if (duration === 0) duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
+        // if (duration === 0) throw new Error("cjs duration is 0. motion = " + motion + " cjs = " + this.mainCjs);
+        let durationSeconds = duration / createjs.Ticker.framerate; // fps -> s
+        let ceiledDurationSeconds = Math.ceil(durationSeconds * 10) / 10; // ceil to X.Y
+        let ceiledDurationMilliSeconds = ceiledDurationSeconds * 1000;
+        // if (ceiledDurationSeconds === 0) ceiledDurationSeconds = 10;
+
+        this.playingTimeout = setTimeout(() => this.animationCompleted(true), ceiledDurationMilliSeconds);
+        return ceiledDurationMilliSeconds; // frames
     }
 
 // called when the animation is completed
-    animationCompleted(event) { // 주의! event.target === this.mainCjs[this.mainCjs.name]
-        // clean up listener
-        event.target.removeEventListener("animationComplete", this.animationCompletedCallback);
+    animationCompleted(toWait = false) {
+        if (this.playingTimeout) {
+            clearTimeout(this.playingTimeout);
+            this.playingTimeout = null;
+        }
+
         if (this.effectCjs) {  // if there is a special, clean up
             this.cjsStage.removeChild(this.effectCjs);
             this.effectCjs = null;
             this.abilityCjsType = null;
+            this.isAbilityTargetedEnemy = false;
         }
         if (this.multiAttackEffectCjses.length > 0) {
             this.cjsStage.removeChild(...this.multiAttackEffectCjses);
@@ -427,58 +352,41 @@ class Actor {
             this.additionalCjs = null;
         }
 
-        this.playingMotionIndex++;
-        this.mainTween.pause();
-        this.mainTween = null;
         this.mainCjs.visible = true; // additionalSpecial 사용시 false 로 변하므로 초기화
+        let isWaiting = Player.c_animations.isWaiting(this.playingMotion);
+        this.attackMultiHitCount = 1;
 
-        if (event.target.hasEventListener('syncPlay')) { // syncPlay 중에는 재생한 모션까지만 하고, 다음 재생없이 return;
-            return; // 바로 리턴해줘야 looping 상태를 유지하면서 wait 상태를 유지함
+        if (this.player.effectPlaying && this.player.effectPlayingActorIndex === this.actorIndex) {
+            this.player.effectPlaying = false;
+            this.player.effectPlayingActorIndex = null;
         }
 
-        if (this.playingMotionIndex >= this.playingMotions.length) {
-            // 마지막 모션, 후처리 시작
-            event.target.removeEventListener("syncPlay", this.syncPlayCallback); // 보험
+        if (this.isEffect()) return; // 이펙트 플레이어는 wait 상태로 돌리지 않고 그대로 종료
 
-            this.playingMotionIndex = 0; // 모션 인덱스 초기화
-            this.playingMotions = []; // 모션 초기화
-            this.playingMotionDurations = [];
-            this.playingEffectCjses = [];
-            this.attackMultiHitCount = 1;
-            this.isLooping = true; // 기본 isLooping 을true 로 해야 다음 모션을 이어서 재생함
 
-            if (this.isEffect()) return; // 이펙트 플레이어는 wait 상태로 돌리지 않고 그대로 종료
-
+        if (toWait && !isWaiting) { // waiting 일 시 다시 wait 재생하지 않음
             let waitMotion = Player.c_animations.WAIT;
             if (this.isCharacter()) {
-                waitMotion = Player.c_animations.STB_WAIT;
+                waitMotion = Player.getCharacterWaitMotion(this.actorIndex);
             } else { // 적
                 let standbyMotion = $('.enemy-info-container').attr('data-standby-motion');
                 waitMotion = standbyMotion !== 'none' ? standbyMotion : Player.c_animations.WAIT;
             }
-            this.playingMotions.push(waitMotion);
-            this.playingMotionDurations.push(this.preProcessPlayMotion(waitMotion));
-            this.playMotion(this.playingMotions[this.playingMotionIndex]); // wait play
-        } else {
-            // 마지막 모션 아님, 다음모션 시작
-            this.playMotion(this.playingMotions[this.playingMotionIndex]); // play next motion
+            this.playingMotion = waitMotion;
+            this.playMotion(waitMotion);
         }
     }
 
     syncPlay(event) {
         // console.log('[syncPlay] actor.index = ', this.actorIndex, 'motion = ', this.playingMotions[this.playingMotionIndex], ' cjs = ', this.mainCjs);
-        // 자신의 모션이 마지막일 경우 이벤트 리스너 해제
-        if (this.playingMotionIndex >= this.playingMotions.length - 1) {
-            event.target.removeEventListener("syncPlay", this.syncPlayCallback);
-        }
-        // 자신의 playMotion 을 즉시 실행 (playingMotionIndex 여기서 조작하지 않음)
-        this.playMotion(this.playingMotions[this.playingMotionIndex]);
+        event.target.removeEventListener("syncPlay", this.syncPlayCallback);
+        this.playMotion(this.playingMotion);
     }
 
 // retrieve the animation duration (in frames)
     getCjsDuration(cjs) {
         if (!cjs) {
-            console.warn("cjs is null", 'this.actor = ', this.actorId, ' effectCjs = ', this.effectCjs, ' motions = ', this.playingMotions, ' motionIndex = ', this.playingMotionIndex, ' abilityCjsType = ', this.abilityCjsType); // fatalChain 의 burstNNN.js 사용시 undefined cjs 가 넘어옴. 이펙트 재생에는 문제없으므로 스킵
+            console.warn("cjs is null", 'this.actor = ', this.actorId, ' effectCjs = ', this.effectCjs, ' motion = ', this.playingMotion,' abilityCjsType = ', this.abilityCjsType); // fatalChain 의 burstNNN.js 사용시 undefined cjs 가 넘어옴. 이펙트 재생에는 문제없으므로 스킵
             return 0; // 주인공이 어빌리티 사용시 ab_motion 이 없어서 null 나옴
         }
         if (!(cjs instanceof createjs.MovieClip)) // shouldn't happen
@@ -492,14 +400,6 @@ class Actor {
     getAbilityCjsName(moveType) {
         let abilityObj = this.animation.abilities[moveType]; // this is nullable when ability doesn't have their own effect
         return abilityObj ? abilityObj.cjs : null; // will use global efect or only motion
-    }
-
-// return the next motion in the play list
-    nextMotion() {
-        let next_index = this.playingMotionIndex + 1;
-        if (next_index >= this.playingMotions.length)
-            next_index = 0;
-        return this.playingMotions[next_index];
     }
 
     instantiateEffectCjs(cjsName) {
@@ -554,8 +454,8 @@ class Actor {
         // play the animation
         // atk[cjs].gotoAndPlay(6); // always 6
 
-        let multiHitCount = this.attackMultiHitCount;
-        if (multiHitCount > 1) {
+        let multiHitCount = this.attackMultiHitCount - 1 || 0; // 1 부터 시작하는걸 0부터 (attackMultiHitcount = 3 인경우, 실제 추가재생은 2회)
+        if (multiHitCount > 0) {
             let tick = 1;
             let multiHitAtk = null;
             let multiAttackEffectCjses = this.multiAttackEffectCjses;
@@ -564,6 +464,7 @@ class Actor {
             let offsetY = this.m_offset.target.y;
             createjs.Ticker.addEventListener("tick", playMultiHit);
 
+            // 난격 추가재생
             function playMultiHit() {
                 tick++;
                 if (tick % 3 === 0) {
@@ -573,7 +474,7 @@ class Actor {
                     cjsStage.addChild(multiHitAtk)
                     multiAttackEffectCjses.push(multiHitAtk);
                 }
-                if (tick >= 3 * (multiHitCount - 1) || tick > 50) {
+                if (tick >= 3 * multiHitCount || tick > 50) {
                     createjs.Ticker.removeEventListener('tick', playMultiHit);
                 }
             }
@@ -682,6 +583,8 @@ class Actor {
         let abilityCjs = this.effectCjs;
         if (abilityCjs.name.includes("burst")) player.alterStageIndex(abilityCjs, Player.z_index.UPPER_BOTTOM); // 페이탈체인은 적 바로위로
 
+        console.log('addAbility, cjsName = ', abilityCjs.name, 'isAoe = ', isAoe);
+
         // aoe are like fullscreen special
         if (isAoe) {
             if (this.isCharacter()) {
@@ -743,10 +646,10 @@ class Actor {
      * @param scaling = 1.0
      */
     setOffset(w, h, actorId, scaling = 1.0) {
-        this.m_fullscreen_scale = w / Player.c_gbf_animation_width; // = 1
+        this.m_fullscreen_scale = 1;
         this.characterScaling = this.isEnemy ? 1.1 : 1.0; // 적 크기 증가
         this.effectScaling = this.isEffect() ? 1.1 : 1.0; // 오의스킵 이펙트 증가
-        const center = Player.c_canvas_size / 2.0;
+        const center = 320;
         const characterOffsetMultiplier = [
             {x: 0.0, y: 0.0}, // enemyIndex, none use
             {x: 0.27, y: 0.13},

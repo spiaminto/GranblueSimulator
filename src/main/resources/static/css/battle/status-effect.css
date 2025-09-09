@@ -18,16 +18,16 @@
 }
 
 .status-effect-wrapper.enemy .status-effect {
-    margin-top: -10px;
+    margin-top: -8px;
 }
 
 .status-effect-wrapper.enemy .status-effect img {
     display: inline-block;
-    width: 31px;
+    width: 25px;
 }
 
 .status-effect-wrapper.enemy .status-effect-text {
-    font-size: 20px;
+    font-size: 16px;
     margin-left: -3px;
     font-weight: bold;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
@@ -49,11 +49,11 @@
 
 #actorContainer>.actor-2 .status-effect-wrapper.party,
 #actorContainer>.actor-4 .status-effect-wrapper.party{
-    right: 10px;
+    right: 8px;
 }
 
 .status-effect-wrapper.party .status-effect {
-    margin-top: -10px;
+    margin-top: -8px;
 }
 
 .status-effect.buff {
@@ -70,11 +70,11 @@
 
 .status-effect-wrapper.party .status-effect img {
     display: inline-block;
-    width: 28px;
+    width: 23px;
 }
 
 .status-effect-wrapper.party .status-effect-text {
-    font-size: 18px;
+    font-size: 15px;
     margin-left: -2px;
     font-weight: bold;
     text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;

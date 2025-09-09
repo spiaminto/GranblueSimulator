@@ -8,7 +8,7 @@ import lombok.Getter;
 @Getter
 public enum MotionType {
 
-    SUMMON_DEFAULT("summon,summon_atk,summon_dmg"), // 이걸로 쓰고 옛날 소환석 대응해야되면 추가
+    SUMMON("summon"),
     SUMMON_ATTACK("summon_atk"),
     SUMMON_DAMAGE("summon_dmg"),
 
@@ -77,8 +77,8 @@ public enum MotionType {
     ATTACK("attack"),
     ATTACK_SINGLE("short_attack"),
     ATTACK_FIRST_ADV("short_attack_adv"),
-    ATTACK_DOUBLE("short_attack,double"),
-    ATTACK_TRIPLE("short_attack,double,triple"),
+    ATTACK_DOUBLE("double"),
+    ATTACK_TRIPLE("triple"),
     ATTACK_QUADRUPLE("quadruple"),
 
     SPECIAL_ATTACK("attack_2"),
@@ -114,7 +114,6 @@ public enum MotionType {
     WAIT_SPECIAL_4("pf_4"),
     WAIT_SPECIAL_5("pf_5"),
     MISS("miss"),
-    SUMMON("summon"),
 
     ABILITY_EFFECT_ONLY("ab_motion_effect_only"),
     ABILITY_OLD("attack_noeffect"),

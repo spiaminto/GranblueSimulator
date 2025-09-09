@@ -87,7 +87,4 @@ public class PaladinLogic extends CharacterLogic {
         DefaultActorLogicResult defaultActorLogicResult = super.defaultAbility(mainActor, enemy, partyMembers, ability);
         return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, defaultActorLogicResult.getSetStatusResult());
     }
-
-
-
 }

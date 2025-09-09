@@ -17,7 +17,7 @@ class MoveResponse {
     constructor(data) {
         this.charOrder = data.charOrder;
         this.moveType = MoveType.byName(data.moveType);
-        this.motions = data.motions && data.motions[0] !== 'none' ? data.motions : [];
+        this.motion = data.motion || 'none';
         this.summonId = data.summonId ?? null;
         this.abilityCoolDowns = data.abilityCoolDowns || [];
 

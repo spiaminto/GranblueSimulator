@@ -147,19 +147,13 @@ public class CharacterLogicResultMapper {
         List<List<Integer>> partyMemberCooldowns = partyMembers.stream().map(actor -> List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown())).toList();
         cooldownList.addAll(partyMemberCooldowns);
 
-        // 모션
-        List<String> motions = new ArrayList<>();
-        if (move.getMotionType() != null) {
-            motions.addAll(Arrays.stream(move.getMotionType().getMotion().split(",")).toList());
-        }
-
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
                 .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
                 .targetActorId(enemy.getActor().getId())
                 .moveType(move.getType())
-                .motions(motions)
+                .motionType(move.getMotionType())
 
                 .currentTurn(mainActor.getMember().getCurrentTurn())
 

@@ -6,7 +6,7 @@ function initPlayer() {
         window.player = new Player();
         player.initCanvas();
         player.initStage();
-        player.setSize(Player.c_gbf_animation_width, Player.c_gbf_animation_width);
+        player.setSize(); // 캔버스 논리사이즈, 원본과 동일하게 설정
     }
 }
 
@@ -23,6 +23,10 @@ class Player {
         this.paused = true; // 처음에 true 여야함, resume 에서 false 로 바꿈
         this.audioEnabled = false; // audio mute state
         this.audioVolume = 1.0;
+
+        // playing info -> 설정은 player 에서, 해제는 actor 에서
+        this.effectPlaying = false; // 현재 이펙트 플레이중인지 여부 
+        this.effectPlayingActorIndex = null; // 현재 재생중인 이펙트의 주인
 
         // the createjs stage
         this.m_stage = null;
@@ -41,8 +45,12 @@ class Player {
         let fragment = document.createDocumentFragment();
         // canvas
         this.m_canvas = add_to(fragment, "canvas", {id: "canvasPlayer"});
-        this.m_canvas.width = Player.c_canvas_size; // canvas size default is part of Player
-        this.m_canvas.height = Player.c_canvas_size; //
+        this.m_canvas.width = 640; // canvas size default is part of Player
+        this.m_canvas.height = 654; //
+        this.m_canvas.style.width = 320 * window.scale + 'px';
+        this.m_canvas.style.height = 327 * window.scale + 'px';
+        this.m_canvas.style.transform = `scale(${1 / window.scale})`;
+        this.m_canvas.style.transformOrigin = 'top left';
         // background
         let bg = add_to(fragment, "div", {id: ["canvasBackground"]});
         this.m_background = add_to(bg, "img", {id: ["canvasBackgroundImage"]});
@@ -76,11 +84,9 @@ class Player {
             console.debug("[setSize Player size already set, skip setSize");
             return;
         }
-        if (w > Player.c_canvas_size || h > Player.c_canvas_size)
-            throw new Error("Player size can't be greater than " + Player.c_canvas_size);
 
-        this.width = w;
-        this.height = h;
+        this.width = 320 * window.scale;
+        this.height = 327 * window.scale;
     }
 
     setBackgroundImage(url) {
@@ -88,90 +94,62 @@ class Player {
     }
 
     /**
-     * playReqeust 객체 만들어 반환
-     * @param actorId
-     * @param motions
-     * @param index optional, 없으면 -1 (0부터 시작)
-     * @param moveType optional for ability
-     * @param effectType optional for ability
-     * @returns {{actorId, motion, index: number}}
+     * @param {string} actorId
+     * @param {string} motion
+     * @param {Object} options
+     * @param {string} [options.abilityType]
+     * @param {string} [options.effectType]
+     * @param {boolean} [options.isEffectOnly]
+     * @param {boolean} [options.isMotionOnly]
+     * @param {number} [options.multiHitCount]
+     * @param {boolean} [options.isLastAttack]
+     * @returns {{ actorId: string, motion: string, abilityType: string, effectType: string, isEffectOnly: boolean, isMotionOnly: boolean, multiHitCount: number, isLastAttack: boolean, isEffecting: boolean }}
      */
-    static playRequest(actorId, motions, moveType = 'NONE', effectType = 'NONE', index = -1) {
+    static playRequest(actorId, motion, options = {}) {
+        let isEffecting = Player.c_animations.isEffecting(motion); // 화면 점유 여부
         // 테스트용임
-        let firstMotion = motions[0];
-        let type = firstMotion.includes('ab_') ? Player.c_animations.ABILITY
-            : firstMotion.includes(['attack', 'double', 'triple']) ? Player.c_animations.ATTACK
-                : firstMotion.includes('mortal') ? Player.c_animations.MORTAL
-                    : firstMotion.includes('summon') ? Player.c_animations.SUMMON
-                        : firstMotion.includes('damage') ? Player.c_animations.DAMAGE
-                            : firstMotion.includes('standby') ? Player.c_animations.ENEMY_STANDBY_A
-                                : 'win'; // fallback
         return {
-            type: type,
             actorId: actorId,
-            motions: motions,
-            moveType: moveType,
-            effectType: effectType,
-            index: index ?? -1 // additional index for ability and summons start with 0
+            motion: motion,
+            abilityType: options.abilityType || 'NONE',
+            effectType: options.effectType || 'NONE',
+            isEffectOnly: options.isEffectOnly || false,
+            isMotionOnly: options.isMotionOnly || false,
+            multiHitCount: options.multiHitCount || 0,
+            isLastAttack: options.isLastAttack || false,
+            isEffecting: isEffecting,
         }
     }
 
-    /**
-     * abilityRequest
-     * @param actorId
-     * @param motions
-     * @param moveType
-     * @param effectType
-     * @returns {{type: string, actorId, motion, moveType: string, effectType: string}}
-     */
-    static abilityRequest(actorId, motions, moveType = 'NONE', effectType = 'NONE') {
-        return {
-            type: Player.c_animations.ABILITY,
-            actorId: actorId,
-            motions: motions,
-            moveType: moveType,
-            effectType: effectType,
-        }
-    }
-
-    static attackRequest(actorId, motions, attackMultiHitCount = 0) {
-        return {
-            type: Player.c_animations.ATTACK,
-            actorId: actorId,
-            motions: motions,
-            multiHitCount: attackMultiHitCount,
-        }
-    }
-
-    static chargeAttackRequest(actorId, motions) {
-        return {
-            type: Player.c_animations.MORTAL,
-            actorId: actorId,
-            motions: motions,
-        }
-    }
-
-    static enemyDamagedRequest(playCount) {
+    static getEnemyDamageMotion() {
         let standbyMotion = $('.enemy-info-container').attr('data-standby-motion');
-        let enemyDamagedMotions = Array(playCount).fill(Player.c_animations.getDamagedMotion(standbyMotion));
-        return {
-            type: Player.c_animations.DAMAGE,
-            actorId: 'actor-0',
-            motions: enemyDamagedMotions
-        }
+        return Player.c_animations.getDamagedMotion(standbyMotion)
     }
 
-    /**
-     * 한 액터의 모션 시퀀스 재생
-     * @param playRequest
-     * @param synced
-     */
-    async playMotions(playRequest, synced = false) {
-        console.debug('[playMotions] playRequest = ', playRequest);
-        let actor = this.actors.get(playRequest.actorId);
-        let duration = actor.playMotions(playRequest, synced);
+    static getCharacterWaitMotion(actorIndex) {
+        let actor = player.actors.get('actor-' + actorIndex);
+        let motion = Player.c_animations.STB_WAIT;
+        // 어빌리티 슬라이더 열려있음
+        let isAbilitySliderOpen = $('#abilitySlider').css('z-index') >= 0;
+        if (isAbilitySliderOpen) {
+            let Slick = $('#abilitySlider').slick('getSlick');
+            let currentSlide = Slick.currentSlide;
+            let actorIndex = Slick.animating ? currentSlide + 2 : currentSlide + 1; // slick 이 움직이고 있을때 beforeChange 로 들어오면, currentSlide 는 아직 이전 슬라이드를 가리킴
+            // console.log('currentSlide = ', currentSlide, 'animating = ', Slick.animating);
+            if (actorIndex === actor.actorIndex) {
+                return Player.c_animations.ABILITY;
+            }
+        }
+        // 오의 on 및 오의게이지에 따른 모션 (후순위)
+        let chargeGaugeValue = Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text());
+        let chargeAttackOn = $('#chargeAttackActiveCheck').prop('checked');
+        if (actor.isCharacter() && chargeGaugeValue === 100 && chargeAttackOn) { // CHECK 200대응 필요
+            return actor.playingMotion === Player.c_animations.ABILITY
+                ? Player.c_animations.NONE // 이미 ABILITY 재생중이면 무시
+                : Player.c_animations.ABILITY; // 오의게이지 차있으면 ABILITY
+        }
 
-        return duration;
+        return motion; // 기본
     }
 
     /**
@@ -179,13 +157,28 @@ class Player {
      * @param playRequest
      * @param otherPlayRequests
      */
-    async playMotionsWithOthers(playRequest, otherPlayRequests) {
-        let otherMotionsLengthSum = otherPlayRequests.reduce((acc, otherPlayRequest) => acc + otherPlayRequest.motions.length, 0);
-        let multipliedMainMotionsLength = playRequest.motions.length * otherPlayRequests.length;
-        if (multipliedMainMotionsLength !== otherMotionsLengthSum) throw new Error(`playRequests length must be same mainMotion = ${playRequest.motions.length} otherPlayRequests.length = ${otherPlayRequests.length}`);
+    async playWithOthers(playRequest, otherPlayRequests) {
         console.debug('[playMotionsWithOthers] playRequest = ', playRequest, '\n otherPlayRequests = ', otherPlayRequests);
-        otherPlayRequests.forEach((otherPlayRequest) => this.playMotions(otherPlayRequest, true)); // 이쪽은 미리 synced 이벤트 처리
-        return this.playMotions(playRequest); // 실 재생을 나중에
+        otherPlayRequests.forEach((otherPlayRequest) => this.play(otherPlayRequest, true)); // 이쪽은 미리 synced 이벤트 처리
+        return this.play(playRequest); // 실 재생을 나중에
+    }
+
+    /**
+     * 한 액터의 모션 시퀀스 재생
+     * @param playRequest
+     * @param synced
+     */
+    async play(playRequest, synced = false) {
+        console.debug('[playMotions] playRequest = ', playRequest);
+        if (playRequest.motion === Player.c_animations.NONE) return 0;
+        let actor = this.actors.get(playRequest.actorId);
+        let duration = actor.play(playRequest, synced);
+        if (playRequest.isEffecting) {
+            this.effectPlaying = true;
+            this.effectPlayingActorIndex = actor.actorIndex;
+        }
+        console.log('duration = ', duration);
+        return duration;
     }
 
     getGlobalActor() {
@@ -249,8 +242,6 @@ class Player {
 
 
 // constants ================================================================================================
-    static c_canvas_size = Object.freeze(900); // canvas size, width and height
-    static c_gbf_animation_width = Object.freeze(640); // GBF animation width
 // enum, z_index shorthand
     static z_index = Object.freeze({
         BOTTOM: () => 0, // enemy
@@ -480,6 +471,17 @@ class Player {
         LINK_FORM_CHANGE_2: "form_change_link_2",
         MY_PAGE: "mypage",
 
+        NONE: "none",
+
+        /**
+         * 화면 전체를 점유하는 이펙트와 같이재생되는지 여부
+         * @param motion
+         * @returns {boolean|boolean|*}
+         */
+        isEffecting(motion) {
+            return this.isSummoning(motion) || this.isAttack(motion) || this.isMortal(motion) || this.isAbilityMotion(motion) || this.isRaidAppear(motion)
+        },
+
         isWaiting(motion) { // isLooping = false 로 유지할것들
             return [
                 Player.c_animations.WAIT,
@@ -493,6 +495,8 @@ class Player {
                 Player.c_animations.ENEMY_STANDBY_B,
                 Player.c_animations.ENEMY_STANDBY_C,
                 Player.c_animations.ENEMY_STANDBY_D,
+                // ability 도 loop x
+                Player.c_animations.ABILITY,
             ].includes(motion);
         },
 

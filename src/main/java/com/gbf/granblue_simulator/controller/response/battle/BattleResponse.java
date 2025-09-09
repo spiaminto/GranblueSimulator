@@ -13,7 +13,7 @@ import java.util.List;
 public class BattleResponse {
     private int charOrder;
     private MoveType moveType;
-    private List<String> motions;
+    private String motion;
     private int totalHitCount;
     private int attackMultiHitCount;
 

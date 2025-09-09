@@ -1,4 +1,3 @@
-
 /**
  * 커맨드 패널의 현재 스테이터스 아이콘 갱신 (이펙트 종료 직후)
  * @param currentBattleStatusesList 갱신할 현재 스테이터스리스트
@@ -53,7 +52,7 @@ function processHealEffect(healArray, effectMotionDuration) {
             lastStartDelay = startDelay;
 
             setTimeout(function () {
-                player.playMotions(Player.playRequest('actor-' + actorIndex, [Player.c_animations.ABILITY_MOTION_EMPTY], null, 'HEAL'))
+                player.play(Player.playRequest('actor-' + actorIndex, Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType : 'HEAL'}))
                 // 데미지(힐 수치) 채우기 및 돔추가
                 let $healWrapper = $damageWrapper;
                 healWrappers.push($healWrapper);
@@ -137,7 +136,7 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
             setTimeout(() => {
                 if ($statusRemovedEffect != null) {
                     // 스테이터스 제거 효과
-                    player.playMotions(Player.abilityRequest(`actor-${actorIndex}`, [Player.c_animations.ABILITY_EFFECT_ONLY], BASE_ABILITY.DISPEL));
+                    player.play(Player.playRequest(`actor-${actorIndex}`, Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: BASE_ABILITY.DISPEL}));
                     // audioPlayer.loadAndPlay(GlobalSrc.STATUS_REMOVED.audio);
                     $statusEffect.addClass('status-removed');
                     $statusRemovedEffect.addClass('active');

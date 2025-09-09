@@ -83,6 +83,7 @@ public class Move {
         return Move.builder()
                 .type(type)
                 .statuses(new ArrayList<>())
+                .motionType(MotionType.NONE)
                 .build();
     }
 }

@@ -4,17 +4,18 @@
     left: 0;
     z-index: -1;
     /*background-color: transparent;*/
-    padding: 5px 15px;
-    width: 390px;
-    height: 185px;
+    padding: 4px 12px;
+    width: 320px;
+    height: 152px;
     background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
     background-size: 3px;
+    background-position-y: -15px;
 
 }
 
 .ability-panel {
     position: relative;
-    height: 185px;
+    height: 152px;
     justify-content: space-between;
     color: white;
 
@@ -25,11 +26,11 @@
 .charge-attack-wrapper {
     position: absolute;
     top: 0;
-    left: 73px;
-    width: 280px;
-    height: 50px;
+    left: 60px;
+    width: 230px;
+    height: 41px;
 
-    padding: 4px;
+    padding: 3px;
     border-radius: 5px;
     overflow: hidden;
 
@@ -39,21 +40,21 @@
 }
 
 .charge-attack-info {
-    height: 20px;
-    font-size: 10px;
+    height: 13px;
+    font-size: 8px;
 }
 
 .ability-wrapper {
     position: absolute;
-    top: 55px;
-    left: 73px;
-    height: 80px;
-    width: 280px;
+    top: 45px;
+    left: 60px;
+    height: 66px;
+    width: 230px;
 
     display: flex;
-    padding: 0.25rem 0;
+    padding: 3px 0;
     justify-content: space-evenly;
-    margin-bottom: 0.1rem;
+    margin-bottom: 2px;
 
     box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
     border: 1px solid #639fa8;
@@ -63,8 +64,8 @@
 
 .ability-battle-portrait {
     top: 0;
-    width: 66px;
-    height: 140px;
+    width: 54px;
+    height: 115px;
     position: relative;
 }
 
@@ -75,7 +76,7 @@
 .ability-icon {
     position: relative;
     align-content: center;
-    width: 45px;
+    width: 37px;
 }
 
 .ability-icon .ability-overlay {
@@ -100,7 +101,7 @@
 
 .ability-cooldown-text {
     text-align: center;
-    font-size: 16px;
+    font-size: 13px;
 }
 
 .ability-cooldown-text.active {
@@ -112,18 +113,20 @@
 }
 
 .panel-wrapper {
-    width: 320px; /* battle-portriat 합쳐 100% */
+    width: 262px; /* battle-portriat 합쳐 100% */
+    position: absolute;
+    top: 0;
 }
 
 .status-container.party {
     position: absolute;
     overflow: hidden;
     width: 100%;
-    top: 143px;
+    top: 117px;
 
     padding: 0 4px;
     border-radius: 5px;
-    height: 40px;
+    height: 24px;
     align-content: center;
     display: flex;
 
@@ -133,13 +136,13 @@
 
 .status-container.party .show-status-info-button-wrapper {
     display: flex;
-    width: 40px;
-    margin-right: 10px;
+    width: 33px;
+    margin-right: 6px;
     align-items: center;
 }
 
 .show-status-info-button-wrapper button {
-    width: 50px;
+    width: 33px;
 }
 
 .status-container.party .status {
@@ -149,7 +152,7 @@
 
 .status-container.party .status .status-icon {
     display: inline-block;
-    width: 28px;
+    width: 22px;
 }
 
 /* 어빌리티 백버튼 - 하단메뉴 */
@@ -193,10 +196,10 @@
 
 .status-info {
     padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     
     @media (min-width: 600px) {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
 }
 

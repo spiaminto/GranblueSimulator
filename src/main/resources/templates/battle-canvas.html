@@ -123,11 +123,13 @@
               "lib/raid/extension", "js/actor", "js/player", "js/loader", "bootstrap"
           ], function (slick, underscore) {
               $(function () {
+
                   // 스케일 초기화
-                  let scale = window.innerWidth / 390;
-                  scale = scale > 2 ? 2 : scale;
+                  let scale = window.innerWidth / 320;
+                  scale = scale > 1.5 ? 1.5 : scale;
                   console.log(`[scaleInit] innerWidth = ${window.innerWidth} scale = ${scale}`);
                   $('#container').css({'transform': `scale(${scale})`, 'transform-origin': 'top left'});
+                  window.scale = scale;
 
                   // 에셋 , 플레이어 로드
                   _ = underscore;
@@ -153,11 +155,20 @@
                               clearInterval(enemyLoadedInterval);
                               let initialStandbyMotion = $('.enemy-info-container').attr('data-standby-motion');
                               if (initialStandbyMotion !== 'none') {
-                                  player.playMotions(Player.playRequest('actor-0', [initialStandbyMotion]));
+                                  player.play(Player.playRequest('actor-0', initialStandbyMotion));
                               }
                           }
                       }
                   }, 500);
+
+                  // 아군 시작모션 - 오의on 시 설정
+                  // let chargeAttackOn = $('#chargeAttackActiveCheck').prop('checked');
+                  // if (chargeAttackOn) {
+                  //     player.actors.values()
+                  //         .filter(actor => actor.isCharacter() && Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text()) === 100)
+                  //         .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, Player.c_animations.ABILITY)));
+                  // }
+
 
                   $('#attackButton').on('click', function () {
                       requestTurnProgress();
@@ -182,8 +193,8 @@
 
           async function cjsPlayTest() {
               [0, 1, 2, 3, 4].forEach(async number => {
-                  let playRequest = Player.playRequest('actor-' + number, [Player.c_animations.ABILITY_EFFECT_ONLY], null, 'HEAL');
-                  let effectDuration = await player.playMotions(playRequest);
+                  let playRequest = Player.playRequest('actor-' + number, Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: 'HEAL'});
+                  let effectDuration = await player.play(playRequest);
                   console.log('[cjsPlayTest] effectDuration = ', effectDuration);
               })
           }
@@ -244,9 +255,9 @@
          th:data-standby-move-class="${battleEnemyInfo.initialMoveType.parentType.className.equals('standby') ? battleEnemyInfo.initialMoveType.className : 'none'}">
       <div class="hp-container enemy">
         <div class="value-hp" th:text="${battleEnemyInfo.getHpRate() + '%'}">100%</div>
-        <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100"
+        <div class="progress hp-bar" role="progressbar" aria-label="enemy hp bar" aria-valuenow="100"
              aria-valuemin="0"
-             aria-valuemax="100" style="height: 10px">
+             aria-valuemax="100">
           <div class="progress-bar hp-bar-realtime bg-danger" style="width: 100%"
                th:style="${'width: ' + battleEnemyInfo.hpRate + '%'}"></div>
           <div class="hp-trigger hp-trigger-1"></div>
@@ -331,7 +342,7 @@
     </div>
 
     <div class="ability-back-button-wrapper">
-      <button class="ability-back-button btn btn-outline-primary">
+      <button class="ability-back-button btn btn-sm btn-outline-primary">
         뒤로
       </button>
     </div>
@@ -531,7 +542,7 @@
     </div>
 
     <div class="sub-command-container">
-      <button type="button" class="btn btn-outline-success">회복</button>
+      <button type="button" class="btn btn-sm btn-outline-success">회복</button>
       <div class="form-check form-switch show-ability-info-check-wrapper">
         <input class="form-check-input" type="checkbox" role="switch" id="showAbilityInfoCheck">
         <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
@@ -590,14 +601,11 @@
         if (e.keyCode == 13) {
             const parts = $('#motions').val().trim().split(/\s+/);
             const actorId = parts[0];
-            const motionRequests = parts.slice(1).map(item => item.indexOf('/') >= 0
-                ? {motion: item.split('/')[0], moveType: item.split('/')[1]}
-                : {motion: item}
-            );
-            let playRequests = Player.playRequest(actorId, [...Object.values(motionRequests).map(req => req.motion)], motionRequests[0].moveType);
-
-            console.log(playRequests);
-            player.playMotions(playRequests);
+            const motionChunk = parts[1];
+            const motion = motionChunk.split('/')[0];
+            const abilityType = motionChunk.split('/')[1];
+            let playRequest = Player.playRequest(actorId, motion, {abilityType: abilityType});
+            player.play(playRequest);
         }
     });
     $('#pairingMotions').on('keydown', function (e) {
@@ -610,7 +618,7 @@
             );
             let playRequests = [];
             motionRequests.forEach((motionRequest, index) => {
-                playRequests.push(Player.playRequest(actorId, motionRequest.motion, motionRequest.moveType));
+                playRequests.push(Player.playRequest(actorId, motionRequest.motion, {abilityType: motionRequest.moveType}));
             })
 
             const pairingParts = this.value.trim().split(/\s+/);
@@ -627,29 +635,11 @@
                 paringPlayRequests.push(Player.playRequest(pairingActorId, pairingMotion.motion, pairingMotion.moveType));
             })
 
-            player.playMotionsWithOthers(playRequests, paringPlayRequests);
+            player.playWithOthers(playRequests, paringPlayRequests);
         }
     });
 
 
-    $('#playMotionsButton').click(function () {
-        const motions = $('#motions').val()
-            .split(',')// 1. 콤마(,)로 분리해서 배열로 변환
-            .map(item => item.trim())// 2. 각 요소의 앞뒤 공백 제거
-            .map((item) => [0, item]);// 3. [0, item] 형태로 변환
-        players.get('0q').playMotions(motions);
-    });
-    $('#playPartyMotionsButton').click(function () {
-        const motions = $('#motions').val()
-            .split(',')// 1. 콤마(,)로 분리해서 배열로 변환
-            .map(item => item.trim())// 2. 각 요소의 앞뒤 공백 제거
-            .map((item) => [0, item]);// 3. [0, item] 형태로 변환
-        players.values().forEach((player, index) =>
-            setTimeout(() => {
-                player.playerIndex > 0 ? player.playMotions(motions) : null;
-            }, index * 1000)
-        );
-    });
 </script>
 
 <!-- 메뉴 모달 -->

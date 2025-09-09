@@ -22,15 +22,25 @@ $(function () {
         $(this).hasClass('to-right') ? $('#abilitySlider').slick('slickNext') : $('#abilitySlider').slick('slickPrev');
     })
 
+    // 어빌리티 슬라이더 이벤트 (모션 재생)
+    $('#abilitySlider').on('beforeChange', function (event, slick, currentSlideIndex, nextSlideIndex) {
+        console.log('beforeChange', currentSlideIndex, nextSlideIndex);
+        player.play(Player.playRequest(`actor-${nextSlideIndex + 1}`, Player.c_animations.ABILITY));
+        let beforeActor = player.actors.get(`actor-${currentSlideIndex + 1}`);
+        if (player.effectPlayingActorIndex !== beforeActor.actorIndex) {
+            player.play(Player.playRequest(`actor-${currentSlideIndex + 1}`, Player.getCharacterWaitMotion(currentSlideIndex + 1)));
+        }
+    })
+
     // 배틀 초상화 클릭 -> 어빌리티 슬라이더 오픈
     $('.battle-portrait').on('click', function () {
         let abilitySliderWidth = $('#abilitySlider .slick-track').width();
         let battlePortraitIndex = $(this).index();
         // console.log('[.battle-portrait.onClick] battlePortraitindex = ' + battlePortraitIndex);
         $('#abilitySlider').slick('slickGoTo', battlePortraitIndex, true, {speed: 0})
+        player.play(Player.playRequest(`actor-${battlePortraitIndex + 1}`, Player.c_animations.ABILITY));
         $('#abilitySlider').css('z-index', '1');
         $('.present-container').addClass('hidden');
-
         $('.ability-slider-slide-button-wrapper').show();
         $('.ability-back-button').show();
     })
@@ -41,6 +51,9 @@ $(function () {
         $('.ability-slider-slide-button-wrapper').hide();
         $('.present-container').removeClass('hidden');
         clearInterval(statusShowHideInterval); // 스테이터스 끊어보여주기 인터벌 해제
+        player.actors.values()
+            .filter(actor => Player.c_animations.ABILITY === actor.playingMotion && player.effectPlayingActorIndex !== actor.actorIndex)
+            .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, Player.getCharacterWaitMotion(actor.actorIndex))));
         $(this).hide();
     });
 

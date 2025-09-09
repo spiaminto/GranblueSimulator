@@ -121,7 +121,7 @@ function processTurnEndProcess(response) {
             let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 0, response.damages[0], []);
             $damageWrapper.append($damageElements.$damage.addClass('multiple-ability-damage-show')).appendTo($('#actorContainer>.actor-0'));
             window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
-            setTimeout(() => player.playMotions(Player.playRequest('actor-0', [Player.c_animations.DAMAGE])), 100); // 약간 늦게
+            setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100); // 약간 늦게
             setTimeout(() =>  $damageWrapper.remove(), 1000);
             totalEndTime = 600;
         } else {

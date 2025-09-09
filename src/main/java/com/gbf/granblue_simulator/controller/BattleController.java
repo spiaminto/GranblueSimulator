@@ -185,23 +185,30 @@ public class BattleController {
         if (principal == null) {
             return "redirect:/";
         }
-        Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        Party party = partyRepository.findById(member.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
-        List<Asset> assets = assetRepository.findAllById(party.getActorAssetIds()).stream()
-                .sorted(Comparator.comparing(asset -> party.getActorIds().indexOf(asset.getId())))
-                .toList();
-        List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
 
-        List<BattleActor> battleActors = member.getBattleActors();
+        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        List<BattleActor> battleActors = findMember.getBattleActors();
+        battleActors.sort(Comparator.comparing(BattleActor::getCurrentOrder));
+
+        BattleActor enemyActor = battleActors.getFirst();
+        List<BattleActor> partyMembers = battleActors.subList(1, battleActors.size());
+        BattleActor mainCharacter = partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().orElseThrow(() -> new IllegalArgumentException("메인 캐릭터 찾을수 없음"));
+
+        Party party = partyRepository.findById(findMember.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
+
+        List<Asset> assets = assetRepository.findWithChildrenByAssetId(party.getActorAssetIds()).stream()
+                .sorted(Comparator.comparing(asset -> party.getActorIds().indexOf(asset.getId())))
+                .collect(Collectors.toList());
+        List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
+        Asset fatalChainAsset = assetRepository.findByMoveId(mainCharacter.getFatalChainMoveId());
+        List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getActor().getId());
+        assets.addAll(enemyAsset);
+
         if (battleActors.isEmpty()) {
             return "redirect:/";
         }
 
         // 인포 추가 시작
-        battleActors.sort(Comparator.comparing(BattleActor::getCurrentOrder));
-        BattleActor enemyActor = battleActors.getFirst();
-        List<BattleActor> partyMembers = battleActors.subList(1, battleActors.size());
-        BattleActor mainCharacter = partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().orElseThrow(() -> new IllegalArgumentException("메인 캐릭터 찾을수 없음"));
 
         // 캐릭터 인포
         List<BattleCharacterInfo> battleCharacterInfos = partyMembers.stream().map(BattleInfoMapper::toCharacterInfo).toList();
@@ -223,36 +230,42 @@ public class BattleController {
         FatalChainInfo fatalChainInfo = moveRepository.findById(fatalChainMoveId).map(move -> toFatalChainInfo(mainCharacter, move)).orElseGet(() -> null);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 
-        // 에셋 추가 시작
-        // 캐릭터 에셋 추가
-        List<Map<String, String>> characterVideoSrcMaps = new ArrayList<>();
-        List<Map<String, String>> characterAudioSrcMaps = new ArrayList<>();
-        partyMembers.forEach(partyMember -> {
-            List<Move> characterMoves = partyMember.getActor().getMoves().values().stream().toList();
-            Map<String, String> characterVideoSrcMap = getVideoSrcMap(characterMoves);
-            Map<String, String> characterAudioSrcMap = getAudioSrcMap(characterMoves);
-            characterVideoSrcMaps.add(characterVideoSrcMap);
-            characterAudioSrcMaps.add(characterAudioSrcMap);
-        });
-        model.addAttribute("characterVideoSrcMaps", characterVideoSrcMaps);
-        model.addAttribute("characterAudioSrcMaps", characterAudioSrcMaps);
+        // 에셋
+        List<AssetInfo.Asset> assetInfoAssets = toAssetInfo(mainCharacter.getActor().getId(), mainCharacter.getActor().getWeaponId(), assets, summonAssets, fatalChainAsset);
 
-        // 적 에셋 추가
-        Map<String, EnemyVideoInfo> enemyVideoSrcMap = getEnemyVideoSrcMap(enemy);
-        model.addAttribute("enemyVideoSrcMap", enemyVideoSrcMap);
-        Map<String, List<String>> enemyAudioSrcMap = getEnemyAudioSrcMap(enemy);
-        model.addAttribute("enemyAudioSrcMap", enemyAudioSrcMap);
+        List<Long> sortedActorIds = battleActors.stream().map(battleActor -> battleActor.getActor().getId()).toList();
+        assetInfoAssets.sort(Comparator.comparing(assetInfo -> sortedActorIds.indexOf(assetInfo.getActorId()) + 1));
 
-        // 소환석 에셋 추가
-        Map<String, String> summonVideoSrcMap = getVideoSrcMap(summonMoves);
-        model.addAttribute("summonVideoSrcMap", summonVideoSrcMap);
-        Map<String, String> summonAudioSrcMap = getAudioSrcMap(summonMoves);
-        model.addAttribute("summonAudioSrcMap", summonAudioSrcMap);
+        Move enemyStartMove = enemy.getCurrentStandbyType() != null ? enemy.getMove(enemy.getCurrentStandbyType()) : enemy.getMove(MoveType.IDLE_DEFAULT);
+        boolean isChargeAttackSkip = mainCharacter.getMember().isChargeAttackSkip();
+        List<AssetInfo> assetInfos = assetInfoAssets.stream().map(asset -> {
+                    boolean isEnemy = enemyActor.getActor().getId().equals(asset.getActorId());
+                    boolean isMainCharacter = mainCharacter.getActor().getId().equals(asset.getActorId());
+                    MotionType startMotion = isEnemy ? enemyStartMove.getMotionType() : MotionType.STB_WAIT;
+                    return AssetInfo.builder()
+                            .asset(asset)
+                            .isChargeAttackSkip(isChargeAttackSkip)
+                            .isEnemy(isEnemy)
+                            .isMainCharacter(isMainCharacter)
+                            .startMotion(startMotion)
+                            .build();
+                }
+        ).toList();
+
+        assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
+        log.info("sortedActorIds = {}", sortedActorIds);
+        model.addAttribute("assetInfos", assetInfos);
 
         // 멤버 추가
-        model.addAttribute("member", member);
+        model.addAttribute("member", findMember);
 
-        return "battle";
+        model.asMap().entrySet().forEach(entry -> {
+            log.info("k = {}", entry.getKey());
+            log.info("v = {}", entry.getValue());
+        });
+
+
+        return "battle-canvas";
     }
 
     @GetMapping("/battle")
@@ -331,32 +344,6 @@ public class BattleController {
         log.info("sortedActorIds = {}", sortedActorIds);
         model.addAttribute("assetInfos", assetInfos);
 
-//        // 에셋 추가 시작
-//        // 캐릭터 에셋 추가
-//        List<Map<String, String>> characterVideoSrcMaps = new ArrayList<>();
-//        List<Map<String, String>> characterAudioSrcMaps = new ArrayList<>();
-//        partyMembers.forEach(partyMember -> {
-//            List<Move> characterMoves = partyMember.getActor().getMoves().values().stream().toList();
-//            Map<String, String> characterVideoSrcMap = getVideoSrcMap(characterMoves);
-//            Map<String, String> characterAudioSrcMap = getAudioSrcMap(characterMoves);
-//            characterVideoSrcMaps.add(characterVideoSrcMap);
-//            characterAudioSrcMaps.add(characterAudioSrcMap);
-//        });
-//        model.addAttribute("characterVideoSrcMaps", characterVideoSrcMaps);
-//        model.addAttribute("characterAudioSrcMaps", characterAudioSrcMaps);
-//
-//        // 적 에셋 추가
-//        Map<String, EnemyVideoInfo> enemyVideoSrcMap = getEnemyVideoSrcMap(enemy);
-//        model.addAttribute("enemyVideoSrcMap", enemyVideoSrcMap);
-//        Map<String, List<String>> enemyAudioSrcMap = getEnemyAudioSrcMap(enemy);
-//        model.addAttribute("enemyAudioSrcMap", enemyAudioSrcMap);
-//
-//        // 소환석 에셋 추가
-//        Map<String, String> summonVideoSrcMap = getVideoSrcMap(summonMoves);
-//        model.addAttribute("summonVideoSrcMap", summonVideoSrcMap);
-//        Map<String, String> summonAudioSrcMap = getAudioSrcMap(summonMoves);
-//        model.addAttribute("summonAudioSrcMap", summonAudioSrcMap);
-
         // 멤버 추가
         model.addAttribute("member", findMember);
 
@@ -373,7 +360,7 @@ public class BattleController {
         return BattleResponse.builder()
                 .charOrder(result.getMainBattleActorOrder())
                 .moveType(result.getMoveType())
-                .motions(result.getMotions())
+                .motion(result.getMotionType().getMotion())
                 .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
                 .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
                 .elementTypes(result.getDamageElementTypes())

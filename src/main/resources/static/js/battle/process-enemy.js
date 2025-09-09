@@ -1,16 +1,30 @@
 async function processEnemyAttack(response) {
-    let attackCount = response.moveType === MoveType.SINGLE_ATTACK ? 1 : response.moveType === MoveType.DOUBLE_ATTACK ? 2 : 3;
-    let enemyAttackRequest = Player.attackRequest('actor-0', Array(attackCount).fill(Player.c_animations.ATTACK));
-    let effectDuration = await player.playMotions(enemyAttackRequest);
+    let attackCount = response.moveType ===
+    MoveType.SINGLE_ATTACK ? 1
+        : response.moveType === MoveType.DOUBLE_ATTACK ? 2
+            : response.moveType === MoveType.TRIPLE_ATTACK ? 3 : 0;
+    if (attackCount === 0) throw new Error('[processEnemyAttack], attackCount = 0, moveType = ' + response.moveType.name);
+    let attackPlayingPromise = null;
+    let effectDuration = 0;
+    for (let [index, _] of Array(attackCount).entries()) {
+        if (attackPlayingPromise) await attackPlayingPromise; // 이전 모션을 기다림
+        effectDuration = 0;
+        effectDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ATTACK));
+        attackPlayingPromise = new Promise(resolve => setTimeout(function () {
+            resolve(effectDuration);
+        }, effectDuration));
 
-    enemyDamagesPostProcess(response, effectDuration);
+        if (index === 0) { // 첫번째 모션 재생시 데미지 후처리 한꺼번에 다 함 CHECK 어차피 적은 공격모션이 하나뿐이라 간단하게 작성함.
+            enemyDamagesPostProcess(response, effectDuration * attackCount);
+        }
+    }
 
     let totalEndTime = effectDuration;
     console.log("[processEnemyAttack] total = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
         console.log('ENEMY ATTACK done');
         resolve();
-    }, totalEndTime + 200));
+    }, totalEndTime));
 }
 
 async function processEnemyAbility(response) {
@@ -19,11 +33,8 @@ async function processEnemyAbility(response) {
 
     // let globalEffectType = response.addedBuffStatusesList[0].length > 0 ? 'RAID_BUFF' : 'RAID_DEBUFF';
     let globalEffectType = ''; // CHECK 원래 지정해야 되는데, RAID_BUFF 가 아군전용이라 일단 비활성화. 나중에 효과찾아서 변경
-    let motions = response.motions.length > 0 ? response.motions : [Player.c_animations.ABILITY_EFFECT_ONLY];
-    let abilityPlayRequest = Player.abilityRequest('actor-0', motions, response.moveType.name);
-    let effectDuration = await player.playMotions(abilityPlayRequest);
-
-    enemyDamagesPostProcess(response, effectDuration);
+    let motion = response.motion || 'none';
+    let effectDuration = await player.play(Player.playRequest('actor-0', motion, {abilityType: response.moveType.name}));
 
     // 데미지 후처리 (데미지 표시, 아군 피격 재생)
     if (response.damages.length > 0) enemyDamagesPostProcess(response, effectDuration);
@@ -38,16 +49,15 @@ async function processEnemyAbility(response) {
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
     let totalEndTime = debuffEndTime;
-    console.log("[processEnemyAttack] total = " + totalEndTime)
+    console.log("[processEnemyAbility] total = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
-        console.log('ENEMY ATTACK done');
+        console.log('ENEMY ABILITY done');
         resolve();
     }, totalEndTime));
 }
 
 async function processEnemyChargeAttackPreEffect() {
-    let playRequest = Player.playRequest('actor-0', [Player.c_animations.ABILITY_EFFECT_ONLY], null, BASE_ABILITY.ENEMY_AB_START);
-    let effectDuration = await player.playMotions(playRequest);
+    let effectDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: BASE_ABILITY.ENEMY_AB_START}));
     return new Promise(resolve => setTimeout(function () {
         console.log('[processEnemyChargeAttackPreEffect] DONE');
         resolve();
@@ -57,8 +67,7 @@ async function processEnemyChargeAttackPreEffect() {
 async function processEnemyChargeAttack(response) {
     await processEnemyChargeAttackPreEffect();
 
-    let enemyAttackRequest = Player.chargeAttackRequest('actor-0', response.motions);
-    let effectDuration = await player.playMotions(enemyAttackRequest);
+    let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
 
     // 적 스탠바이 해제
     $('.enemy-info-container').attr('data-standby-motion', 'none');
@@ -94,23 +103,22 @@ async function processEnemyChargeAttack(response) {
     }, totalEndTime));
 }
 
-
 async function processEnemyStandBy(response) {
     let omenValue = response.omenCancelCondInfo.indexOf('해제불가') >= 0 ? '' : response.omenValue; // 해제불가인경우 렌더 x
 
     if ($('.omen-container-top').hasClass('activated')) { // 이미 전조 발생중
         let beforeOmenValue = Number($('.omen-container-top').find('.omen-text .omen-value').text());
         let effectDuration = 0;
-        if (omenValue !== beforeOmenValue && !(response.motions.includes(Player.c_animations.ENEMY_STANDBY_B))) { // 전조갱신시 standby 재생
+        if (omenValue !== beforeOmenValue && !(response.motion.includes(Player.c_animations.ENEMY_STANDBY_B))) { // 전조갱신시 standby 재생
             $('.omen-container-top').find('.omen-text .omen-value').text(omenValue);
-            effectDuration = await player.playMotions(Player.playRequest('actor-0', response.motions));
+            effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
             effectDuration /= 3; // 원본도 감소시키는듯
         }
         return new Promise(resolve => setTimeout(() => resolve(), effectDuration));
     }
 
     // 적 스탠바이 상태 추가
-    $('.enemy-video-container').attr('data-standby-motion', response.motions[0]);
+    $('.enemy-video-container').attr('data-standby-motion', response.motion);
     // 전조 컨테이너 activate
     $('.omen-container-top').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
@@ -122,8 +130,7 @@ async function processEnemyStandBy(response) {
         .find('.omen-prefix').text(response.omenName);
 
     // 이펙트 재생
-    let playRequest = Player.playRequest('actor-0', response.motions);
-    let effectDuration = await player.playMotions(playRequest);
+    let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
 
     let totalEndTime = effectDuration
     return new Promise(resolve => setTimeout(function () {
@@ -148,8 +155,7 @@ async function processEnemyBreak(response) {
     syncEnemyChargeTurn(response.chargeGauges);
 
     // 이펙트 재생
-    let breakRequest = Player.playRequest('actor-0', response.motions);
-    let effectDuration = await player.playMotions(breakRequest);
+    let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
 
     // 화면 흔들기
     $('#videoContainer').addClass('shake-left-effect');
@@ -170,7 +176,7 @@ async function processFormChange(formChangeResponse) {
     let nextEnemyActor = player.actors.get('actor-01');
     let formChangeDurationSum = 0;
     // 직전 폼의 폼체인지
-    let formChangeDuration = await player.playMotions(Player.playRequest('actor-0', [Player.c_animations.ENEMY_FORM_CHANGE]))
+    let formChangeDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_FORM_CHANGE))
     await new Promise(resolve => setTimeout(resolve, formChangeDuration));
     // 추가 처리
     player.setBackgroundImage(Constants.DIASPORA[1].backgroundImage);
@@ -180,7 +186,7 @@ async function processFormChange(formChangeResponse) {
     player.actors.delete('actor-01');
     player.actors.set('actor-0', nextEnemyActor);
     // 다음 폼의 폼체인지 입장 (phase-4)
-    let formChangeEntryDuration = await player.playMotions(Player.playRequest('actor-0', [Player.c_animations.ENEMY_PHASE_4]));
+    let formChangeEntryDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_PHASE_4));
     // 직전 폼 완전제거
     cjsStage.removeChild(enemyActor.mainCjs);
     formChangeDurationSum += formChangeDuration + formChangeEntryDuration;
@@ -258,7 +264,7 @@ function enemyDamagesPostProcess(response, effectDuration) {
     let uniqueTargetOrders = [...new Set(response.enemyAttackTargetOrders)];
     let currentPhase = $('.enemy-info-container').attr('data-phase');
     if (isAllTarget && uniqueTargetOrders.length === 1) uniqueTargetOrders = Array(player.getCharacterCount()).fill(uniqueTargetOrders[0]); // 전체공격 감싸기 상황. 파티 인원만큼 감싸기 캐릭터의 order 늘림.
-    let effectHitDelay = Constants.DIASPORA[currentPhase].hitDelay[response.motions[0]] || 0; // 이펙트 시작 ~ 데미지 표시 까지 딜레이, 없으면 0
+    let effectHitDelay = Constants.DIASPORA[currentPhase].hitDelay[response.motion] || 0; // 이펙트 시작 ~ 데미지 표시 까지 딜레이, 없으면 0
     let effectHitDuration = effectDuration - effectHitDelay; // 실제로 히트이펙트가 발생하는 기간
     let perHitDuration = attackCount === 0
         ? effectHitDuration / response.damages.length // 어빌리티, 오의시 1타가 사용할 길이
@@ -298,7 +304,7 @@ function enemyDamagesPostProcess(response, effectDuration) {
                 setTimeout(() => $(additionalDamage).addClass('enemy-damage-show'), (index + 1) * 50);
             });
             // 아군 피격 재생
-            player.playMotions(Player.playRequest('actor-' + targetOrder, [Player.c_animations.DAMAGE]));
+            player.play(Player.playRequest('actor-' + targetOrder, Player.c_animations.DAMAGE));
         }, startDelay)
     })
     // 데미지 제거

@@ -60,6 +60,7 @@ public class MemberService {
                 .room(room)
                 .currentTurn(1)
                 .partyId(user.getPrimaryPartyId())
+                .chargeAttackSkip(true)
                 .build();
 
         memberRepository.save(member);

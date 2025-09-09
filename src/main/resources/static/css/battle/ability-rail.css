@@ -4,6 +4,7 @@
 }
 
 .ability-rail-wrapper {
+    width: 100%;
     display: flex;
     overflow: hidden;
 
@@ -19,6 +20,7 @@
 
 .rail-ability img, .rail-ability-dummy img  {
     width: 100%;
+    vertical-align: sub;
 }
 
 .rail-ability-dummy {
