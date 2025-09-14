@@ -64,14 +64,14 @@ public class PartyController {
                                         ).toList()
                         )
                         .summonInfos(
-                                moveRepository.findAllById(party.getSummonMoveIds()).stream()
+                                moveRepository.findAllById(party.getSummonIds()).stream()
                                         .map(move ->
                                                 PartySummonInfo.builder()
                                                         .id(move.getId())
                                                         .name(move.getName())
                                                         .info(move.getInfo())
                                                         .cooldown(move.getCoolDown())
-                                                        .portraitSrc(move.getAsset().getIconImageSrc())
+                                                        .portraitSrc(move.getIconImageSrc())
                                                         .build()
                                         ).toList()
                         )

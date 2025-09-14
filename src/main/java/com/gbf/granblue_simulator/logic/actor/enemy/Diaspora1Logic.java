@@ -213,7 +213,7 @@ public class Diaspora1Logic extends EnemyLogic {
         Move formChangeEntryMove = diaspora2.getMoves().get(MoveType.FORM_CHANGE_ENTRY);
         // 다음 폼으로 set
         mainActor.setActor(diaspora2);
-        enemy.setCurrentForm(2);
+        enemy.setCurrentForm(1);
         // 폼체인지 후 2페이즈의 인자방출 영창기 등록
         enemy.setNextIncantStandbyType(MoveType.STANDBY_D);
 

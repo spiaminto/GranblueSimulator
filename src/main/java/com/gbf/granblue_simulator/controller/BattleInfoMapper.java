@@ -4,6 +4,9 @@ import com.gbf.granblue_simulator.controller.response.info.battle.*;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.asset.Asset;
+import com.gbf.granblue_simulator.domain.asset.AssetType;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
@@ -40,7 +43,7 @@ public final class BattleInfoMapper {
                                 .name(move.getName())
                                 .info(move.getInfo())
                                 .cooldown(move.getCoolDown())
-                                .iconImageSrc(move.getAsset().getIconImageSrc())
+                                .iconImageSrc(move.getIconImageSrc())
                                 .build())
                         .toList())
                 .chargeAttack(partyMember.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
@@ -55,8 +58,11 @@ public final class BattleInfoMapper {
         OmenType omenType = null;
         String omenName = null;
         String omenInfo = null;
+        MotionType initialMotionType = null;
         if (enemy.getCurrentStandbyType() != null) { // TODO 나중에 리팩토링 해야될듯
-            Omen omen = enemy.getActor().getMoves().get(enemy.getCurrentStandbyType()).getOmen();
+            Move standbyMove = enemy.getMove(enemy.getCurrentStandbyType());
+            initialMotionType = standbyMove.getMotionType();
+            Omen omen = standbyMove.getOmen();
             omenPrefix = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo();
             omenValue = enemy.getOmenValue();
             omenType = omen.getOmenType();
@@ -73,6 +79,7 @@ public final class BattleInfoMapper {
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
                 .initialMoveType(enemy.getCurrentStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getCurrentStandbyType()) // 동적으로
+                .initialMotionType(initialMotionType)
                 .omenActivated(enemy.getCurrentStandbyType() != null)
 
                 .omenPrefix(omenPrefix)
@@ -84,14 +91,73 @@ public final class BattleInfoMapper {
                 .build();
     }
 
+    public static List<AssetInfo.Asset> toAssetInfo(Long mainCharacterActorId, String weaponId, List<Asset> assets, List<Asset> summonAssets, Asset fatalChainAsset) {
+        // rootCjsName 를 key 로 하는 Map
+        Map<String, List<Asset>> assetMapByRootCjsName = assets.stream().collect(Collectors.groupingBy(Asset::getRootCjsName));
+        log.info("assetMapByRootCjsName: {}", assetMapByRootCjsName);
+        // 각 rootCjsName 별 Map.values 을 다시 MotionType 을 key 로 하는 Map 으로 변환
+        List<Map<AssetType, List<Asset>>> assetMapList = assetMapByRootCjsName.values().stream()
+                .map(assetList -> assetList.stream().collect(Collectors.groupingBy(Asset::getType)))
+                .toList();
+
+        return assetMapList.stream()
+                .map(assetMap -> { // key: AssetType, mainCjs 별로 분리되어있음
+                    log.info("assetMap = {}", assetMap);
+                    // main cjs
+                    List<Asset> actorAssets = assetMap.get(AssetType.ACTOR);
+                    log.info("actorAssets = {}", actorAssets);
+                    Asset mainActorAsset = actorAssets.getFirst();
+                    String mainCjs = mainActorAsset.getCjsName();
+                    // attack cjs
+                    List<String> attackCjses = assetMap.get(AssetType.ATTACK).stream()
+                            .map(Asset::getCjsName)
+                            .sorted().toList();
+                    // ability cjs
+                    Map<AssetType, AssetInfo.Asset.AbilityCjsDto> abilityCjsMap = assetMap.entrySet().stream()
+                            .filter(entry -> entry.getKey().isAbility())
+                            .collect(Collectors.toMap(Map.Entry::getKey, entry -> new AssetInfo.Asset.AbilityCjsDto(entry.getValue().getFirst().getCjsName(), entry.getValue().getFirst().isTargetedEnemy())));
+                    // charge attack (special cjs)
+                    List<Asset> specialAssets = assetMap.get(AssetType.SPECIAL);
+                    List<String> specialCjses = specialAssets.stream().map(Asset::getCjsName).toList();
+                    int chargeAttackStartFrame = specialAssets.getFirst().getChargeAttackStartFrame();
+                    // additional main cjs and additional special cjs
+                    boolean hasAdditionalAsset = actorAssets.size() > 1;
+                    String additionalMainCjs = hasAdditionalAsset ? actorAssets.get(1).getCjsName() : null;
+                    List<String> additionalSpecialCjses = hasAdditionalAsset
+                            ? assetMap.get(AssetType.ADDITIONAL_SPECIAL).stream().map(Asset::getCjsName).toList()
+                            : new ArrayList<>();
+
+                    // 메인캐릭터 추가 (소환석, 페이탈체인)
+                    boolean isMainCharacter = mainActorAsset.getActorId().equals(mainCharacterActorId);
+                    List<String> summonCjses = new ArrayList<>();
+                    if (isMainCharacter) {
+                        summonCjses = summonAssets.stream().map(Asset::getRootCjsName).distinct().toList();
+                        abilityCjsMap.put(fatalChainAsset.getType(), new AssetInfo.Asset.AbilityCjsDto(fatalChainAsset.getCjsName(), fatalChainAsset.isTargetedEnemy()));
+                    }
+
+                    return AssetInfo.Asset.builder()
+                            .actorId(mainActorAsset.getActorId())
+                            .mainCjs(mainCjs)
+                            .attackCjses(attackCjses)
+                            .abilityCjses(abilityCjsMap)
+                            .specialCjses(specialCjses)
+                            .summonCjses(summonCjses)
+                            .additionalMainCjs(additionalMainCjs)
+                            .additionalSpecialCjses(additionalSpecialCjses)
+                            .weaponId(weaponId)
+                            .chargeAttackStartFrame(chargeAttackStartFrame)
+                            .build();
+                }).collect(Collectors.toList());
+    }
+
     public static FatalChainInfo toFatalChainInfo(BattleActor mainCharacter, Move fatalChainMove) {
         return FatalChainInfo.builder()
                 .id(fatalChainMove.getId())
                 .name(fatalChainMove.getName())
                 .info(fatalChainMove.getInfo())
                 .gaugeValue(mainCharacter.getFatalChainGauge())
-                .effectVideoSrc(fatalChainMove.getAsset().getEffectVideoSrc())
-                .seAudioSrc(fatalChainMove.getAsset().getSeAudioSrc())
+                .effectVideoSrc("")
+                .seAudioSrc("")
                 .build();
 
     }
@@ -101,7 +167,7 @@ public final class BattleInfoMapper {
                 .id(move.getId())
                 .name(move.getName())
                 .info(move.getInfo())
-                .iconImageSrc(move.getAsset().getIconImageSrc())
+                .iconImageSrc(move.getIconImageSrc())
                 .cooldown(mainCharacter.getSummonCoolDowns().get(mainCharacter.getSummonMoveIds().indexOf(move.getId())))
                 .build();
     }

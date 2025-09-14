@@ -3,14 +3,15 @@ $(function () {
     $('#showAbilityInfoCheck').on('change', function () {
         console.log($(this).is(':checked'));
         let isShowAbilityInfoCheck = $(this).is(':checked');
+        let $abilityIcons = $('#abilitySlider .ability-icon');
         if (isShowAbilityInfoCheck) {
-            $('#abilitySlider .ability-icon').off('click');
-            $('#abilitySlider .ability-icon').on('click', function () {
+            $abilityIcons.off('click');
+            $abilityIcons.on('click', function () {
                 openAbilityInfoModal($(this));
             });
         } else {
-            $('#abilitySlider .ability-icon').off('click');
-            $('#abilitySlider .ability-icon').on('click', processAbilityClick);
+            $abilityIcons.off('click');
+            $abilityIcons.on('click', processAbilityClick);
         }
     })
 
@@ -50,6 +51,7 @@ $(function () {
     $('#abilitySlider .ability-icon').on('click', processAbilityClick);
 
     function processAbilityClick($abilityIcon) {
+        if (player.locked) return;
         // console.log($abilityIcon); // ability-icon 에 직접 연결하지 않으면 이벤트 정보가 들어옴. type 속성으로 'click' 등을 짐
         $abilityIcon = $abilityIcon.type ? $(this) : $abilityIcon; // type 속성이 있으면 ability-icon과 직접연결됨, 없으면 파라미터로 ability-icon 받아옴
 
@@ -58,7 +60,7 @@ $(function () {
 
         let charOrder = $abilityIcon.closest('.ability-panel').data('characterOrder');
         let abilityId = $abilityIcon.attr('data-ability-id');
-        let currentAbilityRailLength = $('.ability-rail-wrapper img').length;
+        let currentAbilityRailLength = $('#abilityRail img').length;
 
         // 어빌리티 not-ready 로 변경 (오버레이)
         let $processedAbility = $('.ability-panel.character-' + charOrder + ' [data-ability-id=' + abilityId + ']');
@@ -66,7 +68,8 @@ $(function () {
 
         // 어빌리티 레일에 등록
         $('<div>', {
-            'class': 'rail-ability rail-ability-' + currentAbilityRailLength,
+            'class': 'rail-item rail-item-' + currentAbilityRailLength,
+            'data-rail-item-type': 'ABILITY',
             'data-character-order': charOrder,
             'data-ability-id': abilityId,
         }).append($abilityIcon.find('img').clone()) // 이미지를 어빌리티 레일에 넣을 새 div 로 감싸서 생성
@@ -75,58 +78,91 @@ $(function () {
                 $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
                 $(this).remove(); // 제거
             })
-            .appendTo($('.ability-rail-wrapper'));
+            .appendTo($('#abilityRail'));
     }
 
+    // 공격버튼 클릭
+    $('#attackButton').on('click', processAttackClick)
+
+    function processAttackClick() {
+        let isCanceling = $('#attackButtonWrapper').hasClass('cancel');
+        if (isCanceling) {
+            cancelAttack();
+            return;
+        }
+
+        if (player.locked) return;
+        player.lockPlayer(true); // 플레이어 잠금
+        $('#attackButtonWrapper').addClass('cancel');
+        effectAudioPlayer.loadAndPlay(GlobalSrc.REQUEST_ATTACK.audio);
+        $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack-cancel.png')
+        let currentAbilityRailLength = $('#abilityRail img').length;
+        $('<div>')
+            .addClass('rail-item-attack rail-item rail-item-' + currentAbilityRailLength)
+            .attr('data-rail-item-type', 'ATTACK')
+            .append($('<img>')
+                .attr('src', '/static/assets/img/ui/ui-attack-icon.png'))
+            .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
+                if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
+                $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
+                $(this).remove(); // 제거
+            })
+            .appendTo($('#abilityRail'));
+    }
+
+    function cancelAttack() {
+        $('#abilityRail .rail-item-attack').remove(); // 레일에서 삭제
+        $('#attackButtonWrapper').removeClass('cancel');
+        $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack.png');
+        player.lockPlayer(false); // 공격 취소시 락 해제
+        effectAudioPlayer.loadAndPlay(GlobalSrc.CANCEL_ATTACK.audio);
+    }
 
     const abilityRailMutationObserver = new MutationObserver((entries) => {
-        // callback : processAbility() 를 호출했다면 true 반환
         console.log(entries);
-        let abilityRailWrapper = entries[0].target;
-        let addedAbility = entries[0].addedNodes;
-        let removedAbility = entries[0].removedNodes;
+        let $abilityRail = $(entries[0].target); // #abilityRail
+        let $addedRailItem = $(entries[0].addedNodes);
+        let $removedRailItem = $(entries[0].removedNodes);
+        let isExecuted = false; // 처리 수행이 있었다면 true 로 반환
 
-        // 첫번째 어빌리티가 추가됨
-        if ($(addedAbility).hasClass('rail-ability-1')) {
-            // 어빌리티 실행
-            let charOrder = $(addedAbility).attr('data-character-order');
-            let abilityId = $(addedAbility).attr('data-ability-id');
-            $(addedAbility).addClass('active');
-            setTimeout(() => {
-                let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
-                requestMove(characterId, abilityId);
-            }, 500);
-            return true;
-        }
-
-        // 삭제된 레일 어빌리티 존재
-        if ($(removedAbility).length > 0) {
-            if ($(abilityRailWrapper).children('.rail-ability').length < 1) {
-                // 삭제후 남은 어빌리티가 더미밖에 없음 -> 어빌리티 실행없이 종료
-                return false;
-            }
-            if ($(removedAbility).hasClass('active')) {
-                // 어빌리티가 실행 후 삭제됨 -> 다음 어빌리티(제일 왼쪽) 실행
-                let $latestAbility = $(abilityRailWrapper).children('.rail-ability').first();
-                let charOrder = $latestAbility.attr('data-character-order');
-                let abilityId = $latestAbility.attr('data-ability-id');
-                $latestAbility.addClass('active');
-                setTimeout(() => {
-                    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
-                    requestMove(characterId, abilityId);
-                }, 700);
-                return true;
-            } else {
-                // 레일에서 삭제된 어빌리티가 최근 실행한 어빌리티가 아님 (사용자가 클릭해서 삭제) -> 어빌리티 실행없이종료
-                return false;
-            }
+        if ($abilityRail.children('.rail-item').length < 1) {
+            return false; // 남은 아이템 없음
         } else {
-            console.log('has removed ability but invalid ', $(removedAbility));
-        }
-        return false;
-    })
+            let $latestRailItem = $abilityRail.children('.rail-item').first();
+            let railItemType = $latestRailItem.attr('data-rail-item-type');
 
-    abilityRailMutationObserver.observe(document.querySelector('.ability-rail-wrapper'), {childList: true});
+            if (($addedRailItem.hasClass('rail-item-1')) // 첫 아이템 추가
+                || $removedRailItem.hasClass('active')) { // || 아이템 실행 완료후 삭제됨 -> 다음 아이템 실행
+                switch (railItemType) {
+                    case 'ABILITY':
+                        let charOrder = $latestRailItem.attr('data-character-order');
+                        let abilityId = $latestRailItem.attr('data-ability-id');
+                        $latestRailItem.addClass('active');
+                        setTimeout(() => {
+                            let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+                            requestMove(characterId, abilityId);
+                        }, 300);
+                        isExecuted = true;
+                        break;
+
+                    case 'ATTACK':
+                        $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 공격은 실행즉시 레일에서 삭제
+                        requestTurnProgress();
+                        isExecuted = true;
+                        break;
+
+                    default:
+                        console.log('invalid railItemType ', railItemType);
+                        break;
+                }
+            } else { // 레일에서 삭제된 아이템이 실행 없이 삭제 -> 사용자가 직접 삭제함
+                if ($removedRailItem.attr('data-rail-item-type') === 'ATTACK') cancelAttack();
+                isExecuted = false;
+            }
+        }
+        return isExecuted;
+    })
+    abilityRailMutationObserver.observe(document.querySelector('#abilityRail'), {childList: true});
 
 
 })

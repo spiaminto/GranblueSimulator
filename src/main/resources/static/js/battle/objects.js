@@ -1,3 +1,132 @@
+
+// 응답
+// 상태 정보 클래스
+class StatusDto {
+    constructor({type, name, imageSrc, effectText, statusText, duration}) {
+        this.type = type;
+        this.name = name;
+        this.imageSrc = imageSrc;
+        this.effectText = effectText;
+        this.statusText = statusText;
+        this.duration = duration;
+    }
+}
+
+// MoveResponse 클래스
+class MoveResponse {
+    constructor(data) {
+        this.charOrder = data.charOrder;
+        this.moveType = MoveType.byName(data.moveType);
+        this.motion = data.motion || 'none';
+        this.summonId = data.summonId ?? null;
+        this.abilityCoolDowns = data.abilityCoolDowns || [];
+
+        this.totalHitCount = data.totalHitCount;
+        this.attackMultiHitCount = data.attackMultiHitCount;
+        this.elementTypes = data.elementTypes || [];
+
+        this.damages = data.damages || [];
+        this.additionalDamages = data.additionalDamages || [];
+
+        this.hps = data.hps || [];
+        this.hpRates = data.hpRates || [];
+        this.heals = data.heals || [];
+
+        this.chargeGauges = data.chargeGauges || [];
+        this.fatalChainGauge = data.fatalChainGauge ?? 0;
+
+        // 스테이터스 매핑 [적][아군][아군][아군][아군]
+        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
+        this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
+        this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+
+        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
+        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF'));
+        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF'));
+
+        this.currentBattleStatusesList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type !== 'PASSIVE').map(s => new StatusDto(s)));
+
+        this.enemyAttackTargetOrders = data.enemyAttackTargetOrders ?? null;
+        this.allTarget = data.allTarget ?? false;
+
+        this.omenType = OmenType.byName(data.omenType);
+        this.omenValue = data.omenValue ?? null;
+        this.omenCancelCondInfo = data.omenCancelCondInfo ?? null;
+        this.omenName = data.omenName ?? null;
+        this.omenInfo = data.omenInfo ?? null;
+
+        this.enemyPowerUp = data.enemyPowerUp ?? false;
+        this.enemyCtMax = data.enemyCtMax ?? false;
+    }
+}
+
+// JSON 배열을 MoveResponse 인스턴스 배열로 변환하는 함수
+function parseMoveResponseList(jsonArray) {
+    return jsonArray.map(item => new MoveResponse(item));
+}
+
+const GlobalSrc = {
+    HEAL: {video: '/static/assets/video/gl/gl-heal.webm', audio: '/static/assets/audio/gl/gl-heal.mp3',},
+    BEEP: {video: '', audio: '/static/assets/audio/gl/gl-beep.mp3',},
+    CHARGE_ATTACK_READY: {video: '', audio: '/static/assets/audio/gl/gl-charge-attack-ready.mp3',},
+    TURN_DAMAGE: {video: '', audio: '/static/assets/audio/gl/gl-turn-damage.mp3',},
+    STATUS_REMOVED: {video: '', audio: '/static/assets/audio/gl/gl-status-removed.mp3',},
+    SHOCKED: {video: '/static/assets/video/gl/gl-shocked.webm', audio: '/static/assets/audio/gl/gl-shocked.mp3',},
+    DEBUFF: {video: '', audio: '/static/assets/audio/gl/gl-debuff.mp3'},
+
+
+    REQUEST_ATTACK: {video: '', audio: '/static/assets/audio/gl/request-attack.mp3'},
+    CANCEL_ATTACK: {video: '', audio: '/static/assets/audio/gl/cancel-attack.mp3'},
+}
+Object.freeze(GlobalSrc);
+
+const Constants = {
+    DIASPORA:
+        [ // phase
+            {
+                hitDelay: { // ms
+                    mortal_A: 1500, mortal_B: 1500, mortal_C: 0
+                },
+                backgroundImage: '/static/assets/bg/dia-1.jpg',
+            },
+            {
+                hitDelay: {
+                    mortal_A: 1750, mortal_B: 800, mortal_C: 3000, additional_mortal_B: 1100
+                },
+                backgroundImage: '/static/assets/bg/dia-2.jpg',
+            }
+        ]
+    ,
+
+    Delay: {
+        damageShowDelete: 1200, // 데미지표시 ~ 데미지 삭제까지 딜레이 (데미지 표시시간 최대치)
+        damageShowToNext: 600 // 데미지 표시 ~ 스테이터스 표시까지 딜레이 (일반적으로 첫 데미지 페이드아웃 시작)
+    }
+}
+Object.freeze(Constants);
+
+const loadActorConfig = {
+    use_game_config: "local",
+    game: {
+        local: {
+            corsProxy: null,
+            xjsUri: "/gbf",
+            jsUri: "/gbf",
+            imgUri: "/gbf/img",
+            soundUri: "https://prd-game-a5-granbluefantasy.akamaized.net/assets/sound",
+            extern: "https://prd-game-a1-granbluefantasy.akamaized.net/assets",
+            bgUri: ".",
+            testUri: null
+        }, buttons: {},
+        default_background: "",
+        backgrounds: {
+            "<img src=\"/assets/bg_grid.png\">": "/assets/bg_grid.jpg",
+        },
+        audio_disabled: false
+    }
+}
+Object.freeze(loadActorConfig);
+
 const MoveType = {
     ROOT: {name: 'ROOT', parentType: null, className: 'root'},
     IDLE: {name: 'IDLE', parentType: 'ROOT', className: 'idle'},
@@ -35,9 +164,10 @@ const MoveType = {
     BREAK_F: {name: 'BREAK_F', parentType: 'BREAK', className: 'break-f'},
     BREAK_G: {name: 'BREAK_G', parentType: 'BREAK', className: 'break-g'},
     ATTACK: {name: 'ATTACK', parentType: 'ROOT', className: 'attack'},
-    SINGLE_ATTACK: {name: 'SINGLE_ATTACK', parentType: 'ATTACK', className: 'single-attack'},
-    DOUBLE_ATTACK: {name: 'DOUBLE_ATTACK', parentType: 'ATTACK', className: 'double-attack'},
-    TRIPLE_ATTACK: {name: 'TRIPLE_ATTACK', parentType: 'ATTACK', className: 'triple-attack'},
+    SINGLE_ATTACK: {name: 'SINGLE_ATTACK', parentType: 'ATTACK', className: 'single-attack', attackCount: 1},
+    DOUBLE_ATTACK: {name: 'DOUBLE_ATTACK', parentType: 'ATTACK', className: 'double-attack', attackCount: 2},
+    TRIPLE_ATTACK: {name: 'TRIPLE_ATTACK', parentType: 'ATTACK', className: 'triple-attack', attackCount: 3},
+    QUADRUPLE_ATTACK: {name: 'QUADRUPLE_ATTACK', parentType: 'ATTACK', className: 'quadruple-attack', attackCount: 4},
     ABILITY: {name: 'ABILITY', parentType: 'ROOT', className: 'ability'},
     FIRST_ABILITY: {name: 'FIRST_ABILITY', parentType: 'ABILITY', className: 'first-ability'},
     SECOND_ABILITY: {name: 'SECOND_ABILITY', parentType: 'ABILITY', className: 'second-ability'},

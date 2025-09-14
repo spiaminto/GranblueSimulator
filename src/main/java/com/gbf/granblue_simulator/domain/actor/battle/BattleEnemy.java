@@ -30,7 +30,7 @@ public class BattleEnemy extends BattleActor {
     public BattleEnemy of(Enemy enemy) {
         return BattleEnemy.builder()
                 .name(enemy.getName())
-                .currentForm(1)
+                .currentForm(0)
                 .actor(enemy)
                 .build();
     }

@@ -47,9 +47,6 @@ public class YachimaLogic extends CharacterLogic {
         // 오의 배율 변화
         Double damageRate = hasBattleStatus(mainActor, "레코데이션 싱크") ? 12.5 : null;
         DefaultActorLogicResult chargeAttackResult = super.defaultChargeAttack(mainActor, enemy, partyMembers, damageRate);
-        // 1어빌 자동발동
-//        return resultMapper.toResultWithNextMove(mainActor, enemy, partyMembers, defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult(),
-//                NextMoveRequest.of(true, MoveType.FIRST_ABILITY, StatusTargetType.SELF));
         return resultMapper.toResult(mainActor, enemy, partyMembers, chargeAttackResult.getResultMove(), chargeAttackResult.getDamageLogicResult(), chargeAttackResult.getSetStatusResult());
     }
 
@@ -63,13 +60,17 @@ public class YachimaLogic extends CharacterLogic {
 
     @Override
     public ActorLogicResult postProcessToPartyMove(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult) {
-        if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId()) && partyMoveResult.getMoveType().getParentType() == MoveType.ATTACK) {
-            // 자신이 일반공격시 서포트 어빌리티 1 발동
-            return firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY));
-        }
-        if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId()) && partyMoveResult.getMoveType() == MoveType.CHARGE_ATTACK_DEFAULT) {
-            // 자신이 오의 사용시 서포트 어빌리티 4 발동 (어빌리티 1 자동발동)
-            return chargeAttackAfter(mainActor, enemy, partyMembers, null);
+        if (partyMoveResult.getMainBattleActorId().equals(mainActor.getId())) { // 행동 주체가 자신일때
+            if (partyMoveResult.getMoveType().getParentType() == MoveType.ATTACK) { // 일반공격시
+                if (hasBattleStatus(mainActor, "레코데이션")) { // 레코데이션 효과중
+                    return fourthSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FOURTH_SUPPORT_ABILITY));
+                } else {// 레코디이션 효과 없을때, 자신이 일반공격시 서포트 어빌리티 1 발동
+                    return firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY));
+                }
+            }
+            if (partyMoveResult.getMoveType() == MoveType.CHARGE_ATTACK_DEFAULT) { // 오의사용시 1어비 자동발동
+                return chargeAttackAfter(mainActor, enemy, partyMembers, null);
+            }
         }
         return resultMapper.emptyResult();
     }
@@ -161,5 +162,12 @@ public class YachimaLogic extends CharacterLogic {
             }
         }
         return resultMapper.emptyResult();
+    }
+
+    // 자신이 레코데이션 싱크 효과중 통상공격 후 5배 데미지 3회, 방어력 다운
+    @Override
+    protected ActorLogicResult fourthSupportAbility(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move ability) {
+        DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability, null, null);
+        return resultMapper.toResult(mainActor, enemy, partyMembers, ability, defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult());
     }
 }

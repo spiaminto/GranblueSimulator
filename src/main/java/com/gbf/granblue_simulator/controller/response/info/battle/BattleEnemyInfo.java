@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.controller.response.info.battle;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import lombok.Builder;
@@ -15,6 +16,7 @@ public class BattleEnemyInfo {
     private String name;
     private Integer phase;
     private MoveType initialMoveType;
+    private MotionType initialMotionType;
     private List<BattleStatus> statuses;
     private Integer hpRate;
     private Integer currentChargeGauge;

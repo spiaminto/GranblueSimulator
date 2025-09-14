@@ -59,6 +59,8 @@ public class MemberService {
                 .user(user)
                 .room(room)
                 .currentTurn(1)
+                .partyId(user.getPrimaryPartyId())
+                .chargeAttackSkip(true)
                 .build();
 
         memberRepository.save(member);
@@ -90,7 +92,7 @@ public class MemberService {
                                     moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, actor.getElementType()).getFirst().getId() :
                                     null;
                             List<Move> summons = actor.isMainCharacter() ?
-                                    moveRepository.findAllById(party.getSummonMoveIds()) :
+                                    moveRepository.findAllById(party.getSummonIds()) :
                                     Collections.emptyList();
                             List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
                             List<Integer> summonCoolDowns = summons.stream().map(Move::getCoolDown).toList();

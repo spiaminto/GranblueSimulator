@@ -1,5 +1,3 @@
-
-
 function requestResetCoolDown() {
     let memberId = $('#memberInfo').data('member-id');
     $.ajax({

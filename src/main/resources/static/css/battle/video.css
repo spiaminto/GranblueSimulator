@@ -14,6 +14,43 @@ video.left-hidden {
     left: -5%;
 }
 
+#actorContainer>.enemy {
+    position: absolute;
+    width: 135px;
+    height: 185px;
+}
+
+#actorContainer>.actor-0 {
+    top: 103px;
+    left: 21px;
+}
+
+#actorContainer>.party {
+    position: absolute;
+    width: 74px;
+    height: 98px;
+}
+
+#actorContainer>.party.actor-1 {
+    top: 111px;
+    left: 205px;
+}
+
+#actorContainer>.party.actor-2 {
+    top: 148px;
+    left: 246px;
+}
+
+#actorContainer>.party.actor-3 {
+    top: 185px;
+    left: 205px;
+}
+
+#actorContainer>.party.actor-4 {
+    top: 222px;
+    left: 246px;
+}
+
 /*#videoContainer .charge-attack.large {*/
 /*    width: 110%;*/
 /*    height: 110%;*/
@@ -171,7 +208,7 @@ video.left-hidden {
     right: -9%;
 }
 
-.global-effect-video-wrapper .guard-status {
+#actorContainer>.party .guard-status {
     position: absolute;
     top: 0;
     left: 0;
@@ -179,33 +216,37 @@ video.left-hidden {
     height: 100%;
 }
 
-.global-effect-video-wrapper .guard-status-image {
+#actorContainer>.party .guard-status-image {
     opacity: 0;
     position: absolute;
-    z-index: 1;
-    top: 16%;
-    left: 17%;
-    width: 60%;
+    z-index: 3;
+    top: 32%;
+    left: 28%;
+    width: 55%;
 }
 
-.global-effect-video-wrapper .guard-status-effect {
+#actorContainer>.party .guard-status-effect {
     opacity: 0;
     position: absolute;
-    top: 53%;
-    left: 30%;
+    top: 28%;
+    left: 23%;
     border-radius: 50%;
     margin: 15px 15px;
-    z-index: 0;
-    width: 25px;
-    height: 25px;
-    box-shadow: 0 0 10px 13px rgba(255, 255, 255, 0.7); /* x, y, blur, spread, color */
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 0 9px 9px rgba(255, 255, 255, 0.7); /* x, y, blur, spread, color */
 }
 
-.global-effect-video-wrapper .guard-status.guard-on .guard-status-image {
+#actorContainer>.party .guard-status.guard-on-processing .guard-status-image {
+    opacity: 0.5; /* 턴진행 이펙트 처리중에는 연하게 */
+}
+
+#actorContainer>.party .guard-status.guard-on .guard-status-image {
     animation: guard-on-effect 0.5s forwards;
 }
 
-.global-effect-video-wrapper .guard-status.guard-on .guard-status-effect {
+#actorContainer>.party .guard-status.guard-on .guard-status-effect {
     animation: guard-status-effect 1.5s infinite alternate;
 }
 

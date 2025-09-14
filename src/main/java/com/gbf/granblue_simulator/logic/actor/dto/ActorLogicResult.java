@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.logic.actor.dto;
 
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
@@ -23,6 +24,7 @@ public class ActorLogicResult {
     private int mainBattleActorOrder;
     private Long targetActorId; // 적의 현재 폼을 확인하기 위해 사용
     private MoveType moveType;
+    private MotionType motionType;
 
     private Integer currentTurn;
 
