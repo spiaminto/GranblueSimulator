@@ -3,7 +3,8 @@ application-*.properties
 .Memo/**
 src/main/resources/static/assets/**
 src/main/resources/static/gbf/**
-src/main/resources/slick
+src/main/resources/static/js/slick/**
+src/main/resources/static/js/vendors/**
 
 HELP.md
 .gradle
