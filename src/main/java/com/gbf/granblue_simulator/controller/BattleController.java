@@ -272,9 +272,9 @@ public class BattleController {
     @Transactional
     public String battle(Model model) {
 
-        Room findRoom = roomRepository.findById(1L).orElseThrow(() -> new IllegalArgumentException("방을 찾을수 없음"));
+//        Room findRoom = roomRepository.findById(147L).orElseThrow(() -> new IllegalArgumentException("방을 찾을수 없음"));
 
-        Member findMember = memberRepository.findByRoomIdAndUserId(139L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+        Member findMember = memberRepository.findByRoomIdAndUserId(147L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         List<BattleActor> battleActors = findMember.getBattleActors();
         battleActors.sort(Comparator.comparing(BattleActor::getCurrentOrder));
 

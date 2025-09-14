@@ -35,7 +35,7 @@ async function processResponseMoves(responses) {
                 response.moveType === MoveType.FORM_CHANGE_DEFAULT ? await processFormChange(response) : null; // FORM_CHANGE_ENTRY 는 무시
                 break;
             case MoveType.GUARD:
-                $(`#actorContainer>.actor-${response.charOrder} .guard-status`).removeClass('guard-on').addClass('guard-on-processing'); // 가드 이펙트 연하게
+                $(`#actorContainer > .actor-${response.charOrder} .guard-status`).removeClass('guard-on').addClass('guard-on-processing'); // 가드 이펙트 연하게
                 break;
             case MoveType.FATAL_CHAIN:
                 await processFatalChain(response);
@@ -62,9 +62,10 @@ async function processResponseMoves(responses) {
     // 어빌리티 커맨드시 후처리
     let firstMoveResponse = moveResponses[0];
     let firstMoveCharOrder = firstMoveResponse.charOrder;
-    if (firstMoveResponse.moveType.getParentType() === MoveType.ABILITY) {
+    if (firstMoveResponse.moveType.getParentType() === MoveType.ABILITY
+        || firstMoveResponse.moveType.getParentType() === MoveType.SUPPORT_ABILITY) {
         // 어빌리티 후처리 (서폿어빌 X) -> 어빌리티 레일 에서 삭제 및 오버레이
-        $('.ability-rail-wrapper .rail-ability').eq(0).remove();
+        $('.ability-rail-wrapper .rail-item').eq(0).remove();
         let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' [data-ability-id=' + +']');
         $processedAbility.find('.ability-overlay').show();
     }
@@ -122,7 +123,7 @@ function processTurnEndProcess(response) {
             $damageWrapper.append($damageElements.$damage.addClass('multiple-ability-damage-show')).appendTo($('#actorContainer>.actor-0'));
             window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
             setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100); // 약간 늦게
-            setTimeout(() =>  $damageWrapper.remove(), 1000);
+            setTimeout(() => $damageWrapper.remove(), 1000);
             totalEndTime = 600;
         } else {
             enemyDamagesPostProcess(response, 0);

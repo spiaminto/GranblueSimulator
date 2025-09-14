@@ -40,16 +40,17 @@ async function processEnemyAbility(response) {
     if (response.damages.length > 0) enemyDamagesPostProcess(response, effectDuration);
 
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration + Constants.Delay.damageShowToNext);
+    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
     // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration + Constants.Delay.damageShowToNext);
+    let healEndTime = processHealEffect(response.heals, effectDuration);
     // 버프 이펙트 처리
     let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
     let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
-    let totalEndTime = debuffEndTime;
-    console.log("[processEnemyAbility] total = " + totalEndTime)
+    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
+    // console.log("[processEnemyAbility] total = " + totalEndTime)
+    console.log('[processEnemyAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);
     return new Promise(resolve => setTimeout(function () {
         console.log('ENEMY ABILITY done');
         resolve();
@@ -109,7 +110,7 @@ async function processEnemyStandBy(response) {
     if ($('.omen-container-top').hasClass('activated')) { // 이미 전조 발생중
         let beforeOmenValue = Number($('.omen-container-top').find('.omen-text .omen-value').text());
         let effectDuration = 0;
-        if (omenValue !== beforeOmenValue && !(response.motion.includes(Player.c_animations.ENEMY_STANDBY_B))) { // 전조갱신시 standby 재생
+        if (omenValue && omenValue !== beforeOmenValue) { // 전조갱신시 standby 재생 (허수 몽핵 처리는 나중에)
             $('.omen-container-top').find('.omen-text .omen-value').text(omenValue);
             effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
             effectDuration /= 3; // 원본도 감소시키는듯
@@ -238,7 +239,7 @@ async function loadNextEnemyActor() {
     console.log('enemyAnimation = ', enemyAnimation);
     loadActor(enemyAnimation, loadActorConfig);
 
-    return new Promise(resolve => {
+    return new Promise(resolve => { // TODO 위에서 await 해서, 그냥 안기다려도 될듯
         let interval = setInterval(() => { // 스테이지에 로드되면 resolve
             let found = player.m_stage.children.find(child => child.name === assetInfo.asset.mainCjs);
             if (found) {

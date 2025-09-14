@@ -34,6 +34,8 @@ class Actor {
         this.multiAttackEffectCjses = []; // 난격용 이펙트
         this.additionalCjs = null; // for boss's another specials
 
+        this.trackingTween = null;
+
         // motions
         this.allMotions = []; // list of list of available motions for all animations : Array<String>, ['attack', 'wait', ...], 캐릭터 상한 별로 최대 2개인듯. 선택가능한 모든 모션이 포함됨, 표시용으로만 사용하는듯 현재는 값이 유효하지 않아도 됨.
         this.playingMotion = null;
@@ -125,8 +127,8 @@ class Actor {
     play(playRequest, synced = false) {
         // 자신의 이펙트 실행중엔 다음 요청이 이펙트가 아닌경우 무시
         if (this.player.effectPlaying && this.player.effectPlayingActorIndex === this.actorIndex && !playRequest.isEffecting) return -1;
-        
-        if (this.playingTimeout) {
+
+        if (this.trackingTween) { // 이전 모션이 실행중일경우 즉시종료후 request 모션 실행
             this.animationCompleted(false);
         }
 
@@ -317,7 +319,7 @@ class Actor {
 
         if (duration === 0) {
             duration = 30;
-            console.log('mainCjs = ', this.mainCjs)
+            console.log('[playMotion] DEBUG DURATION = 0, mainCjs = ', this.mainCjs, 'motion = ', motion, 'index', this.actorIndex);
         }
         if (duration === 0) duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
         // if (duration === 0) throw new Error("cjs duration is 0. motion = " + motion + " cjs = " + this.mainCjs);
@@ -326,16 +328,23 @@ class Actor {
         let ceiledDurationMilliSeconds = ceiledDurationSeconds * 1000;
         // if (ceiledDurationSeconds === 0) ceiledDurationSeconds = 10;
 
-        this.playingTimeout = setTimeout(() => this.animationCompleted(true), ceiledDurationMilliSeconds);
-        return ceiledDurationMilliSeconds; // frames
+        // this.playingTimeout = setTimeout(() => this.animationCompleted(true), ceiledDurationMilliSeconds);
+
+        // create main tween, all the tweens are merely used to keep track of the animation durations
+        this.trackingTween = createjs.Tween.get(this.mainCjs, { // instead of stage, use individual cjs to getTween
+            useTicks: true,
+            override: true,
+            paused: false, // we do not pause
+        }).wait(duration).call(function (actor) {
+            actor.animationCompleted(true);
+        }, [this]);
+
+        return ceiledDurationMilliSeconds;
     }
 
 // called when the animation is completed
     animationCompleted(toWait = false) {
-        if (this.playingTimeout) {
-            clearTimeout(this.playingTimeout);
-            this.playingTimeout = null;
-        }
+        this.trackingTween = null;
 
         if (this.effectCjs) {  // if there is a special, clean up
             this.cjsStage.removeChild(this.effectCjs);
@@ -386,7 +395,7 @@ class Actor {
 // retrieve the animation duration (in frames)
     getCjsDuration(cjs) {
         if (!cjs) {
-            console.warn("cjs is null", 'this.actor = ', this.actorId, ' effectCjs = ', this.effectCjs, ' motion = ', this.playingMotion,' abilityCjsType = ', this.abilityCjsType); // fatalChain 의 burstNNN.js 사용시 undefined cjs 가 넘어옴. 이펙트 재생에는 문제없으므로 스킵
+            console.warn("cjs is null", 'this.actor = ', this.actorId, ' effectCjs = ', this.effectCjs, ' motion = ', this.playingMotion, ' abilityCjsType = ', this.abilityCjsType); // fatalChain 의 burstNNN.js 사용시 undefined cjs 가 넘어옴. 이펙트 재생에는 문제없으므로 스킵
             return 0; // 주인공이 어빌리티 사용시 ab_motion 이 없어서 null 나옴
         }
         if (!(cjs instanceof createjs.MovieClip)) // shouldn't happen
@@ -555,6 +564,7 @@ class Actor {
     addSummon() {
         // console.log('addSummon', cjs);
         let summonCjs = this.effectCjs;
+
         // the newer files are in two files (attack and damage)
         // both seems to use the fullscreen offset
         if (summonCjs.name.includes("_attack") || summonCjs.name.includes("_damage")) {

@@ -72,7 +72,11 @@ const GlobalSrc = {
     TURN_DAMAGE: {video: '', audio: '/static/assets/audio/gl/gl-turn-damage.mp3',},
     STATUS_REMOVED: {video: '', audio: '/static/assets/audio/gl/gl-status-removed.mp3',},
     SHOCKED: {video: '/static/assets/video/gl/gl-shocked.webm', audio: '/static/assets/audio/gl/gl-shocked.mp3',},
-    DEBUFF: {video: '', audio: '/static/assets/audio/gl/gl-debuff.mp3'}
+    DEBUFF: {video: '', audio: '/static/assets/audio/gl/gl-debuff.mp3'},
+
+
+    REQUEST_ATTACK: {video: '', audio: '/static/assets/audio/gl/request-attack.mp3'},
+    CANCEL_ATTACK: {video: '', audio: '/static/assets/audio/gl/cancel-attack.mp3'},
 }
 Object.freeze(GlobalSrc);
 

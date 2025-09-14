@@ -14,6 +14,8 @@ function initPlayer() {
 class Player {
 
     constructor() {
+        this.locked = false; // 사용자가 조작불가능한 상태 (공격버튼 클릭)
+
         // player size
         this.width = 0;
         this.height = 0;
@@ -76,6 +78,10 @@ class Player {
         window.stage = {};
         window.stage.global = {};
         window.stage.global.is_pair_chain = false; // 보이스 재생용인듯. 잇는캐릭 잇고 없는 캐릭 잇어서 비활성화
+        
+        // 합체소환
+        window.stage.gGameStatus = {};
+        window.stage.gGameStatus.raid_union_summon_name = 'hello';
     }
 
     // change the player size
@@ -91,6 +97,10 @@ class Player {
 
     setBackgroundImage(url) {
         this.m_background.src = url;
+    }
+
+    lockPlayer(lock) {
+        this.locked = lock;
     }
 
     /**

@@ -88,7 +88,11 @@
                   abStart: {
                       cjs: 'ab_start',
                       isTargetedEnemy: true,
-                  }
+                  },
+                  // unionSummon: {
+                  //     cjs: 'raid_union_summon',
+                  //     isTargetedEnemy: false
+                  // }
               },
               demoMotions: ["stbwait"], // animation playlist under the Demo action
               isEnemy: false
@@ -170,9 +174,9 @@
                   // }
 
 
-                  $('#attackButton').on('click', function () {
-                      requestTurnProgress();
-                  })
+                  // $('#attackButton').on('click', function () {
+                  //     requestTurnProgress();
+                  // })
 
               });
           });
@@ -184,12 +188,18 @@
           // 테스트용 버튼 클릭
           // $('.sound-button-wrapper button').on('click', {}, triggerShake);
           $('.sound-button-wrapper button').on('click', function () {
-              processHealEffect([1, 1, 1, 1, 1], 0)
+              // processHealEffect([1, 1, 1, 1, 1], 0)
               // processEnemyChargeAttackPreEffect();
               // loadNextEnemyActor().then(() => processFormChange({}));
               // cjsPlayTest()
               // testMove()
+              cjsTest()
           });
+
+          async function cjsTest() {
+              let effectDuration = await player.play(Player.playRequest('actor-0', 'gattai'));
+              console.log('[cjsPlayTest] effectDuration = ', effectDuration);
+          }
 
           async function cjsPlayTest() {
               [0, 1, 2, 3, 4].forEach(async number => {
@@ -350,11 +360,18 @@
   </div><!-- #battleCanvas -->
 
   <div id="commandContainer">
-    <div id="abilityRail">
+
+    <div id="abilityRailContainer">
       <div class="ability-rail-wrapper">
-        <div class="rail-ability-dummy rail-ability-0"> <!-- 더미는 높이 유지용으로 만듦. -->
-          <img src="/static/assets/img/ch/paladin/ability-1.png">
+        <div id="abilityRail">
+          <div class="rail-ability-dummy rail-ability-0"> <!-- 더미는 높이 유지용으로 만듦. -->
+            <img src="/static/assets/img/ch/paladin/ability-1.png">
+          </div>
         </div>
+      </div>
+      <div id="attackButtonWrapper">
+        <button class="attack-button" id="attackButton"></button>
+        <img src="/static/assets/img/ui/ui-attack.png">
       </div>
     </div>
 
@@ -568,7 +585,6 @@
 
 
   <div class="container position-relative">
-    <button class="attack-button" id="attackButton">attack</button>
     <button id="audioButton">audio</button>
     <button id="audioPlayButton">play</button>
   </div>
