@@ -38,4 +38,5 @@ public enum StatusType {
     }
 
     public boolean isPresentable() {return this != PASSIVE ;} // 외부에 보여줄 효과
+    public boolean isForAllStatus() {return this == BUFF_FOR_ALL || this == DEBUFF_FOR_ALL || this == CLEAR_FOR_ALL;}
 }

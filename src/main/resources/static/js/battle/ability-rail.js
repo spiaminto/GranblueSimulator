@@ -110,14 +110,6 @@ $(function () {
             .appendTo($('#abilityRail'));
     }
 
-    function cancelAttack() {
-        $('#abilityRail .rail-item-attack').remove(); // 레일에서 삭제
-        $('#attackButtonWrapper').removeClass('cancel');
-        $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack.png');
-        player.lockPlayer(false); // 공격 취소시 락 해제
-        effectAudioPlayer.loadAndPlay(GlobalSrc.CANCEL_ATTACK.audio);
-    }
-
     const abilityRailMutationObserver = new MutationObserver((entries) => {
         console.log(entries);
         let $abilityRail = $(entries[0].target); // #abilityRail

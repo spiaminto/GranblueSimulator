@@ -99,6 +99,7 @@ public enum MoveType {
 
     ETC(ROOT, "etc"),
         STRIKE_SEALED(ETC, "strike-sealed"), // 공격불가일때 사용 (DB 저장 X)
+        SYNC(ETC, "sync"), // 동기화용
 
     NONE(ROOT, "none"),
     ;

@@ -12,8 +12,12 @@ import java.util.List;
 @Data @Builder
 public class BattleResponse {
     private int charOrder;
+
     private MoveType moveType;
+    private String moveName;
+
     private String motion;
+
     private int totalHitCount;
     private int attackMultiHitCount;
 
@@ -49,7 +53,9 @@ public class BattleResponse {
     private String omenName;
     private String omenInfo;
 
-    private Long summonId; // 소환석 사용시 반환
+    private List<Long> summonIds; // 소환석 사용시 반환
+    @Builder.Default
+    private List<String> summonCjsNames = new ArrayList<>();
 
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();

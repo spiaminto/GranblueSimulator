@@ -12,7 +12,6 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
-import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import com.gbf.granblue_simulator.service.ActorService;
 import jakarta.transaction.Transactional;
@@ -25,8 +24,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @Controller
 @Slf4j
@@ -89,7 +86,7 @@ public class PartyController {
         PartyCharacterInfo characterInfo = PartyCharacterInfo.builder()
                 .id(characterId)
                 .name(actor.getName())
-                .isMainCharacter(actor.isMainCharacter())
+                .isMainCharacter(actor.isLeaderCharacter())
                 .portraitSrc(actor.getBattlePortraitSrc())
                 .chargeAttack(actor.getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
                 .abilities(actor.getMoves().values().stream()

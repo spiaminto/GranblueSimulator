@@ -7,22 +7,22 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
 @Builder
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter @ToString @EqualsAndHashCode
 public class ActorLogicResult {
 
     // 필수
     private Long mainBattleActorId;
     private Long mainActorId; // battleActor.actor.id
     private int mainBattleActorOrder;
-    private Long targetActorId; // 적의 현재 폼을 확인하기 위해 사용
     private MoveType moveType;
     private MotionType motionType;
 
@@ -46,9 +46,15 @@ public class ActorLogicResult {
     @Builder.Default
     private List<List<BattleStatusDto>> removedBattleStatusesList = new ArrayList<>();
     @Builder.Default
+    private List<List<BattleStatusDto>> currentBattleStatusesList = new ArrayList<>();
+    @Builder.Default
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
     @Builder.Default
     private List<Integer> heals = new ArrayList<>();
+    
+    // 프론트 갱신용 텍스트
+    private String moveName;
+    private String mainActorName;
 
     // 비필수, 중요
     private int strikeCount; // 공격 행동 횟수
@@ -57,6 +63,10 @@ public class ActorLogicResult {
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
     private int enemyChargeGauge;
+    
+    // 소환
+    @Builder.Default
+    private List<Long> summonIds = new ArrayList<>();
 
     private OmenType omenType;
     private Integer omenValue;
@@ -76,4 +86,8 @@ public class ActorLogicResult {
     @Accessors(fluent = true)
     private boolean executeChargeAttack; // 오의 재발동 여부
     private StatusTargetType executeAttackTargetType; // 턴 진행 없이 일반공격 대상, 없으면 null
+
+    public void updateSummonIds(List<Long> summonIds) {
+        this.summonIds.addAll(summonIds);
+    }
 }

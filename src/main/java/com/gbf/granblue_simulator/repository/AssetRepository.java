@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {
@@ -17,5 +18,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     @Query("SELECT a FROM Asset a WHERE a.rootCjsName IN (SELECT a1.cjsName FROM Asset a1 WHERE a1.id IN :assetIds)")
     List<Asset> findWithChildrenByAssetId(List<Long> assetIds);
 
-    Asset findByMoveId(Long moveId);
+    List<Asset> findByMoveId(Long moveId);
+
+    @Query("SELECT a FROM Asset a WHERE a.actorId = :actorId AND a.type = 'ACTOR'")
+    Optional<Asset> findRootAssetByActorId(Long actorId);
 }

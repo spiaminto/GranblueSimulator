@@ -137,4 +137,17 @@ public class BattleStatus {
     public boolean isPerpetual() {
         return this.duration > 9000;
     }
+
+    /**
+     * 참전자 효과인지 확인
+     * @return
+     */
+    public boolean isForAll() {
+        return this.getStatus().getType().isForAllStatus();
+    }
+
+    public boolean isSameFromStatus(BattleStatus battleStatus) {
+        return this.getStatus().getId().equals(battleStatus.getStatus().getId());
+    }
+
 }

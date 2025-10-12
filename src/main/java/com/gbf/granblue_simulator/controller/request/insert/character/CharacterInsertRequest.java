@@ -8,5 +8,5 @@ public class CharacterInsertRequest {
     private String name;
     private String nameEn;
     private ElementType elementType;
-    private String isMainCharacter;
+    private String isLeaderCharacter;
 }

@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.domain.actor.battle;
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.actor.Actor;
+import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.common.dto.SyncStatusDto;
@@ -139,6 +140,10 @@ public abstract class BattleActor {
         return "Enemy".equals(this.actor.getDtype());
     }
 
+    public boolean isCharacter() {
+        return "Character".equals(this.actor.getDtype());
+    }
+
     /**
      * 기타 스테이터스 초기화
      */
@@ -165,8 +170,12 @@ public abstract class BattleActor {
         this.maxHp = maxHp;
     }
 
+    /**
+     * 체력 값을 업데이트, maxHP 보다 많은 값이 전달될경우 maxHP 로 설정
+     * @param hp
+     */
     public void updateHp(int hp) {
-        this.hp = hp;
+        this.hp = Math.min(this.maxHp, hp);
     }
 
     public void updateChargeGauge(int chargeGauge) {
@@ -175,6 +184,15 @@ public abstract class BattleActor {
 
     public void updateFatalChainGauge(int gauge) {
         this.fatalChainGauge = gauge;
+    }
+
+    /**
+     * currentOrder 를 업데이트,
+     * 캐릭터가 죽으면 +100, 후열캐릭터 등장시 해당 order 세팅해서 넘기기
+     * @param currentOrder
+     */
+    public void updateCurrentOrder(int currentOrder) {
+        this.currentOrder = currentOrder;
     }
 
     public void syncStatus(SyncStatusDto dto) {
@@ -197,6 +215,12 @@ public abstract class BattleActor {
     public Integer calcHpRate() {
         return (int) (((double) hp / maxHp) * 100);
     }
+
+    /**
+     * 자신의 hp 가 0 이하인경우 true
+     * @return
+     */
+    public boolean isDead() { return this.hp <= 0; }
 
     public void changeGuard(boolean isGuardOn) {
         this.isGuardOn = isGuardOn;
@@ -273,6 +297,22 @@ public abstract class BattleActor {
 
     public Move getMove(MoveType moveType) {
         return this.getActor().getMoves().getOrDefault(moveType, Move.getTransientMove(MoveType.NONE));
+    }
+
+    /**
+     * 빈 캐릭터를 반환 <br>
+     * <b>턴종처리</b> 에서만 사용
+     * 
+     * @return
+     */
+    public static BattleActor getTransientCharacter(Member member) {
+        return BattleCharacter.builder()
+                .actor(Character.builder().name("transient").build())
+                .member(member)
+                .name("transient")
+                .id(0L)
+                .currentOrder(-1)
+                .build();
     }
 
 }

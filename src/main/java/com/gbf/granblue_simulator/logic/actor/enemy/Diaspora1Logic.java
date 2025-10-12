@@ -7,6 +7,7 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import com.gbf.granblue_simulator.logic.SyncLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
@@ -16,10 +17,7 @@ import com.gbf.granblue_simulator.service.BattleLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 
@@ -27,14 +25,41 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @Slf4j
 public class Diaspora1Logic extends EnemyLogic {
 
-    public Diaspora1Logic(EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic) {
+    public Diaspora1Logic(EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, ActorRepository actorRepository, CalcStatusLogic calcStatusLogic, SyncLogic syncLogic) {
         super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, actorRepository);
     }
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers) {
-        // 사포아비4 -> 전투시작시 자신에게 활성부여
-        return List.of(fourthSupportAbility(mainActor, partyMembers, mainActor.getMove(MoveType.FOURTH_SUPPORT_ABILITY), null));
+        List<ActorLogicResult> battleStartResults = new ArrayList<>();
+        // CHECK 다른 보스들과 다르게 디아스포라의 경우 타인의 보스가 폼체인지 후라도, 반드시 긴급수복모드를 해제해야 폼체인지 되도록 설계됨
+        // 1. 서포어비4 -> 자신에게 활성 버프
+        battleStartResults.add(fourthSupportAbility(mainActor, partyMembers, mainActor.getMove(MoveType.FOURTH_SUPPORT_ABILITY), null));
+        // 2. 자신의 활성레벨 갱신 (프론트 표시 없이 내부적으로 한번에 다 올림)
+        // 알파
+        BattleStatus modeAlphaBattleStatus = getBattleStatusByName(mainActor, "활성 『알파』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 알파 없음"));
+        Integer attackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(mainActor, MoveType.ATTACK);
+        int levelFromAttackDamageSum = attackDamageSum / 300000 + 1;
+        log.info("levelFromAttackDamageSum = {}", levelFromAttackDamageSum);
+        setStatusLogic.addBattleStatusLevel(mainActor, levelFromAttackDamageSum - 1, modeAlphaBattleStatus);
+        // 베타
+        BattleStatus modeBetaBattleStatus = getBattleStatusByName(mainActor, "활성 『베타』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 베타 없음"));
+        Integer abilityDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(mainActor, MoveType.ABILITY);
+        int levelFromAbilityDamageSum = abilityDamageSum / 300000 + 1;
+        log.info("levelFromAbilityDamageSum = {}", levelFromAbilityDamageSum);
+        setStatusLogic.addBattleStatusLevel(mainActor, levelFromAbilityDamageSum - 1, modeBetaBattleStatus);
+        // 감마
+        BattleStatus modeGammaBattleStatus = getBattleStatusByName(mainActor, "활성 『감마』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 감마 없음"));
+        Integer chargeAttackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(mainActor, MoveType.CHARGE_ATTACK);
+        int levelFromChargeAttackDamageSum = chargeAttackDamageSum / 300000 + 1;
+        log.info("levelFromChargeAttackDamageSum = {}", levelFromChargeAttackDamageSum);
+        setStatusLogic.addBattleStatusLevel(mainActor, levelFromChargeAttackDamageSum - 1, modeGammaBattleStatus);
+        // 3. 갱신된 활성버프를 기반으로 서포어비 2 발동 (최대활성시, 타 활성레벨 삭제 후 긴급수복모드 이행)
+        battleStartResults.add(secondSupportAbility(mainActor, partyMembers, null, null));
+        // 4. 전조 발생가능시 발생 (긴급 수복모드인 경우만 상정)
+        omenLogic.triggerOmen(mainActor).ifPresent(standby -> battleStartResults.add(resultMapper.toResultWithOmen(mainActor, partyMembers, standby, standby.getOmen())));
+
+        return battleStartResults;
     }
 
     @Override
@@ -77,6 +102,8 @@ public class Diaspora1Logic extends EnemyLogic {
         return results;
     }
 
+
+
     @Override
     public List<ActorLogicResult> postProcessToEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult enemyResult) {
         // 자신의 자괴인자 STANDBY_B 가 해제됬을시 서포어비 5 발동 -> 자괴인자 레벨 감소
@@ -109,10 +136,7 @@ public class Diaspora1Logic extends EnemyLogic {
             setStandbyBEveryFiveTurns(mainActor);
 
         // 전조발생
-        omenLogic.determineStandbyMove(enemy).ifPresent(standby -> {
-            omenLogic.setStandbyMove(enemy, standby);
-            results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen()));
-        });
+        omenLogic.triggerOmen(enemy).ifPresent(standby -> results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen())));
 
         return results;
     }
@@ -127,7 +151,7 @@ public class Diaspora1Logic extends EnemyLogic {
                                 otherMoveParentType == MoveType.CHARGE_ATTACK ? "활성 『감마』" : "해당 스테이터스 없음";
         if (!matchingStatusName.equals("해당 스테이터스 없음")) {
             // 해당 공격 타입 누적데미지 합과 증가시킬 스테이터스
-            Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, otherMoveParentType);
+            Integer takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(mainActor, otherMoveParentType);
             BattleStatus matchedBattleStatus = getBattleStatusByName(mainActor, matchingStatusName).orElse(null);
             if (matchedBattleStatus == null) {
                 // 해당 스테이터스가 제거됨 (긴급수복모드 등)
@@ -137,8 +161,12 @@ public class Diaspora1Logic extends EnemyLogic {
             // log.info("[firstSupportAbility] otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
             // TEST 값 3000000 (삼백만) -> 300000 (삼십만)
             int levelFromTakenDamage = takenDamageSum / 300000 + 1; // 배틀 스테이터스가 레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
-            if (levelFromTakenDamage > matchedBattleStatus.getLevel()) {
-                // 스테이터스 레벨 상승 - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
+            if (levelFromTakenDamage < matchedBattleStatus.getStatus().getMaxLevel()) {
+                int levelDiff = levelFromTakenDamage - matchedBattleStatus.getLevel();
+                if (levelDiff > 1) { // 차이가 1보다 크면, 초과분은 직접레벨업
+                    setStatusLogic.addBattleStatusLevel(mainActor, levelDiff - 1, matchedBattleStatus);
+                }
+                // 레벨상승 및 프론트로 반환
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(matchedBattleStatus.getStatus()));
                 return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
             }

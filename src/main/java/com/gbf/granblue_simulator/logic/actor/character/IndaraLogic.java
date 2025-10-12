@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
@@ -22,8 +23,9 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @Slf4j
 @Transactional
 public class IndaraLogic extends CharacterLogic {
-    public IndaraLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic) {
-        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+
+    public IndaraLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, BattleContext battleContext) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, battleContext);
     }
 
     @Override // 사포아비 1
@@ -163,7 +165,8 @@ public class IndaraLogic extends CharacterLogic {
                 .filter(battleStatus -> battleStatus.getLevel() >= 10)
                 .map(battleStatus -> {
                     DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability);
-                    return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, defaultResult.getSetStatusResult());
+                    if (defaultResult.getSetStatusResult().getRemovedStatuesList().isEmpty()) return resultMapper.emptyResult(); // 디스펠 못햇으면 빈결과
+                    else return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, defaultResult.getSetStatusResult());
                 }).orElseGet(resultMapper::emptyResult);
     }
 }

@@ -113,7 +113,9 @@ class Player {
      * @param {boolean} [options.isMotionOnly]
      * @param {number} [options.multiHitCount]
      * @param {boolean} [options.isLastAttack]
-     * @returns {{ actorId: string, motion: string, abilityType: string, effectType: string, isEffectOnly: boolean, isMotionOnly: boolean, multiHitCount: number, isLastAttack: boolean, isEffecting: boolean }}
+     * @param {number} [options.summonId]
+     * @param {string} [options.unionSummonCjs]
+     * @returns {{ actorId: string, motion: string, abilityType: string, effectType: string, isEffectOnly: boolean, isMotionOnly: boolean, multiHitCount: number, isLastAttack: boolean, isEffecting: boolean, summonId: number, unionSummonCjs: string }}
      */
     static playRequest(actorId, motion, options = {}) {
         let isEffecting = Player.c_animations.isEffecting(motion); // 화면 점유 여부
@@ -121,6 +123,7 @@ class Player {
         return {
             actorId: actorId,
             motion: motion,
+            options: options,
             abilityType: options.abilityType || 'NONE',
             effectType: options.effectType || 'NONE',
             isEffectOnly: options.isEffectOnly || false,
@@ -128,6 +131,8 @@ class Player {
             multiHitCount: options.multiHitCount || 0,
             isLastAttack: options.isLastAttack || false,
             isEffecting: isEffecting,
+            summonId: options.summonId || 0,
+            unionSummonCjs: options.unionSummonCjs || ''
         }
     }
 
@@ -139,18 +144,18 @@ class Player {
     static getCharacterWaitMotion(actorIndex) {
         let actor = player.actors.get('actor-' + actorIndex);
         let motion = Player.c_animations.STB_WAIT;
-        // 어빌리티 슬라이더 열려있음
-        let isAbilitySliderOpen = $('#abilitySlider').css('z-index') >= 0;
-        if (isAbilitySliderOpen) {
-            let Slick = $('#abilitySlider').slick('getSlick');
-            let currentSlide = Slick.currentSlide;
-            let actorIndex = Slick.animating ? currentSlide + 2 : currentSlide + 1; // slick 이 움직이고 있을때 beforeChange 로 들어오면, currentSlide 는 아직 이전 슬라이드를 가리킴
-            // console.log('currentSlide = ', currentSlide, 'animating = ', Slick.animating);
-            if (actorIndex === actor.actorIndex) {
-                return Player.c_animations.ABILITY;
-            }
-        }
-        // 오의 on 및 오의게이지에 따른 모션 (후순위)
+        // 어빌리티 슬라이더 열려있음 -> CHECK 애초에 어빌리티 슬라이더 이동중에 ABILITY 로 직접 재생 호출하고있음.
+        // let isAbilitySliderOpen = $('#abilitySlider').css('z-index') >= 0;
+        // if (isAbilitySliderOpen) {
+        //     let Slick = $('#abilitySlider').slick('getSlick');
+        //     let currentSlide = Slick.currentSlide;
+        //     let actorIndex = Slick.animating ? currentSlide + 2 : currentSlide + 1; // slick 이 움직이고 있을때 beforeChange 로 들어오면, currentSlide 는 아직 이전 슬라이드를 가리킴
+        //     console.log('currentSlide = ', currentSlide, 'animating = ', Slick.animating);
+        //     if (actorIndex === actor.actorIndex) {
+        //         return Player.c_animations.ABILITY;
+        //     }
+        // }
+        // 오의 on 및 오의게이지에 따른 모션
         let chargeGaugeValue = Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text());
         let chargeAttackOn = $('#chargeAttackActiveCheck').prop('checked');
         if (actor.isCharacter() && chargeGaugeValue === 100 && chargeAttackOn) { // CHECK 200대응 필요
@@ -158,6 +163,8 @@ class Player {
                 ? Player.c_animations.NONE // 이미 ABILITY 재생중이면 무시
                 : Player.c_animations.ABILITY; // 오의게이지 차있으면 ABILITY
         }
+        // 빈사상태일때 모션 (후순위)
+        if (actor.hpRate <= 25) return Player.c_animations.DOWN;
 
         return motion; // 기본
     }
@@ -196,7 +203,7 @@ class Player {
     }
 
     getCharacterCount() {
-        return this.actors.values().toArray().filter(actor => actor.isCharacter).length;
+        return this.actors.values().toArray().filter(actor => actor.isCharacter()).length;
     }
 
     alterStageIndex(cjs, indexType = null) {
@@ -207,6 +214,14 @@ class Player {
             let actorIndex = this.actors.values().find((actor) => actor.mainCjs === cjs).actorIndex;
             this.m_stage.setChildIndex(cjs, actorIndex);
         }
+    }
+
+    removeActor(actorIndex) {
+        console.log('[removeActor] actorIndex = ', actorIndex);
+        let removeActor = this.actors.get('actor-' + actorIndex);
+        this.m_stage.removeChild(removeActor.mainCjs); // 스테이지에서 삭제
+
+        this.actors.delete('actor-' + removeActor.actorIndex); // 최종삭제
     }
 
 
@@ -607,16 +622,16 @@ class Player {
             }
         },
 
-        isFormChange(motion) { // form change
-            switch (motion) {
-                case Player.c_animations.CHANGE:
-                case Player.c_animations.CHANGE_FROM:
-                case Player.c_animations.CHANGE_FROM_2:
-                    return true;
-                default:
-                    return false;
-            }
-        },
+        // isFormChange(motion) { // form change
+        //     switch (motion) {
+        //         case Player.c_animations.CHANGE:
+        //         case Player.c_animations.CHANGE_FROM:
+        //         case Player.c_animations.CHANGE_FROM_2:
+        //             return true;
+        //         default:
+        //             return false;
+        //     }
+        // },
 
         isAbilityMotion(motion) { // skill / ability use + WIN, TO_STB_WAIT 도 ability 모션으로 사용
             switch (motion) {

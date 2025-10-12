@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.logic.actor.character;
 
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
@@ -23,8 +24,8 @@ import java.util.List;
 @Transactional
 public class HairaLogic extends CharacterLogic {
 
-    public HairaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic) {
-        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+    public HairaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, BattleContext battleContext) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, battleContext);
     }
 
     @Override

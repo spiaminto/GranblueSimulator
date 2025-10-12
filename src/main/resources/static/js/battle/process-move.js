@@ -47,8 +47,13 @@ async function processResponseMoves(responses) {
                 await processTurnEndProcess(response);
                 $('#actorContainer .guard-status').removeClass('guard-on-processing'); // 가드 해제
                 break;
+            case MoveType.DEAD:
+                await processDead(response);
+                break;
             case MoveType.ETC:
                 if (response.moveType === MoveType.STRIKE_SEALED) await processStrikeSealed(response);
+                if (response.moveType === MoveType.SYNC) await processSync(response);
+                break;
             case MoveType.ROOT:
             default:
                 console.log('[processResponseMoves] invalid type]', response.moveType);
@@ -60,15 +65,86 @@ async function processResponseMoves(responses) {
     $('#actorContainer .guard-status').removeClass('guard-on-processing');
 
     // 어빌리티 커맨드시 후처리
-    let firstMoveResponse = moveResponses[0];
-    let firstMoveCharOrder = firstMoveResponse.charOrder;
-    if (firstMoveResponse.moveType.getParentType() === MoveType.ABILITY
-        || firstMoveResponse.moveType.getParentType() === MoveType.SUPPORT_ABILITY) {
+    if (moveResponses[0].moveType === MoveType.SYNC && moveResponses[1]?.moveType.getParentType() === MoveType.ABILITY) {
+        // 첫번째가 sync, 두번째가 ABILITY 인 경우 직접 눌러 발동한 어빌리티 취급, CHECK 나중에 조건 개선 필요, 자동발동 어빌리티와 구분해야함.
+        let abilityResponse = moveResponses[1];
+        let abilityCharOrder = abilityResponse.charOrder;
         // 어빌리티 후처리 (서폿어빌 X) -> 어빌리티 레일 에서 삭제 및 오버레이
         $('.ability-rail-wrapper .rail-item').eq(0).remove();
-        let $processedAbility = $('.ability-panel.actor-' + firstMoveCharOrder + ' [data-ability-id=' + +']');
+        let $processedAbility = $('.ability-panel.actor-' + abilityCharOrder + ' [data-ability-id=' + +']');
         $processedAbility.find('.ability-overlay').show();
+    } else {
+        // 공격 후처리
+        cancelAttack();
     }
+
+}
+
+async function processDead(response) {
+    console.log('[processDead] resp = ', response);
+    // charOrder 가 처리된 순서로 넘어옴에 주의
+    let charOrder = response.charOrder - 100;
+
+    // 사망
+    let effectDuration = await player.play(Player.playRequest('actor-' + charOrder, Player.c_animations.DEAD));
+    await new Promise(resolve => setTimeout(() => resolve(effectDuration), effectDuration))
+
+    // battle-portrait 삭제
+    let $emptyBattlePortrait = $('<div>').append(
+        $('<div>').addClass('battle-portrait empty').append(
+            $('<img>')
+                .attr('src', '/static/assets/img/gl/ch-empty.jpg')
+                .attr('data-seq', charOrder))); // 이거 어따쓰는건지?
+    let $deadBattlePortrait = $('.battle-portrait').eq(charOrder - 1); // empty 까지 포함해야 제대로 순서구해짐
+    console.log('[processDead] $deadBattlePortrait = ', $deadBattlePortrait, ' $emptyBattlePortrait = ', $emptyBattlePortrait)
+    $deadBattlePortrait.before($emptyBattlePortrait);
+    $deadBattlePortrait.remove();
+
+    // abilityPanel 삭제 (되도록 slickRemove 로 지우기)
+    let abilityPanels = $('#abilitySlider .slick-slide:not(.slick-cloned) .ability-panel');
+    let deadCharacterAbilityPanel = abilityPanels.filter(`[data-character-order="${charOrder}"]`);
+    $('#abilitySlider').slick('slickRemove', abilityPanels.index(deadCharacterAbilityPanel));
+
+    // player.actor 삭제
+    player.removeActor(charOrder);
+
+    // 가드 표시 있으면 삭제
+    $('#actorContainer .guard-status').eq(charOrder - 1).removeClass('guard-on-processing');
+
+    let totalEndTime = effectDuration + 200;
+    return new Promise(resolve => setTimeout(function () {
+        console.log(response.moveType.name + ' done');
+        resolve();
+    }, totalEndTime));
+}
+
+async function processSync(response) {
+    // 데미지 처리 X
+
+    // 이펙트는 공통 이펙트 사용 (버프 있거나 힐 있을때만)
+    let effectDuration = 0;
+    if (response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0)
+        || response.heals.find(heal => heal > 0)) {
+        effectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'buffForAll'}));
+    }
+
+    // 스테이터스 아이콘 갱신
+    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
+    // 힐 이펙트 처리
+    let healEndTime = processHealEffect(response.heals, effectDuration);
+    // 버프 이펙트 처리
+    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
+    // 디버프 이펙트 처리
+    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
+
+    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
+    // console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
+
+    return new Promise(resolve => setTimeout(function () {
+        console.log(response.moveType.name + ' done');
+        resolve();
+    }, totalEndTime));
+
 }
 
 
@@ -120,13 +196,13 @@ function processTurnEndProcess(response) {
             // 적에 대한 턴종 데미지 (1개만 발생, 타겟 오더 없음)
             let $damageWrapper = $('<div>', {class: 'damage-wrapper ability'});
             let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 0, response.damages[0], []);
-            $damageWrapper.append($damageElements.$damage.addClass('multiple-ability-damage-show')).appendTo($('#actorContainer>.actor-0'));
+            $damageWrapper.append($damageElements.$damage.addClass('party-turn-damage-show')).appendTo($('#actorContainer>.actor-0'));
             window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
             setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100); // 약간 늦게
             setTimeout(() => $damageWrapper.remove(), 1000);
             totalEndTime = 600;
         } else {
-            enemyDamagesPostProcess(response, 0);
+            enemyDamagesPostProcess(response, 0, true);
             window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
             totalEndTime = 600;
         }

@@ -238,7 +238,7 @@ public abstract class EnemyLogic {
         Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
         Omen standbyOmen = standby.getOmen();
         // 전조 연산
-        Integer processedOmenValue = omenLogic.processOmen(mainEnemy, otherResult);
+        int processedOmenValue = omenLogic.updateOmenValue(mainEnemy, otherResult);
         if (processedOmenValue == 0) {
             // 전조 중단 (브레이크)
             resultMove = mainEnemy.getActor().getMoves().get(standby.getType().getBreakType());

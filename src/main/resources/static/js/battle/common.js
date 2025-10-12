@@ -39,7 +39,6 @@ function processHealEffect(healArray, effectMotionDuration) {
     // let audioPlayer = new AudioPlayer().init();
     let healEffectDuration = 500;
 
-    let $enemyDamageWrappers = new Map(); // 적의 데미지 컨테이너에 힐 표시 래퍼를 추가하여 사용
     let healWrappers = [];
     let lastStartDelay = 0;
     healArray.forEach(function (heal, actorIndex) {
@@ -59,12 +58,13 @@ function processHealEffect(healArray, effectMotionDuration) {
                 let $actorContainer = $(`#actorContainer > .actor-${actorIndex}`);
                 let isEnemyDamage = actorIndex !== 0; // 아군인 경우 적의 공격데미지 클래스를 사용하기 위함
                 let $damageElements = getDamageElement(0, 'NONE', 'attack', 0, heal, [], isEnemyDamage);
-                $healWrapper.append($damageElements.$damage.addClass('heal heal-show')).appendTo($actorContainer);
+                let className = heal > 0 ? 'heal heal-show' : 'enemy-damage-show';
+                $healWrapper.append($damageElements.$damage.addClass(className)).appendTo($actorContainer);
             }, startDelay);
         }
     });
     // 삭제
-    setTimeout(() => healWrappers.forEach((healWrapper) => $(healWrapper).remove()), lastStartDelay + Constants.Delay.damageShowDelete);
+    // setTimeout(() => healWrappers.forEach((healWrapper) => $(healWrapper).remove()), lastStartDelay + Constants.Delay.damageShowDelete);
 
     healDelay = lastStartDelay + healEffectDuration;
     return healDelay;
@@ -300,4 +300,12 @@ function openStatusWrapperInfo($statusContainer) {
         $statusInfoModal.append($statusInfo).append($('<hr>'));
     })
     $('.status-modal-button').click();
+}
+
+function cancelAttack() {
+    $('#abilityRail .rail-item-attack').remove(); // 레일에서 삭제
+    $('#attackButtonWrapper').removeClass('cancel');
+    $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack.png');
+    player.lockPlayer(false); // 공격 취소시 락 해제
+    effectAudioPlayer.loadAndPlay(GlobalSrc.CANCEL_ATTACK.audio);
 }

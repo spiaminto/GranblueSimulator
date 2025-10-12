@@ -127,7 +127,8 @@
                   success: function (data) {
                       console.log(data)
                       alert(data.message)
-                      $("input[name='characterId']").val(data.characterId);
+                      if (data.actorId) $("input[name='characterId']").val(data.actorId);
+                      if (data.rootCjsName) $("input[name='rootCjsName']").val(data.rootCjsName);
                   },
                   error: function (xhr) {
                       console.log(xhr);
@@ -137,12 +138,12 @@
 
 
           // 폼 저장
-          $('.form-save-button').on('click', function() {
+          $('.form-save-button').on('click', function () {
               let formName = $(this).attr('data-form');
               let $form = $('#' + formName);
               // input, textarea 값 저장
               let data = {};
-              $form.find('input, textarea').each(function() {
+              $form.find('input, textarea').each(function () {
                   let $input = $(this);
                   let name = $input.attr('name');
                   if (!name) return;
@@ -157,25 +158,68 @@
           });
 
           // 폼 복원
-          $('.form-load-button').on('click', function() {
+          $('.form-load-button').on('click', function () {
               let formName = $(this).attr('data-form');
               let $form = $('#' + formName);
               let data = JSON.parse(localStorage.getItem(formName));
-              if (!data) { return; }
+              if (!data) {
+                  return;
+              }
               // input, textarea 값 복원
-              $form.find('input, textarea').each(function() {
+              $form.find('input, textarea').each(function () {
                   let $input = $(this);
                   let name = $input.attr('name');
                   if (!name) return;
                   $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
               });
               // status 체크박스 show/hide 및 입력란 표시
-              $form.find('.status-input-check').each(function(idx) {
+              $form.find('.status-input-check').each(function (idx) {
                   let checked = data.statusChecks && data.statusChecks[idx];
                   $(this).prop('checked', !!checked).trigger('change');
               });
               alert('복원');
           });
+
+          //applyCjsName
+          $('#applyCjsButton').on('click', function () {
+              let assetType = $('#characterAssetInputForm select[name="assetType"]').val(); // ACTOR, SPECIAL, ...
+              let isAll = $('#characterAssetInputForm .is-all-check').prop('checked');
+              let allPrefix = isAll ? 'all_' : '';
+              let cjsId = $('#characterAssetInputForm input[name="cjsId"]').val(); // 000019234
+              let cjsName = '';
+
+              switch (assetType) {
+                  case 'ACTOR':
+                      cjsName = 'npc_' + cjsId + '_02'; // npc_3040502000_02
+                      break;
+                  case 'ATTACK':
+                      cjsName = 'phit_' + cjsId; // phit_3040502000, 필요한경우 _01, _02
+                      break;
+                  case 'SPECIAL':
+                      cjsName = 'nsp_' + cjsId + '_02_s2'; // nsp_3040502000_02_s2
+                      break;
+                  case 'FIRST_ABILITY' :
+                  case 'FIRST_SUPPORT_ABILITY':
+                      cjsName = 'ab_' + allPrefix + cjsId + '_01'; // ab_3040566000_01
+                      break;
+                  case 'SECOND_ABILITY':
+                  case 'SECOND_SUPPORT_ABILITY':
+                      cjsName = 'ab_' + allPrefix + cjsId + '_02'; // ab_all_3040566000_02
+                      break;
+                  case 'THIRD_ABILITY':
+                  case 'THIRD_SUPPORT_ABILITY':
+                      cjsName = 'ab_' + allPrefix + cjsId + '_03';
+                      break;
+                  case 'FOURTH_ABILITY':
+                  case 'FOURTH_SUPPORT_ABILITY':
+                      cjsName = 'ab_' + allPrefix + cjsId + '_04';
+                      break;
+                  default :
+                      console.error('not supported type');
+              }
+
+              $('#characterAssetInputForm input[name="cjsName"]').val(cjsName);
+          })
 
           // ready
       })
@@ -198,8 +242,8 @@
   <input class="form-control mb-2" type="text" name="elementType" placeholder="">
   <div>영문명 Actor.nameEn</div>
   <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
-  <div>주인공 여부 Actor.isMainCharacter [true/false]</div>
-  <input class="form-control mb-2" type="text" name="isMainCharacter" placeholder="" value="false">
+  <div>주인공 여부 Actor.isLeaderCharacter [true/false]</div>
+  <input class="form-control mb-2" type="text" name="isLeaderCharacter" placeholder="" value="false">
   <button type="button" class="character-submit-button btn btn-primary">캐릭터저장</button>
 </form>
 
@@ -209,7 +253,7 @@
 <div class="charge-attack-input-wrapper">
   <form id="chargeAttackForm">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
-    <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="chargeAttackForm" value = "저장">
+    <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="chargeAttackForm" value="저장">
     <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="chargeAttackForm" value="복원">
 
     <div>CharacterId</div>
@@ -273,7 +317,7 @@
 
   <form id="abilityForm">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
-    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="abilityForm" value = "저장">
+    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="abilityForm" value="저장">
     <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="abilityForm" value="복원">
 
     <div>캐릭터 id</div>
@@ -393,11 +437,64 @@
 </div>
 
 
+<h2>character 에셋 </h2>
+<form id="characterAssetInputForm" target="/insert-character-asset" method="POST">
+
+  <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+  <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="characterAssetInputForm"
+         value="저장">
+  <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="characterAssetInputForm"
+         value="복원">
+
+  <div>character id</div>
+  <input class="form-control mb-2" type="text" name="characterId" placeholder="">
+  <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
+  <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
+
+  <div>asset name [인다라 (기본) / 인다라 평타 / 인다라 오의 / 인다라 평타 2 / 인다라 어비1 / 인다라 서포어비1 ]</div>
+  <input class="form-control mb-2" type="text" name="assetName" placeholder="">
+
+  <div> asset type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
+  <select class="form-select" size="12" name="assetType" required>
+    <option selected>Open this select menu</option>
+    <option value="ACTOR">ACTOR</option>
+    <option value="SPECIAL">SPECIAL</option>
+    <option value="ATTACK">ATTACK</option>
+    <option value="FIRST_ABILITY">A1</option>
+    <option value="SECOND_ABILITY">A2</option>
+    <option value="THIRD_ABILITY">A3</option>
+    <option value="FOURTH_ABILITY">A4</option>
+    <option value="FIRST_SUPPORT_ABILITY">SA1</option>
+    <option value="SECOND_SUPPORT_ABILITY">SA2</option>
+    <option value="THIRD_SUPPORT_ABILITY">SA3</option>
+    <option value="FOURTH_SUPPORT_ABILITY">SA4</option>
+  </select>
+
+  <div>cjs id (공통적용, submit x)</div>
+  <div> 평타는 구분되는경우 _01, _02 추가</div>
+  <div class="input-group mb-2">
+    <input type="text" class="form-control me-2" name="cjsId" placeholder="">
+    <div class="input-group-text me-2">
+      all
+      <input class="form-check-input mt-0 is-all-check" type="checkbox" value="">
+    </div>
+    <button class="btn btn-outline-secondary" type="button" id="applyCjsButton">id 적용</button>
+  </div>
+
+  <div> cjsName</div>
+  <input class="form-control mb-2" type="text" name="cjsName" placeholder="">
+
+  <div> chargeAttackStartFrame </div>
+  <input class="form-control mb-2" type="number" name="chargeAttackStartFrame" placeholder="" value="0">
+
+</form>
+
+
 <h2>summon 입력, ID = 6 고정</h2>
 <div class="summon-input-wrapper">
   <form id="summonForm">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
-    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="summonForm" value = "저장">
+    <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="summonForm" value="저장">
     <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="summonForm" value="복원">
 
     <div>CharacterId</div>
@@ -410,7 +507,8 @@
     <div>info 솬석 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
     <div>iconSrc: asset.iconImageSrc 에서 사용, battle-portrait</div>
-    <input class="form-control mb-2" type="text" name="iconSrc" placeholder="" value="/static/assets/img/summon/이름입력/battle-portrait.jpg">
+    <input class="form-control mb-2" type="text" name="iconSrc" placeholder=""
+           value="/static/assets/img/summon/이름입력/battle-portrait.jpg">
     <div>elementType 속성</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
     <div>damageRate: 데미지 배율</div>
@@ -419,10 +517,9 @@
     <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
     <div>coolDown: 솬석 쿨타임</div>
     <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
-    <div>effectVideoSrc 이펙트 비디오</div>
-    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="" value="/static/assets/video/summon/이름입력/effect-video.mp4">
-    <div>seAudioSrc SE 오디오</div>
-    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="" value="/static/assets/audio/summon/이름입력/se-audio.mp3">
+    <div>에셋 cjs name: _attack, _damage 를 제외한 전부 입력 ex) summon_2040080000_02_attack -> <b>summon_2040080000_02</b></div>
+    <input class="form-control mb-2" type="text" name="attackCjsName" placeholder=""
+           value="summon_">
 
     <h3>status1</h3>
     <div class="form-check">
@@ -467,8 +564,6 @@
     <button type="button" class="btn btn-primary summon-submit-button">솬석</button>
   </form>
 </div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

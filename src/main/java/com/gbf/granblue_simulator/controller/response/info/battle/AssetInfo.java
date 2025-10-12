@@ -14,6 +14,8 @@ import java.util.Map;
 @Builder
 public class AssetInfo {
 
+    private int currentOrder; // position
+
     // 기타 상태
     private Boolean isEnemy;
     private Boolean isMainCharacter;
@@ -39,7 +41,7 @@ public class AssetInfo {
         @Builder.Default
         private List<String> additionalSpecialCjses = new ArrayList<>();
         @Builder.Default
-        private List<String> summonCjses = new ArrayList<>();
+        private Map<Long, String> summonCjses = new HashMap<>();
 
         @Data
         public static class AbilityCjsDto {

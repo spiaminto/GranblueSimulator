@@ -13,6 +13,7 @@ public class BattleCharacterInfo {
 
     private Long id;
     private String name;
+    private Integer order;
     private String portraitSrc;
 
     private Integer chargeGauge;

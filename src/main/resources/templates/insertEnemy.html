@@ -174,14 +174,82 @@
                   success: function (data) {
                       console.log(data)
                       alert(data.message)
-                      let enemyId = data.enemyId;
-                      $("input[name='enemyId']").val(enemyId);
+                      if (data.actorId) $("input[name='characterId']").val(data.actorId);
+                      if (data.rootCjsName) $("input[name='rootCjsName']").val(data.rootCjsName);
                   },
                   error: function (xhr) {
                       console.log(xhr);
                   }
               })
           }
+
+          // 폼 저장
+          $('.form-save-button').on('click', function () {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              // input, textarea 값 저장
+              let data = {};
+              $form.find('input, textarea').each(function () {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  data[name] = $input.attr('type') === 'checkbox' ? $input.prop('checked') : $input.val();
+              });
+              // status-input-wrapper 체크박스 상태 별도로 저장 (show, hide용)
+              data.statusChecks = $form.find('.status-input-check').toArray().map(inputCheck =>
+                  $(inputCheck).prop('checked')
+              );
+              localStorage.setItem(formName, JSON.stringify(data));
+              alert('저장');
+          });
+
+          // 폼 복원
+          $('.form-load-button').on('click', function () {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              let data = JSON.parse(localStorage.getItem(formName));
+              if (!data) {
+                  return;
+              }
+              // input, textarea 값 복원
+              $form.find('input, textarea').each(function () {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
+              });
+              // status 체크박스 show/hide 및 입력란 표시
+              $form.find('.status-input-check').each(function (idx) {
+                  let checked = data.statusChecks && data.statusChecks[idx];
+                  $(this).prop('checked', !!checked).trigger('change');
+              });
+              alert('복원');
+          });
+
+          //applyCjsName
+          $('#applyCjsButton').on('click', function () {
+              let assetType = $('#enemyAssetForm select[name="assetType"]').val(); // ACTOR, SPECIAL, ...
+              let isAll = $('#enemyAssetForm .is-all-check').prop('checked');
+              let allPrefix = isAll ? 'all_' : '';
+              let cjsId = $('#enemyAssetForm input[name="cjsId"]').val(); // 000019234
+              let cjsName = '';
+
+              switch (assetType) {
+                  case 'ACTOR':
+                      cjsName = 'enemy_' + cjsId + '_02'; // enemy_4300903
+                      break;
+                  case 'ATTACK':
+                      cjsName = 'phit_' + cjsId; // phit_3040502000, 필요한경우 _01, _02
+                      break;
+                  case 'SPECIAL':
+                      cjsName = 'esp_' + cjsId + '_01'; // esp_4300913_03
+                      break;
+                  default :
+                      console.error('not supported type');
+              }
+
+              $('#enemyAssetForm input[name="cjsName"]').val(cjsName);
+          })
 
           // ready
       })
@@ -585,6 +653,57 @@
     <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
   </div>
 </div>
+
+<h2>enemy 에셋 </h2>
+<p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
+<form id="enemyAssetForm" target="/insert-enemy-asset" method="POST">
+
+  <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+  <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="enemyAssetForm"
+         value="저장">
+  <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="enemyAssetForm"
+         value="복원">
+
+  <div>actor id</div>
+  <input class="form-control mb-2" type="text" name="actorId" placeholder="">
+  <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
+  <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
+
+  <div>asset name [디아스포라 1 / 디아스포라 1 평타 / 디아스포라 1 오의2 / 디아스포라 서포어비1 ]</div>
+  <input class="form-control mb-2" type="text" name="assetName" placeholder="">
+
+  <div> asset type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
+  <select class="form-select" size="5" name="assetType" required>
+    <option selected>Open this select menu</option>
+    <option value="ACTOR">ACTOR</option>
+    <option value="SPECIAL">SPECIAL</option>
+    <option value="ATTACK">ATTACK</option>
+    <option value="FIRST_SUPPORT_ABILITY">SA1</option>
+    <option value="SECOND_SUPPORT_ABILITY">SA2</option>
+    <option value="THIRD_SUPPORT_ABILITY">SA3</option>
+    <option value="FOURTH_SUPPORT_ABILITY">SA4</option>
+    <option value="FIFTH_SUPPORT_ABILITY">SA5</option>
+    <option value="SIXTH_SUPPORT_ABILITY">SA6</option>
+    <option value="SEVENTH_SUPPORT_ABILITY">SA7</option>
+    <option value="EIGHTH_SUPPORT_ABILITY">SA8</option>
+  </select>
+
+  <div>cjs id (공통적용, submit x)</div>
+  <div> 적의 경우 어빌리티는 'ab_powerup' 이런거임. 서포어비로 등록</div>
+  <div> 오의는 특수기 별로 따로 지정하지 않아도 정상작동, 123 만 맞춰서 등록 </div>
+  <div class="input-group mb-2">
+    <input type="text" class="form-control me-2" name="cjsId" placeholder="">
+    <div class="input-group-text me-2">
+      all
+      <input class="form-check-input mt-0 is-all-check" type="checkbox" value="">
+    </div>
+    <button class="btn btn-outline-secondary" type="button" id="applyCjsButton">id 적용</button>
+  </div>
+
+  <div> cjsName</div>
+  <input class="form-control mb-2" type="text" name="cjsName" placeholder="">
+
+</form>
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

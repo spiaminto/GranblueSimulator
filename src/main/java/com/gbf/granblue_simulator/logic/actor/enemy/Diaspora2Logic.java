@@ -102,9 +102,10 @@ public class Diaspora2Logic extends EnemyLogic {
             setStandbyCEveryFiveTurn(mainActor);
 
         // 전조발생
-        omenLogic.determineStandbyMove(enemy).ifPresent(standby -> {
-            Integer initValue = standby.getType() == MoveType.STANDBY_B ? getStandbyBOmenInitValue(enemy) : null;
-            omenLogic.setSanddbyMove(enemy, standby, initValue);
+        omenLogic.triggerOmen(enemy).ifPresent(standby -> {
+            if (standby.getType() == MoveType.STANDBY_B) {
+                omenLogic.updateOmenValue(enemy, getStandbyBOmenInitValue(enemy)); // 초기값 수정필요한 경우 수정
+            }
             results.add(resultMapper.toResultWithOmen(enemy, partyMembers, standby, standby.getOmen()));
         });
 
@@ -127,13 +128,13 @@ public class Diaspora2Logic extends EnemyLogic {
                                 matchedStatusName.contains("감마") ? MoveType.CHARGE_ATTACK : null;
         if (getDamageSumMovetype != null) {
             // 해당 공격 타입 누적데미지 합과 증가시킬 스테이터스
-            Integer takenDamageSum = battleLogService.getTakenDamageSumByMoveType(mainActor, getDamageSumMovetype);
+            Integer takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(mainActor, getDamageSumMovetype);
             // log.info("[firstSupportAbility] otherMovetype = {}, takenDamageSum = {}, mathcingStatusNAme = {}, matchedBattleStatus: {}", otherMoveType, takenDamageSum, matchingStatusName, matchedBattleStatus);
             int addLevel = takenDamageSum / 30000 + 1 - matchedBattleStatus.getLevel(); // 모드레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
             log.info("[firstSupportAbility] addLevel = {}, matchedLevel = {}, takenDamageSum = {}", addLevel, matchedBattleStatus.getLevel(), takenDamageSum);
             if (addLevel > 0) {
                 // 모드 레벨 상승 (결과 반환 x) - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있으나, 일단 이대로 킵.
-                setStatusLogic.addBattleStatusLevel(mainActor, addLevel, matchedBattleStatus.getStatus().getId());
+                setStatusLogic.addBattleStatusLevel(mainActor, addLevel, matchedBattleStatus);
                 // 가하는 데미지 상승 및 재공격 적용 (결과 반환 ㅇ)
                 SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, ability);
                 return resultMapper.toResultWithEffect(mainActor, partyMembers, ability, null, null, setStatusResult, true, false);
@@ -169,7 +170,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @param mainActor
      * @return
      */
-    protected Integer getStandbyBOmenInitValue(BattleActor mainActor) {
+    protected int getStandbyBOmenInitValue(BattleActor mainActor) {
         return getBattleStatusByName(mainActor, "임계 도달").map(
                 battleStatus -> 2500000 * (1 + battleStatus.getLevel())
         ).orElse(2500000);
@@ -181,7 +182,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @param mainActor
      * @return
      */
-    protected Double getChargeAttackBDamageRate(BattleActor mainActor) {
+    protected double getChargeAttackBDamageRate(BattleActor mainActor) {
         return getBattleStatusByName(mainActor, "임계 도달").map(
                 battleStatus -> 10.0 * (1 + battleStatus.getLevel())
         ).orElse(10.0);
@@ -193,7 +194,7 @@ public class Diaspora2Logic extends EnemyLogic {
      * @param mainActor
      * @return
      */
-    protected Double getChargeAttackDDamageRate(BattleActor mainActor) {
+    protected double getChargeAttackDDamageRate(BattleActor mainActor) {
         return getBattleStatusByName(mainActor, "자괴인자").map(
                 battleStatus -> 5.0 * (1 + battleStatus.getLevel())
         ).orElse(5.0);

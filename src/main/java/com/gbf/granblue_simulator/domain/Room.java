@@ -3,7 +3,6 @@ package com.gbf.granblue_simulator.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +29,8 @@ public class Room {
 
     private Long enemyActorId; // 편의용 적 id
 
+    private Long unionSummonId;
+
     public void setOwner(Long ownerId, String ownerUsername) {
         this.ownerId = ownerId;
         this.ownerUsername = ownerUsername;
@@ -38,4 +39,13 @@ public class Room {
     public void setEnemyActorId() {
         this.enemyActorId = 7L; // 현재 디아스포라(7) 로 고정
     }
+
+    /**
+     * 합체소환 id 세팅 <br>
+     * @param unionSummonId 초기화는 null
+     */
+    public void updateUnionSummonId(Long unionSummonId) {
+        this.unionSummonId = unionSummonId;
+    }
+
 }

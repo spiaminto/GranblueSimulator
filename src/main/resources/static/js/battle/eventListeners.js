@@ -25,20 +25,25 @@ $(function () {
     // 어빌리티 슬라이더 이벤트 (모션 재생)
     $('#abilitySlider').on('beforeChange', function (event, slick, currentSlideIndex, nextSlideIndex) {
         console.log('beforeChange', currentSlideIndex, nextSlideIndex);
-        player.play(Player.playRequest(`actor-${nextSlideIndex + 1}`, Player.c_animations.ABILITY));
-        let beforeActor = player.actors.get(`actor-${currentSlideIndex + 1}`);
+        // 캐릭터가 중간에 비어있을 경우를 대비해 해당 슬라이드의 character-order 직접 접근
+        let nextActorOrder = $('#abilitySlider .slick-slide:not(.slick-cloned)').eq(nextSlideIndex).find('.ability-panel').attr('data-character-order');
+        let currentActorOrder = $('#abilitySlider .slick-slide:not(.slick-cloned)').eq(currentSlideIndex).find('.ability-panel').attr('data-character-order');
+        console.log('nextActorOrder', nextActorOrder, 'currentActorOrder', currentActorOrder);
+        player.play(Player.playRequest(`actor-${nextActorOrder}`, Player.c_animations.ABILITY));
+        let beforeActor = player.actors.get(`actor-${currentActorOrder}`);
         if (player.effectPlayingActorIndex !== beforeActor.actorIndex) {
-            player.play(Player.playRequest(`actor-${currentSlideIndex + 1}`, Player.getCharacterWaitMotion(currentSlideIndex + 1)));
+            player.play(Player.playRequest(`actor-${currentActorOrder}`, Player.getCharacterWaitMotion(currentActorOrder)));
         }
     })
 
     // 배틀 초상화 클릭 -> 어빌리티 슬라이더 오픈
-    $('.battle-portrait').on('click', function () {
+    $('.battle-portrait:not(.empty)').on('click', function () {
         let abilitySliderWidth = $('#abilitySlider .slick-track').width();
-        let battlePortraitIndex = $(this).index();
+        let battlePortraitIndex = $('.battle-portrait:not(.empty)').index(this);
+        let charOrder = $('.battle-portrait').index(this) + 1; // 캐릭터 오더는 empty 포함값에서 찾아야함
         // console.log('[.battle-portrait.onClick] battlePortraitindex = ' + battlePortraitIndex);
         $('#abilitySlider').slick('slickGoTo', battlePortraitIndex, true, {speed: 0})
-        player.play(Player.playRequest(`actor-${battlePortraitIndex + 1}`, Player.c_animations.ABILITY));
+        player.play(Player.playRequest(`actor-${charOrder}`, Player.c_animations.ABILITY));
         $('#abilitySlider').css('z-index', '1');
         $('.present-container').addClass('hidden');
         $('.ability-slider-slide-button-wrapper').show();

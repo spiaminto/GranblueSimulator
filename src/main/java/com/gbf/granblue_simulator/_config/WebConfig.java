@@ -38,6 +38,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/static/**",
+                        "/gbf/**",
+                        "/assets/**",
+                        "/js/**",
 //                        "/css/**",
                         "https://maxcdn.bootstrapcdn.com/**"
                 );

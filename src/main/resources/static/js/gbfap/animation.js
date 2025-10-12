@@ -10,7 +10,10 @@ class Animation {
         this.additionalCjs = obj.additionalCjs ?? null;
         this.specials = obj.specials ?? []; // list of charge attack files
         this.additionalSpecials = obj.additionalSpecials ?? []
-        this.summons = obj.summons ?? []; // list of summon files CHECK added, only 'attack' needed
+        this.summons = {};
+        Object.entries(obj.summons).forEach(([key, value]) => {
+            this.summons[key] = value;
+        })
         this.attacks = obj.attacks ?? []; // list of auto attack ("phit") files
         this.abilities = this.getBaseAbilities();
         Object.entries(obj.abilities).forEach(([key, value]) => {
@@ -19,15 +22,17 @@ class Animation {
         this.raidAppear = obj.raidAppear ?? []; // list of raid appear ("ra") files
         this.isChargeAttackSkip = obj.isChargeAttackSkip ?? false; // if character charge attack skip
         this.chargeAttackStartFrame = obj.chargeAttackStartFrame ?? -1; // charge attack start frame when skip true
+        this.currentOrder = obj.currentOrder; // null 시 actor 에서 처리
     }
 
     get manifests() // return a list of file to download
     {
-        let manifests = [this.cjs].concat(this.attacks).concat(this.specials).concat(this.raidAppear).concat(this.summons).concat(this.additionalSpecials);
+        let manifests = [this.cjs].concat(this.attacks).concat(this.specials).concat(this.raidAppear).concat(this.additionalSpecials);
         if (this.abilities) manifests.push(...Object.values(this.abilities).map(ability => ability.cjs));
         if (this.additionalCjs) manifests.push(this.additionalCjs);
-        if (this.summons.length > 0) {
-            manifests.push(...this.summons.map(summonAttack => summonAttack.replace('attack', 'damage'))); // add also _damage if the summon file ends with attack
+        if (this.summons) {
+            manifests.push(...Object.values(this.summons).map(summonCjsName => summonCjsName + "_attack"));
+            manifests.push(...Object.values(this.summons).map(summonCjsName => summonCjsName + "_damage"));
         }
         return manifests;
     }

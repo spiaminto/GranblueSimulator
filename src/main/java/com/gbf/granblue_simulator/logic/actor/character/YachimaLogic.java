@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -26,8 +27,8 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @Slf4j
 public class YachimaLogic extends CharacterLogic {
 
-    public YachimaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic) {
-        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+    public YachimaLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, BattleContext battleContext) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, battleContext);
     }
 
     @Override
@@ -154,7 +155,10 @@ public class YachimaLogic extends CharacterLogic {
                 setStatusLogic.setStatus(mainActor, enemy, partyMembers, List.of(statusAlpha, statusDelta), StatusTargetType.PARTY_MEMBERS); // 이쪽결과는 이펙트 표시 x
 
                 // 재적용 된 알파, 델타 레벨 4로 변경 및 스탯 갱신
-                partyMembers.forEach(partyMember -> setStatusLogic.addBattleStatusesLevel(partyMember, 3, statusAlpha.getId(), statusDelta.getId()));
+                partyMembers.forEach(partyMember -> setStatusLogic.addBattleStatusesLevel(
+                        partyMember, 3,
+                        getBattleStatusByName(partyMember, "알파").orElse(null),
+                        getBattleStatusByName(partyMember, "델타").orElse(null)));
 
                 // 자신의 3어빌 쿨타임 0으로 감소
                 mainActor.updateAbilityCoolDown(0, MoveType.THIRD_ABILITY);

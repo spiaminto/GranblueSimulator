@@ -72,6 +72,7 @@ async function processEnemyChargeAttack(response) {
 
     // 적 스탠바이 해제
     $('.enemy-info-container').attr('data-standby-motion', 'none');
+    $('.enemy-info-container').attr('data-standby-move-class', 'none');
     // 전조 컨테이너 deActivate
     setTimeout(function () {
         $('.omen-container-top').removeClass('activated')
@@ -119,7 +120,7 @@ async function processEnemyStandBy(response) {
     }
 
     // 적 스탠바이 상태 추가
-    $('.enemy-video-container').attr('data-standby-motion', response.motion);
+    $('.enemy-info-container').attr('data-standby-motion', response.motion);
     // 전조 컨테이너 activate
     $('.omen-container-top').addClass('activated')
         .find('.omen-text').addClass(response.omenType.className)
@@ -175,19 +176,27 @@ async function processEnemyBreak(response) {
 async function processFormChange(formChangeResponse) {
     let enemyActor = player.actors.get('actor-0');
     let nextEnemyActor = player.actors.get('actor-01');
+    nextEnemyActor.hpRate = enemyActor.hpRate;
     let formChangeDurationSum = 0;
     // 직전 폼의 폼체인지
     let formChangeDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_FORM_CHANGE))
     await new Promise(resolve => setTimeout(resolve, formChangeDuration));
     // 추가 처리
     player.setBackgroundImage(Constants.DIASPORA[1].backgroundImage);
-    nextEnemyActor.actorId = 'actor-0';
+    // 다음 폼의 폼체인지 입장 (phase-4)
+    let formChangeEntryDuration = await player.play(Player.playRequest('actor-01', Player.c_animations.ENEMY_PHASE_4));
+    // 기다리지 않고 일단 이전 적 투명도 0
+    enemyActor.mainCjs.alpha = 0;
+    await new Promise(resolve => setTimeout(resolve, formChangeEntryDuration));
+    // 엔트리 종료 후 속성처리
+    enemyActor.actorId = 'actor-00';
+    enemyActor.actorIndex = -1;
     nextEnemyActor.actorIndex = 0;
-    player.actors.delete('actor-0');
+    nextEnemyActor.actorId = 'actor-0';
+    nextEnemyActor.animation.name = 'actor-0';
+    player.actors.delete('actor-00');
     player.actors.delete('actor-01');
     player.actors.set('actor-0', nextEnemyActor);
-    // 다음 폼의 폼체인지 입장 (phase-4)
-    let formChangeEntryDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_PHASE_4));
     // 직전 폼 완전제거
     cjsStage.removeChild(enemyActor.mainCjs);
     formChangeDurationSum += formChangeDuration + formChangeEntryDuration;
@@ -256,15 +265,20 @@ async function loadNextEnemyActor() {
  * 적은 일반공격, (서포트)어빌리티, 차지어택의 데미지 표시방식 및 아군 피격처리가 거의 동일하므로 통합하여 사용
  * @param response
  * @param effectDuration
+ * @param isTurnDamage 턴데미지 스타일용
  */
-function enemyDamagesPostProcess(response, effectDuration) {
+function enemyDamagesPostProcess(response, effectDuration, isTurnDamage = false) {
     let attackCount = Number(response.moveType.attackCount) || 0;
-    let isAllTarget = response.moveType !== MoveType.TURN_END_PROCESS
-        ? response.allTarget
-        : response.totalHitCount >= 2 // 턴종 데미지시 데미지가 2회이상 발생하면 allTarget 으로 간주 (캐릭터별 딜레이 적용 위함)
     let uniqueTargetOrders = [...new Set(response.enemyAttackTargetOrders)];
     let currentPhase = $('.enemy-info-container').attr('data-phase');
-    if (isAllTarget && uniqueTargetOrders.length === 1) uniqueTargetOrders = Array(player.getCharacterCount()).fill(uniqueTargetOrders[0]); // 전체공격 감싸기 상황. 파티 인원만큼 감싸기 캐릭터의 order 늘림.
+
+    let characterCount = player.getCharacterCount();
+    let isAllTarget = characterCount > 1 && response.moveType !== MoveType.TURN_END_PROCESS
+        ? response.allTarget // 캐릭터가 1명이면 allTarget 이어도 일반공격처럼 표시
+        : response.totalHitCount >= 2 // 턴종 데미지시 데미지가 2회이상 발생하면 allTarget 으로 간주 (캐릭터별 딜레이 적용 위함)
+    let isAllTargetSubstitute = isAllTarget && uniqueTargetOrders.length === 1; // 전체공격 감싸기 여부
+    if (isAllTargetSubstitute) uniqueTargetOrders = Array(player.getCharacterCount()).fill(uniqueTargetOrders[0]); // 전체공격 감싸기 상황. 파티 인원만큼 감싸기 캐릭터의 order 늘림.
+
     let effectHitDelay = Constants.DIASPORA[currentPhase].hitDelay[response.motion] || 0; // 이펙트 시작 ~ 데미지 표시 까지 딜레이, 없으면 0
     let effectHitDuration = effectDuration - effectHitDelay; // 실제로 히트이펙트가 발생하는 기간
     let perHitDuration = attackCount === 0
@@ -300,9 +314,10 @@ function enemyDamagesPostProcess(response, effectDuration) {
 
         setTimeout(function () {
             // 데미지 표시
-            $damageElements.$damage.addClass('enemy-damage-show'); // 본 데미지 표시
+            let damageShowClassname = isTurnDamage ? 'enemy-turn-damage-show' : 'enemy-damage-show';
+            $damageElements.$damage.addClass(damageShowClassname); // 본 데미지 표시
             $damageElements.$additionalDamage.children().each(function (index, additionalDamage) { // 추가데미지 표시
-                setTimeout(() => $(additionalDamage).addClass('enemy-damage-show'), (index + 1) * 50);
+                setTimeout(() => $(additionalDamage).addClass(damageShowClassname), (index + 1) * 50);
             });
             // 아군 피격 재생
             player.play(Player.playRequest('actor-' + targetOrder, Player.c_animations.DAMAGE));

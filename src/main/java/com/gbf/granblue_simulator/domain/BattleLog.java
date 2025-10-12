@@ -30,7 +30,7 @@ public class BattleLog {
     private Integer currentTurn;
 
     private Long mainActorId; // 행동주체 Actor.id
-    private Long targetActorId; // 행동 타겟 Actor.id , BattleActor.id 는 종료후에 확인 불가능 하므로 Actor.id 로 저장
+    private Long targetActorId; // 타겟 id, 주로 적측을 확인하며 적의 폼에 따라 필터링도 해야되서 필요, nullable
 
     @Enumerated(EnumType.STRING)
     private MoveType moveType;
@@ -47,7 +47,7 @@ public class BattleLog {
 
     @Type(IntArrayType.class)
     @Column(name = "additional_damages", columnDefinition = "integer[][]")
-    private Integer[][] additionalDamages;
+    private int[][] additionalDamages;
 
     @Type(ListArrayType.class)
     @Column(name = "status_types", columnDefinition = "text[]")

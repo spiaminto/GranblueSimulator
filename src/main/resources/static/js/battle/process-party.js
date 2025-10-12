@@ -107,7 +107,7 @@ async function processAbility(response) {
             }, startDelay);
         });
         // 데미지 제거
-        setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
+        // setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
     }
 
     // 스테이터스 아이콘 갱신
@@ -138,7 +138,7 @@ async function processChargeAttack(response) {
     // 적 피격 이펙트 재생
     setTimeout(() => player.play(Player.playRequest('actor-0', Player.getEnemyDamageMotion())), effectHitDelay + 50); // 데미지보다 약간 느리게
     // 데미지 표시
-    setTimeout(() => $damageWrapper.find('.charge-attack-damage').addClass('party-attack-damage-show'), effectHitDelay);
+    setTimeout(() => $damageWrapper.find('.charge-attack-damage').addClass('party-charge-attack-damage-show'), effectHitDelay);
     // 데미지 제거
     setTimeout(() => $damageWrapper.remove(), effectHitDelay + Constants.Delay.damageShowDelete);
     // 스테이터스 아이콘 갱신
@@ -159,44 +159,75 @@ async function processChargeAttack(response) {
 }
 
 async function processSummon(response) {
-    // 데미지 삽입 (어빌리티)
-    let $damageWrapper = fillDamage(response, 0);
+    // 헷갈리게 되어있는데, 
+    // 합체소환의 경우 response.moveType = SUMMON_DEFAULT 인게 두개 넘어오고,
+    // 그중 첫번째가 본소환 이며 summonIds 2 개 다 넘어옴
+    // 두번째가 합체소환의 이펙트이며, summonIds 안넘어옴 
+    let isUnionSummon = response.summonIds.length > 1; // 합체 소환의 경우 두개
+    let isUnionSummonEffect = response.summonIds.length < 1; // 합체소환의 이펙트인 경우, id 가 넘어오지 않음
+    let summonId = response.summonIds[0];
 
     // 소환 이펙트 재생
+    if (isUnionSummon) {
+        // 합체소환 컷인
+        let unionSummonCjsName = response.summonCjsNames[1]; // 순서 지켜서옴
+        stage.gGameStatus.raid_union_summon_name = response.moveName;
+        let unionSummonCutinDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {
+            abilityType: 'unionSummon',
+            summonId: summonId,
+            unionSummonCjs: unionSummonCjsName
+        }));
+        // 합체소환 컷인은 기다리지 않아도 될듯.
+    }
+
     let effectDuration = 0;
-    let summonDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON));
-    await new Promise(resolve => setTimeout(() => resolve(summonDuration), summonDuration))
-    let summonAttackDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_ATTACK));
-    await new Promise(resolve => setTimeout(() => resolve(summonAttackDuration), summonAttackDuration))
-    let summonDamageDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_DAMAGE));
-    effectDuration = summonDamageDuration;
-    let effectHitDelay = effectDuration - 100;
+    let effectHitDelay = 0;
+    if (!isUnionSummonEffect) {
+        // 본소환
+        let summonDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON));
+        await new Promise(resolve => setTimeout(() => resolve(summonDuration), summonDuration))
+        let summonAttackDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_ATTACK, {summonId: summonId}));
+        await new Promise(resolve => setTimeout(() => resolve(summonAttackDuration), summonAttackDuration))
+        let summonDamageDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_DAMAGE, {summonId: summonId}));
+        effectHitDelay = summonDamageDuration - 100;
+        effectDuration = summonDamageDuration + Constants.Delay.damageShowToNext;
+    } else {
+        // 합체소환
+        let unionSummonEffectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: BASE_ABILITY.RAID_BUFF}));
+        effectDuration = unionSummonEffectDuration;
+        effectHitDelay = effectDuration - 100;
+    }
 
     // 피격 이펙트, 데미지 표시
-    setTimeout(function () {
-        // 화면 흔들기
-        $('#videoContainer').addClass('push-left-down-effect');
+    if (response.damages.length > 0) {
+        // 데미지 삽입 (어빌리티)
+        let $damageWrapper = fillDamage(response, 0);
         setTimeout(function () {
-            $('#videoContainer').removeClass('push-left-down-effect');
-        }, 150);
+            // 화면 흔들기
+            $('#videoContainer').addClass('push-left-down-effect');
+            setTimeout(function () {
+                $('#videoContainer').removeClass('push-left-down-effect');
+            }, 150);
 
-        let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show';
-        let enemyDamageMotion = Player.getEnemyDamageMotion();
-        $damageWrapper.find('.ability-damage').each(function (index, abilityDamage) {
-            setTimeout(() => {
-                // 피격재생
-                player.play(Player.playRequest('actor-0', enemyDamageMotion));
-                // 데미지 표시
-                $(abilityDamage).addClass(damageShowClass)
-            }, index * 100);
-        })
-    }, effectHitDelay);
-    // 데미지 제거
-    setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
+            let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show';
+            let enemyDamageMotion = Player.getEnemyDamageMotion();
+            $damageWrapper.find('.ability-damage').each(function (index, abilityDamage) {
+                setTimeout(() => {
+                    // 피격재생
+                    player.play(Player.playRequest('actor-0', enemyDamageMotion));
+                    // 데미지 표시
+                    $(abilityDamage).addClass(damageShowClass)
+                }, index * 100);
+            })
+        }, effectHitDelay);
+        // 데미지 제거
+        setTimeout(() => $damageWrapper.remove(), effectDuration);
+    }
+
     // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectHitDelay + Constants.Delay.damageShowToNext);
+    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
     // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectHitDelay + Constants.Delay.damageShowToNext);
+    let healEndTime = processHealEffect(response.heals, effectDuration);
     // 버프 이펙트 처리
     let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
     // 디버프 이펙트 처리
@@ -254,7 +285,6 @@ async function processFatalChain(response) {
  * @param response
  */
 function processGuard(response) {
-    console.log('[processGuard] response = ', response);
     let isGuardActivated = response.guardActivated; //
     response.guardResults.forEach(function (guardResult) {
         if (guardResult.guardOn) {
@@ -269,6 +299,20 @@ function processGuard(response) {
     audioPlayer.loadSound(src).then(() => {
         audioPlayer.playAllSounds();
     })
+}
+
+/**
+ * 포션 처리
+ * @param response
+ */
+function processPotion(response) {
+    // 이펙트
+    processHealEffect(response.heals, 0);
+
+    // 포션 ui 숫자
+    let potionCount = response.potionCount;
+    let allPotionCount = response.allPotionCount;
+    // TODO 미구현
 }
 
 // 데미지 삽입 (미리 삽입해놔야됨)

@@ -26,6 +26,7 @@ public final class BattleInfoMapper {
         return BattleCharacterInfo.builder()
                 .id(partyMember.getId())
                 .name(partyMember.getName())
+                .order(partyMember.getCurrentOrder())
                 .portraitSrc(partyMember.getActor().getBattlePortraitSrc())
                 .statuses(partyMember.getBattleStatuses().stream()
                         .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
@@ -91,7 +92,7 @@ public final class BattleInfoMapper {
                 .build();
     }
 
-    public static List<AssetInfo.Asset> toAssetInfo(Long mainCharacterActorId, String weaponId, List<Asset> assets, List<Asset> summonAssets, Asset fatalChainAsset) {
+    public static List<AssetInfo.Asset> toAssetInfoAsset(Long mainCharacterActorId, String weaponId, List<Asset> assets, List<Asset> summonAssets, Asset fatalChainAsset) {
         // rootCjsName 를 key 로 하는 Map
         Map<String, List<Asset>> assetMapByRootCjsName = assets.stream().collect(Collectors.groupingBy(Asset::getRootCjsName));
         log.info("assetMapByRootCjsName: {}", assetMapByRootCjsName);
@@ -129,9 +130,14 @@ public final class BattleInfoMapper {
 
                     // 메인캐릭터 추가 (소환석, 페이탈체인)
                     boolean isMainCharacter = mainActorAsset.getActorId().equals(mainCharacterActorId);
-                    List<String> summonCjses = new ArrayList<>();
+                    Map<Long, String> summonCjsMap = new HashMap<>();
                     if (isMainCharacter) {
-                        summonCjses = summonAssets.stream().map(Asset::getRootCjsName).distinct().toList();
+                        summonCjsMap = summonAssets.stream()
+                                .collect(Collectors.toMap(
+                                        Asset::getMoveId,
+                                        Asset::getRootCjsName,
+                                        (existing, replacement) -> replacement // 중복 병합
+                                ));
                         abilityCjsMap.put(fatalChainAsset.getType(), new AssetInfo.Asset.AbilityCjsDto(fatalChainAsset.getCjsName(), fatalChainAsset.isTargetedEnemy()));
                     }
 
@@ -141,7 +147,7 @@ public final class BattleInfoMapper {
                             .attackCjses(attackCjses)
                             .abilityCjses(abilityCjsMap)
                             .specialCjses(specialCjses)
-                            .summonCjses(summonCjses)
+                            .summonCjses(summonCjsMap)
                             .additionalMainCjs(additionalMainCjs)
                             .additionalSpecialCjses(additionalSpecialCjses)
                             .weaponId(weaponId)

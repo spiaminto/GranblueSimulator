@@ -1,3 +1,27 @@
+function requestSync() {
+    let memberId = $('#memberInfo').data('member-id');
+    console.log('[requestSync] memberId = ', memberId);
+    $.ajax({
+        url: '/api/sync',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('#csrfToken').val()
+        },
+        data: JSON.stringify({
+            memberId: memberId,
+        }),
+        async: false,
+        success: function (response) {
+            // console.log(response);
+            processResponseMoves(response);
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+}
+
 function requestMove(characterId, moveId) {
     let memberId = $('#memberInfo').data('member-id');
     console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' memberId = ', memberId);
@@ -84,7 +108,7 @@ function requestGuard(charOrder, type) {
         }),
         async: false,
         success: function (response) {
-            // console.log(response);
+            console.log('[requestGuard]', response);
             processGuard(response);
         },
         error: function (response) {
@@ -134,6 +158,38 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
                     player.play(Player.playRequest(`actor-${currentSlide + 1}`, Player.c_animations.ABILITY));
                 }
             }
+        },
+        error: function (response) {
+            console.log(response);
+        }
+    });
+}
+
+/**
+ * 포션 요청
+ * @param charOrder 가드 누른 캐릭터
+ * @param type 가드타입 (SELF, PARTY_MEMBERS)
+ */
+function requestPotion(charOrder, type) {
+    console.log('[requestPotion] charOrder = ', charOrder, ' type = ', type);
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+    let memberId = $('#memberInfo').data('member-id');
+    $.ajax({
+        url: '/api/guard',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('#csrfToken').val()
+        },
+        data: JSON.stringify({
+            characterId: characterId,
+            memberId: memberId,
+            targetType: type
+        }),
+        async: false,
+        success: function (response) {
+            console.log('[requestPotion]', response);
+            processPotion(response);
         },
         error: function (response) {
             console.log(response);

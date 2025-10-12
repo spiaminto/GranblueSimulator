@@ -7,11 +7,15 @@ import lombok.Data;
 @AllArgsConstructor
 public class InsertResponse {
 
-    private Long characterId;
+    private Long actorId;
     private String message;
+    private String rootCjsName;
 
-    public static InsertResponse ok(Long characterId) {
-        return new InsertResponse(characterId, "success");
+    public static InsertResponse ok(Long actorId) {
+        return new InsertResponse(actorId, "success", null);
+    }
+    public static InsertResponse ok(String rootCjsName) {
+        return new InsertResponse(null, "success", rootCjsName);
     }
 
 }

@@ -4,7 +4,6 @@ import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -34,7 +33,7 @@ public abstract class Actor {
     private ElementType elementType; // 속성
 
     @Accessors(fluent = true)
-    private boolean isMainCharacter; // 주인공 여부, Character 로 분리?
+    private boolean isLeaderCharacter; // 주인공 여부, Character 로 분리?
 
     @Builder.Default
     private Integer baseAttackPoint = 10000; // 공력력

@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
@@ -19,8 +20,8 @@ import java.util.List;
 @Slf4j
 public class PaladinLogic extends CharacterLogic {
 
-    public PaladinLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, CalcStatusLogic calcStatusLogic, MoveRepository moveRepository) {
-        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic);
+    public PaladinLogic(CharacterLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, BattleContext battleContext) {
+        super(resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, battleContext);
     }
 
     @Override

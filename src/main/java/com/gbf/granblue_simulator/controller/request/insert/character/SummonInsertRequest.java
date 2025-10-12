@@ -17,6 +17,7 @@ public class SummonInsertRequest {
     private Integer hitCount;
     private Integer coolDown;
     private ElementType elementType;
+    private String cjsName;
 
     private List<SummonStatus> statuses;
 

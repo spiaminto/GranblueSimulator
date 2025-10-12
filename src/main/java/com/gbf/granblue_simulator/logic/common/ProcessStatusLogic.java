@@ -156,11 +156,16 @@ public class ProcessStatusLogic {
             throw new IllegalArgumentException("힐 이펙트가 없음 Status.id = " + healStatus.getId());
         Integer currentHp = target.getHp();
         int healInitValue = (int) healStatus.getStatusEffects().get(StatusEffectType.ACT_HEAL).getValue();
-        double healUpRate = getEffectValueSum(target, StatusEffectType.HEAL_UP);
-        double healDownRate = getEffectValueSum(target, StatusEffectType.HEAL_DOWN);
-        double resultHealRate = Math.clamp(0, 1 + healUpRate + healDownRate, 2.0); // 하한 0 상한 2 (100%증가)
-        Integer healResultValue = (int) (healInitValue * resultHealRate);
-        Integer healedHp = currentHp + healResultValue;
+        Integer healResultValue = StatusUtil.getBattleStatusByEffectType(target, StatusEffectType.UNDEAD)
+                .map(undeadBattleStatus ->
+                        -1 * healInitValue // 언데드는 힐 상승 미적용
+                ).orElseGet(() -> {
+                    double healUpRate = getEffectValueSum(target, StatusEffectType.HEAL_UP);
+                    double healDownRate = getEffectValueSum(target, StatusEffectType.HEAL_DOWN);
+                    double resultHealRate = Math.clamp(0, 1 + healUpRate + healDownRate, 2.0); // 하한 0 상한 2 (100%증가)
+                    return (int) (healInitValue * resultHealRate);
+                });
+        int healedHp = currentHp + healResultValue;
         target.updateHp(healedHp);
 //        log.info("[processHeal] battleActor.name = {} currentHp = {}, healInitValue = {}, resultHealRate = {}, healedHp = {}", target.getName(), currentHp, healInitValue, resultHealRate, healedHp);
         // CHECK HEAL_FOR_ALL 미구현

@@ -2,20 +2,21 @@ package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
-import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Component
 @Slf4j
@@ -27,7 +28,7 @@ public class CharacterLogicResultMapper {
      * @return
      */
     public ActorLogicResult emptyResult() {
-        return ActorLogicResult.builder().moveType(MoveType.NONE).build();
+        return ActorLogicResult.builder().moveType(MoveType.NONE).motionType(MotionType.NONE).build();
     }
 
     /**
@@ -62,7 +63,7 @@ public class CharacterLogicResultMapper {
 
     /**
      * 데미지와 스테이터스 모두 발생하는 일반 결과 맵핑
-     * 어빌리티, 차지어택, 서포트 어빌리티
+     * 어빌리티, 차지어택, 서포트 어빌리티 <br>
      * 데미지 또는 스테이터스 각 안발생했을 경우 null 입력
      *
      * @param mainActor
@@ -104,24 +105,23 @@ public class CharacterLogicResultMapper {
                 .sum();
 
         // 체력
-        List<Integer> hps = new ArrayList<>();
-        List<Integer> hpRates = new ArrayList<>();
-        hps.add(enemy.getHp());
-        hpRates.add(enemy.calcHpRate());
-        List<Integer> partyMemberHpList = partyMembers.stream().map(BattleActor::getHp).toList();
-        hps.addAll(partyMemberHpList);
-        List<Integer> partyMemberHpRateList = partyMembers.stream().map(BattleActor::calcHpRate).toList();
-        hpRates.addAll(partyMemberHpRateList);
+        List<Integer> hps = IntStream.range(0, 5).mapToObj(i -> 0).collect(Collectors.toList());
+        List<Integer> hpRates = IntStream.range(0, 5).mapToObj(i -> 0).collect(Collectors.toList());
+        hps.set(0, enemy.getHp());
+        hpRates.set(0, enemy.calcHpRate());
+        partyMembers.forEach(battleActor -> {
+            hps.set(battleActor.getCurrentOrder(), battleActor.getHp());
+            hpRates.set(battleActor.getCurrentOrder(), battleActor.calcHpRate());
+        });
 
         // 오의게이지
-        List<Integer> chargeGauges = new ArrayList<>();
-        chargeGauges.add(enemy.getChargeGauge());
-        List<Integer> partyMemberChargeGauges = partyMembers.stream().map(BattleActor::getChargeGauge).toList();
-        chargeGauges.addAll(partyMemberChargeGauges);
+        List<Integer> chargeGauges = IntStream.range(0, 5).mapToObj(i -> 0).collect(Collectors.toList());
+        chargeGauges.set(0, enemy.getChargeGauge());
+        partyMembers.forEach(battleActor -> chargeGauges.set(battleActor.getCurrentOrder(), battleActor.getChargeGauge()));
 
         // 페이탈 체인 게이지
         int fatalChainGauge = partyMembers.stream()
-                .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
+                .filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst()
                 .map(BattleActor::getFatalChainGauge).orElseGet(() -> 0);
 
         // 추가된 스테이터스
@@ -134,6 +134,15 @@ public class CharacterLogicResultMapper {
                 .map(removedBattleStatuses -> removedBattleStatuses.stream()
                         .map(BattleStatusDto::of).toList())
                 .toList();
+        // 결과 스테이터스
+        List<List<BattleStatus>> currentBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
+        currentBattleStatusesList.set(0, enemy.getBattleStatuses());
+        partyMembers.forEach(partyMember -> currentBattleStatusesList.set(partyMember.getCurrentOrder(), partyMember.getBattleStatuses()));
+        List<List<BattleStatusDto>> currentBattleStatusesDtoList = currentBattleStatusesList.stream()
+                .map(currentBattleStatuses -> currentBattleStatuses.stream()
+                        .map(BattleStatusDto::of).toList())
+                .toList();
+
         // 힐
         List<Integer> healValues = new ArrayList<>(setStatusResult.getHealValues());
 
@@ -141,19 +150,19 @@ public class CharacterLogicResultMapper {
         log.info("[map] removedStatusList = {}", removedStatusList);
 
         // 쿨다운
-        List<List<Integer>> cooldownList = new ArrayList<>();
-        cooldownList.add(new ArrayList<>());
-        partyMembers.forEach(battleActor -> log.info("[map] battleActor = {}", battleActor));
-        List<List<Integer>> partyMemberCooldowns = partyMembers.stream().map(actor -> List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown())).toList();
-        cooldownList.addAll(partyMemberCooldowns);
+        List<List<Integer>> cooldownList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<Integer>()).collect(Collectors.toList());
+        partyMembers.forEach(actor -> {
+            cooldownList.set(actor.getCurrentOrder(), List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown()));
+        });
 
         return ActorLogicResult.builder()
                 .mainBattleActorId(mainActor.getId())
                 .mainActorId(mainActor.getActor().getId())
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
-                .targetActorId(enemy.getActor().getId())
                 .moveType(move.getType())
                 .motionType(move.getMotionType())
+
+                .moveName(move.getName())
 
                 .currentTurn(mainActor.getMember().getCurrentTurn())
 
@@ -163,6 +172,7 @@ public class CharacterLogicResultMapper {
                 .fatalChainGauge(fatalChainGauge)
                 .addedBattleStatusesList(addedStatusList)
                 .removedBattleStatusesList(removedStatusList)
+                .currentBattleStatusesList(currentBattleStatusesDtoList)
                 .heals(healValues)
 
                 .totalHitCount(totalHitCount)

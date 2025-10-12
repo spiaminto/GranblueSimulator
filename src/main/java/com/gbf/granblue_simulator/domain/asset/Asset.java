@@ -23,8 +23,9 @@ public class Asset {
     private AssetType type;
 
     private String rootCjsName; // type == ACTOR 의 name, Actor 의 하위 모든 asset 을 끌어오기 위함
-    @Type(ListArrayType.class) @Column(name = "cjs_names", columnDefinition = "text[]") @Builder.Default
-    private List<String> cjsNames = new ArrayList<>(); // cjs(manifest) name, sprite 는 파일만 있으면 자동로드
+
+//    @Type(ListArrayType.class) @Column(name = "cjs_names", columnDefinition = "text[]") @Builder.Default
+//    private List<String> cjsNames = new ArrayList<>(); // cjs(manifest) name, sprite 는 파일만 있으면 자동로드
     // mainCjs : 1개, (additional 존재시 2개)
     // abilityCjs : n개
     // specialCjs : n개 (additional 존재시 n + m 개)

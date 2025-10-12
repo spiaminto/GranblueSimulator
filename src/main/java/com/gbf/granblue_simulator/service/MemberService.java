@@ -7,6 +7,7 @@ import com.gbf.granblue_simulator.domain.actor.Actor;
 import com.gbf.granblue_simulator.domain.actor.Party;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MemberService {
 
+    private final BattleContext battleContext;
     private final MemberRepository memberRepository;
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
@@ -64,6 +66,7 @@ public class MemberService {
                 .build();
 
         memberRepository.save(member);
+        room.getMembers().add(member);
 
         createBattleActors(member); // 배틀 액터 생성 및 시작
 
@@ -88,10 +91,10 @@ public class MemberService {
         // 파티 생성
         List<BattleActor> partyMembers = actors.stream()
                 .map(actor -> {
-                            Long fatalChainMoveId = actor.isMainCharacter() ?
+                            Long fatalChainMoveId = actor.isLeaderCharacter() ?
                                     moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, actor.getElementType()).getFirst().getId() :
                                     null;
-                            List<Move> summons = actor.isMainCharacter() ?
+                            List<Move> summons = actor.isLeaderCharacter() ?
                                     moveRepository.findAllById(party.getSummonIds()) :
                                     Collections.emptyList();
                             List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
@@ -110,6 +113,7 @@ public class MemberService {
                         }
                 ).collect(Collectors.toList()); // toList 타입추론 불가
         battleActorRepository.saveAll(partyMembers);
+        member.getBattleActors().addAll(partyMembers);
 
         // 적 생성
         BattleActor enemy = BattleEnemy.builder()
@@ -119,12 +123,14 @@ public class MemberService {
                 .actor(enemyActor)
                 .build();
         battleActorRepository.save(enemy);
+        member.getBattleActors().add(enemy);
 
         // 전투 시작
         partyMembers.forEach(calcStatusLogic::initStatus);
         calcStatusLogic.initStatus(enemy);
 
-        battleLogic.startBattle(partyMembers, enemy);
+        battleContext.init(member, null);
+        battleLogic.startBattle();
 
         return null;
     }

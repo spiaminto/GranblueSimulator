@@ -1,4 +1,3 @@
-
 // 응답
 // 상태 정보 클래스
 class StatusDto {
@@ -17,8 +16,12 @@ class MoveResponse {
     constructor(data) {
         this.charOrder = data.charOrder;
         this.moveType = MoveType.byName(data.moveType);
+        this.moveName = data.moveName;
         this.motion = data.motion || 'none';
-        this.summonId = data.summonId ?? null;
+
+        this.summonIds = data.summonIds || [];
+        this.summonCjsNames = data.summonCjsNames || [];
+
         this.abilityCoolDowns = data.abilityCoolDowns || [];
 
         this.totalHitCount = data.totalHitCount;
@@ -30,6 +33,9 @@ class MoveResponse {
 
         this.hps = data.hps || [];
         this.hpRates = data.hpRates || [];
+        this.hpRates.forEach(function (hpRate, index) {
+            player.actors.get('actor-' + index)?.setHpRate(hpRate);
+        })
         this.heals = data.heals || [];
 
         this.chargeGauges = data.chargeGauges || [];
@@ -37,12 +43,12 @@ class MoveResponse {
 
         // 스테이터스 매핑 [적][아군][아군][아군][아군]
         this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
-        this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF'));
-        this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF'));
+        this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF' || status.type === 'BUFF_FOR_ALL'));
+        this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF' || status.type === 'DEBUFF_FOR_ALL'));
 
         this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
-        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF'));
-        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF'));
+        this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF' || status.type === 'BUFF_FOR_ALL'));
+        this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF' || status.type === 'DEBUFF_FOR_ALL'));
 
         this.currentBattleStatusesList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type !== 'PASSIVE').map(s => new StatusDto(s)));
 
@@ -250,14 +256,16 @@ const MoveType = {
     GUARD: {name: 'GUARD', parentType: 'ROOT', className: 'guard'},
     GUARD_DEFAULT: {name: 'GUARD_DEFAULT', parentType: 'GUARD', className: 'guard'},
 
-    FATAL_CHAIN : {name: 'FATAL_CHAIN', parentType: 'ROOT', className: 'fatal-chain'},
-    FATAL_CHAIN_DEFAULT : {name: 'FATAL_CHAIN_DEFAULT', parentType: 'FATAL_CHAIN', className: 'fatal-chain'},
+    FATAL_CHAIN: {name: 'FATAL_CHAIN', parentType: 'ROOT', className: 'fatal-chain'},
+    FATAL_CHAIN_DEFAULT: {name: 'FATAL_CHAIN_DEFAULT', parentType: 'FATAL_CHAIN', className: 'fatal-chain'},
 
-    TURN_END : {name: 'TURN_END', parentType: 'ROOT', className: 'turn-end'},
-    TURN_END_PROCESS : {name: 'TURN_END_PROCESS', parentType: 'TURN_END', className: 'turn-end'},
+    TURN_END: {name: 'TURN_END', parentType: 'ROOT', className: 'turn-end'},
+    TURN_END_PROCESS: {name: 'TURN_END_PROCESS', parentType: 'TURN_END', className: 'turn-end'},
 
     ETC: {name: 'ETC', parentType: 'ROOT', className: 'etc'},
     STRIKE_SEALED: {name: 'STRIKE_SEALED', parentType: 'ETC', className: 'strike-sealed'},
+    SYNC: {name: 'SYNC', parentType: 'ETC', className: 'sync'},
+
     NONE: {name: 'NONE', parentType: 'ROOT', className: 'none'},
 };
 

@@ -6,23 +6,23 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.logic.common.DamageLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
-import com.gbf.granblue_simulator.logic.common.StatusUtil;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.gbf.granblue_simulator.domain.move.MoveType.GUARD_DEFAULT;
-import static com.gbf.granblue_simulator.domain.move.MoveType.STRIKE_SEALED;
+import static com.gbf.granblue_simulator.domain.move.MoveType.*;
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
 
 /**
@@ -37,6 +37,7 @@ public abstract class CharacterLogic {
     protected final DamageLogic damageLogic;
     protected final ChargeGaugeLogic chargeGaugeLogic;
     protected final SetStatusLogic setStatusLogic;
+    protected final BattleContext battleContext;
 
     // 필수 오버라이드
     // 전투 시작시 효과
@@ -272,6 +273,32 @@ public abstract class CharacterLogic {
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, Collections.emptyList(), fatalChain);
         chargeGaugeLogic.setFatalChainGauge(mainActor, 0); // 페이탈 체인 게이지 초기화
         return resultMapper.toResult(mainActor, enemy, Collections.emptyList(), fatalChain, damageLogicResult, setStatusResult);
+    }
+
+    public ActorLogicResult defaultDeath(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult result) {
+        BattleStatus immortalStatus = getBattleStatusByEffectType(mainActor, StatusEffectType.IMMORTAL).orElse(null);
+        if (immortalStatus != null) {
+            setStatusLogic.removeBattleStatus(mainActor, immortalStatus); // 불사효과 삭제
+            mainActor.updateHp(1); // 체력 1
+            return resultMapper.emptyResult(); // 안해도됨 (프론트처리 없음)
+        } else {
+            // 사망처리 -> currentOrder 로 뒤로 보내서 front 에서 제외시킴
+            Integer deadActorCurrentOrder = mainActor.getCurrentOrder();
+            mainActor.updateCurrentOrder(deadActorCurrentOrder + 100);
+            // 서브멤버 존재시, 사망 캐릭터의 currentOrder 로 변경
+            BattleActor firstSubCharacter = battleContext.getSubCharacters().stream().findFirst()
+                    .map(firstSubMember -> {
+                        firstSubMember.updateCurrentOrder(deadActorCurrentOrder);
+                        return firstSubMember;
+                    }).orElseGet(() -> null);
+            // 컨텍스트 갱신
+            battleContext.frontCharacterDead(mainActor, firstSubCharacter);
+            // 결과 반환
+            Move deadMove = mainActor.getMove(DEAD_DEFAULT);
+            List<BattleActor> tempPartyMembers = new ArrayList<>(partyMembers); // 파티멤버의 갱신은 battleLogic 에서 하기 위해 일단 이렇게
+            tempPartyMembers.remove(mainActor);
+            return resultMapper.toResult(mainActor, enemy, tempPartyMembers, deadMove, null, null);
+        }
     }
 
     protected ActorLogicResult defaultGuard(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {

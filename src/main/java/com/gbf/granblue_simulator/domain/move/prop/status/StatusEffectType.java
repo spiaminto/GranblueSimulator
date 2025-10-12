@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.domain.move.prop.status;
 
 /**
  * StatusEffect.StatusEffectType. StatusEffect.value 가 가지는 값의 의미를 [] 안에 써넣을것
+ * 값은 모두 읽기전용!!!!
  */
 public enum StatusEffectType {
 
@@ -111,7 +112,7 @@ public enum StatusEffectType {
     // 쿨다운은 로직에서 처리
 
     // 방어 특수
-    IMMORTAL, // 불사신 효과 [버틸 횟수 1]
+    IMMORTAL, // 불사신 효과 [버틸 횟수 1 고정]
     SUBSTITUTE, // 감싸기 [우선순위 1 or 2] -> value 가 클수록 우선순위 높음
     GUARD_DISABLED, // 방어불가 [1]
 
@@ -121,6 +122,8 @@ public enum StatusEffectType {
     // 힐
     HEAL_UP, // 회복 성능 업 [상승배율]
     HEAL_DOWN, // 회복 성능 다운 [감소배율]
+    UNDEAD, // 언데드 [1]
+    // 강압: HEAL_DOWN 200%
 
 
     // 행동이 발생하는 스테이터스 =====================================================================

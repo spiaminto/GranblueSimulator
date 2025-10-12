@@ -1,5 +1,7 @@
 package com.gbf.granblue_simulator.logic.common;
 
+import com.gbf.granblue_simulator.domain.Member;
+import com.gbf.granblue_simulator.domain.Room;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +38,23 @@ public class SetStatusLogic {
     private final BattleStatusRepository battleStatusRepository;
     private final CalcStatusLogic calcStatusLogic;
     private final ProcessStatusLogic processStatusLogic;
+
+    /**
+     * 단순히 battleActor 에 status 를 붙여줌. <br>
+     * <b>사용 주의!, 동기화시에만 사용중</b>
+     */
+    public void addSyncedBattleStatus(BattleActor targetActor, BattleStatus battleStatus) {
+        // 새로 추가되는 스테이터스
+        BattleStatus addedBattleStatus = BattleStatus.builder()
+                .battleActor(targetActor)
+                .duration(battleStatus.getDuration())
+                .status(battleStatus.getStatus())
+                .level(battleStatus.getLevel()) // 레벨 유지
+                .iconSrc(battleStatus.getIconSrc())
+                .build()
+                .mapBattleActor(targetActor);
+        battleStatusRepository.save(addedBattleStatus);
+    }
 
     /**
      * Move 를 받아 해당 Move 의 Status 리스트를 타겟에 맞춰 BattleStatus 로 set
@@ -116,14 +136,15 @@ public class SetStatusLogic {
                 // 힐 추가
                 healValues.set(targetActor.getCurrentOrder(), healValues.get(targetActor.getCurrentOrder()) + result.getHealValue());
             });
+
+            if (statusTargetType == StatusTargetType.ALL_PLAYERS) {
+                this.registerForAllStatus(mainActor, status);
+            }
         });
 
         // 스텟 재계산
         partyMembers.forEach(calcStatusLogic::syncStatus);
         calcStatusLogic.syncStatus(enemy);
-
-        // TODO 나중에 힐 처리까지 하고 나서 분리해야 할듯
-        // ============================================================================
 
         // 로깅
 //        partyMemberAddedBattleStatus.forEach(addedStatuses -> log.info("partyMemberIndex = {}, addedStatuses = {}", partyMemberAddedBattleStatus.indexOf(addedStatuses), addedStatuses));
@@ -145,16 +166,14 @@ public class SetStatusLogic {
             }
             case SELF_AND_MAIN_CHARACTER -> {
                 resultTargets.add(mainActor);
-                partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().ifPresent(resultTargets::add);
+                partyMembers.stream().filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst().ifPresent(resultTargets::add);
             }
             case MAIN_CHARACTER ->
-                    partyMembers.stream().filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst().ifPresent(resultTargets::add);
+                    partyMembers.stream().filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst().ifPresent(resultTargets::add);
             case ENEMY -> resultTargets.add(enemy);
-            case PARTY_MEMBERS -> resultTargets.addAll(partyMembers);
+            case PARTY_MEMBERS, ALL_PLAYERS -> resultTargets.addAll(partyMembers);
             case PARTY_MEMBERS_NOT_SELF ->
                     resultTargets.addAll(partyMembers.stream().filter(battleActor -> !battleActor.getId().equals(mainActor.getId())).toList());
-            case ALL_PLAYERS -> {
-            }
             default -> throw new IllegalArgumentException("getTargets() Invalid target type: " + targetType);
         }
         return resultTargets;
@@ -368,11 +387,11 @@ public class SetStatusLogic {
      *
      * @param battleActor 증가시킬 대상
      * @param level       증가량 (목표 값이 아님)
-     * @param statusIds   증가시킬 battleStatus 의 statusId
+     * @param battleStatuses   증가시킬 battleStatus[]
      */
-    public void addBattleStatusesLevel(BattleActor battleActor, int level, Long... statusIds) {
-        for (Long statusId : statusIds)
-            this.addBattleStatusLevel(battleActor, level, statusId);
+    public void addBattleStatusesLevel(BattleActor battleActor, int level, BattleStatus... battleStatuses) {
+        for (BattleStatus battleStatus : battleStatuses)
+            this.addBattleStatusLevel(battleActor, level, battleStatus);
     }
 
     /**
@@ -381,13 +400,14 @@ public class SetStatusLogic {
      *
      * @param battleActor
      * @param level       증가량 (목표 값이 아님)
-     * @param statusId    증가할 battleStatus 의 원본 status
+     * @param battleStatus    증가할 battleStatus
      */
-    public void addBattleStatusLevel(BattleActor battleActor, int level, Long statusId) {
-        battleActor.getBattleStatuses().stream()
-                .filter(battleStatus -> battleStatus.getStatus().getId().equals(statusId))
-                .findFirst()
-                .ifPresent(battleStatus -> battleStatus.addLevel(level));
+    public void addBattleStatusLevel(BattleActor battleActor, int level, BattleStatus battleStatus) {
+        if (battleStatus == null) {
+            log.warn("[addBattleStatusLevel] null BattleStatus, actor = {}", battleActor);
+            return;
+        }
+        battleStatus.addLevel(level);
         calcStatusLogic.syncStatus(battleActor); // 갱신
     }
 
@@ -401,6 +421,10 @@ public class SetStatusLogic {
      * @return setStatusResult
      */
     public SetStatusResult subtractBattleStatusLevel(BattleActor battleActor, int level, BattleStatus battleStatus) {
+        if (battleStatus == null) {
+            log.warn("[subtractBattleStatusLevel] null BattleStatus, actor = {}", battleActor);
+            return null;
+        }
         List<List<BattleStatus>> addedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
         List<List<BattleStatus>> removedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
 
@@ -413,6 +437,7 @@ public class SetStatusLogic {
         } else addedBattleStatuses.get(battleActor.getCurrentOrder()).add(battleStatus); // 레벨 내려가면 추가와 동일하게 표시
 
         calcStatusLogic.syncStatus(battleActor); // 갱신
+
         return SetStatusResult.builder()
                 .addedStatusesList(addedBattleStatuses)
                 .removedStatuesList(removedBattleStatuses)
@@ -524,7 +549,36 @@ public class SetStatusLogic {
 
         // 스테이터스 갱신
         allActors.forEach(calcStatusLogic::syncStatus);
+    }
 
+    /**
+     * 참전자 효과 적용 <br>
+     * <b>StatusTargetType.ALL_PLAYERS</b> 만 적용됨 <br>
+     * 참전자전체 버프, 클리어올 에서 사용 상정
+     * @param mainActor : 스테이터스 발생 액터
+     * @param status : 적용할 스테이터스
+     */
+    public void registerForAllStatus(BattleActor mainActor, Status status) {
+        // StatusTargetType.All_Players 만을 적용대상으로 함
+        // StatusTargetType.ENEMY, 즉 적을 대상으로 한 참전자 효과는 여기서 처리하지 않음 ( sync 로 처리 )
+        // BUFF_FOR_ALL, CLEAR_FOR_ALL 만 처리
+        // DEBUFF_FOR_ALL 이 캐릭터 대상으로 있는 건 본적 없음
+        if (!status.getType().isForAllStatus()) throw new IllegalArgumentException("참전자 버프, 참전자 클리어올 외에 다른 타입 " + status.getType());
+
+        Member refMember = mainActor.getMember();
+        Room room = refMember.getRoom();
+        List<Member> targetMembers = room.getMembers().stream()
+                .filter(member -> !refMember.getId().equals(member.getId()))
+                .toList();
+        if (targetMembers.isEmpty()) return; // 동기화 대상 없음
+
+        // 결과 반환을 위한 처리 -> 이펙트 결과를 반환하고 싶기 때문에 처리를 반환시점으로 지연시킴
+        targetMembers.forEach(member -> {
+            member.addForAllStatusId(status.getId());
+            // 저장해놓고, 플레이어 각각 필요한경우 사용 및 초기화
+            // 사용시 mainActor 를 해당 파티의 leader 로 설정해서 임시로 테스트하고, 문제없으면 그대로 사용하자....
+
+        });
     }
 
 

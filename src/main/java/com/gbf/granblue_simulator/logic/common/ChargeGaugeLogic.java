@@ -43,7 +43,7 @@ public class ChargeGaugeLogic {
             case CHARGE_ATTACK_DEFAULT -> {
                 setChargeGauge(mainActor, 0); // 사용자는 초기화
                 partyMembers.stream() // 페이탈 체인 게이지 증가
-                        .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
+                        .filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst()
                         .ifPresent(mainCharacter -> addFatalChainGauge(mainCharacter, baseFatalChainGaugePoint));
                 partyMembers.stream() // 뒷자리 파티 멤버는 오의 게이지 증가
                         .filter(battleActor -> battleActor.getCurrentOrder() > mainActor.getCurrentOrder())
@@ -100,7 +100,7 @@ public class ChargeGaugeLogic {
      */
     public void processFatalChainGaugeFromStatus(BattleActor actor, Status fatalChainGaugeUpStatus) {
         actor.getMember().getBattleActors().stream()
-                .filter(battleActor -> battleActor.getActor().isMainCharacter()).findFirst()
+                .filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst()
                 .ifPresent(mainCharacter ->
                         addFatalChainGauge(mainCharacter, fatalChainGaugeUpStatus.getStatusEffects().get(StatusEffectType.ACT_FATAL_CHAIN_GAUGE_UP).getValue()));
     }
