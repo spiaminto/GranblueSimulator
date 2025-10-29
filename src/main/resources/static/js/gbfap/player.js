@@ -99,6 +99,18 @@ class Player {
         this.m_background.src = url;
     }
 
+    setEffectPlaying(effectPlaying, actorIndex) {
+        if (effectPlaying) {
+            this.effectPlaying = true;
+            this.effectPlayingActorIndex = actorIndex;
+            clearInterval(window.syncTimer); // 동기화 취소
+        } else {
+            this.effectPlaying = false;
+            this.effectPlayingActorIndex = null;
+            window.syncTimer = doSync();
+        }
+    }
+
     lockPlayer(lock) {
         this.locked = lock;
     }
@@ -123,16 +135,17 @@ class Player {
         return {
             actorId: actorId,
             motion: motion,
-            options: options,
-            abilityType: options.abilityType || 'NONE',
-            effectType: options.effectType || 'NONE',
-            isEffectOnly: options.isEffectOnly || false,
-            isMotionOnly: options.isMotionOnly || false,
-            multiHitCount: options.multiHitCount || 0,
-            isLastAttack: options.isLastAttack || false,
-            isEffecting: isEffecting,
-            summonId: options.summonId || 0,
-            unionSummonCjs: options.unionSummonCjs || ''
+            options: {
+                isEffecting: isEffecting,
+                abilityType: options.abilityType || 'NONE',
+                effectType: options.effectType || 'NONE',
+                isEffectOnly: options.isEffectOnly || false,
+                isMotionOnly: options.isMotionOnly || false,
+                attackMultiHitCount: options.attackMultiHitCount || 0,
+                isLastAttack: options.isLastAttack || false,
+                summonId: options.summonId || 0,
+                unionSummonCjs: options.unionSummonCjs || ''
+            },
         }
     }
 
@@ -190,10 +203,6 @@ class Player {
         if (playRequest.motion === Player.c_animations.NONE) return 0;
         let actor = this.actors.get(playRequest.actorId);
         let duration = actor.play(playRequest, synced);
-        if (playRequest.isEffecting) {
-            this.effectPlaying = true;
-            this.effectPlayingActorIndex = actor.actorIndex;
-        }
         console.log('duration = ', duration);
         return duration;
     }
@@ -383,8 +392,10 @@ class Player {
         MISS: "miss",
         SUMMON: "summon",
 
-        ABILITY_EFFECT_ONLY: "ab_motion_effect_only", // 어빌리티 처리 but 모션 없음
-        ABILITY_DAMAGE_MOTION: "ab_motion_damage", // 어빌리티 처리용 데미지 모션 (디스펠)
+        // 어빌리티 처리 but 모션 없음
+        ABILITY_EFFECT_ONLY: "ab_motion_effect_only",
+        // 어빌리티 처리용 데미지 모션 (디스펠, 장악)
+        ABILITY_DAMAGE_MOTION: "ab_motion_damage",
 
         ABILITY_MOTION_OLD: "attack_noeffect",
         ABILITY_MOTION: "ab_motion",
@@ -507,7 +518,7 @@ class Player {
             return this.isSummoning(motion) || this.isAttack(motion) || this.isMortal(motion) || this.isAbilityMotion(motion) || this.isRaidAppear(motion)
         },
 
-        isWaiting(motion) { // isLooping = false 로 유지할것들
+        isWaiting(motion) { // 대기모션
             return [
                 Player.c_animations.WAIT,
                 Player.c_animations.WAIT_2,
@@ -515,13 +526,15 @@ class Player {
                 Player.c_animations.TO_STB_WAIT,
                 Player.c_animations.STB_WAIT,
                 Player.c_animations.STB_WAIT_ADV,
-                // standby 도 loop x
+
+                Player.c_animations.ABILITY,
+
+                Player.c_animations.DOWN,
+
                 Player.c_animations.ENEMY_STANDBY_A,
                 Player.c_animations.ENEMY_STANDBY_B,
                 Player.c_animations.ENEMY_STANDBY_C,
                 Player.c_animations.ENEMY_STANDBY_D,
-                // ability 도 loop x
-                Player.c_animations.ABILITY,
             ].includes(motion);
         },
 

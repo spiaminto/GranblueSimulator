@@ -8,6 +8,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.logic.SyncLogic;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.*;
@@ -210,7 +211,7 @@ public class Diaspora1Logic extends EnemyLogic {
         // 활성 효과에 맞는 모드 적용
         Status modeStatus = getStatusByNameFromMove(mainActor, MoveType.THIRD_SUPPORT_ABILITY, currentActivateStatusNameType);
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, List.of(modeStatus));
-        setStatusResult.getRemovedStatuesList().get(mainActor.getCurrentOrder()).add(currentActivateStatus); // 활성 지우는 효과 추가
+        setStatusResult.getRemovedStatuesList().get(mainActor.getCurrentOrder()).add(BattleStatusDto.of(currentActivateStatus)); // 활성 지우는 효과 추가
 
         return resultMapper.toResult(mainActor, partyMembers, ability, null, null, setStatusResult);
     }

@@ -157,14 +157,19 @@ public enum MoveType {
         return this == NONE;
     }
 
-    public int getOrder() {
+    /**
+     * MoveType 이 ABILITY 에 속하는경우, 해당 타입의 어빌리티 순서를 반환 (1부터)
+     * @return 어빌리티 순서 (1 시작)
+     * @throws IllegalArgumentException 어빌리티가 아닌경우
+     */
+    public int getAbilityOrder() {
         return switch (this) {
             case FIRST_ABILITY, FIRST_SUPPORT_ABILITY -> 1;
             case SECOND_ABILITY, SECOND_SUPPORT_ABILITY -> 2;
             case THIRD_ABILITY, THIRD_SUPPORT_ABILITY -> 3;
             case FOURTH_SUPPORT_ABILITY -> 4;
             case FIFTH_SUPPORT_ABILITY -> 5;
-            default -> -1;
+            default -> throw new IllegalArgumentException("[getOrder] Order is not defined for " + this);
         };
     }
 }

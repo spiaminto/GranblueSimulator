@@ -36,7 +36,7 @@ public class OmenLogic {
 
         // 1. 다음 전조를 결정
         Optional<Move> standbyOptional = Optional.ofNullable(determineStandbyMove(enemy));
-        log.info("[triggerOmen] determinedStandby: standbyOptional = {}, nextIncantStandbyType = {}, hpRate = {}, ct / max = {} / {}", standbyOptional, enemy.getNextIncantStandbyType(), enemy.calcHpRate(), enemy.getChargeGauge(), enemy.getMaxChargeGauge());
+        log.info("[triggerOmen] determinedStandby: standbyOptional = {}, nextIncantStandbyType = {}, hpRate = {}, ct / max = {} / {}", standbyOptional, enemy.getNextIncantStandbyType(), enemy.getHpRate(), enemy.getChargeGauge(), enemy.getMaxChargeGauge());
         standbyOptional.ifPresent(standby -> {
             // 2. 결정된 다음 전조를 BattleEnemy 엔티티에 set
             setStandbyMove(enemy, standby);
@@ -116,7 +116,7 @@ public class OmenLogic {
         Omen omen = standby.getOmen();
         enemy.setCurrentStandbyType(standby.getType());
         if (omen.getOmenType() == OmenType.HP_TRIGGER)
-            enemy.setLatestTriggeredHp(enemy.calcHpRate()); // 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
+            enemy.setLatestTriggeredHp(enemy.getHpRate()); // 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
         // 2. 전조 해제 조건 set
         List<OmenCancelCond> omenCancelConds = omen.getOmenCancelConds();
         OmenCancelCond omenCancelCond = omenCancelConds.get((int) (Math.random() * omenCancelConds.size()));
@@ -134,7 +134,7 @@ public class OmenLogic {
      * @return Omen HpTrigger, 없으면 null
      */
     protected Omen getValidHpTrigger(BattleEnemy enemy) {
-        double hpRate = enemy.calcHpRate();
+        double hpRate = enemy.getHpRate();
         double latestTriggeredHp = enemy.getLatestTriggeredHp();
         return enemy.getActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
@@ -163,7 +163,7 @@ public class OmenLogic {
      */
     protected Omen getValidChargeAttack(BattleEnemy enemy) {
         if (enemy.getChargeGauge() < enemy.getMaxChargeGauge()) return null;
-        double hpRate = enemy.calcHpRate();
+        double hpRate = enemy.getHpRate();
         return enemy.getActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
                 .map(Move::getOmen)
@@ -193,14 +193,13 @@ public class OmenLogic {
             case DAMAGE -> {
                 Integer damageSum = getDamageSum(otherResult.getDamages(), otherResult.getAdditionalDamages());
                 enemy.setOmenValue(Math.max(omenValue - damageSum, 0));
-
             }
             case DEBUFF_COUNT -> {
                 int debuffCount = otherResult.getAddedBattleStatusesList().stream()
                         .flatMap(battleStatuses -> battleStatuses.stream()
                                 .filter(battleStatus -> !battleStatus.getName().equals("MISS"))
                                 .map(BattleStatusDto::getStatusType))
-                        .filter(type -> type == StatusType.DEBUFF || type == StatusType.DEBUFF_FOR_ALL)
+                        .filter(type -> type == StatusType.DEBUFF)
                         .toList().size();
                 enemy.setOmenValue(Math.max(omenValue - debuffCount, 0));
             }

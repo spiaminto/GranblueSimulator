@@ -15,6 +15,7 @@ import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -96,7 +97,7 @@ public class EnemyLogicResultMapper {
     }
 
     protected ActorLogicResult map(BattleActor mainActor, List<BattleActor> partyMembers, Move move, DamageLogicResult damageLogicResult, List<Integer> targetOrders, SetStatusResult setStatusResult, StatusTargetType executeAttackTargetType, Omen omen, boolean powerUp, boolean ctMax) {
-        if (setStatusResult == null) setStatusResult = SetStatusResult.builder().build(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
+        if (setStatusResult == null) setStatusResult = SetStatusResult.emptyResult(); // 스테이터스 효과가 발생하지 않은 경우 빈객체
         if (damageLogicResult == null)
             damageLogicResult = DamageLogicResult.builder().build(); // 데미지가 발생하지 않은경우 빈 객체 생성
 
@@ -116,10 +117,10 @@ public class EnemyLogicResultMapper {
         List<Integer> hps = IntStream.range(0, 5).mapToObj(i -> 0).collect(Collectors.toList());
         List<Integer> hpRates = IntStream.range(0, 5).mapToObj(i -> 0).collect(Collectors.toList());
         hps.set(0, mainActor.getHp());
-        hpRates.set(0, mainActor.calcHpRate());
+        hpRates.set(0, mainActor.getHpRate());
         partyMembers.forEach(battleActor -> {
             hps.set(battleActor.getCurrentOrder(), battleActor.getHp());
-            hpRates.set(battleActor.getCurrentOrder(), battleActor.calcHpRate());
+            hpRates.set(battleActor.getCurrentOrder(), battleActor.getHpRate());
         });
 
         // 오의게이지
@@ -128,22 +129,18 @@ public class EnemyLogicResultMapper {
         partyMembers.forEach(battleActor -> chargeGauges.set(battleActor.getCurrentOrder(), battleActor.getChargeGauge()));
 
         // 추가된 스테이터스
-        List<List<BattleStatusDto>> addedStatusList = setStatusResult.getAddedStatusesList().stream()
-                .map(addedBattleStatuses -> addedBattleStatuses.stream()
-                        .map(BattleStatusDto::of).toList())
-                .toList();
+        List<List<BattleStatusDto>> addedStatusList = setStatusResult.getAddedStatusesList();
         // 삭제된 스테이터스
-        List<List<BattleStatusDto>> removedStatusList = setStatusResult.getRemovedStatuesList().stream()
-                .map(removedBattleStatuses -> removedBattleStatuses.stream()
-                        .map(BattleStatusDto::of).toList())
-                .toList();
+        List<List<BattleStatusDto>> removedStatusList = setStatusResult.getRemovedStatuesList();
         // 결과 스테이터스
         List<List<BattleStatus>> currentBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
         currentBattleStatusesList.set(0, mainActor.getBattleStatuses());
         partyMembers.forEach(partyMember -> currentBattleStatusesList.set(partyMember.getCurrentOrder(), partyMember.getBattleStatuses()));
         List<List<BattleStatusDto>> currentBattleStatusesDtoList = currentBattleStatusesList.stream()
                 .map(currentBattleStatuses -> currentBattleStatuses.stream()
-                        .map(BattleStatusDto::of).toList())
+                        .map(BattleStatusDto::of)
+                        .sorted(Comparator.comparing(BattleStatusDto::getCreatedAt))
+                        .toList())
                 .toList();
 
         // 힐
@@ -151,10 +148,14 @@ public class EnemyLogicResultMapper {
 
         // 쿨다운
         List<List<Integer>> cooldownList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<Integer>()).collect(Collectors.toList());
+        List<List<Integer>> useCountList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<Integer>()).collect(Collectors.toList());
+        List<List<Boolean>> abilityUsablesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<Boolean>()).collect(Collectors.toList());
         partyMembers.forEach(actor -> {
-            cooldownList.set(actor.getCurrentOrder(), List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown()));
+//            cooldownList.set(actor.getCurrentOrder(), List.of(actor.getFirstAbilityCoolDown(), actor.getSecondAbilityCoolDown(), actor.getThirdAbilityCoolDown()));
+            cooldownList.set(actor.getCurrentOrder(), actor.getAbilityCooldowns());
+            useCountList.set(actor.getCurrentOrder(), actor.getAbilityUseCounts());
+            abilityUsablesList.set(actor.getCurrentOrder(), actor.getAbilityUsables());
         });
-
 
         // 전조 있을때 처리
         BattleEnemy enemy = (BattleEnemy) mainActor;
@@ -170,6 +171,9 @@ public class EnemyLogicResultMapper {
                 .mainBattleActorOrder(mainActor.getCurrentOrder())
                 .moveType(move.getType())
                 .motionType(move.getMotionType())
+
+                .mainActorName(mainActor.getActor().getNameEn())
+                .moveName(move.getName())
 
                 .currentTurn(mainActor.getMember().getCurrentTurn())
 
@@ -197,6 +201,8 @@ public class EnemyLogicResultMapper {
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .abilityCooldowns(cooldownList)
+                .abilityUsables(abilityUsablesList)
+                .abilityUseCounts(useCountList)
 
                 .executeChargeAttack(false) // 적은 오의 2회발동 없음
                 .executeAttackTargetType(null) // 적은 턴 진행 없이 일반공격 없음

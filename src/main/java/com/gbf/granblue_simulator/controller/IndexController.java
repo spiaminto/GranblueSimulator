@@ -1,6 +1,9 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.auth.PrincipalDetails;
+import com.gbf.granblue_simulator.controller.form.EnterRoomForm;
+import com.gbf.granblue_simulator.controller.form.ExitRoomForm;
+import com.gbf.granblue_simulator.controller.form.RoomAddForm;
 import com.gbf.granblue_simulator.controller.response.info.RoomInfo;
 import com.gbf.granblue_simulator.controller.response.info.party.PartyCharacterInfo;
 import com.gbf.granblue_simulator.controller.response.info.party.PartyInfo;
@@ -56,7 +59,7 @@ public class IndexController {
                         .enemyHpRate(room.getMembers().getFirst().getBattleActors().stream()
                                 .filter(BattleActor::isEnemy)
                                 .findFirst().orElseThrow(() -> new IllegalArgumentException("적이 존재하지 않음"))
-                                .calcHpRate())
+                                .getHpRate())
                         .build()
                 ).toList();
         model.addAttribute("roomInfos", roomInfos);

@@ -20,9 +20,8 @@ async function processEnemyAttack(response) {
     }
 
     let totalEndTime = effectDuration;
-    console.log("[processEnemyAttack] total = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
-        console.log('ENEMY ATTACK done');
+        console.log("[processEnemyAttack] DONE total = " + totalEndTime)
         resolve();
     }, totalEndTime));
 }
@@ -30,35 +29,25 @@ async function processEnemyAttack(response) {
 async function processEnemyAbility(response) {
     let isEnemyPowerUp = response.enemyPowerUp;
     let isEnemyCtMax = response.enemyCtMax; // CHECK 일단 미구현
-
-    // let globalEffectType = response.addedBuffStatusesList[0].length > 0 ? 'RAID_BUFF' : 'RAID_DEBUFF';
-    let globalEffectType = ''; // CHECK 원래 지정해야 되는데, RAID_BUFF 가 아군전용이라 일단 비활성화. 나중에 효과찾아서 변경
+    
+    // 이펙트 재생
     let motion = response.motion || 'none';
-    let effectDuration = await player.play(Player.playRequest('actor-0', motion, {abilityType: response.moveType.name}));
+    let isEffectOnly = motion.includes('ab_');// CHECK 적은 어빌리티 모션이 없으므로, ab_ 어빌리티 모션이 주어지면 effectOnly 로 간주 (나중에 다른 모션을 사용한는 어빌리티의 경우 해당 모션을 고려해야 하므로 ab_ 만 따로 설정)
+
+    let effectDuration = await player.play(Player.playRequest('actor-0', motion, {abilityType: response.moveType.name, isEffectOnly: isEffectOnly}));
 
     // 데미지 후처리 (데미지 표시, 아군 피격 재생)
     if (response.damages.length > 0) enemyDamagesPostProcess(response, effectDuration);
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
+    // 스테이터스 처리
+    let totalEndTime = await processStatusEffect(response, effectDuration);
 
-    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
-    // console.log("[processEnemyAbility] total = " + totalEndTime)
-    console.log('[processEnemyAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);
-    return new Promise(resolve => setTimeout(function () {
-        console.log('ENEMY ABILITY done');
-        resolve();
-    }, totalEndTime));
+    console.log('[processEnemyAbility] DONE totalTime', totalEndTime, 'effectDuration ', effectDuration);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 async function processEnemyChargeAttackPreEffect() {
-    let effectDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: BASE_ABILITY.ENEMY_AB_START}));
+    let effectDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: BASE_ABILITY.ENEMY_AB_START, isEffectOnly: true}));
     return new Promise(resolve => setTimeout(function () {
         console.log('[processEnemyChargeAttackPreEffect] DONE');
         resolve();
@@ -88,21 +77,11 @@ async function processEnemyChargeAttack(response) {
     // 데미지 후처리 (데미지 표시, 아군 피격 재생)
     enemyDamagesPostProcess(response, effectDuration);
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration + Constants.Delay.damageShowToNext);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration + Constants.Delay.damageShowToNext);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
+    // 스테이터스 처리
+    let totalEndTime = await processStatusEffect(response, effectDuration);
 
-    let totalEndTime = debuffEndTime;
-    // console.log('[processEnemyChargeAttack] chargeAttackDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
+    console.log('[processEnemyChargeAttack] DONE totalTime', totalEndTime, 'effectDuration ', effectDuration);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 async function processEnemyStandBy(response) {
@@ -133,10 +112,11 @@ async function processEnemyStandBy(response) {
 
     // 이펙트 재생
     let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
+    effectAudioPlayer.playAdditionalSound(response.charName, response.motion);
 
     let totalEndTime = effectDuration
     return new Promise(resolve => setTimeout(function () {
-        console.log('STANDBY done', response.moveType.name);
+        console.log('[processEnemyStandBy] DONE, move = ', response.moveType.name);
         resolve();
     }, totalEndTime));
 }
@@ -158,16 +138,11 @@ async function processEnemyBreak(response) {
 
     // 이펙트 재생
     let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
-
-    // 화면 흔들기
-    $('#videoContainer').addClass('shake-left-effect');
-    setTimeout(function () {
-        $('#videoContainer').removeClass('shake-left-effect');
-    }, 200);
+    effectAudioPlayer.playAdditionalSound(response.charName, response.motion);
 
     let totalEndTime = effectDuration;
     return new Promise(resolve => setTimeout(function () {
-        console.log('BREAK done', response.moveType);
+        console.log('[processEnemyBreak] DONE move =', response.moveType);
         resolve();
     }, totalEndTime + 200));
 
@@ -203,7 +178,7 @@ async function processFormChange(formChangeResponse) {
 
     let totalEndTime = formChangeDurationSum;
     return new Promise(resolve => setTimeout(function () {
-        console.log('FORM_CHANGE and FORM_CHANGE_ENTRY done time = ', totalEndTime);
+        console.log('[processFormChange] DONE totalEndTime = ', totalEndTime);
         resolve();
     }, totalEndTime + 200));
 }
@@ -241,7 +216,7 @@ async function loadNextEnemyActor() {
         chargeAttackStartFrame: assetInfo.asset.chargeAttackStartFrame,
         summons: assetInfo.asset.summonCjses,
         isEnemy: assetInfo.isEnemy,
-        isMainCharacter: assetInfo.isMainCharacter,
+        isLeaderCharacter: assetInfo.isLeaderCharacter,
         isChargeAttackSkip: assetInfo.isChargeAttackSkip,
         startMotion: assetInfo.startMotion,
     });

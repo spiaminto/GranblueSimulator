@@ -9,7 +9,6 @@ import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.actor.dto.NextMoveRequest;
 import com.gbf.granblue_simulator.logic.common.*;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import lombok.extern.slf4j.Slf4j;
@@ -121,7 +120,7 @@ public class YachimaLogic extends CharacterLogic {
             setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, thirdAbility.getStatuses());
         }
         // 쿨타임 적용
-        mainActor.updateAbilityCoolDown(thirdAbility.getCoolDown(), MoveType.THIRD_ABILITY);
+        mainActor.modifyAbilityCooldowns(thirdAbility.getCoolDown(), MoveType.THIRD_ABILITY);
         return resultMapper.toResultWithExecuteAttack(mainActor, enemy, partyMembers, thirdAbility, null, setStatusResult, afterMoveTarget);
     }
 
@@ -161,7 +160,7 @@ public class YachimaLogic extends CharacterLogic {
                         getBattleStatusByName(partyMember, "델타").orElse(null)));
 
                 // 자신의 3어빌 쿨타임 0으로 감소
-                mainActor.updateAbilityCoolDown(0, MoveType.THIRD_ABILITY);
+                mainActor.modifyAbilityCooldowns(0, MoveType.THIRD_ABILITY);
                 return resultMapper.toResult(mainActor, enemy, partyMembers, ability, null, setStatusResult);
             }
         }

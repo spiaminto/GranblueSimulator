@@ -40,10 +40,16 @@ function requestMove(characterId, moveId) {
         async: false,
         success: function (response) {
             // console.log(response);
-            processResponseMoves(response);
+            processResponseMoves(response, 'move');
         },
         error: function (response) {
             console.log(response);
+            let responseObj = response.responseJSON;
+            if (response.status === 400) {
+                alert(responseObj.message);
+                $('.ability-rail-wrapper .rail-item').remove();
+                // TODO 해당하는 모든 어빌리티 오버레이 취소
+            }
         }
     });
 }
@@ -67,13 +73,11 @@ function requestTurnProgress() {
         success: function (response) {
             let responseResults = response;
             // console.log(responseResults);
-            processResponseMoves(responseResults).then(function () {
+            processResponseMoves(responseResults, 'turn').then(function () {
                 // 턴 갱신
                 let $turnValue = $('.turn-indicator .turn-value');
                 let turnValue = $turnValue.text();
                 $turnValue.text(++turnValue);
-                // 가드해제
-                $('.guard-status-wrapper .guard-status').removeClass('guard-on');
             })
         },
         error: function (error) {
@@ -167,15 +171,16 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
 
 /**
  * 포션 요청
- * @param charOrder 가드 누른 캐릭터
- * @param type 가드타입 (SELF, PARTY_MEMBERS)
+ * @param usePotionButtonElement
  */
-function requestPotion(charOrder, type) {
-    console.log('[requestPotion] charOrder = ', charOrder, ' type = ', type);
-    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+function requestPotion(usePotionButtonElement) {
+    let potionType = $(usePotionButtonElement).attr('data-potion-type');
+    let potionTargetCharOrder = potionType === 'single' ? $('.potion-target-radio-container input[name="potionTarget"]:checked').val() : -1;
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(potionTargetCharOrder - 1).data('character-id');
     let memberId = $('#memberInfo').data('member-id');
+    console.log('[requestPotion] potionTargetCharOrder = ', potionTargetCharOrder, ' potionType = ', potionType);
     $.ajax({
-        url: '/api/guard',
+        url: '/api/use-potion',
         type: 'POST',
         contentType: 'application/json',
         headers: {
@@ -184,15 +189,19 @@ function requestPotion(charOrder, type) {
         data: JSON.stringify({
             characterId: characterId,
             memberId: memberId,
-            targetType: type
+            potionType: potionType // 영원히 바뀔일 없으니 single, all, elixir 로 고정
         }),
         async: false,
         success: function (response) {
-            console.log('[requestPotion]', response);
-            processPotion(response);
+            $(usePotionButtonElement)
+                .attr('data-potion-type', '')
+                .prop('disabled', true);
+            $('#potionModal .close-button').click();
+
+            setTimeout(() => processPotion(response), 500); // 모달 닫히는 시간 고려
         },
         error: function (response) {
-            console.log(response);
+            console.error(response);
         }
     });
 }

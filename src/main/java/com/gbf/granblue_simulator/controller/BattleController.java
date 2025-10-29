@@ -13,6 +13,7 @@ import com.gbf.granblue_simulator.domain.move.MotionType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
@@ -77,7 +78,7 @@ public class BattleController {
                 .asset(assetInfoAsset.getFirst())
                 .startMotion(MotionType.WAIT)
                 .isChargeAttackSkip(false)
-                .isMainCharacter(false)
+                .isLeaderCharacter(false)
                 .isEnemy(true)
                 .build();
         result.put("assetInfo", enemyAssetInfo);
@@ -115,9 +116,9 @@ public class BattleController {
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
         battleContext.init(findMember, characterId);
-        List<ActorLogicResult> results = battleLogic.processMove(battleContext, moveId);
+        List<ActorLogicResult> results = battleLogic.processMove(moveId);
 
-        List<BattleResponse> responses = results.stream().map(BattleController::toBattleResponse).toList();
+        List<BattleResponse> responses = results.stream().map(this::toBattleResponse).toList();
 
         // 소환석 결과 후처리
         responses.stream().filter(response -> response.getMoveType() == MoveType.SUMMON_DEFAULT)
@@ -154,9 +155,9 @@ public class BattleController {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("멤버가 없음"));
 
         battleContext.init(member, null);
-        List<ActorLogicResult> turnProgressResults = battleLogic.progressTurn(battleContext);
+        List<ActorLogicResult> turnProgressResults = battleLogic.progressTurn();
 
-        List<BattleResponse> responses = turnProgressResults.stream().map(BattleController::toBattleResponse).toList();
+        List<BattleResponse> responses = turnProgressResults.stream().map(this::toBattleResponse).toList();
 
         responses.forEach(response -> log.info("response: {}", response));
 
@@ -208,12 +209,22 @@ public class BattleController {
 
         // TODO 검증
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        Long mainActorId = request.getActorId();
+        Long mainActorId = request.getCharacterId();
+        String potionType = request.getPotionType();
+        StatusTargetType potionTargetType = potionType.equals("single")
+                ? StatusTargetType.SELF
+                : potionType.equals("all")
+                ? StatusTargetType.PARTY_MEMBERS
+                : null;
+        if (potionTargetType == null) ResponseEntity.badRequest().build();
         battleContext.init(member, mainActorId);
-        PotionResult potionResult = battleLogic.processPotion(battleContext, request.getTargetType());
+
+        PotionResult potionResult = battleLogic.processPotion(battleContext, potionTargetType);
 
         PotionResponse potionResponse = PotionResponse.builder()
                 .heals(potionResult.getHeals())
+                .hps(potionResult.getHps())
+                .hpRates(potionResult.getHpRates())
                 .potionCount(potionResult.getPotionCount())
                 .allPotionCount(potionResult.getAllPotionCount())
                 .build();
@@ -325,7 +336,7 @@ public class BattleController {
                             .asset(asset)
                             .isChargeAttackSkip(isChargeAttackSkip)
                             .isEnemy(isEnemy)
-                            .isMainCharacter(isMainCharacter)
+                            .isLeaderCharacter(isMainCharacter)
                             .startMotion(startMotion)
                             .build();
                 }
@@ -334,11 +345,19 @@ public class BattleController {
         assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
         model.addAttribute("assetInfos", assetInfos);
 
+        // 포션
+        PotionInfo potionInfo = PotionInfo.builder()
+                .potionCount(member.getPotionCount())
+                .allPotionCount(member.getAllPotionCount())
+                .elixirCount(0) // 미구현
+                .build();
+        model.addAttribute("potionInfo", potionInfo);
     }
 
-    private static BattleResponse toBattleResponse(ActorLogicResult result) {
+    private BattleResponse toBattleResponse(ActorLogicResult result) {
         return BattleResponse.builder()
                 .charOrder(result.getMainBattleActorOrder())
+                .charName(result.getMainActorName())
                 .moveType(result.getMoveType())
                 .moveName(result.getMoveName())
                 .motion(result.getMotionType().getMotion())
@@ -403,8 +422,12 @@ public class BattleController {
                         ).toList())
                 .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
                 .abilityCoolDowns(result.getAbilityCooldowns())
+                .abilityUsables(result.getAbilityUsables())
+                .abilityUseCounts(result.getAbilityUseCounts())
                 .isEnemyPowerUp(result.isEnemyPowerUp())
                 .isEnemyCtMax(result.isEnemyCtMax())
+                .memberHonors(battleContext.getMember().getRoom().getMembers().stream().collect(Collectors.toMap(member -> member.getUser().getUsername(), Member::getHonor)))
+                .resultHonor(result.getHonor())
                 .build();
     }
 

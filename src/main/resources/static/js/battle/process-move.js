@@ -1,7 +1,7 @@
-async function processResponseMoves(responses) {
+async function processResponseMoves(responses, type = '') {
     // 파싱
     let moveResponses = parseMoveResponseList(responses);
-    console.log('===[processResponseMoves]============== \n moveResponses = \n', moveResponses);
+    console.log('===[processResponseMoves]================================================================== \n moveResponses = \n', moveResponses);
 
     // 결과 리스트에 폼체인지가 있을경우 비디오 미리로드
     if (moveResponses.some(response => response.moveType === MoveType.FORM_CHANGE_DEFAULT)) {
@@ -10,9 +10,31 @@ async function processResponseMoves(responses) {
         waitingProcess(false);
     }
 
+    let isTurnRequest = type === 'turn';
+    let isMoveRequest = type === 'move';
+    if (isTurnRequest) {
+        // 파티 턴 시작 인디케이터 표시
+        $('.turn-playing-indicator.party').fadeIn(100).delay(800).fadeOut(100);
+    }
+
+    let enemyTurnIndicatorShowed = false;
     for (const response of moveResponses) {
         let charOrder = response.charOrder; // mainActorOrder, 0: enemy, 1~ character
         // console.log('charOrder = ' + charOrder + ' response = ' + response);
+
+        if (charOrder === 0 && !enemyTurnIndicatorShowed
+            && (response.moveType.getParentType() === MoveType.ATTACK // 적이 카운터 일경우, !== MoveType.ATTACK_COUNTER 추가?
+                || response.moveType.getParentType() === MoveType.CHARGE_ATTACK)) {
+            $('.turn-playing-indicator.enemy').fadeIn(100).delay(800).fadeOut(100); // 적 턴 시작 인디케이터 표시
+            enemyTurnIndicatorShowed = true;
+        }
+
+        console.log('moveName = ', response.moveName)
+        if (response.moveName) {
+            $('.move-name-info-container')
+                .find('.move-name-info-text').text(response.moveName).end()
+                .fadeIn(100).delay(800).fadeOut(100);
+        }
 
         switch (response.moveType.getParentType()) {
             case MoveType.SUPPORT_ABILITY:
@@ -65,9 +87,8 @@ async function processResponseMoves(responses) {
     $('#actorContainer .guard-status').removeClass('guard-on-processing');
 
     // 어빌리티 커맨드시 후처리
-    if (moveResponses[0].moveType === MoveType.SYNC && moveResponses[1]?.moveType.getParentType() === MoveType.ABILITY) {
-        // 첫번째가 sync, 두번째가 ABILITY 인 경우 직접 눌러 발동한 어빌리티 취급, CHECK 나중에 조건 개선 필요, 자동발동 어빌리티와 구분해야함.
-        let abilityResponse = moveResponses[1];
+    if (isMoveRequest) {
+        let abilityResponse = moveResponses[1]; // [0] == sync
         let abilityCharOrder = abilityResponse.charOrder;
         // 어빌리티 후처리 (서폿어빌 X) -> 어빌리티 레일 에서 삭제 및 오버레이
         $('.ability-rail-wrapper .rail-item').eq(0).remove();
@@ -113,13 +134,20 @@ async function processDead(response) {
 
     let totalEndTime = effectDuration + 200;
     return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
+        console.log('[processDead] DONE move = ', response.moveType.name);
         resolve();
     }, totalEndTime));
 }
 
 async function processSync(response) {
     // 데미지 처리 X
+
+    // 공헌도 처리
+    if (response.resultHonor > 0) {
+        $('.honor-container')
+            .find('.honor-value').text(response.resultHonor).end()
+            .animate({left: '0px'}, 50).delay(1500).animate({left: '-40%'}, 100);
+    }
 
     // 이펙트는 공통 이펙트 사용 (버프 있거나 힐 있을때만)
     let effectDuration = 0;
@@ -128,91 +156,76 @@ async function processSync(response) {
         effectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'buffForAll'}));
     }
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
+    // 스테이터스 처리
+    let totalEndTime = await processStatusEffect(response, effectDuration);
 
-    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
-    // console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
-
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
-
+    console.log('[processSync] DONE totalTime', totalEndTime, ' effectDuration ', effectDuration);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 
-function processStrikeSealed(response) {
-    // let charOrder = response.charOrder;
-    // let $effectVideo = $(`.global-effect-video-wrapper.actor-${charOrder} .global-effect-video`);
-    // let $damagedVideo = charOrder === 0
-    //     ? getEnemyDamagedVideo()
-    //     : getVideo(charOrder, MoveType.DAMAGED_DEFAULT);
-    // $effectVideo.attr('src', GlobalSrc.SHOCKED.video);
-    //
-    // // 이펙트 재생
-    // playVideo($damagedVideo.effect, null, $damagedVideo.idle);
-    // playVideo($effectVideo, null, null);
-    // // 사운드 재생
-    // window.effectAudioPlayer.loadAndPlay(GlobalSrc.SHOCKED.audio);
-    //
-    // processBuffEffect([new StatusDto({
-    //     type: 'BUFF',
-    //     name: '공격불가',
-    //     imageSrc: '',
-    //     effectText: '공격불가',
-    //     duration: '1'
-    // })], [], [], 0);
-    //
-    // let totalEndTime = $effectVideo.get(0).duration * 1000;
-    // return new Promise(resolve => setTimeout(function () {
-    //     console.log(response.moveType.name + ' done');
-    //     resolve();
-    // }, totalEndTime));
+async function processStrikeSealed(response) {
+    let charOrder = response.charOrder;
+    // 모션 재생
+    let effectDuration = await player.play(Player.playRequest(`actor-${charOrder}`, Player.c_animations.ABILITY_DAMAGE_MOTION, {abilityType: BASE_ABILITY.ATTACK_SEALED}));
+
+    // 공격불가 효과 보여주기 위해 임시 스테이터스 추가 후 보여줌
+    let tempAddedDebuffStatusesList = [[],[],[],[],[]]; // CHECK 원본 response 수정하지 말것
+    tempAddedDebuffStatusesList[charOrder].push(
+        new StatusDto({
+            type: 'DEBUFF',
+            name: '공격불가',
+            imageSrc: '',
+            effectText: '공격불가',
+            duration: '1'
+        })
+    );
+    // 공격불가만 먼저 띄우기
+    let sealedBuffEffectDuration = await processDebuffEffect(tempAddedDebuffStatusesList);
+    // 전체 동기화
+    let totalEndTime = await processStatusEffect(response, effectDuration);
+
+    console.log('[processStrikeSealed] DONE totalTime', totalEndTime, ' effectDuration ', effectDuration);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
-function processTurnEndProcess(response) {
+async function processTurnEndProcess(response) {
     let totalEndTime = 0; // 기본적으로 아래의 처리들 중 1개만 실행된다.
 
     // 힐 값 있으면 턴종힐
-    if (response.heals.reduce((acc, item) => acc + item, 0) > 0)
-        totalEndTime = processHealEffect(response.heals, 0);
+    // if (response.heals.reduce((acc, item) => acc + item, 0) > 0)
+    //     totalEndTime = await processHealEffect(response.heals, 0);
 
-    // 추가된 버프 있으면 오의게이지 증가 (일반 버프 스테이터스는 턴종이 아닌 캐릭터 로직으로 처리된다)
-    if (response.addedBuffStatusesList.reduce((acc, item) => acc + item.length, 0) > 0) {
-        totalEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, 0);
-        totalEndTime /= 2; // 가속
-    }
+    // 추가된 버프 있으면 처리 (일반 캐릭터 버프의 경우 캐릭터 로직으로 처리되므로, 턴종스테이터스 처리는 현재 오의게이지가 증가한다)
+    // if (response.addedBuffStatusesList.reduce((acc, item) => acc + item.length, 0) > 0) {
+    //     totalEndTime = await processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, 0);
+    //     totalEndTime /= 2; // 가속
+    // }
+
+    // 스테이터스 처리 (턴종은 스테이터스 처리가 우선)
+    totalEndTime = await processStatusEffect(response, 0);
 
     // 데미지 있으면 턴종데미지
     if (response.damages.reduce((acc, item) => acc + item, 0) > 0) {
         if (response.enemyAttackTargetOrders.length === 0) {
-            // 적에 대한 턴종 데미지 (1개만 발생, 타겟 오더 없음)
+            // 적에 대한 턴종 데미지
             let $damageWrapper = $('<div>', {class: 'damage-wrapper ability'});
             let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 0, response.damages[0], []);
             $damageWrapper.append($damageElements.$damage.addClass('party-turn-damage-show')).appendTo($('#actorContainer>.actor-0'));
-            window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
-            setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100); // 약간 늦게
+            // 모션 재생
+            setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100);
+            // 데미지 제거
             setTimeout(() => $damageWrapper.remove(), 1000);
-            totalEndTime = 600;
         } else {
+            // 아군에 대한 턴종데미지
             enemyDamagesPostProcess(response, 0, true);
-            window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
-            totalEndTime = 600;
         }
-
-        return new Promise(resolve => setTimeout(function () {
-            console.log('TURN_END_PROCESS done', response.moveType.name);
-            resolve();
-        }, totalEndTime));
-
+        window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
+        totalEndTime += 600;
     }
+
+    console.log('[processTurnEndProcess] DONE totalTime', totalEndTime);
+    return new Promise(resolve => setTimeout(() => resolve(), totalEndTime));
 }
 
 // 체력 및 오의게이지 갱신 메서드 -> 나중에 버프, 디버프로 아군 적군의 갱신타이밍이 달라지는 지점이 있으니 미리 분리
@@ -275,6 +288,8 @@ function syncPartyHp(responseHps, responseHpRates) {
         $('.ability-panel.actor-' + charOrder).find('.hp-gauge')
             .find('.value').text(hp)
             .end().find('.progress-bar').css('width', hpRate + '%');
+        let actor = player.actors.get(`actor-${index + 1}`);
+        if (actor) actor.hpRate = hpRate
     });
 }
 

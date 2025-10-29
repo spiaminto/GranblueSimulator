@@ -4,8 +4,10 @@ import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,21 +44,31 @@ public class Member {
 
     private int potionCount; // 포션
     private int allPotionCount; // 올포
+    
+    private int honor; // 공헌도
+
+    private LocalDateTime lastMoveTime; // 마지막 행동 시간
+    private int moveCooldown; // 행동 쿨타임, 초 단위
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+
 
     public void increaseTurn() {
         this.currentTurn++;
     }
 
-    public void setChargeAttackOn(boolean chargeAttackOn) {
+    public void updateChargeAttackOn(boolean chargeAttackOn) {
         this.chargeAttackOn = chargeAttackOn;
     }
 
-    /**
-     * 연관관계 매핑 제외, 사용하지 않도록 하기
-     * @return
-     */
-    public List<BattleActor> getBattleActors() {
-        return this.battleActors; // usage 확인용
+    public void updateLastMovedTimeNow() {
+        this.lastMoveTime = LocalDateTime.now();
+    }
+
+    public void updateMoveCooldown(int moveCooldown) {
+        this.moveCooldown = moveCooldown;
     }
 
     public void addForAllStatusId(Long statusId) {
@@ -73,6 +85,16 @@ public class Member {
 
     public void addAllPotionCount(int count) {
         this.allPotionCount += count;
+    }
+
+    public void addHonor(int honor) {this.honor += honor;}
+
+    /**
+     * 연관관계 매핑 제외, 사용하지 않도록 하기
+     * @return
+     */
+    public List<BattleActor> getBattleActors() {
+        return this.battleActors; // usage 확인용
     }
 
 }

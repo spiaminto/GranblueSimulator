@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.logic.common.DamageLogic;
@@ -48,18 +49,23 @@ public class IndaraLogic extends CharacterLogic {
         getBattleStatusByName(mainActor, "사문")
                 .filter(battleStatus -> battleStatus.getLevel() >= 5)
                 .ifPresent(battleStatus -> {
-                    firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getMove(MoveType.FIRST_SUPPORT_ABILITY));
-                    // 보여주기 위해 일단 넣음
-                    defaultResult.getSetStatusResult().getAddedStatusesList().get(mainActor.getCurrentOrder()).addAll(getBattleStatusesByName(mainActor, "불휴활기"));
-                    defaultResult.getSetStatusResult().getAddedStatusesList().get(mainActor.getCurrentOrder()).remove(battleStatus);
-                    defaultResult.getSetStatusResult().getRemovedStatuesList().get(mainActor.getCurrentOrder()).add(battleStatus);
+                    ActorLogicResult firstSupportAbilityResult = firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getMove(MoveType.FIRST_SUPPORT_ABILITY));
+                    List<BattleStatusDto> firstSupportAbilityAddedStatusMe = firstSupportAbilityResult.getAddedBattleStatusesList().get(mainActor.getCurrentOrder()); // 불휴활기
+                    BattleStatusDto samoonBattleStatusDto = BattleStatusDto.of(battleStatus);
+                    // 보여주기 위해 각 결과에 스테이터스 삽입
+                    // 1. 사문 레벨 5
+                    defaultResult.getSetStatusResult().getAddedStatusesList().get(mainActor.getCurrentOrder()).remove(samoonBattleStatusDto);
+                    // 2. 불휴활기
+                    defaultResult.getSetStatusResult().getAddedStatusesList().get(mainActor.getCurrentOrder()).addAll(firstSupportAbilityAddedStatusMe);
+                    // 3. 사문 레벨 5 제거
+                    defaultResult.getSetStatusResult().getRemovedStatuesList().get(mainActor.getCurrentOrder()).add(samoonBattleStatusDto);
                     setStatusLogic.removeBattleStatus(mainActor, battleStatus);
                 });
         // 자신이 불휴활기 상태인 경우 1, 2 어빌리티 쿨타임 초기화
         getBattleStatusByName(mainActor, "불휴활기")
                 .ifPresent(battleStatus -> {
-                    mainActor.updateAbilityCoolDown(0, MoveType.FIRST_ABILITY);
-                    mainActor.updateAbilityCoolDown(0, MoveType.SECOND_ABILITY);
+                    mainActor.modifyAbilityCooldowns(0, MoveType.FIRST_ABILITY);
+                    mainActor.modifyAbilityCooldowns(0, MoveType.SECOND_ABILITY);
                 });
         return resultMapper.chargeAttackToResult(mainActor, enemy, partyMembers, defaultResult.getResultMove(), defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult(), defaultResult.isExecuteChargeAttack());
     }
@@ -103,8 +109,8 @@ public class IndaraLogic extends CharacterLogic {
         DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability, null, hitCount, selectedStatuses);
         // 불휴활기 있을때, 사용카운트가 2회 미만인경우 쿨타임 초기화
         getBattleStatusByName(mainActor, "불휴활기")
-                .filter(battleStatus -> battleStatus.getBattleActor().getFirstAbilityUseCount() < 2)
-                .ifPresent(battleStatus -> mainActor.updateAbilityCoolDown(0, MoveType.FIRST_ABILITY));
+                .filter(battleStatus -> battleStatus.getBattleActor().getAbilityUseCount(MoveType.FIRST_ABILITY) < 2)
+                .ifPresent(battleStatus -> mainActor.modifyAbilityCooldowns(0, MoveType.FIRST_ABILITY));
         return resultMapper.toResult(mainActor, enemy, partyMembers, ability, defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult());
     }
 
@@ -118,8 +124,8 @@ public class IndaraLogic extends CharacterLogic {
         DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability, null, hitCount);
         // 불휴활기 있을때, 사용카운트가 2회 미만인경우 쿨타임 초기화
         getBattleStatusByName(mainActor, "불휴활기")
-                .filter(battleStatus -> battleStatus.getBattleActor().getSecondAbilityCoolDown() < 2)
-                .ifPresent(battleStatus -> mainActor.updateAbilityCoolDown(0, MoveType.SECOND_ABILITY));
+                .filter(battleStatus -> battleStatus.getBattleActor().getAbilityUseCount(MoveType.SECOND_ABILITY) < 2)
+                .ifPresent(battleStatus -> mainActor.modifyAbilityCooldowns(0, MoveType.SECOND_ABILITY));
         return resultMapper.toResult(mainActor, enemy, partyMembers, ability, defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult());
     }
 

@@ -7,11 +7,14 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data @Builder
 public class BattleResponse {
     private int charOrder;
+    private String charName;
 
     private MoveType moveType;
     private String moveName;
@@ -31,11 +34,16 @@ public class BattleResponse {
     private List<Integer> hpRates = new ArrayList<>();
     @Builder.Default
     private List<List<String>> additionalDamages = new ArrayList<>();
-    @Builder.Default
-    private List<List<Integer>> abilityCoolDowns = new ArrayList<>();
 
     @Builder.Default
-    private List<Integer> heals = new ArrayList<>();
+    private List<List<Integer>> abilityCoolDowns = new ArrayList<>();
+    @Builder.Default
+    private List<List<Integer>> abilityUseCounts = new ArrayList<>();
+    @Builder.Default
+    private List<List<Boolean>> abilityUsables = new ArrayList<>();
+
+    @Builder.Default
+    private List<Integer> heals = new ArrayList<>(); // 강압시 0 회복하므로, 0 / null 구분을 위해 Integer
     @Builder.Default 
     private List<List<StatusDto>> addedBattleStatusesList = new ArrayList<>(); // 발생한 스테이터스
     @Builder.Default
@@ -60,6 +68,11 @@ public class BattleResponse {
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>();
     private int fatalChainGauge;
+
+    @Builder.Default
+    private Map<String, Integer> memberHonors = new HashMap<>(); // 방 멤버 전체 공현도
+    private int resultHonor; // 내 행동 결과 공헌도
+
 
     private boolean isEnemyPowerUp;
     private boolean isEnemyCtMax;

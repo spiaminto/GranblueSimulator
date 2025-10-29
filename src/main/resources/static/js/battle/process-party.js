@@ -51,7 +51,7 @@ async function processAttack(response) {
             if (attackPlayingPromise) await attackPlayingPromise; // 이전 모션을 기다림
             let attackMotion = attackCount === 1 ? Player.c_animations.ATTACK : attackMotions[attackIndex];
             let attackRequest = Player.playRequest(`actor-${response.charOrder}`, attackMotion, {
-                multiHitCount: attackMultiHitCount,
+                attackMultiHitCount: attackMultiHitCount,
                 isLastAttack: isLastAttack
             });
             let damageRequest = Player.playRequest('actor-0', enemyDamageMotion);
@@ -83,9 +83,8 @@ async function processAttack(response) {
     //  CHECK 일반공격후 스테이터스 갱신은 현재 없음.
 
     let totalEndTime = lastEffectDuration + 50 + (100 * (attackMultiHitCount - 1)); // 공격은 재공격때문에 약간 지연을 줘야함 (특히 난격상황에서 더)
-    console.log("[processAttack] totalEndTime = " + totalEndTime)
     return new Promise(resolve => setTimeout(function () {
-        console.log('ATTACK done');
+        console.log("[processAttack] DONE totalEndTime = " + totalEndTime);
         resolve();
     }, totalEndTime));
 }
@@ -110,22 +109,10 @@ async function processAbility(response) {
         // setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
     }
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
-
-    let totalEndTime = Math.max(effectDuration, healEndTime, buffEndTime, debuffEndTime);
-    // console.log('[processAbility] totalTime', totalEndTime, 'abilityDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime);
-
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
+    // 스테이터스
+    let totalEndTime = await processStatusEffect(response, effectDuration);
+    console.log('[processAbility] DONE totalTime', totalEndTime, 'effectDuration ', effectDuration);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 async function processChargeAttack(response) {
@@ -141,21 +128,10 @@ async function processChargeAttack(response) {
     setTimeout(() => $damageWrapper.find('.charge-attack-damage').addClass('party-charge-attack-damage-show'), effectHitDelay);
     // 데미지 제거
     setTimeout(() => $damageWrapper.remove(), effectHitDelay + Constants.Delay.damageShowDelete);
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectHitDelay + Constants.Delay.damageShowToNext);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectHitDelay + Constants.Delay.damageShowToNext);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
 
-    let totalEndTime = debuffEndTime;
-    // console.log('[processChargeAttack] chargeAttackDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTiem ', debuffEndTime, 'totalEndTime = ', totalEndTime);
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
+    let totalEndTime = await processStatusEffect(response, effectHitDelay + Constants.Delay.damageShowToNext);
+    console.log('[processChargeAttack] DONE totalTime', totalEndTime, 'effectDuration ', effectHitDelay);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 async function processSummon(response) {
@@ -180,7 +156,6 @@ async function processSummon(response) {
         // 합체소환 컷인은 기다리지 않아도 될듯.
     }
 
-    let effectDuration = 0;
     let effectHitDelay = 0;
     if (!isUnionSummonEffect) {
         // 본소환
@@ -189,13 +164,11 @@ async function processSummon(response) {
         let summonAttackDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_ATTACK, {summonId: summonId}));
         await new Promise(resolve => setTimeout(() => resolve(summonAttackDuration), summonAttackDuration))
         let summonDamageDuration = await player.play(Player.playRequest('actor-1', Player.c_animations.SUMMON_DAMAGE, {summonId: summonId}));
-        effectHitDelay = summonDamageDuration - 100;
-        effectDuration = summonDamageDuration + Constants.Delay.damageShowToNext;
+        effectHitDelay = summonDamageDuration - 300;
     } else {
         // 합체소환
         let unionSummonEffectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: BASE_ABILITY.RAID_BUFF}));
-        effectDuration = unionSummonEffectDuration;
-        effectHitDelay = effectDuration - 100;
+        effectHitDelay = unionSummonEffectDuration - 300;
     }
 
     // 피격 이펙트, 데미지 표시
@@ -203,12 +176,6 @@ async function processSummon(response) {
         // 데미지 삽입 (어빌리티)
         let $damageWrapper = fillDamage(response, 0);
         setTimeout(function () {
-            // 화면 흔들기
-            $('#videoContainer').addClass('push-left-down-effect');
-            setTimeout(function () {
-                $('#videoContainer').removeClass('push-left-down-effect');
-            }, 150);
-
             let damageShowClass = response.damages.length > 2 ? 'multiple-damage-show' : 'damage-show';
             let enemyDamageMotion = Player.getEnemyDamageMotion();
             $damageWrapper.find('.ability-damage').each(function (index, abilityDamage) {
@@ -221,24 +188,12 @@ async function processSummon(response) {
             })
         }, effectHitDelay);
         // 데미지 제거
-        setTimeout(() => $damageWrapper.remove(), effectDuration);
+        setTimeout(() => $damageWrapper.remove(), effectHitDelay + Constants.Delay.damageShowDelete);
     }
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, effectDuration);
-    // 힐 이펙트 처리
-    let healEndTime = processHealEffect(response.heals, effectDuration);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, healEndTime);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
-
-    let totalEndTime = debuffEndTime;
-    // console.log('[processSummon] totalTime', totalEndTime, 'effectDuration ', effectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
+    let totalEndTime = await processStatusEffect(response, effectHitDelay + Constants.Delay.damageShowToNext);
+    console.log('[processSummon] DONE totalTime', totalEndTime, 'effectDuration ', effectHitDelay);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 async function processFatalChain(response) {
@@ -264,20 +219,9 @@ async function processFatalChain(response) {
         setTimeout(() => $damageWrapper.remove(), Constants.Delay.damageShowDelete);
     }, effectHitDelay);
 
-    // 스테이터스 아이콘 갱신
-    processStatusIconSync(response.currentBattleStatusesList, fatalChainEffectDuration + Constants.Delay.damageShowToNext);
-    // 버프 이펙트 처리
-    let buffEndTime = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList, fatalChainEffectDuration + Constants.Delay.damageShowToNext);
-    // 디버프 이펙트 처리
-    let debuffEndTime = processDebuffEffect(response.addedDebuffStatusesList, buffEndTime);
-
-    let totalEndTime = debuffEndTime;
-    // console.log('[processFatalChain] totalTime', totalEndTime, 'effectDuration ', fatalChainEffectDuration, 'buffEndTime ', buffEndTime, 'debuffEndTime ', debuffEndTime);
-
-    return new Promise(resolve => setTimeout(function () {
-        console.log(response.moveType.name + ' done');
-        resolve();
-    }, totalEndTime));
+    let totalEndTime = await processStatusEffect(response, effectHitDelay);
+    console.log('[processFatalChain] DONE totalTime', totalEndTime, 'effectDuration ', effectHitDelay);
+    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
 /**
@@ -305,14 +249,27 @@ function processGuard(response) {
  * 포션 처리
  * @param response
  */
-function processPotion(response) {
+async function processPotion(response) {
+    console.log('[processPotion] response = ', response);
+    // 체력 갱신
+    syncPartyHp(response.hps, response.hpRates);
     // 이펙트
-    processHealEffect(response.heals, 0);
+    let healEndTime = await processHealEffect(response.heals, 0);
 
     // 포션 ui 숫자
     let potionCount = response.potionCount;
+    $('.potion-icon-wrapper[data-potion-type="single"] .count').text(potionCount);
     let allPotionCount = response.allPotionCount;
-    // TODO 미구현
+    $('.potion-icon-wrapper[data-potion-type="all"] .count').text(allPotionCount);
+    let elixirCount = response.elixirCount;
+    $('.potion-icon-wrapper[data-potion-type="elixir"] .count').text(elixirCount);
+
+    let totalEndTime = healEndTime;
+
+    return new Promise(resolve => setTimeout(function () {
+        console.log('[processPotion] DONE totalTime', totalEndTime);
+        resolve();
+    }, totalEndTime));
 }
 
 // 데미지 삽입 (미리 삽입해놔야됨)

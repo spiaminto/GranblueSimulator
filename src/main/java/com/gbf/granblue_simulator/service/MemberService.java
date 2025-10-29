@@ -49,7 +49,7 @@ public class MemberService {
 
     public boolean updateChargeAttackOn(Long roomId, Long userId, boolean chargeAttackOn) {
         Member member = memberRepository.findByRoomIdAndUserId(roomId, userId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        member.setChargeAttackOn(chargeAttackOn);
+        member.updateChargeAttackOn(chargeAttackOn);
         return member.isChargeAttackOn();
     }
 
@@ -61,6 +61,8 @@ public class MemberService {
                 .user(user)
                 .room(room)
                 .currentTurn(1)
+                .allPotionCount(2)
+                .potionCount(2)
                 .partyId(user.getPrimaryPartyId())
                 .chargeAttackSkip(true)
                 .build();

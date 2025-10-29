@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.logic.common;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
+import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
@@ -118,7 +119,6 @@ public class ProcessStatusLogic {
                 .toList();
         target.getBattleStatuses().removeAll(dispelledBattleStatuses);
         battleStatusRepository.deleteAll(dispelledBattleStatuses);
-        // CHECK BUFF_FOR_ALL 에 대한 DISPEL 처리 동기화 미구현
         return dispelledBattleStatuses;
     }
 
@@ -139,7 +139,6 @@ public class ProcessStatusLogic {
                 .toList(); // 해제될 디버프 (클리어의 value 값 갯수만큼만 최근에 추가된 디버프부터 해제함)
         target.getBattleStatuses().removeAll(clearedBattleStatuses);
         battleStatusRepository.deleteAll(clearedBattleStatuses);
-        // CHECK CLEAR_FOR_ALL 처리 미구현
         return clearedBattleStatuses;
     }
 
@@ -168,7 +167,6 @@ public class ProcessStatusLogic {
         int healedHp = currentHp + healResultValue;
         target.updateHp(healedHp);
 //        log.info("[processHeal] battleActor.name = {} currentHp = {}, healInitValue = {}, resultHealRate = {}, healedHp = {}", target.getName(), currentHp, healInitValue, resultHealRate, healedHp);
-        // CHECK HEAL_FOR_ALL 미구현
         return healResultValue;
     }
 
@@ -187,6 +185,22 @@ public class ProcessStatusLogic {
         target.updateHp(damagedHp);
 //        log.info("[processStatusDamage] battleActor.name = {} currentHp = {}, healInitValue = {}, resultHealRate = {}, healedHp = {}", target.getName(), currentHp, healInitValue, resultHealRate, healedHp);
         return damage;
+    }
+
+    /**
+     * 캐릭터에 어빌리티 봉인 효과가 있는경우 설정
+     * @param target
+     * @param abilitySealedStatus
+     */
+    public void processAbilitySealed(BattleActor target, Status abilitySealedStatus) {
+        StatusEffect abilitySealedEffect = abilitySealedStatus.getStatusEffects().get(StatusEffectType.ABILITY_SEALED);
+        double abilitySealedType = abilitySealedEffect.getValue(); // 0:전체 1:공격 2:강화 3:약체 4:회복
+        if (abilitySealedType != 1) throw new IllegalArgumentException("[processAbilitySealed] 미구현 상태, abilitySealedType = " + abilitySealedType);
+//        target.sealAbilityCoolDown(MoveType.FIRST_ABILITY);
+//        target.sealAbilityCoolDown(MoveType.SECOND_ABILITY);
+//        target.sealAbilityCoolDown(MoveType.THIRD_ABILITY);
+//        target.sealAbilityCoolDown(MoveType.FOURTH_ABILITY);
+        //CHECK 나중에 어빌리티별로 잠그고 싶으면 구조를 좀 변경해야할듯
     }
 
 }

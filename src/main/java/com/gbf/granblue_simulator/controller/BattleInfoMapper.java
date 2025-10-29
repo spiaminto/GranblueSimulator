@@ -33,7 +33,7 @@ public final class BattleInfoMapper {
                         .filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
                 .hp(partyMember.getHp())
                 .maxHp(partyMember.getMaxHp())
-                .hpRate(partyMember.calcHpRate())
+                .hpRate(partyMember.getHpRate())
                 .chargeGauge(partyMember.getChargeGauge())
                 .maxChargeGauge(partyMember.getMaxChargeGauge())
                 .abilities(partyMember.getActor().getMoves().values().stream()
@@ -48,7 +48,7 @@ public final class BattleInfoMapper {
                                 .build())
                         .toList())
                 .chargeAttack(partyMember.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
-                .abilityCoolDowns(List.of(partyMember.getFirstAbilityCoolDown(), partyMember.getSecondAbilityCoolDown(), partyMember.getThirdAbilityCoolDown()))
+                .abilityCoolDowns(partyMember.getAbilityCooldowns())
                 .build();
     }
 
@@ -76,7 +76,7 @@ public final class BattleInfoMapper {
                 .name(enemy.getName())
                 .phase(enemy.getCurrentForm())
                 .statuses(enemy.getBattleStatuses().stream().filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
-                .hpRate(enemy.calcHpRate())
+                .hpRate(enemy.getHpRate())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
                 .initialMoveType(enemy.getCurrentStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getCurrentStandbyType()) // 동적으로
@@ -176,94 +176,5 @@ public final class BattleInfoMapper {
                 .iconImageSrc(move.getIconImageSrc())
                 .cooldown(mainCharacter.getSummonCoolDowns().get(mainCharacter.getSummonMoveIds().indexOf(move.getId())))
                 .build();
-    }
-
-
-    public static Map<String, String> getVideoSrcMap(List<Move> moves) {
-        Map<String, String> videoSrcMap = new HashMap<>();
-        moves.forEach(move -> {
-            // 이펙트
-            String effectVideoSrc = move.getAsset().getEffectVideoSrc();
-            if (effectVideoSrc != null && !effectVideoSrc.isEmpty()) {
-                videoSrcMap.put(effectVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
-            }
-            // 모션
-            String motionVideoSrc = move.getAsset().getMotionVideoSrc();
-            if (motionVideoSrc != null && !motionVideoSrc.isEmpty()) {
-                String fullSizeClassName = move.getAsset().isMotionVideoFull() ? "full-size" : "";
-                videoSrcMap.put(motionVideoSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " motion " + fullSizeClassName);
-            }
-        });
-        return videoSrcMap;
-    }
-
-    public static Map<String, String> getAudioSrcMap(List<Move> moves) {
-        Map<String, String> audioSrcMap = new HashMap<>();
-        moves.forEach(move -> {
-            // 이펙트
-            String seAudioSrc = move.getAsset().getSeAudioSrc();
-            if (seAudioSrc != null && !seAudioSrc.isEmpty()) {
-                audioSrcMap.put(move.getAsset().getSeAudioSrc(), move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " effect");
-            }
-            // 보이스
-            String voiceAudioSrc = move.getAsset().getVoiceAudioSrc();
-            if (voiceAudioSrc != null && !voiceAudioSrc.isEmpty()) {
-                audioSrcMap.put(voiceAudioSrc, move.getType().getClassName() + " " + move.getType().getParentType().getClassName() + " voice");
-            }
-        });
-        return audioSrcMap;
-    }
-
-
-    /**
-     * 적의 effectVideo 를 key = effectVideoSrc, value = [MoveType.parentType.className, MoveType.className1 , ...] 인 Map 으로 변환
-     * ex) 같은 effectVideoSrc (standby-1.webm) 을 가지는 STAND_BY_A, STAND_BY_D 의 경우 value 를 [standby, standby-a, standby-d] 로 묶는다.
-     *
-     * @param enemy
-     * @return
-     */
-    public static Map<String, EnemyVideoInfo> getEnemyVideoSrcMap(BattleActor enemy) {
-        Map<String, EnemyVideoInfo> enemyVideoSrcMap = new HashMap<>();
-        enemyVideoSrcMap.putAll(enemy.getActor().getMoves().values().stream()
-                .collect(Collectors.groupingBy(
-                        move -> move.getAsset().getEffectVideoSrc() != null ? move.getAsset().getEffectVideoSrc() : "",
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                moves -> {
-                                    List<String> classNames = new ArrayList<>(moves.stream()
-                                            .map(move -> move.getType().getClassName())
-                                            .toList());
-                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
-                                    Integer hitEffectDelay = moves.getFirst().getAsset().getEffectHitDelay();
-                                    classNames.add(parentClassName);
-                                    classNames.add("effect"); // 적 이펙트
-                                    return EnemyVideoInfo.builder()
-                                            .effectHitDelay(hitEffectDelay)
-                                            .classNames(classNames)
-                                            .build();
-                                }
-                        )
-                )));
-        return enemyVideoSrcMap;
-    }
-
-    public static Map<String, List<String>> getEnemyAudioSrcMap(BattleActor enemy) {
-        Map<String, List<String>> enemyAudioSrcMap = new HashMap<>();
-        enemyAudioSrcMap.putAll(enemy.getActor().getMoves().values().stream()
-                .collect(Collectors.groupingBy(
-                        move -> move.getAsset().getSeAudioSrc() != null ? move.getAsset().getSeAudioSrc() : "",
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                moves -> {
-                                    List<String> classNames = new ArrayList<>(moves.stream()
-                                            .map(move -> move.getType().getClassName())
-                                            .toList());
-                                    String parentClassName = moves.getFirst().getType().getParentType().getClassName();
-                                    classNames.add(parentClassName);
-                                    return classNames;
-                                }
-                        )
-                )));
-        return enemyAudioSrcMap;
     }
 }

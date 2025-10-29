@@ -1,12 +1,12 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
 import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.gbf.granblue_simulator.domain.move.MoveType.*;
@@ -59,8 +58,8 @@ public abstract class CharacterLogic {
     public abstract List<ActorLogicResult> processTurnEnd(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers);
 
     // 페이탈 체인 (어빌리티랑 통합 하려다 분리)
-    public ActorLogicResult processFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
-        return defaultFatalChain(mainActor, enemy, fatalChain);
+    public ActorLogicResult processFatalChain(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move fatalChain) {
+        return defaultFatalChain(mainActor, enemy, partyMembers, fatalChain);
     }
 
     /**
@@ -262,17 +261,17 @@ public abstract class CharacterLogic {
         SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, statuses);
         // 쿨다운, 사용횟수 설정
         if (ability.getType().getParentType() == MoveType.ABILITY) {
-            mainActor.updateAbilityCoolDown(ability.getCoolDown(), ability.getType());
+            mainActor.modifyAbilityCooldowns(ability.getCoolDown(), ability.getType());
             mainActor.increaseAbilityUseCount(ability.getType());
         }
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
 
-    public ActorLogicResult defaultFatalChain(BattleActor mainActor, BattleActor enemy, Move fatalChain) {
+    public ActorLogicResult defaultFatalChain(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, Move fatalChain) {
         DamageLogicResult damageLogicResult = damageLogic.process(mainActor, enemy, fatalChain);
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, Collections.emptyList(), fatalChain);
+        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, enemy, partyMembers, fatalChain);
         chargeGaugeLogic.setFatalChainGauge(mainActor, 0); // 페이탈 체인 게이지 초기화
-        return resultMapper.toResult(mainActor, enemy, Collections.emptyList(), fatalChain, damageLogicResult, setStatusResult);
+        return resultMapper.toResult(mainActor, enemy, partyMembers, fatalChain, damageLogicResult, setStatusResult);
     }
 
     public ActorLogicResult defaultDeath(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, ActorLogicResult result) {

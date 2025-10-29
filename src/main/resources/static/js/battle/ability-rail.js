@@ -54,25 +54,26 @@ $(function () {
         if (player.locked) return;
         // console.log($abilityIcon); // ability-icon 에 직접 연결하지 않으면 이벤트 정보가 들어옴. type 속성으로 'click' 등을 짐
         $abilityIcon = $abilityIcon.type ? $(this) : $abilityIcon; // type 속성이 있으면 ability-icon과 직접연결됨, 없으면 파라미터로 ability-icon 받아옴
+        if ($abilityIcon.find('.ability-overlay').hasClass('none-usable')) return;
 
         // 어빌리티 사용 가능한 상태가 아님 DEV 개발중에는 어빌리티 오버레이에 상관없이 실행
         // if ($abilityIcon.find('.ability-overlay').hasClass('not-ready')) return false;
 
-        let charOrder = $abilityIcon.closest('.ability-panel').data('characterOrder');
+        let $abilityPanel = $abilityIcon.closest('.ability-panel');
+        let charOrder = $abilityPanel.data('characterOrder');
         let abilityId = $abilityIcon.attr('data-ability-id');
         let currentAbilityRailLength = $('#abilityRail img').length;
 
         // 어빌리티 not-ready 로 변경 (오버레이)
-        let $processedAbility = $('.ability-panel.character-' + charOrder + ' [data-ability-id=' + abilityId + ']');
-        $processedAbility.find('.ability-overlay').addClass('not-ready');
+        let $processedAbilityIcon = $abilityPanel.find($(`.ability-icon[data-ability-id="${abilityId}"]`));
+        $processedAbilityIcon.find('.ability-overlay').addClass('not-ready');
+        let abilityIconSrc = $processedAbilityIcon.find('img').attr('src');
 
         // 어빌리티 레일에 등록
-        $('<div>', {
-            'class': 'rail-item rail-item-' + currentAbilityRailLength,
-            'data-rail-item-type': 'ABILITY',
-            'data-character-order': charOrder,
-            'data-ability-id': abilityId,
-        }).append($abilityIcon.find('img').clone()) // 이미지를 어빌리티 레일에 넣을 새 div 로 감싸서 생성
+        $(`<div class="rail-item rail-item-${currentAbilityRailLength}"
+              data-rail-item-type='ABILITY' data-character-order='${charOrder}' data-ability-id='${abilityId}'>
+              <img src="${abilityIconSrc}">
+        </div>`)
             .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
                 if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
                 $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제

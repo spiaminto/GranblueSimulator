@@ -3,7 +3,7 @@ class Animation {
     constructor(name, obj) {
         this.name = name; // name (to be displayed in the version selector), will be playerId
         this.startMotion = obj.startMotion; // default motions
-        this.isMainCharacter = obj.isMainCharacter ?? false; // if it uses the main character
+        this.isLeaderCharacter = obj.isLeaderCharacter ?? false; // if it uses the main character
         this.isEnemy = obj.isEnemy ?? false; // if it's an enemy
         this.weapon = obj.weapon ?? null; // the weapon id (if any). Must be paired with a main character
         this.cjs = obj.cjs; // main animation file
@@ -82,7 +82,11 @@ class Animation {
             [BASE_ABILITY.ENEMY_RELEASE_POWER]: {
                 cjs: "ab_enemy_7300293_01",
                 isTargetedEnemy: false
-            }
+            },
+            [BASE_ABILITY.ATTACK_SEALED]: {
+              cjs: "ab_3040351000_02",
+                isTargetedEnemy: false
+            },
         };
     }
 }
@@ -99,5 +103,7 @@ const BASE_ABILITY = {
     ENEMY_CT_MAX: 'ENEMY_CT_MAX',
     DISPEL: 'DISPEL',
     ENEMY_RELEASE_POWER: 'ENEMY_RELEASE_POWER',
+
+    ATTACK_SEALED: 'ATTACK_SEALED',
 };
 Object.freeze(BASE_ABILITY);

@@ -10,8 +10,14 @@ public enum StatusTargetType {
     PARTY_MEMBERS,  // 아군 전체
     PARTY_MEMBERS_NOT_SELF, // 자신을 제외한 아군전체
 
-
     ENEMY,  // 적
-    
-    ALL_PLAYERS,    // 참전자 전체
+
+    ALL_PARTY_MEMBERS,    // 참전자 아군 전체
+    ALL_ENEMIES // 참전자 적 전체
+    ;
+
+    public boolean isAllTarget() {
+        return this == ALL_PARTY_MEMBERS || this == ALL_ENEMIES;
+    }
+
 }

@@ -1,18 +1,15 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.controller.request.insert.character.*;
-import com.gbf.granblue_simulator.controller.request.insert.character.AbilityInsertRequest;
 import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
 import com.gbf.granblue_simulator.domain.actor.Character;
 import com.gbf.granblue_simulator.domain.asset.Asset;
 import com.gbf.granblue_simulator.domain.asset.AssetType;
 import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import com.gbf.granblue_simulator.domain.move.prop.status.*;
 import com.gbf.granblue_simulator.repository.AssetRepository;
 import com.gbf.granblue_simulator.repository.actor.CharacterRepository;
-import com.gbf.granblue_simulator.repository.move.LegacyAssetRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import com.gbf.granblue_simulator.repository.move.StatusEffectRepository;
 import com.gbf.granblue_simulator.repository.move.StatusRepository;
@@ -36,7 +33,6 @@ import static com.gbf.granblue_simulator.controller.request.insert.InsertSrcMapp
 public class InsertController {
 
     private final CharacterRepository characterRepository;
-    private final LegacyAssetRepository legacyAssetRepository;
     private final MoveRepository moveRepository;
     private final StatusRepository statusRepository;
     private final StatusEffectRepository statusEffectRepository;
@@ -60,23 +56,17 @@ public class InsertController {
         // idle
         Move idle = Move.builder()
                 .type(MoveType.IDLE_DEFAULT)
-                .name("idle")
+                .name(null)
                 .info("idle")
                 .elementType(character.getElementType())
                 .actor(character)
                 .build();
         idle = moveRepository.save(idle);
 
-//        LegacyAsset idleLegacyAsset = LegacyAsset.builder()
-//                .motionVideoSrc(getMotionVideoSrc(nameEn, MoveType.IDLE_DEFAULT))
-//                .move(idle)
-//                .build();
-//        idleLegacyAsset = legacyAssetRepository.save(idleLegacyAsset);
-
         // guard
         Move guard = Move.builder()
                 .type(MoveType.GUARD_DEFAULT)
-                .name("guard")
+                .name(null)
                 .info("guard")
                 .elementType(character.getElementType())
                 .damageRate(0.0)
@@ -85,15 +75,10 @@ public class InsertController {
                 .build();
         moveRepository.save(guard);
 
-//        LegacyAsset guardLegacyAsset = LegacyAsset.builder()
-//                .move(guard)
-//                .build();
-//        guardLegacyAsset = legacyAssetRepository.save(guardLegacyAsset);
-
         // single attack
         Move singleAttack = Move.builder()
                 .type(MoveType.SINGLE_ATTACK)
-                .name("single-attack")
+                .name(null)
                 .info("single attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
@@ -102,18 +87,10 @@ public class InsertController {
                 .build();
         singleAttack = moveRepository.save(singleAttack);
 
-//        LegacyAsset singleAttackLegacyAsset = LegacyAsset.builder()
-//                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.SINGLE_ATTACK))
-//                .motionVideoSrc(character.isLeaderCharacter() ? getMotionVideoSrc(nameEn, MoveType.SINGLE_ATTACK) : null) // 주인공은 모션 별도
-//                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.SINGLE_ATTACK))
-//                .move(singleAttack)
-//                .build();
-//        singleAttackLegacyAsset = legacyAssetRepository.save(singleAttackLegacyAsset);
-
         // double attack
         Move doubleAttack = Move.builder()
                 .type(MoveType.DOUBLE_ATTACK)
-                .name("double-attack")
+                .name(null)
                 .info("double attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
@@ -122,18 +99,10 @@ public class InsertController {
                 .build();
         doubleAttack = moveRepository.save(doubleAttack);
 
-//        LegacyAsset doubleAttackLegacyAsset = LegacyAsset.builder()
-//                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.DOUBLE_ATTACK))
-//                .motionVideoSrc(character.isLeaderCharacter() ? getMotionVideoSrc(nameEn, MoveType.DOUBLE_ATTACK) : null) // 주인공은 모션 별도
-//                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.DOUBLE_ATTACK))
-//                .move(doubleAttack)
-//                .build();
-//        doubleAttackLegacyAsset = legacyAssetRepository.save(doubleAttackLegacyAsset);
-
         // triple attack
         Move tripleAttack = Move.builder()
                 .type(MoveType.TRIPLE_ATTACK)
-                .name("triple-attack")
+                .name(null)
                 .info("triple attack")
                 .elementType(character.getElementType())
                 .damageRate(1.0)
@@ -141,14 +110,6 @@ public class InsertController {
                 .actor(character)
                 .build();
         tripleAttack = moveRepository.save(tripleAttack);
-
-//        LegacyAsset tripleAttackLegacyAsset = LegacyAsset.builder()
-//                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.TRIPLE_ATTACK))
-//                .motionVideoSrc(character.isLeaderCharacter() ? getMotionVideoSrc(nameEn, MoveType.TRIPLE_ATTACK) : null) // 주인공은 모션 별도
-//                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.TRIPLE_ATTACK))
-//                .move(tripleAttack)
-//                .build();
-//        tripleAttackLegacyAsset = legacyAssetRepository.save(tripleAttackLegacyAsset);
 
         return ResponseEntity.ok(InsertResponse.ok(character.getId()));
     }
@@ -168,13 +129,6 @@ public class InsertController {
                 .actor(character)
                 .build();
         chargeAttack = moveRepository.save(chargeAttack);
-
-//        LegacyAsset chargeAttackLegacyAsset = LegacyAsset.builder()
-//                .effectVideoSrc(getEffectVideoSrc(character.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT))
-//                .seAudioSrc(getSeAudioSrc(character.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT)) // 보이스 포함
-//                .move(chargeAttack)
-//                .build();
-//        chargeAttackLegacyAsset = legacyAssetRepository.save(chargeAttackLegacyAsset);
 
         // 스테이터스
         final Move chargeAttackFinal = chargeAttack;
@@ -238,16 +192,6 @@ public class InsertController {
                 .build();
         ability = moveRepository.save(ability);
         log.info("ability = {}", ability);
-
-//        LegacyAsset abilityLegacyAsset = LegacyAsset.builder()
-//                .move(ability)
-//                .effectVideoSrc(hasEffect ? getEffectVideoSrc(nameEn, moveType) : null)
-//                .motionVideoSrc(hasMotion ? getMotionVideoSrc(nameEn, moveType) : null)
-//                .seAudioSrc(hasEffect ? getSeAudioSrc(nameEn, moveType) : null)
-//                .voiceAudioSrc(hasEffect ? getVoiceAudioSrc(nameEn, moveType) : null)
-//                .iconImageSrc(moveType.getParentType() != MoveType.SUPPORT_ABILITY ? getAbilityIconSrc(nameEn, moveType) : null)
-//                .build();
-//        abilityLegacyAsset = legacyAssetRepository.save(abilityLegacyAsset);
 
         // Status 저장
         final Move abilityFinal = ability;
@@ -320,7 +264,7 @@ public class InsertController {
                 .name(assetName)
                 .cjsName(cjsName)
                 .rootCjsName(rootCjsName)
-                .chargeAttackSkipStartFrame(chargeAttackStartFrame)
+                .chargeAttackStartFrame(chargeAttackStartFrame)
                 .build();
         assetRepository.save(asset);
 
@@ -363,14 +307,6 @@ public class InsertController {
                 .rootCjsName(attackCjsName) // root 는 attack 으로
                 .build();
         assetRepository.saveAll(List.of(attackAsset, damageAsset));
-
-//        LegacyAsset summonLegacyAsset = LegacyAsset.builder()
-//                .iconImageSrc(getBattlePortraitSrc(nameEn)) // 얘는 portrait 가 이걸로
-//                .effectVideoSrc(getEffectVideoSrc(nameEn, MoveType.SUMMON_DEFAULT))
-//                .seAudioSrc(getSeAudioSrc(nameEn, MoveType.SUMMON_DEFAULT))
-//                .move(summon)
-//                .build();
-//        summonLegacyAsset = legacyAssetRepository.save(summonLegacyAsset);
 
         // 스테이터스
         final Move summonFinal = summon;

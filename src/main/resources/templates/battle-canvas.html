@@ -10,7 +10,7 @@
   <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
   <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
-<!--  <link href="https://fonts.googleapis.com/css2?family=Martel:wght@600;700;800;900&display=swap" rel="stylesheet">-->
+  <!--  <link href="https://fonts.googleapis.com/css2?family=Martel:wght@600;700;800;900&display=swap" rel="stylesheet">-->
   <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
   <!--    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>-->
   <link rel="stylesheet" type="text/css" href="/js/slick/slick.css">
@@ -64,7 +64,7 @@
               chargeAttackStartFrame: assetInfo.asset.chargeAttackStartFrame,
               summons: assetInfo.asset.summonCjses,
               isEnemy: assetInfo.isEnemy,
-              isMainCharacter: assetInfo.isMainCharacter,
+              isLeaderCharacter: assetInfo.isLeaderCharacter,
               isChargeAttackSkip: assetInfo.isChargeAttackSkip,
               currentOrder: assetInfo.currentOrder,
               startMotion: assetInfo.startMotion,
@@ -173,19 +173,6 @@
                       }
                   }, 500);
 
-                  // 아군 시작모션 - 오의on 시 설정
-                  // let chargeAttackOn = $('#chargeAttackActiveCheck').prop('checked');
-                  // if (chargeAttackOn) {
-                  //     player.actors.values()
-                  //         .filter(actor => actor.isCharacter() && Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text()) === 100)
-                  //         .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, Player.c_animations.ABILITY)));
-                  // }
-
-
-                  // $('#attackButton').on('click', function () {
-                  //     requestTurnProgress();
-                  // })
-
               });
           });
       }
@@ -206,7 +193,11 @@
           });
 
           function summonCutinTest() {
-              player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'unionSummon', summonId: 69, unionSummonCjs: "summon_2040080000_02"}));
+              player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {
+                  abilityType: 'unionSummon',
+                  summonId: 69,
+                  unionSummonCjs: "summon_2040080000_02"
+              }));
           }
 
           async function cjsTest() {
@@ -222,15 +213,8 @@
               })
           }
 
-          // 테스트용 흔들기
-          function triggerShake() {
-              let $videoContainer = $('#videoContainer');
-              $videoContainer.addClass('shake-right-effect');
-              // 애니메이션 종료 후 클래스 제거
-              setTimeout(() => {
-                  $videoContainer.removeClass('shake-right-effect');
-              }, 200);
-          }
+          // 동기화 폴링
+          window.syncTimer = doSync();
 
       })
   </script>
@@ -259,9 +243,20 @@
 
     <div class="waiting-video-container">
       <video class="waiting-video" muted playsinline loop preload="auto"
-             src="/static/assets/video/gl/waiting.webm"
-      >
+             src="/static/assets/video/gl/waiting.webm">
       </video>
+    </div>
+
+    <div class="honor-container">
+      <div class="honor-wrapper">
+        <span class="honor-value">0000000</span>
+      </div>
+    </div>
+
+    <div class="move-name-info-container">
+      <div class="move-name-info">
+        <span class="move-name-info-text">어빌리티 이름 이름 123</span>
+      </div>
     </div>
 
     <div class="omen-container omen-container-bottom enemy blinking-element"
@@ -370,6 +365,11 @@
       </button>
     </div>
 
+    <div class="turn-playing-indicator-wrapper">
+      <img class="turn-playing-indicator party" src="/static/assets/img/ui/ui-player-turn.png">
+      <img class="turn-playing-indicator enemy" src="/static/assets/img/ui/ui-enemy-turn.png">
+    </div>
+
   </div><!-- #battleCanvas -->
 
   <div id="commandContainer">
@@ -394,37 +394,37 @@
         <div th:each="order : ${#numbers.sequence(1, 4, 1)}">
           <th:block th:with="characterInfo = ${battleCharacterInfoMap.get(order)}">
 
-          <div class="battle-portrait"
-               th:if="${characterInfo != null}"
-               th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + order}">
-            <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
-                 th:src="${characterInfo.portraitSrc}">
-            <div class="hp-gauge-wrapper">
-              <div class="hp-gauge">
-                <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-danger" style="width: 50%"
-                       th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
+            <div class="battle-portrait"
+                 th:if="${characterInfo != null}"
+                 th:data-character-id="${characterInfo.id}" th:classappend="${'actor-' + order}">
+              <img src="/static/assets/img/ch/paladin/battle-portrait.jpg"
+                   th:src="${characterInfo.portraitSrc}">
+              <div class="hp-gauge-wrapper">
+                <div class="hp-gauge">
+                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar bg-danger" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="charge-gauge-wrapper">
+                <div class="charge-gauge">
+                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
+                  </div>
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar bg-warning" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="charge-gauge-wrapper">
-              <div class="charge-gauge">
-                <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
-                </div>
-                <div class="progress" role="progressbar">
-                  <div class="progress-bar bg-warning" style="width: 50%"
-                       th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!--더미-->
-          <div class="battle-portrait empty"
-               th:if="${characterInfo == null}">
-            <img src="/static/assets/img/gl/ch-empty.jpg" th:data-seq="${order}">
-          </div>
+            <!--더미-->
+            <div class="battle-portrait empty"
+                 th:if="${characterInfo == null}">
+              <img src="/static/assets/img/gl/ch-empty.jpg" th:data-seq="${order}">
+            </div>
 
           </th:block>
         </div> <!-- th each -->
@@ -577,7 +577,10 @@
     </div>
 
     <div class="sub-command-container">
-      <button type="button" class="btn btn-sm btn-outline-success">회복</button>
+      <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal"
+              data-bs-target="#potionModal">
+        회복
+      </button>
       <div class="form-check form-switch show-ability-info-check-wrapper">
         <input class="form-check-input" type="checkbox" role="switch" id="showAbilityInfoCheck">
         <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
@@ -593,14 +596,12 @@
 
   <hr>
 
-
   <div class="test-button-area">
     <label for="motions">Play Motions</label>
     <input type="text" class="form-control " id="motions" value="actor-0 additional_mortal_B">
     <label for="motions">Pairing Motions</label>
     <input type="text" class="form-control mt-2" id="pairingMotions" value="actor0 damage damage damage">
   </div>
-
 
   <div class="container position-relative">
     <button id="audioButton">audio</button>
@@ -629,53 +630,6 @@
 
 </div> <!-- #container -->
 
-
-<script>
-    $('#motions').on('keydown', function (e) {
-        if (e.keyCode == 13) {
-            const parts = $('#motions').val().trim().split(/\s+/);
-            const actorId = parts[0];
-            const motionChunk = parts[1];
-            const motion = motionChunk.split('/')[0];
-            const abilityType = motionChunk.split('/')[1];
-            let playRequest = Player.playRequest(actorId, motion, {abilityType: abilityType});
-            player.play(playRequest);
-        }
-    });
-    $('#pairingMotions').on('keydown', function (e) {
-        if (e.keyCode == 13) {
-            const parts = $('#motions').val().trim().split(/\s+/);
-            const actorId = parts[0];
-            const motionRequests = parts.slice(1).map(item => item.indexOf('/') >= 0
-                ? {motion: item.split('/')[0], moveType: item.split('/')[1]}
-                : {motion: item}
-            );
-            let playRequests = [];
-            motionRequests.forEach((motionRequest, index) => {
-                playRequests.push(Player.playRequest(actorId, motionRequest.motion, {abilityType: motionRequest.moveType}));
-            })
-
-            const pairingParts = this.value.trim().split(/\s+/);
-            const pairingActorId = pairingParts[0];
-            const pairingMotions = pairingParts.slice(1).map(item => {
-                if (item.indexOf('ab_motion') >= 0) {
-                    return {motion: item.split('/')[0], moveType: item.split('/')[1]};
-                } else {
-                    return {motion: item};
-                }
-            });
-            let paringPlayRequests = [];
-            pairingMotions.forEach((pairingMotion, index) => {
-                paringPlayRequests.push(Player.playRequest(pairingActorId, pairingMotion.motion, pairingMotion.moveType));
-            })
-
-            player.playWithOthers(playRequests, paringPlayRequests);
-        }
-    });
-
-
-</script>
-
 <!-- 메뉴 모달 -->
 <div class="modal fade" id="menuModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
      aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -697,6 +651,70 @@
           닫기
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 포션 모달 -->
+<div class="modal fade" id="potionModal" tabindex="-1"
+     aria-labelledby="potionModal" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5">회복</h1>
+      </div>
+      <div class="modal-body">
+        <div class="potion-icon-container">
+          <div class="potion-icon-wrapper" data-potion-type="single">
+            <img class="potion-icon" src="/static/assets/img/ui/potion.jpg">
+            <div class="mt-1">포션 <span class="count" th:text="${potionInfo.potionCount}">-1</span></div>
+          </div>
+          <div class="potion-icon-wrapper" data-potion-type="all">
+            <img class="potion-icon" src="/static/assets/img/ui/all-potion.jpg">
+            <div class="mt-1">올 포션 <span class="count" th:text="${potionInfo.allPotionCount}">-1</span></div>
+          </div>
+          <div class="potion-icon-wrapper" data-potion-type="elixir">
+            <img class="potion-icon" src="/static/assets/img/ui/elixir.jpg">
+            <div class="mt-1">에릭실 <span class="count" th:text="${potionInfo.elixirCount}">-1</span></div>
+          </div>
+        </div>
+        <div class="potion-detail-container">
+          <div class="potion-info">포션 설명</div>
+          <div class="potion-target-radio-container">
+            <div>포션을 사용할 대상을 선택하세요.</div>
+            <div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-1"
+                       value="1">
+                <label class="form-check-label" for="potionTargetRadio-1">1</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-2"
+                       value="2">
+                <label class="form-check-label" for="potionTargetRadio-2">2</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-3"
+                       value="3">
+                <label class="form-check-label" for="potionTargetRadio-3">3</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-4"
+                       value="4">
+                <label class="form-check-label" for="potionTargetRadio-4">4</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="usePotionButton" class="btn btn-success me-4" disabled>
+            사용
+          </button>
+          <button type="button" class="btn btn-secondary me-4 close-button" data-bs-dismiss="modal">
+            닫기
+          </button>
+        </div>
+      </div><!-- .modal-body -->
     </div>
   </div>
 </div>
@@ -724,7 +742,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button"
+                data-bs-dismiss="modal">
           닫기
         </button>
         <button type="button" class="btn btn-primary use-ability-button">사용</button>
@@ -778,4 +797,52 @@
 <!--        crossorigin="anonymous"></script>-->
 
 </body>
+
+
+<!-- 테스트 -->
+<script>
+    $('#motions').on('keydown', function (e) {
+        if (e.keyCode == 13) {
+            const parts = $('#motions').val().trim().split(/\s+/);
+            const actorId = parts[0];
+            const motionChunk = parts[1];
+            const motion = motionChunk.split('/')[0];
+            const abilityType = motionChunk.split('/')[1];
+            let playRequest = Player.playRequest(actorId, motion, {abilityType: abilityType});
+            player.play(playRequest);
+        }
+    });
+    $('#pairingMotions').on('keydown', function (e) {
+        if (e.keyCode == 13) {
+            const parts = $('#motions').val().trim().split(/\s+/);
+            const actorId = parts[0];
+            const motionRequests = parts.slice(1).map(item => item.indexOf('/') >= 0
+                ? {motion: item.split('/')[0], moveType: item.split('/')[1]}
+                : {motion: item}
+            );
+            let playRequests = [];
+            motionRequests.forEach((motionRequest, index) => {
+                playRequests.push(Player.playRequest(actorId, motionRequest.motion, {abilityType: motionRequest.moveType}));
+            })
+
+            const pairingParts = this.value.trim().split(/\s+/);
+            const pairingActorId = pairingParts[0];
+            const pairingMotions = pairingParts.slice(1).map(item => {
+                if (item.indexOf('ab_motion') >= 0) {
+                    return {motion: item.split('/')[0], moveType: item.split('/')[1]};
+                } else {
+                    return {motion: item};
+                }
+            });
+            let paringPlayRequests = [];
+            pairingMotions.forEach((pairingMotion, index) => {
+                paringPlayRequests.push(Player.playRequest(pairingActorId, pairingMotion.motion, pairingMotion.moveType));
+            })
+
+            player.playWithOthers(playRequests, paringPlayRequests);
+        }
+    });
+
+
+</script>
 </html>

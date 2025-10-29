@@ -82,12 +82,29 @@
 .ability-icon .ability-overlay {
     position: absolute;
     width: 100%;
-    height: 60%;
+    height: 65%;
     z-index: 1;
     background-color: rgba(0, 0, 0, 0.5);
     display: none;
-    top: 7%;
+    top: 0;
     left: 0;
+}
+
+/* 활성화 상태 */
+.ability-icon .ability-overlay.none-usable {
+    display: block;
+}
+
+/* 금지 사선 추가 */
+.ability-icon .ability-overlay.none-usable::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 100%;
+    background-color: red;
+    transform: translateX(-50%) rotate(45deg);
 }
 
 .ability-icon .ability-overlay.not-ready {

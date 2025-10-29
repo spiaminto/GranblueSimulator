@@ -18,7 +18,7 @@ public class AssetInfo {
 
     // 기타 상태
     private Boolean isEnemy;
-    private Boolean isMainCharacter;
+    private Boolean isLeaderCharacter;
     private Boolean isChargeAttackSkip;
 
     private Asset asset;

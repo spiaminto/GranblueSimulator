@@ -5,7 +5,7 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 20;
-    padding: 5px 0;
+    margin-top: 2px;
 }
 
 .hp-container.enemy .value-hp {
@@ -53,6 +53,7 @@
 
 .status-container.enemy .status img{
     width: 100%;
+    vertical-align: baseline;
 }
 
 /* 하단 - CT, 전조 */

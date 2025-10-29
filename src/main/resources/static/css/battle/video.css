@@ -7,13 +7,6 @@ video.left-hidden {
     left: -100%;
 }
 
-#videoContainer .attack.large, #videoContainer .ability.large {
-    width: 125%;
-    height: 120%;
-    top: 0;
-    left: -5%;
-}
-
 #actorContainer>.enemy {
     position: absolute;
     width: 135px;
@@ -88,12 +81,6 @@ video.left-hidden {
     width: 85%;
     top: 10%;
     right: 10%;
-}
-
-#videoContainer .party-video-container .attack.effect:not(.large) { /* 모션 있는 공격 이펙트 크기 보정*/
-    width: 99%;
-    top: 5%;
-    left: 0;
 }
 
 .party-video.motion:not(.idle) {

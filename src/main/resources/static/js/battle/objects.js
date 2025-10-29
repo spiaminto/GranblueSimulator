@@ -15,6 +15,7 @@ class StatusDto {
 class MoveResponse {
     constructor(data) {
         this.charOrder = data.charOrder;
+        this.charName = data.charName;
         this.moveType = MoveType.byName(data.moveType);
         this.moveName = data.moveName;
         this.motion = data.motion || 'none';
@@ -23,6 +24,8 @@ class MoveResponse {
         this.summonCjsNames = data.summonCjsNames || [];
 
         this.abilityCoolDowns = data.abilityCoolDowns || [];
+        this.abilityUsables = data.abilityUsables || [];
+        this.abilityUseCounts = data.abilityUseCounts || [];
 
         this.totalHitCount = data.totalHitCount;
         this.attackMultiHitCount = data.attackMultiHitCount;
@@ -60,6 +63,9 @@ class MoveResponse {
         this.omenCancelCondInfo = data.omenCancelCondInfo ?? null;
         this.omenName = data.omenName ?? null;
         this.omenInfo = data.omenInfo ?? null;
+
+        this.resultHonor = data.resultHonor ?? 0;
+        this.memberHonors = data.memberHonors ?? [];
 
         this.enemyPowerUp = data.enemyPowerUp ?? false;
         this.enemyCtMax = data.enemyCtMax ?? false;
@@ -106,7 +112,8 @@ const Constants = {
 
     Delay: {
         damageShowDelete: 1200, // 데미지표시 ~ 데미지 삭제까지 딜레이 (데미지 표시시간 최대치)
-        damageShowToNext: 600 // 데미지 표시 ~ 스테이터스 표시까지 딜레이 (일반적으로 첫 데미지 페이드아웃 시작)
+        damageShowToNext: 600, // 데미지 표시 ~ 스테이터스 표시까지 딜레이 (일반적으로 첫 데미지 페이드아웃 시작)
+        globalMoveDelay: 300, // processXXMove 일반 딜레이
     }
 }
 Object.freeze(Constants);

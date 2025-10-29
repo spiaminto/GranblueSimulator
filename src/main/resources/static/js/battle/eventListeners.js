@@ -130,4 +130,41 @@ $(function () {
         if (!confirm("방에서 퇴장하면 클리어시 획득 가능한 아이템이나 공헌도를 모두 잃습니다")) return;
         $('#exitRoomForm').submit();
     })
+
+    // 포션 아이콘 클릭
+    $('.potion-icon-container .potion-icon-wrapper').on('click', function () {
+        let potionType = $(this).attr('data-potion-type'); // single, all, elixir
+        let potionInfo = '';
+        let $potionTargetRadioContainer = $('.potion-detail-container .potion-target-radio-container');
+        switch (potionType) {
+            case 'single':
+                potionInfo = '파티멤버 1명의 체력을 절반 회복합니다.';
+                $potionTargetRadioContainer.show();
+                break;
+            case 'all' :
+                potionInfo = '파티멤버 전체의 체력을 절반 회복합니다.';
+                $potionTargetRadioContainer.hide();
+                break;
+            case 'elixir':
+                potionInfo = '사망한 파티 멤버가 부활하며, 모든 파티멤버의 체력을 전부 회복합니다.';
+                $potionTargetRadioContainer.hide();
+                break;
+            default:
+                console.warn('[.potion-icon-container .potion-icon-wrapper click event] potionType default case potionType =', potionType)
+        }
+        $('.potion-detail-container .potion-info').text(potionInfo);
+
+        $('.potion-icon-container .potion-icon-wrapper').removeClass('selected');
+        $(this).addClass('selected');
+
+        $('#usePotionButton')
+            .attr('data-potion-type', potionType)
+            .prop('disabled', false);
+    })
+    
+    // 포션 사용 클릭
+    $('#usePotionButton').on('click', function () {
+        requestPotion(this);
+    })
+
 })

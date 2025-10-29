@@ -50,6 +50,10 @@ public class ActorLogicResult {
     @Builder.Default
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
     @Builder.Default
+    private List<List<Integer>> abilityUseCounts = new ArrayList<>();
+    @Builder.Default
+    private List<List<Boolean>> abilityUsables = new ArrayList<>();
+    @Builder.Default
     private List<Integer> heals = new ArrayList<>();
     
     // 프론트 갱신용 텍스트
@@ -83,6 +87,9 @@ public class ActorLogicResult {
     private boolean enemyPowerUp;
     private boolean enemyCtMax;
 
+    // 공헌도
+    private int honor;
+
     @Accessors(fluent = true)
     private boolean executeChargeAttack; // 오의 재발동 여부
     private StatusTargetType executeAttackTargetType; // 턴 진행 없이 일반공격 대상, 없으면 null
@@ -90,4 +97,6 @@ public class ActorLogicResult {
     public void updateSummonIds(List<Long> summonIds) {
         this.summonIds.addAll(summonIds);
     }
+
+    public void updateHonor(int honor) { this.honor = honor; }
 }

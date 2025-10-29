@@ -101,7 +101,7 @@ class Loader {
             // hot fix the main character weapon
             // we replace the "weapon.png" files by "WEAPON_ID.png"
             const animation = actor.animation;
-            if (animation.isMainCharacter && animation.weapon) {
+            if (animation.isLeaderCharacter && animation.weapon) {
                 // only do it for the first weapon
                 let is_melee = animation.cjs.includes("_me_");
                 for (let i = 0; i < spritesheets.length; ++i) {

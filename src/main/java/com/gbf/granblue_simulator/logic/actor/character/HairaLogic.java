@@ -7,6 +7,7 @@ import com.gbf.granblue_simulator.domain.move.Move;
 import com.gbf.granblue_simulator.domain.move.MoveType;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.exception.MoveValidationException;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
@@ -30,6 +31,8 @@ public class HairaLogic extends CharacterLogic {
 
     @Override
     public List<ActorLogicResult> processBattleStart(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
+        // 1어빌리티 봉인 (사용불가)
+        mainActor.updateAbilityUsable(false, MoveType.FIRST_ABILITY);
         // 전투시작시 사포아비1 패시브 발동
         ActorLogicResult firstSupportAbilityResult = firstSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.FIRST_SUPPORT_ABILITY));
 
@@ -51,9 +54,9 @@ public class HairaLogic extends CharacterLogic {
     protected ActorLogicResult chargeAttack(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers) {
         DefaultActorLogicResult defaultResult = defaultChargeAttack(mainActor, enemy, partyMembers, null);
         // 자신의 어빌리티 쿨타임 2턴 단축
-        mainActor.updateAbilityCoolDown(mainActor.getFirstAbilityCoolDown() - 2, MoveType.FIRST_ABILITY);
-        mainActor.updateAbilityCoolDown(mainActor.getSecondAbilityCoolDown() - 2, MoveType.SECOND_ABILITY);
-        mainActor.updateAbilityCoolDown(mainActor.getThirdAbilityCoolDown() - 2, MoveType.THIRD_ABILITY);
+        mainActor.modifyAbilityCooldowns(-2, MoveType.FIRST_ABILITY);
+        mainActor.modifyAbilityCooldowns(-2, MoveType.SECOND_ABILITY);
+        mainActor.modifyAbilityCooldowns(-2, MoveType.THIRD_ABILITY);
         return resultMapper.chargeAttackToResult(mainActor, enemy, partyMembers, defaultResult.getResultMove(), defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult(), false);
     }
 
@@ -65,9 +68,10 @@ public class HairaLogic extends CharacterLogic {
                     .filter(partyMember -> partyMember.getId().equals(partyMoveResult.getMainBattleActorId()))
                     .map(BattleActor::getStrikeCount)
                     .map(strikeCount -> {
-                        if (strikeCount == 2) // 두번째 행동에서만 발동
+                        if (strikeCount == 2) { // 두번째 행동에서만 발동
+                            mainActor.updateAbilityUsable(true, MoveType.FIRST_ABILITY); // 지보의 황성 스택이 오르면 1어빌 봉인해제
                             return secondSupportAbility(mainActor, enemy, partyMembers, mainActor.getActor().getMoves().get(MoveType.SECOND_SUPPORT_ABILITY));
-                        else
+                        } else
                             return resultMapper.emptyResult();
                     })
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("아군 mainActor 가 없음"));
@@ -96,9 +100,10 @@ public class HairaLogic extends CharacterLogic {
                             .toList();
                     DefaultActorLogicResult defaultResult = defaultAbility(mainActor, enemy, partyMembers, ability, selectedStatuses);
                     setStatusLogic.removeBattleStatus(mainActor, battleStatus); // 지보의 황성 삭제
+                    mainActor.updateAbilityUsable(false, MoveType.FIRST_ABILITY); // 첫번째 어빌리티 사용불가
                     return resultMapper.toResult(mainActor, enemy, partyMembers, ability, defaultResult.getDamageLogicResult(), defaultResult.getSetStatusResult());
                 })
-                .orElseThrow(() -> new IllegalArgumentException("어빌리티를 사용할 수 없습니다."));
+                .orElseThrow(() -> new MoveValidationException("지보의 황성 스택이 부족해 어빌리티를 사용할 수 없습니다."));
     }
 
     @Override // 아군 전체에 운룡효과

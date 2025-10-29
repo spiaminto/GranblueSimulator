@@ -108,7 +108,7 @@ public enum StatusEffectType {
     MULTI_CHARGE_ATTACK, // 오의 다회발동 [2] 현재 구현상 2회발동 밖에 없음
 
     // 어빌리티
-    ABILITY_SEALED, // 어빌리티 봉인[1]
+    ABILITY_SEALED, // 어빌리티 봉인[0: 전체, 1: 공격, 2:강화, 3:약체, 4:회복 ]
     // 쿨다운은 로직에서 처리
 
     // 방어 특수

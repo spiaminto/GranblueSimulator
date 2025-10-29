@@ -35,18 +35,11 @@ body::-webkit-scrollbar {
     overflow: hidden;
 }
 
-#videoContainer, #damageContainer, .container-bg {
+#damageContainer, .container-bg {
     width: 100%;
     position: absolute;
     top: 0;
     left: 0;
-}
-
-#videoContainer {
-    width: 101%; /* 흔들기 효과를 위해 추가 (2~3px) */
-    height: 101%;
-    top: -0.5%;
-    left: -0.1%;
 }
 
 .container-bg::before {

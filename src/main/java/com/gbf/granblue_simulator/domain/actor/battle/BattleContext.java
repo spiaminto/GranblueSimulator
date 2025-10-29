@@ -40,6 +40,10 @@ public class BattleContext {
      */
     private List<BattleActor> currentFieldActors; // enemy and valid front
 
+    /**
+     * mainCharacter (행동주체, 캐릭터) 설정
+     * @param mainCharacter
+     */
     public void setMainCharacter(BattleActor mainCharacter) {
         this.mainCharacter = mainCharacter;
     }

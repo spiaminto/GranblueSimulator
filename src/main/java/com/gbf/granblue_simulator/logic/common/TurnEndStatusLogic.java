@@ -9,6 +9,7 @@ import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogicResultMapper;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogicResultMapper;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
 import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusesByEffectType;
 
 @Component
@@ -33,6 +35,7 @@ public class TurnEndStatusLogic {
     private final CharacterLogicResultMapper characterLogicResultMapper;
     private final EnemyLogicResultMapper enemyLogicResultMapper;
     private final ProcessStatusLogic processStatusLogic;
+    private final SetStatusLogic setStatusLogic;
 
     /**
      * 턴 종료시 스테이터스 효과 처리
@@ -43,11 +46,12 @@ public class TurnEndStatusLogic {
      */
     public List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
         List<ActorLogicResult> results = new ArrayList<>();
+        BattleActor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
         Move turnEndMove = Move.getTransientMove(MoveType.TURN_END_PROCESS);
 
         // 아군 턴종 힐 처리
         results.addAll(processPartyHeal(partyMembers).stream()
-                .map(setStatusResult -> characterLogicResultMapper.toResult(partyMembers.getFirst(), enemy, partyMembers, turnEndMove, null, setStatusResult))
+                .map(setStatusResult -> characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, turnEndMove, null, setStatusResult))
                 .toList());
 
         // 적 턴종 힐 처리
@@ -57,7 +61,7 @@ public class TurnEndStatusLogic {
 
         // 아군 오의 게이지 상승
         results.addAll(processPartyChargeGaugeUp(partyMembers).stream()
-                .map(setStatusResult -> characterLogicResultMapper.toResult(partyMembers.getFirst(), enemy, partyMembers, turnEndMove, null, setStatusResult))
+                .map(setStatusResult -> characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, turnEndMove, null, setStatusResult))
                 .toList());
 
         // 적 오의게이지 상승 은 고양효과로 갈음
@@ -69,10 +73,37 @@ public class TurnEndStatusLogic {
 
         // 적 턴종 데미지 처리
         results.addAll(processEnemyTurnDamage(enemy).stream()
-                .map(damageLogicResult -> characterLogicResultMapper.attackToResult(partyMembers.getFirst(), enemy, partyMembers, turnEndMove, damageLogicResult))
+                .map(damageLogicResult -> characterLogicResultMapper.attackToResult(mainActor, enemy, partyMembers, turnEndMove, damageLogicResult))
                 .toList());
 
+        // 아군 어빌리티 봉인 처리
+        partyMembers.forEach(partyMember ->
+                getBattleStatusByEffectType(partyMember, StatusEffectType.ABILITY_SEALED).ifPresent(battleStatus -> {
+
+
+                })
+        ); // 따로 반환값 없어서 동기화만
+        results.addAll(List.of(characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, turnEndMove, null, null)));
+
         return results;
+    }
+
+    /**
+     * 턴 종료 '후' 스테이터스 + 상태처리
+     *
+     * @param enemy
+     * @param partyMembers
+     * @return
+     */
+    public List<ActorLogicResult> processTurnEndAfter(BattleActor enemy, List<BattleActor> partyMembers) {
+        // 턴 종료 '후' 상태 초기화
+        partyMembers.forEach(BattleActor::progressAbilityCoolDown); // 어빌리티 쿨다운 진행
+        partyMembers.forEach(BattleActor::resetAbilityUseCount); // 어빌리티 사용횟수 초기화
+        partyMembers.forEach(BattleActor::resetStrikeCount); // 공격 행동 횟수 초기화
+        setStatusLogic.progressBattleStatus(enemy, partyMembers); // 배틀 스테이터스 남은 턴수 진행
+        BattleActor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
+
+        return List.of(characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, Move.getTransientMove(MoveType.TURN_END_PROCESS), null, null));
     }
 
     /**
@@ -89,7 +120,7 @@ public class TurnEndStatusLogic {
         // 스테이터스 1개당 타겟들에 효과 적용후 SetStatusResult 1개씩 만들어 반환
         turnRecoveryStatusMap.forEach((healStatus, targets) -> {
             log.info("[processPartyHeal] healStatus: {}, targets: {}", healStatus, targets.stream().map(BattleActor::getCurrentOrder).toList());
-            List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, 0)); // 스테이터스 1개당 회복량 저장 배열
+            List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, null)); // 스테이터스 1개당 회복량 저장 배열
             targets.forEach(target -> {
                 int healValue = processStatusLogic.processHeal(target, healStatus);
                 healValues.set(target.getCurrentOrder(), healValue); // 자기자리 맞춰 세팅
@@ -125,10 +156,10 @@ public class TurnEndStatusLogic {
         List<SetStatusResult> chargeGaugeUpResults = new ArrayList<>();
         Map<Status, List<BattleActor>> chargeGaugeUpStatusMap = getStatusMapByEffects(partyMembers, StatusEffectType.ACT_CHARGE_GAUGE_UP);
         chargeGaugeUpStatusMap.forEach((chargeGaugeUpStatus, targets) -> {
-            List<List<BattleStatus>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
+            List<List<BattleStatusDto>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
             targets.forEach(target -> {
                 BattleStatus chargeGaugeUpBattleStatus = processStatusLogic.processChargeGaugeUpStatus(target, chargeGaugeUpStatus);
-                addedBattleStatusesList.set(target.getCurrentOrder(), List.of(chargeGaugeUpBattleStatus));
+                addedBattleStatusesList.set(target.getCurrentOrder(), List.of(BattleStatusDto.of(chargeGaugeUpBattleStatus)));
                 chargeGaugeUpResults.add(SetStatusResult.builder().addedStatusesList(addedBattleStatusesList).build());
             });
         });

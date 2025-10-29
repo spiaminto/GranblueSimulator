@@ -57,6 +57,8 @@ public abstract class BattleActor {
     private Integer def; // 방어력
     @Accessors(fluent = true)
     private boolean isGuardOn;
+    @Accessors(fluent = true)
+    private boolean canGuard;
 
     // 연공
     private Double doubleAttackRate;
@@ -82,15 +84,17 @@ public abstract class BattleActor {
 
     private int strikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
 
-    // 어빌리티 쿨다운, 각 어빌리티 1턴당 사용횟수. 나중에 분리할수도
-    private int firstAbilityCoolDown;
-    private int secondAbilityCoolDown;
-    private int thirdAbilityCoolDown;
-    private int fourthAbilityCoolDown;
-    private int firstAbilityUseCount;
-    private int secondAbilityUseCount;
-    private int thirdAbilityUseCount;
-    private int fourthAbilityUseCount;
+    @Type(ListArrayType.class)
+    @Column(name = "ability_cooldowns", columnDefinition = "integer[]")
+    private List<Integer> abilityCooldowns;
+
+    @Type(ListArrayType.class)
+    @Column(name = "ability_use_counts", columnDefinition = "integer[]")
+    private List<Integer> abilityUseCounts;
+
+    @Type(ListArrayType.class)
+    @Column(name = "ability_usables", columnDefinition = "boolean[]")
+    private List<Boolean> abilityUsables; // 어빌리티 사용가능 여부, 어빌리티 봉인등으로 true 로 변경됨 (쿨다운 관련 x)
 
     // 소환석 id, MC 에 귀속시켜야함, 나중에 isMC 같은거 추가해야할듯
     @Type(ListArrayType.class)
@@ -111,7 +115,10 @@ public abstract class BattleActor {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "battleActor") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "battleActor")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<BattleStatus> battleStatuses = new ArrayList<>();
 
     @ManyToOne
@@ -156,14 +163,9 @@ public abstract class BattleActor {
         this.chargeGauge = 0;
         this.elementType = this.getActor().getElementType();
         this.fatalChainGauge = 0;
-        this.firstAbilityCoolDown = 0;
-        this.secondAbilityCoolDown = 0;
-        this.thirdAbilityCoolDown = 0;
-        this.fourthAbilityCoolDown = 0;
-        this.firstAbilityUseCount = 0;
-        this.secondAbilityUseCount = 0;
-        this.thirdAbilityUseCount = 0;
-        this.fourthAbilityUseCount = 0;
+        this.abilityCooldowns = List.of(0, 0, 0, 0);
+        this.abilityUseCounts = List.of(0, 0, 0, 0);
+        this.abilityUsables = List.of(true, true, true, true);
     }
 
     public void updateMaxHp(int maxHp) {
@@ -172,6 +174,7 @@ public abstract class BattleActor {
 
     /**
      * 체력 값을 업데이트, maxHP 보다 많은 값이 전달될경우 maxHP 로 설정
+     *
      * @param hp
      */
     public void updateHp(int hp) {
@@ -189,6 +192,7 @@ public abstract class BattleActor {
     /**
      * currentOrder 를 업데이트,
      * 캐릭터가 죽으면 +100, 후열캐릭터 등장시 해당 order 세팅해서 넘기기
+     *
      * @param currentOrder
      */
     public void updateCurrentOrder(int currentOrder) {
@@ -212,15 +216,18 @@ public abstract class BattleActor {
     /**
      * 현재 체력 비율을 NN% 로 반환
      */
-    public Integer calcHpRate() {
-        return (int) (((double) hp / maxHp) * 100);
+    public Integer getHpRate() {
+        return (int) Math.ceil(((double) hp / maxHp) * 100);
     }
 
     /**
      * 자신의 hp 가 0 이하인경우 true
+     *
      * @return
      */
-    public boolean isDead() { return this.hp <= 0; }
+    public boolean isDead() {
+        return this.hp <= 0;
+    }
 
     public void changeGuard(boolean isGuardOn) {
         this.isGuardOn = isGuardOn;
@@ -234,65 +241,28 @@ public abstract class BattleActor {
         this.strikeCount = 0;
     }
 
+
+    public int getAbilityCooldown(MoveType abilityType) {
+        int abilityIndex = abilityType.getAbilityOrder() - 1;
+        return this.abilityCooldowns.get(abilityIndex);
+    }
+
     /**
      * 어빌리티의 쿨타임 update
      *
-     * @param coolDown    적용할 쿨타임
+     * @param amount      증감값
      * @param abilityType 어빌리티 타입
      */
-    public void updateAbilityCoolDown(int coolDown, MoveType abilityType) {
-        switch (abilityType) {
-            case FIRST_ABILITY:
-                firstAbilityCoolDown = Math.max(0, coolDown);
-                break;
-            case SECOND_ABILITY:
-                secondAbilityCoolDown = Math.max(0, coolDown);
-                break;
-            case THIRD_ABILITY:
-                thirdAbilityCoolDown = Math.max(0, coolDown);
-                break;
-            case FOURTH_ABILITY:
-                fourthAbilityCoolDown = Math.max(0, coolDown);
-                break;
-            default:
-                throw new IllegalArgumentException("invalid ability type " + abilityType.name());
-        }
+    public void modifyAbilityCooldowns(int amount, MoveType abilityType) {
+        int abilityIndex = abilityType.getAbilityOrder() - 1;
+        this.abilityCooldowns.set(abilityIndex, Math.max(this.abilityCooldowns.get(abilityIndex) + amount, 0));
     }
-
-    /**
-     * 어빌리티의 사용횟수 증가 (이전값 상관없이 ++)
-     *
-     * @param abilityType 어빌리티 타입
-     */
-    public int increaseAbilityUseCount(MoveType abilityType) {
-        return switch (abilityType) {
-            case FIRST_ABILITY -> ++firstAbilityUseCount;
-            case SECOND_ABILITY -> ++secondAbilityUseCount;
-            case THIRD_ABILITY -> ++thirdAbilityUseCount;
-            case FOURTH_ABILITY -> ++fourthAbilityUseCount;
-            default -> throw new IllegalArgumentException("invalid ability type " + abilityType.name());
-        };
-    }
-
-    /**
-     *  어빌리티 사용횟수 초기화 (턴 종료시, 어빌리티 사용횟수는 감소없이 초기화만)
-     */
-    public void resetAbilityUseCount() {
-        this.firstAbilityUseCount = 0;
-        this.secondAbilityUseCount = 0;
-        this.thirdAbilityUseCount = 0;
-        this.fourthAbilityUseCount = 0;
-    }
-
 
     /**
      * 어빌리티 쿨타임 진행
      */
     public void progressAbilityCoolDown() {
-        this.firstAbilityCoolDown = Math.max(0, this.firstAbilityCoolDown - 1);
-        this.secondAbilityCoolDown = Math.max(0, this.secondAbilityCoolDown - 1);
-        this.thirdAbilityCoolDown = Math.max(0, this.thirdAbilityCoolDown - 1);
-        this.fourthAbilityCoolDown = Math.max(0, this.fourthAbilityCoolDown - 1);
+        this.abilityCooldowns.replaceAll(coolDown -> Math.max(0, coolDown - 1));
     }
 
     public Move getMove(MoveType moveType) {
@@ -300,9 +270,53 @@ public abstract class BattleActor {
     }
 
     /**
+     * 어빌리티 사용 횟수 확인
+     * @param abilityType
+     * @return
+     */
+    public int getAbilityUseCount(MoveType abilityType) {
+        int abilityOrder = abilityType.getAbilityOrder();
+        return this.abilityUseCounts.get(abilityOrder - 1);
+    }
+
+    /**
+     * 어빌리티의 사용횟수 증가
+     *
+     * @param abilityType 어빌리티 타입
+     */
+    public int increaseAbilityUseCount(MoveType abilityType) {
+        int abilityIndex = abilityType.getAbilityOrder() - 1;
+        this.abilityUseCounts.set(abilityIndex, this.abilityUseCounts.get(abilityIndex) + 1);
+        return this.abilityUseCounts.get(abilityIndex);
+    }
+
+    /**
+     * 어빌리티 사용횟수 초기화 (턴 종료시, 어빌리티 사용횟수는 감소없이 초기화만)
+     */
+    public void resetAbilityUseCount() {
+        this.abilityUseCounts = List.of(0, 0, 0, 0);
+    }
+
+    public void updateAbilityUsable(boolean usable, MoveType abilityType) {
+        int abilityIndex = abilityType.getAbilityOrder() - 1;
+        this.abilityUsables.set(abilityIndex, usable);
+    }
+
+    /**
+     * 어빌리티 사용가능 여부(봉인여부) 확인
+     * @param abilityType
+     * @return
+     */
+    public boolean getAbilityUsable(MoveType abilityType) {
+        int abilityIndex = abilityType.getAbilityOrder() - 1;
+        return this.abilityUsables.get(abilityIndex);
+    }
+
+
+    /**
      * 빈 캐릭터를 반환 <br>
      * <b>턴종처리</b> 에서만 사용
-     * 
+     *
      * @return
      */
     public static BattleActor getTransientCharacter(Member member) {

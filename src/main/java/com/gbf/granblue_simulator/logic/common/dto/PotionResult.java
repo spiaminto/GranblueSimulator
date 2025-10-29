@@ -11,7 +11,12 @@ public class PotionResult {
 
     @Builder.Default
     private List<Integer> heals = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> hps = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> hpRates = new ArrayList<>();
+
     private int potionCount;
     private int allPotionCount;
-
+    private int elixirCount;
 }

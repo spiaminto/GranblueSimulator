@@ -265,3 +265,47 @@
 .charge-attack-check-wrapper {
     margin-left: 4px;
 }
+
+/* 포션 */
+.potion-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 100%;
+    height: 100%;
+}
+
+.potion-icon-wrapper {
+    padding: 5px;
+    width: 95px;
+    text-align: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.potion-icon-wrapper.selected {
+    border: 2px solid yellow;
+}
+
+.potion-icon-wrapper img {
+    width: 100%;
+}
+
+.potion-detail-container {
+    font-size: 1.1rem;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.potion-info {}
+
+.potion-target-radio-container {
+    display: none;
+    margin-top: 10px;
+}
+
+#potionModal .modal-footer {
+    margin-top: 10px;
+}
+
+

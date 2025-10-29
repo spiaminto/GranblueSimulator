@@ -38,6 +38,7 @@ class AudioPlayer {
     }
 
     async loadAndPlay(audioSrc) {
+        if (audioSrc == null) return;
         this.loadSound(audioSrc).then(() => {
             this.playAllSounds();
         })
@@ -104,4 +105,38 @@ class AudioPlayer {
         })
         this.buffers = [];
     }
+
+    /**
+     * 추가 사운드를 재생
+     */
+    playAdditionalSound(actorName = null, motion = null, moveType = null) {
+        console.debug('[playAdditionalSound] actorName = ', actorName, ' moveType = ', moveType, ' motion = ', motion);
+
+        let soundByMotion = Sounds[actorName][motion]?.src;
+        let soundByMoveType = Sounds[actorName][moveType?.name]?.src;
+        let soundByMoveTypeParent = Sounds[actorName][moveType?.getParentType()?.name]?.src;
+
+        console.log('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
+        this.loadSounds([soundByMotion, soundByMoveType, soundByMoveTypeParent]).then(() => {
+            this.playAllSounds();
+        })
+    }
 }
+
+const enemySoundSrc = '/assets/audio/enemy'
+const Sounds = {
+    diaspora1: {
+        break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+        break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+        standby_A: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+        // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+    },
+    diaspora2 : {
+        break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+        break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+        standby_A: {src: enemySoundSrc + '/diaspora2/standby-1.mp3'},
+        // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+    },
+
+}
+Object.freeze(Sounds);

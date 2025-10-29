@@ -81,7 +81,8 @@
 }
 
 .status-removed {
-    animation: status-removed 1s linear forwards; /* buffShowDuration = 900 */
+    opacity: 0.7;
+    /*animation: status-removed 1s linear forwards; !* buffShowDuration = 900 *!*/
     /*animation: damage-pop 1s cubic-bezier(.71,.55,.62,1.57) forwards;*/
 }
 

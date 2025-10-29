@@ -11,6 +11,11 @@ public class PotionResponse {
 
     @Builder.Default
     private List<Integer> heals = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> hps = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> hpRates = new ArrayList<>();
+
     private Integer potionCount;
     private Integer allPotionCount;
 

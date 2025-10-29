@@ -9,6 +9,7 @@ import com.gbf.granblue_simulator.domain.move.prop.status.Status;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
+import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
 import com.gbf.granblue_simulator.repository.BattleStatusRepository;
 import lombok.Builder;
@@ -32,7 +33,6 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-// TODO 힐처리
 public class SetStatusLogic {
 
     private final BattleStatusRepository battleStatusRepository;
@@ -114,9 +114,9 @@ public class SetStatusLogic {
      * @return SetStatusResult 스테이터스 처리 결과 DTO
      */
     protected SetStatusResult applyStatus(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, List<Status> statuses, StatusTargetType modifiedTargetType) {
-        List<List<BattleStatus>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
-        List<List<BattleStatus>> removedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
-        List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, 0));
+        List<List<BattleStatusDto>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
+        List<List<BattleStatusDto>> removedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
+        List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, null));
         // 처리 순서에 맞게 정렬
         List<Status> sortedStatuses = statuses.stream().sorted(Comparator.comparing(status -> status.getType().getProcessOrder())).toList();
 
@@ -134,10 +134,14 @@ public class SetStatusLogic {
                 // 지워진(디스펠, 클리어) BattleStatus 를 반환 리스트에 추가
                 removedBattleStatusesList.get(targetActor.getCurrentOrder()).addAll(result.getDispelledBattleStatus());
                 // 힐 추가
-                healValues.set(targetActor.getCurrentOrder(), healValues.get(targetActor.getCurrentOrder()) + result.getHealValue());
+                if (result.getHealValue() != null) {
+                    Integer currentHealValue = healValues.get(targetActor.getCurrentOrder());
+                    Integer resultHealValue = currentHealValue == null ? result.getHealValue() : currentHealValue + result.getHealValue();
+                    healValues.set(targetActor.getCurrentOrder(), resultHealValue);
+                }
             });
 
-            if (statusTargetType == StatusTargetType.ALL_PLAYERS) {
+            if (statusTargetType == StatusTargetType.ALL_PARTY_MEMBERS) {
                 this.registerForAllStatus(mainActor, status);
             }
         });
@@ -156,7 +160,7 @@ public class SetStatusLogic {
                 .build();
     }
 
-    private List<BattleActor> getTargets(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, StatusTargetType targetType) {
+    protected List<BattleActor> getTargets(BattleActor mainActor, BattleActor enemy, List<BattleActor> partyMembers, StatusTargetType targetType) {
         List<BattleActor> resultTargets = new ArrayList<>();
         switch (targetType) {
             case SELF -> resultTargets.add(mainActor);
@@ -170,8 +174,8 @@ public class SetStatusLogic {
             }
             case MAIN_CHARACTER ->
                     partyMembers.stream().filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst().ifPresent(resultTargets::add);
-            case ENEMY -> resultTargets.add(enemy);
-            case PARTY_MEMBERS, ALL_PLAYERS -> resultTargets.addAll(partyMembers);
+            case ENEMY, ALL_ENEMIES -> resultTargets.add(enemy);
+            case PARTY_MEMBERS, ALL_PARTY_MEMBERS -> resultTargets.addAll(partyMembers);
             case PARTY_MEMBERS_NOT_SELF ->
                     resultTargets.addAll(partyMembers.stream().filter(battleActor -> !battleActor.getId().equals(mainActor.getId())).toList());
             default -> throw new IllegalArgumentException("getTargets() Invalid target type: " + targetType);
@@ -193,24 +197,24 @@ public class SetStatusLogic {
         log.info("[applyStatusToActor] mainActorName = {}, targetActorName = {} , \n status = {} \n effects = {}", mainActor.getName(), targetActor.getName(), status, status.getStatusEffects());
 
         // 디버프 명중처리
-        if (status.getType() == StatusType.DEBUFF || status.getType() == StatusType.DEBUFF_FOR_ALL) {
+        if (status.getType() == StatusType.DEBUFF) {
             BattleStatus missBattleStatus = this.applyDebuffResistance(mainActor, targetActor, status);
             if (missBattleStatus != null)
-                return ApplyStatusToActorResult.builder().addedBattleStatus(missBattleStatus).build(); // 명중에 실패하면 Miss BattleStatus 바로 반환
+                return ApplyStatusToActorResult.builder().addedBattleStatus(BattleStatusDto.of(missBattleStatus)).build(); // 명중에 실패하면 Miss BattleStatus 바로 반환
         }
 
         // 중복 id 스테이터스 처리
         BattleStatus updatedBattleStatus = getSameIdBattleStatus(targetActor, status)
                 .map(battleStatus -> this.applyDuplicatedIdStatus(status, battleStatus)).orElseGet(() -> null);
         if (updatedBattleStatus != null)
-            return ApplyStatusToActorResult.builder().addedBattleStatus(updatedBattleStatus).build(); // 갱신된 기존 효과 반환
+            return ApplyStatusToActorResult.builder().addedBattleStatus(BattleStatusDto.of(updatedBattleStatus)).build(); // 갱신된 기존 효과 반환
 
         // 이펙트 타입 겹침 처리
         if (status.getStatusEffects().size() == 1 && status.getStatusEffects().get(StatusEffectType.NONE) == null) {
             BattleStatus coveringBattleStatus = getSameEffectTypeStatus(targetActor, status)
                     .map(battleStatus -> this.applyDuplicatedEffectStatus(status, battleStatus)).orElseGet(() -> null);
             if (coveringBattleStatus != null)
-                return ApplyStatusToActorResult.builder().addedBattleStatus(coveringBattleStatus).build(); // 레벨제의 경우 갱신된 기존 효과, 기존효과가 상위인 경우 No Effect BattleStatus 바로 반환
+                return ApplyStatusToActorResult.builder().addedBattleStatus(BattleStatusDto.of(coveringBattleStatus)).build(); // 레벨제의 경우 갱신된 기존 효과, 기존효과가 상위인 경우 No Effect BattleStatus 바로 반환
         }
 
         // 오의 게이지 업, 페이탈 체인 게이지 업 처리 (반드시 하나의 StatusEffect 로 구성됨, CHECK 턴종 오의게이지 추가는 반드시 2개 이상의 Effect 로 구성해야함)
@@ -223,23 +227,23 @@ public class SetStatusLogic {
             else if (status.getStatusEffects().containsKey(StatusEffectType.ACT_WEAPON_BURST))
                 gaugeUpStatus = processStatusLogic.processWeaponBurstStatus(targetActor, status);
 
-            if (gaugeUpStatus != null) return ApplyStatusToActorResult.builder().addedBattleStatus(gaugeUpStatus).build();
+            if (gaugeUpStatus != null) return ApplyStatusToActorResult.builder().addedBattleStatus(BattleStatusDto.of(gaugeUpStatus)).build();
         }
 
         // 디스펠 처리
         if (status.getType() == StatusType.DISPEL) {
             List<BattleStatus> dispelledBattleStatuses = processStatusLogic.processDispel(targetActor, status);
-            return ApplyStatusToActorResult.builder().dispelledBattleStatus(dispelledBattleStatuses).build();
+            return ApplyStatusToActorResult.builder().dispelledBattleStatus(dispelledBattleStatuses.stream().map(BattleStatusDto::of).toList()).build();
         }
 
         // 클리어 처리
-        if (status.getType() == StatusType.CLEAR || status.getType() == StatusType.CLEAR_FOR_ALL) {
+        if (status.getType() == StatusType.CLEAR) {
             List<BattleStatus> clearedBattleStatuses = processStatusLogic.processClear(targetActor, status);
-            return ApplyStatusToActorResult.builder().clearedBattleStatus(clearedBattleStatuses).build();
+            return ApplyStatusToActorResult.builder().clearedBattleStatus(clearedBattleStatuses.stream().map(BattleStatusDto::of).toList()).build();
         }
 
         // 힐 처리 (턴종 힐은 BUFF 내용물로 들어있으므로 HEAL 타입만 거름)
-        if (status.getType() == StatusType.HEAL || status.getType() == StatusType.HEAL_FOR_ALL) {
+        if (status.getType() == StatusType.HEAL) {
             int healValue = processStatusLogic.processHeal(targetActor, status);
             return ApplyStatusToActorResult.builder().healValue(healValue).build();
         }
@@ -254,18 +258,19 @@ public class SetStatusLogic {
                 .build()
                 .mapBattleActor(targetActor);
         battleStatusRepository.save(addedBattleStatus);
-        return ApplyStatusToActorResult.builder().addedBattleStatus(addedBattleStatus).build();
+        return ApplyStatusToActorResult.builder().addedBattleStatus(BattleStatusDto.of(addedBattleStatus)).build();
     }
 
     @Data
     @Builder
     static class ApplyStatusToActorResult {
-        private BattleStatus addedBattleStatus;
+        private BattleStatusDto addedBattleStatus;
         @Builder.Default
-        private List<BattleStatus> dispelledBattleStatus = new ArrayList<>();
+        private List<BattleStatusDto> dispelledBattleStatus = new ArrayList<>();
         @Builder.Default
-        private List<BattleStatus> clearedBattleStatus = new ArrayList<>();
-        private int healValue;
+        private List<BattleStatusDto> clearedBattleStatus = new ArrayList<>();
+        private Integer healValue;
+
     }
 
     /**
@@ -275,7 +280,7 @@ public class SetStatusLogic {
      * @param targetActor 디버프 내성을 사용할 타겟
      * @return 디버프 명중에 실패할 경우 MISS BattleStatus 반환, 명중하면 null (다음단계진행)
      */
-    private BattleStatus applyDebuffResistance(BattleActor mainActor, BattleActor targetActor, Status status) {
+    protected BattleStatus applyDebuffResistance(BattleActor mainActor, BattleActor targetActor, Status status) {
         if (!status.isResistible()) return null; // 필중 : 마운트와 약체명중을 관통한다
         // 마운트 처리 - RESIST
         BattleStatus mountResultBattleStatus = getBattleStatusByEffectType(targetActor, StatusEffectType.MOUNT)
@@ -425,16 +430,16 @@ public class SetStatusLogic {
             log.warn("[subtractBattleStatusLevel] null BattleStatus, actor = {}", battleActor);
             return null;
         }
-        List<List<BattleStatus>> addedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
-        List<List<BattleStatus>> removedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatus>()).collect(Collectors.toList());
+        List<List<BattleStatusDto>> addedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
+        List<List<BattleStatusDto>> removedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
 
         battleStatus.subtractLevel(level);
 
         if (battleStatus.getLevel() <= 0) {
             battleStatusRepository.delete(battleStatus);
             battleActor.getBattleStatuses().remove(battleStatus);
-            removedBattleStatuses.get(battleActor.getCurrentOrder()).add(battleStatus); // 삭제되면 이쪽
-        } else addedBattleStatuses.get(battleActor.getCurrentOrder()).add(battleStatus); // 레벨 내려가면 추가와 동일하게 표시
+            removedBattleStatuses.get(battleActor.getCurrentOrder()).add(BattleStatusDto.of(battleStatus)); // 삭제되면 이쪽
+        } else addedBattleStatuses.get(battleActor.getCurrentOrder()).add(BattleStatusDto.of(battleStatus)); // 레벨 내려가면 추가와 동일하게 표시
 
         calcStatusLogic.syncStatus(battleActor); // 갱신
 
@@ -560,10 +565,7 @@ public class SetStatusLogic {
      */
     public void registerForAllStatus(BattleActor mainActor, Status status) {
         // StatusTargetType.All_Players 만을 적용대상으로 함
-        // StatusTargetType.ENEMY, 즉 적을 대상으로 한 참전자 효과는 여기서 처리하지 않음 ( sync 로 처리 )
-        // BUFF_FOR_ALL, CLEAR_FOR_ALL 만 처리
-        // DEBUFF_FOR_ALL 이 캐릭터 대상으로 있는 건 본적 없음
-        if (!status.getType().isForAllStatus()) throw new IllegalArgumentException("참전자 버프, 참전자 클리어올 외에 다른 타입 " + status.getType());
+        if (status.getTarget() != StatusTargetType.ALL_PARTY_MEMBERS) throw new IllegalArgumentException("참전자 버프, 참전자 클리어올 외에 다른 타입 " + status.getType());
 
         Member refMember = mainActor.getMember();
         Room room = refMember.getRoom();
@@ -576,7 +578,7 @@ public class SetStatusLogic {
         targetMembers.forEach(member -> {
             member.addForAllStatusId(status.getId());
             // 저장해놓고, 플레이어 각각 필요한경우 사용 및 초기화
-            // 사용시 mainActor 를 해당 파티의 leader 로 설정해서 임시로 테스트하고, 문제없으면 그대로 사용하자....
+            // 사용시 mainActor 를 해당 파티의 leader 로 설정해서 임시로 테스트하고, 문제없으면 그대로 사용하자
 
         });
     }

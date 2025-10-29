@@ -41,4 +41,70 @@
 	object-position: top;
 }
 
+.turn-playing-indicator-wrapper {
+	position: absolute;
+	width: 70%;
+	bottom: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+}
+
+.turn-playing-indicator {
+	/* img */
+	width: 100%;
+	position: relative;
+	display: none;
+}
+
+.honor-container {
+	width: 50%;
+	position: absolute;
+	top: 18%;
+	left: -40%;
+	z-index: 3; /* 2 인 canvas 보다 앞으로 */
+	/*display: none;*/
+}
+
+.honor-container .honor-wrapper {
+	width: 100%;
+	height: 21px;
+	margin: 0 auto;
+	display: block;
+	background: url(/assets/img/ui/ui-honor.png) no-repeat;
+	background-size: contain;
+}
+
+.honor-value {
+	display: block;
+	text-align: center;
+	color: #e1d297;
+	font-size: 0.8rem;
+}
+
+.move-name-info-container {
+	width: 100%;
+	position: absolute;
+	top: 13%;
+	z-index: 3; /* 2 인 canvas 보다 앞으로 */
+	display: none;
+}
+
+.move-name-info-container .move-name-info{
+	width: 80%;
+	height: 30px;
+	margin: 0 auto;
+	display: block;
+	background: url("/assets/img/ui/ui-move-name.png") no-repeat;
+	background-size: contain;
+}
+
+.move-name-info-text {
+	display: block;
+	text-align: center;
+	color: #DDD;
+	font-size: 0.9rem;
+}
+
+
 

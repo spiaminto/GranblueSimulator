@@ -2,14 +2,11 @@ package com.gbf.granblue_simulator.domain.move;
 
 import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.move.prop.asset.LegacyAsset;
 import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
-import org.hibernate.annotations.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +25,6 @@ public class Move {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "actor_id")
     private Actor actor;
 
-    @OneToOne(mappedBy = "move")  @EqualsAndHashCode.Exclude @ToString.Exclude
-    private LegacyAsset asset;
-
     @Enumerated(EnumType.STRING)
     private MoveType type;
 
@@ -43,7 +37,7 @@ public class Move {
     @OneToOne(mappedBy = "move")  @EqualsAndHashCode.Exclude @ToString.Exclude
     private Omen omen;
 
-    private String name;
+    private String name; // 외부에 보여줄 값, 필요한경우만 설정 (nullable)
     private String info;
 
     @Enumerated(EnumType.STRING)
@@ -80,12 +74,14 @@ public class Move {
      * @return
      */
     public static Move getTransientMove(MoveType type) {
+        MotionType motionType = type == MoveType.STRIKE_SEALED ? MotionType.DAMAGE : MotionType.NONE; // 임시구현
         return Move.builder()
                 .type(type)
                 .statuses(new ArrayList<>())
-                .motionType(MotionType.NONE)
+                .motionType(motionType)
                 .build();
     }
+
 }
 
 /*

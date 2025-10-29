@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.domain.actor.battle;
 
 import com.gbf.granblue_simulator.domain.move.prop.status.Status;
+import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -143,7 +144,7 @@ public class BattleStatus {
      * @return
      */
     public boolean isForAll() {
-        return this.getStatus().getType().isForAllStatus();
+        return this.getStatus().getTarget() == StatusTargetType.ALL_PARTY_MEMBERS;
     }
 
     public boolean isSameFromStatus(BattleStatus battleStatus) {
