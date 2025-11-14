@@ -1,21 +1,21 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.request.insert.character.EnemyAssetInsertRequest;
-import com.gbf.granblue_simulator.controller.request.insert.enemy.*;
-import com.gbf.granblue_simulator.controller.response.insert.EnemyInsertResponse;
-import com.gbf.granblue_simulator.controller.response.insert.InsertResponse;
-import com.gbf.granblue_simulator.domain.actor.Enemy;
-import com.gbf.granblue_simulator.domain.asset.Asset;
-import com.gbf.granblue_simulator.domain.asset.AssetType;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.*;
+import com.gbf.granblue_simulator.controller.dto.request.insert.character.EnemyAssetInsertRequest;
+import com.gbf.granblue_simulator.controller.dto.request.insert.enemy.*;
+import com.gbf.granblue_simulator.controller.dto.response.insert.EnemyInsertResponse;
+import com.gbf.granblue_simulator.controller.dto.response.insert.InsertResponse;
+import com.gbf.granblue_simulator.domain.base.actor.BaseEnemy;
+import com.gbf.granblue_simulator.domain.base.asset.Asset;
+import com.gbf.granblue_simulator.domain.base.asset.AssetType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.*;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.Omen;
+import com.gbf.granblue_simulator.domain.base.omen.OmenCancelCond;
+import com.gbf.granblue_simulator.domain.base.omen.OmenCancelType;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
 import com.gbf.granblue_simulator.repository.AssetRepository;
-import com.gbf.granblue_simulator.repository.actor.EnemyRepository;
+import com.gbf.granblue_simulator.repository.actor.BaseEnemyRepository;
 import com.gbf.granblue_simulator.repository.move.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,11 +34,11 @@ import java.util.Arrays;
 @Transactional
 public class EnemyInsertController {
 
-    private final EnemyRepository enemyRepository;
+    private final BaseEnemyRepository baseEnemyRepository;
     private final MoveRepository moveRepository;
     private final OmenRepository omenRepository;
-    private final StatusRepository statusRepository;
-    private final StatusEffectRepository statusEffectRepository;
+    private final BaseStatusEffectRepository baseStatusEffectRepository;
+    private final StatusModifierRepository statusModifierRepository;
     private final OmenCancelCondRepository omenCancelCondRepository;
     private final AssetRepository assetRepository;
 
@@ -46,7 +46,7 @@ public class EnemyInsertController {
     public EnemyInsertResponse insertEnemy(@RequestBody EnemyInsertRequest request) {
         log.info("enemyInsertRequest: {}", request);
 
-        Enemy enemy = Enemy.builder()
+        BaseEnemy baseEnemy = BaseEnemy.builder()
                 .name(request.getName())
                 .nameEn(request.getNameEn())
                 .elementType(request.getElementType())
@@ -55,13 +55,13 @@ public class EnemyInsertController {
                 .bgmTriggers(Arrays.stream(request.getBgmTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
                 .bgmSrcs(request.getBgmSrcs().lines().map(String::trim).toList())
                 .build();
-        enemyRepository.save(enemy);
+        baseEnemyRepository.save(baseEnemy);
 
         Move dead = Move.builder()
                 .name(null)
                 .type(MoveType.DEAD)
                 .info("dead")
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(dead);
 
@@ -69,17 +69,17 @@ public class EnemyInsertController {
                 .name("폼 체인지")
                 .type(MoveType.FORM_CHANGE_DEFAULT)
                 .info("form change")
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(formChange);
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-attack")
     public EnemyInsertResponse insertAttack(@RequestBody EnemyAttackRequest request) {
         log.info("enemyAttackRequest: {}", request);
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move singleAttack = Move.builder()
                 .name(null)
                 .elementType(request.getElementType())
@@ -87,7 +87,7 @@ public class EnemyInsertController {
                 .info("single attack")
                 .hitCount(1)
                 .isAllTarget(request.isAllTarget())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(singleAttack);
 
@@ -98,7 +98,7 @@ public class EnemyInsertController {
                 .info("double attack")
                 .hitCount(2)
                 .isAllTarget(request.isAllTarget())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(doubleAttack);
 
@@ -109,67 +109,67 @@ public class EnemyInsertController {
                 .info("triple attack")
                 .hitCount(3)
                 .isAllTarget(request.isAllTarget())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(tripleAttack);
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-idle")
     public EnemyInsertResponse insertIdle(@RequestBody EnemyIdleRequest request) {
         log.info("enemyIdleRequest: {}", request);
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move idle = Move.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("idle")
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(idle);
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-damaged")
     public EnemyInsertResponse insertDamaged(@RequestBody EnemyDamagedRequest request) {
         log.info("enemyDamagedRequest: {}", request);
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move damaged = Move.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("damaged")
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(damaged);
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-break")
     public EnemyInsertResponse insertBreak(@RequestBody EnemyBreakRequest request) {
         log.info("enemyBreakRequest: {}", request);
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move breakMove = Move.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("break")
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(breakMove);
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-standby")
     public EnemyInsertResponse insertStandby(@RequestBody EnemyStandbyInsertRequest request) {
         log.info("enemyStandbyRequest: {}", request);
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move standby = Move.builder()
                 .name(request.getOmen().getName())
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getOmen().getInfo())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         moveRepository.save(standby);
 
@@ -198,14 +198,14 @@ public class EnemyInsertController {
             omenCancelCondRepository.save(omenCancel);
         });
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-charge-attack")
     public EnemyInsertResponse insertChargeAttack(@RequestBody EnemyChargeAttackRequest request) {
         log.info("chargeAttackReuqest: {}", request);
 
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move chargeAttack = Move.builder()
                 .name(request.getName())
                 .type(MoveType.valueOf(request.getType()))
@@ -216,7 +216,7 @@ public class EnemyInsertController {
                 .randomStatusCount(request.getRandomStatusCount())
                 .damageRate(request.getDamageRate() + 0.0)
                 .damageConstant(request.getDamageConstant())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         chargeAttack = moveRepository.save(chargeAttack);
 
@@ -225,11 +225,11 @@ public class EnemyInsertController {
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
             // 스테이터스
-            Status statusEntity = Status.builder()
-                    .type(StatusType.valueOf(status.getType()))
+            BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()
+                    .type(StatusEffectType.valueOf(status.getType()))
                     .name(status.getEffectText())
                     .effectText(status.getEffectText())
-                    .target(StatusTargetType.valueOf(status.getTargetType()))
+                    .targetType(StatusEffectTargetType.valueOf(status.getTargetType()))
                     .maxLevel(status.getMaxLevel())
                     .statusText(status.getStatusText())
                     .duration(status.getDuration())
@@ -238,32 +238,32 @@ public class EnemyInsertController {
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
-            log.info("statusEntity = {}", statusEntity);
-            statusRepository.save(statusEntity);
+            log.info("statusEntity = {}", baseStatusEffectEntity);
+            baseStatusEffectRepository.save(baseStatusEffectEntity);
 
             // 스테이터스 효과 ("type, value \n ...")
             status.getStatusEffects().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
                 if (splitStatusEffect.length < 2) return;
-                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
+                StatusModifierType statusModifierType = StatusModifierType.valueOf(splitStatusEffect[0].trim());
                 Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
-                StatusEffect statusEffectEntity = StatusEffect.builder()
-                        .status(statusEntity)
-                        .type(statusEffectType)
+                StatusModifier statusModifierEntity = StatusModifier.builder()
+                        .baseStatusEffect(baseStatusEffectEntity)
+                        .type(statusModifierType)
                         .value(statusEffectValue)
                         .build();
-                statusEffectRepository.save(statusEffectEntity);
+                statusModifierRepository.save(statusModifierEntity);
             });
         });
 
-        return EnemyInsertResponse.ok(enemy.getId());
+        return EnemyInsertResponse.ok(baseEnemy.getId());
     }
 
     @PostMapping("/insert/enemy-ability")
     public ResponseEntity<InsertResponse> insertAbility(@RequestBody EnemyAbilityRequest request) {
         log.info("request: {}", request);
 
-        Enemy enemy = enemyRepository.findById(request.getEnemyId()).orElseThrow();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
         Move ability = Move.builder()
                 .type(MoveType.valueOf(request.getType()))
                 .name(request.getName())
@@ -274,7 +274,7 @@ public class EnemyInsertController {
                 .hitCount(request.getHitCount())
                 .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
                 .coolDown(request.getCoolDown())
-                .actor(enemy)
+                .baseActor(baseEnemy)
                 .build();
         ability = moveRepository.save(ability);
         log.info("ability = {}", ability);
@@ -283,10 +283,10 @@ public class EnemyInsertController {
         final Move abilityFinal = ability;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
-            Status statusEntity = Status.builder()
-                    .type(StatusType.valueOf(status.getType()))
+            BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()
+                    .type(StatusEffectType.valueOf(status.getType()))
                     .name(status.getEffectText())
-                    .target(StatusTargetType.valueOf(status.getTargetType()))
+                    .targetType(StatusEffectTargetType.valueOf(status.getTargetType()))
                     .maxLevel(status.getMaxLevel())
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
@@ -296,20 +296,20 @@ public class EnemyInsertController {
                     .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();
-            log.info("statusEntity = {}", statusEntity);
-            statusRepository.save(statusEntity);
+            log.info("statusEntity = {}", baseStatusEffectEntity);
+            baseStatusEffectRepository.save(baseStatusEffectEntity);
 
             // 스테이터스 효과 ("type, value \n ...")
             status.getStatusEffects().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
-                StatusEffectType statusEffectType = StatusEffectType.valueOf(splitStatusEffect[0].trim());
+                StatusModifierType statusModifierType = StatusModifierType.valueOf(splitStatusEffect[0].trim());
                 Double statusEffectValue = Double.valueOf(splitStatusEffect[1].trim());
-                StatusEffect statusEffectEntity = StatusEffect.builder()
-                        .status(statusEntity)
-                        .type(statusEffectType)
+                StatusModifier statusModifierEntity = StatusModifier.builder()
+                        .baseStatusEffect(baseStatusEffectEntity)
+                        .type(statusModifierType)
                         .value(statusEffectValue)
                         .build();
-                statusEffectRepository.save(statusEffectEntity);
+                statusModifierRepository.save(statusModifierEntity);
             });
         });
 
@@ -320,8 +320,8 @@ public class EnemyInsertController {
     public ResponseEntity<InsertResponse> insertCharacterAsset(@RequestBody EnemyAssetInsertRequest request) {
         log.info("characterAssetRequest: {}", request);
         Long inputActorId = request.getActorId();
-        Enemy enemy = enemyRepository.findById(inputActorId).orElseThrow(() -> new IllegalArgumentException("enemy 없음, id = " + inputActorId));
-        Long characterId = enemy.getId();
+        BaseEnemy baseEnemy = baseEnemyRepository.findById(inputActorId).orElseThrow(() -> new IllegalArgumentException("enemy 없음, id = " + inputActorId));
+        Long characterId = baseEnemy.getId();
 
         String assetName = request.getAssetName();
         String cjsName = request.getCjsName();
@@ -329,7 +329,7 @@ public class EnemyInsertController {
         AssetType assetType = request.getAssetType();
         Long moveId = null;
         if (assetType.isAbility()) {
-            Move move = enemy.getMoves().get(MoveType.valueOf(assetType.name()));
+            Move move = baseEnemy.getMoves().get(MoveType.valueOf(assetType.name()));
             if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + assetType);
             moveId = move.getId();
         }

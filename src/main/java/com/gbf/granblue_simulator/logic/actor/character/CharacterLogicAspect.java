@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.character;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,7 @@ public class CharacterLogicAspect {
     @Around("(postProcessPartyMove() || postProcessEnemyMove())")
     public Object checkDeath(ProceedingJoinPoint joinPoint) throws Throwable {
         Object[] args = joinPoint.getArgs();
-        BattleActor mainActor = (BattleActor) args[0];
+        Actor mainActor = (Actor) args[0];
 
         if (mainActor.getCurrentOrder() >= 100) { // 이미 사망한 멤버인지 확인
             log.info("[checkDeath] alreadyDead, actor = {}", mainActor);
@@ -52,8 +52,8 @@ public class CharacterLogicAspect {
 
         if (mainActor.isDead() && mainActor.getCurrentOrder() <= 4) { // 사망한 프론트멤버인지 확인
             log.info("[checkDeath] nowDead, actor = {}", mainActor);
-            BattleActor enemy = (BattleActor) args[1];
-            List<BattleActor> partyMembers = (List<BattleActor>) args[2];
+            Actor enemy = (Actor) args[1];
+            List<Actor> partyMembers = (List<Actor>) args[2];
             ActorLogicResult partyMoveResult = (ActorLogicResult) args[3];
             CharacterLogic logic = (CharacterLogic) joinPoint.getTarget();
             ActorLogicResult deathResult = logic.defaultDeath(mainActor, enemy, partyMembers, partyMoveResult);

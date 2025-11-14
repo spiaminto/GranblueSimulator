@@ -123,10 +123,11 @@ class Player {
      * @param {string} [options.effectType]
      * @param {boolean} [options.isEffectOnly]
      * @param {boolean} [options.isMotionOnly]
-     * @param {number} [options.multiHitCount]
+     * @param {number} [options.attackMultiHitCount]
      * @param {boolean} [options.isLastAttack]
      * @param {number} [options.summonId]
      * @param {string} [options.unionSummonCjs]
+     * @param {number} [options.motionSkipDuration]
      * @returns {{ actorId: string, motion: string, abilityType: string, effectType: string, isEffectOnly: boolean, isMotionOnly: boolean, multiHitCount: number, isLastAttack: boolean, isEffecting: boolean, summonId: number, unionSummonCjs: string }}
      */
     static playRequest(actorId, motion, options = {}) {
@@ -144,7 +145,8 @@ class Player {
                 attackMultiHitCount: options.attackMultiHitCount || 0,
                 isLastAttack: options.isLastAttack || false,
                 summonId: options.summonId || 0,
-                unionSummonCjs: options.unionSummonCjs || ''
+                unionSummonCjs: options.unionSummonCjs || '',
+                motionSkipDuration: options.motionSkipDuration || 0,
             },
         }
     }

@@ -44,6 +44,7 @@
     font-size: 8px;
 }
 
+/* 어빌리티 슬라이더 - 어빌리티 커맨드 */
 .ability-wrapper {
     position: absolute;
     top: 45px;
@@ -125,7 +126,7 @@
     visibility: hidden;
 }
 
-.ability-wrapper .ability-info-text {
+.ability-wrapper .ability-info-text, .ability-wrapper .ability-name {
     display: none;
 }
 
@@ -213,10 +214,18 @@
 
 .status-info {
     padding: 0.5rem 1rem;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     
     @media (min-width: 600px) {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
+    }
+}
+
+.status-info .status-name {
+    font-size: 0.9rem;
+
+    @media (min-width: 600px) {
+        font-size: 1rem;
     }
 }
 
@@ -258,6 +267,10 @@
     display: flex;
 }
 
+.status-info.omen {
+    display: block;
+}
+
 .status-info-icon-wrapper {
     width: 7%;
     margin-right: 3%;
@@ -268,7 +281,15 @@
 }
 
 .status-info .status-info-text {
-    width: 85%;
+    position: relative;
+    width: 90%;
+}
+
+.status-info .status-info-duration {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
 }
 
 /* 슬라이드 버튼 (주의 #battleMemberPresentContainer 의 자식임) */

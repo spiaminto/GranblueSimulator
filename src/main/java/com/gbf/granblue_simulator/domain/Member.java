@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.domain;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,7 +28,7 @@ public class Member {
     private Room room;
 
     @OneToMany(mappedBy = "member") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
-    private List<BattleActor> battleActors = new ArrayList<>();
+    private List<Actor> actors = new ArrayList<>();
 
     private Long partyId; // 입장시 참조 및 검증용으로만 사용. 실시간 참조 x
 
@@ -93,8 +93,8 @@ public class Member {
      * 연관관계 매핑 제외, 사용하지 않도록 하기
      * @return
      */
-    public List<BattleActor> getBattleActors() {
-        return this.battleActors; // usage 확인용
+    public List<Actor> getActors() {
+        return this.actors; // usage 확인용
     }
 
 }

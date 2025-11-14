@@ -1,15 +1,15 @@
 package com.gbf.granblue_simulator.logic.common;
 
-import com.gbf.granblue_simulator.domain.ElementType;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifierType;
+import com.gbf.granblue_simulator.domain.base.types.ElementType;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogicResultMapper;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
+import com.gbf.granblue_simulator.logic.actor.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogicResultMapper;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
@@ -24,8 +24,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusesByEffectType;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectsByModifierTypes;
 
 @Component
 @Slf4j
@@ -44,9 +43,9 @@ public class TurnEndStatusLogic {
      * @param partyMembers
      * @return
      */
-    public List<ActorLogicResult> processTurnEnd(BattleActor enemy, List<BattleActor> partyMembers) {
+    public List<ActorLogicResult> processTurnEnd(Actor enemy, List<Actor> partyMembers) {
         List<ActorLogicResult> results = new ArrayList<>();
-        BattleActor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
+        Actor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
         Move turnEndMove = Move.getTransientMove(MoveType.TURN_END_PROCESS);
 
         // 아군 턴종 힐 처리
@@ -76,15 +75,6 @@ public class TurnEndStatusLogic {
                 .map(damageLogicResult -> characterLogicResultMapper.attackToResult(mainActor, enemy, partyMembers, turnEndMove, damageLogicResult))
                 .toList());
 
-        // 아군 어빌리티 봉인 처리
-        partyMembers.forEach(partyMember ->
-                getBattleStatusByEffectType(partyMember, StatusEffectType.ABILITY_SEALED).ifPresent(battleStatus -> {
-
-
-                })
-        ); // 따로 반환값 없어서 동기화만
-        results.addAll(List.of(characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, turnEndMove, null, null)));
-
         return results;
     }
 
@@ -95,13 +85,13 @@ public class TurnEndStatusLogic {
      * @param partyMembers
      * @return
      */
-    public List<ActorLogicResult> processTurnEndAfter(BattleActor enemy, List<BattleActor> partyMembers) {
+    public List<ActorLogicResult> processTurnEndAfter(Actor enemy, List<Actor> partyMembers) {
         // 턴 종료 '후' 상태 초기화
-        partyMembers.forEach(BattleActor::progressAbilityCoolDown); // 어빌리티 쿨다운 진행
-        partyMembers.forEach(BattleActor::resetAbilityUseCount); // 어빌리티 사용횟수 초기화
-        partyMembers.forEach(BattleActor::resetStrikeCount); // 공격 행동 횟수 초기화
-        setStatusLogic.progressBattleStatus(enemy, partyMembers); // 배틀 스테이터스 남은 턴수 진행
-        BattleActor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
+        partyMembers.forEach(Actor::progressAbilityCoolDown); // 어빌리티 쿨다운 진행
+        partyMembers.forEach(Actor::resetAbilityUseCount); // 어빌리티 사용횟수 초기화
+        partyMembers.forEach(Actor::resetStrikeCount); // 공격 행동 횟수 초기화
+        setStatusLogic.progressStatusEffects(enemy, partyMembers); // 배틀 스테이터스 남은 턴수 진행
+        Actor mainActor = partyMembers.isEmpty() ? enemy : partyMembers.getFirst();
 
         return List.of(characterLogicResultMapper.toResult(mainActor, enemy, partyMembers, Move.getTransientMove(MoveType.TURN_END_PROCESS), null, null));
     }
@@ -114,15 +104,15 @@ public class TurnEndStatusLogic {
      * @param partyMembers
      * @return
      */
-    private List<SetStatusResult> processPartyHeal(List<BattleActor> partyMembers) {
+    private List<SetStatusResult> processPartyHeal(List<Actor> partyMembers) {
         List<SetStatusResult> recoveryResults = new ArrayList<>();
-        Map<Status, List<BattleActor>> turnRecoveryStatusMap = getStatusMapByEffects(partyMembers, StatusEffectType.ACT_HEAL);
+        Map<BaseStatusEffect, List<Actor>> turnRecoveryStatusMap = getStatusMapByEffects(partyMembers, StatusModifierType.ACT_HEAL);
         // 스테이터스 1개당 타겟들에 효과 적용후 SetStatusResult 1개씩 만들어 반환
         turnRecoveryStatusMap.forEach((healStatus, targets) -> {
-            log.info("[processPartyHeal] healStatus: {}, targets: {}", healStatus, targets.stream().map(BattleActor::getCurrentOrder).toList());
+            log.info("[processPartyHeal] healStatus: {}, targets: {}", healStatus, targets.stream().map(Actor::getName).toList());
             List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, null)); // 스테이터스 1개당 회복량 저장 배열
             targets.forEach(target -> {
-                int healValue = processStatusLogic.processHeal(target, healStatus);
+                int healValue = processStatusLogic.process(target, healStatus, StatusModifierType.ACT_HEAL).getHealValue();
                 healValues.set(target.getCurrentOrder(), healValue); // 자기자리 맞춰 세팅
             });
             recoveryResults.add(SetStatusResult.builder().healValues(healValues).build());
@@ -138,13 +128,13 @@ public class TurnEndStatusLogic {
      * @param enemy
      * @return
      */
-    private List<SetStatusResult> processEnemyHeal(BattleActor enemy) {
+    private List<SetStatusResult> processEnemyHeal(Actor enemy) {
         List<SetStatusResult> recoveryResults = new ArrayList<>();
-        List<BattleStatus> turnRecoveryStatuses = getBattleStatusesByEffectType(enemy, StatusEffectType.ACT_HEAL);
+        List<StatusEffect> turnRecoveryStatuses = getEffectsByModifierTypes(enemy, StatusModifierType.ACT_HEAL);
         // 스테이터스 1개당 적에게 효과 적용후 SetStatusResult 1개씩 만들어 반환
         turnRecoveryStatuses.forEach(healStatus -> {
             List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, 0)); // 스테이터스 1개당 회복량 저장 배열
-            int healValue = processStatusLogic.processHeal(enemy, healStatus.getStatus());
+            int healValue = processStatusLogic.process(enemy, healStatus.getBaseStatusEffect(), StatusModifierType.ACT_HEAL).getHealValue();
             healValues.set(enemy.getCurrentOrder(), healValue);
             recoveryResults.add(SetStatusResult.builder().healValues(healValues).build());
         });
@@ -152,16 +142,16 @@ public class TurnEndStatusLogic {
         return recoveryResults;
     }
 
-    private List<SetStatusResult> processPartyChargeGaugeUp(List<BattleActor> partyMembers) {
+    private List<SetStatusResult> processPartyChargeGaugeUp(List<Actor> partyMembers) {
         List<SetStatusResult> chargeGaugeUpResults = new ArrayList<>();
-        Map<Status, List<BattleActor>> chargeGaugeUpStatusMap = getStatusMapByEffects(partyMembers, StatusEffectType.ACT_CHARGE_GAUGE_UP);
+        Map<BaseStatusEffect, List<Actor>> chargeGaugeUpStatusMap = getStatusMapByEffects(partyMembers, StatusModifierType.ACT_CHARGE_GAUGE_UP);
         chargeGaugeUpStatusMap.forEach((chargeGaugeUpStatus, targets) -> {
-            List<List<BattleStatusDto>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList());
+            List<List<StatusEffectDto>> addedStatsuEffectsList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<StatusEffectDto>()).collect(Collectors.toList());
             targets.forEach(target -> {
-                BattleStatus chargeGaugeUpBattleStatus = processStatusLogic.processChargeGaugeUpStatus(target, chargeGaugeUpStatus);
-                addedBattleStatusesList.set(target.getCurrentOrder(), List.of(BattleStatusDto.of(chargeGaugeUpBattleStatus)));
-                chargeGaugeUpResults.add(SetStatusResult.builder().addedStatusesList(addedBattleStatusesList).build());
+                List<StatusEffect> addedStatusEffects = processStatusLogic.process(target, chargeGaugeUpStatus, StatusModifierType.ACT_CHARGE_GAUGE_UP).getAddedStatusEffects();
+                addedStatsuEffectsList.set(target.getCurrentOrder(), addedStatusEffects.stream().map(StatusEffectDto::of).toList());
             });
+            chargeGaugeUpResults.add(SetStatusResult.builder().addedStatusesList(addedStatsuEffectsList).build());
         });
         return chargeGaugeUpResults;
     }
@@ -174,16 +164,17 @@ public class TurnEndStatusLogic {
      * @param partyMembers
      * @return
      */
-    private List<DamageLogicResult> processPartyTurnDamage(List<BattleActor> partyMembers) {
+    private List<DamageLogicResult> processPartyTurnDamage(List<Actor> partyMembers) {
         List<DamageLogicResult> damageLogicResults = new ArrayList<>();
-        Map<Status, List<BattleActor>> turnDamageStatusMap = getStatusMapByEffects(partyMembers, StatusEffectType.ACT_DAMAGE, StatusEffectType.ACT_RATE_DAMAGE);
+        Map<BaseStatusEffect, List<Actor>> turnDamageStatusMap = getStatusMapByEffects(partyMembers, StatusModifierType.ACT_DAMAGE, StatusModifierType.ACT_RATE_DAMAGE);
         // 스테이터스 1개당 타겟들에 효과 적용후 DamageLogicResult 1개씩 만들어 반환
         turnDamageStatusMap.forEach((turnDamageStatus, targets) -> {
             List<Integer> damages = new ArrayList<>();
             List<Integer> targetOrders = new ArrayList<>();
             List<ElementType> elementTypes = new ArrayList<>();
+            StatusModifierType modifierType = turnDamageStatus.getModifier(StatusModifierType.ACT_DAMAGE) != null ? StatusModifierType.ACT_DAMAGE : StatusModifierType.ACT_RATE_DAMAGE;
             targets.forEach(target -> {
-                int damage = processStatusLogic.processStatusDamage(target, turnDamageStatus);
+                int damage = processStatusLogic.process(target, turnDamageStatus, modifierType).getDamageValue();
                 damages.add(damage);
                 targetOrders.add(target.getCurrentOrder());
                 elementTypes.add(ElementType.NONE); // 턴데미지는 무조건 무속성
@@ -201,12 +192,13 @@ public class TurnEndStatusLogic {
      * @param enemy
      * @return
      */
-    private List<DamageLogicResult> processEnemyTurnDamage(BattleActor enemy) {
+    private List<DamageLogicResult> processEnemyTurnDamage(Actor enemy) {
         List<DamageLogicResult> damageLogicResults = new ArrayList<>();
-        List<BattleStatus> turnRecoveryStatuses = getBattleStatusesByEffectType(enemy, StatusEffectType.ACT_DAMAGE, StatusEffectType.ACT_RATE_DAMAGE);
+        List<StatusEffect> turnRecoveryStatuses = getEffectsByModifierTypes(enemy, StatusModifierType.ACT_DAMAGE, StatusModifierType.ACT_RATE_DAMAGE);
         // 스테이터스 1개당 적에게 효과 적용후 SetStatusResult 1개씩 만들어 반환
-        turnRecoveryStatuses.forEach(healStatus -> {
-            int damage = processStatusLogic.processStatusDamage(enemy, healStatus.getStatus());
+        turnRecoveryStatuses.forEach(damageStatus -> {
+            StatusModifierType modifierType = damageStatus.getBaseStatusEffect().getModifier(StatusModifierType.ACT_DAMAGE) != null ? StatusModifierType.ACT_DAMAGE : StatusModifierType.ACT_RATE_DAMAGE;
+            int damage = processStatusLogic.process(enemy, damageStatus.getBaseStatusEffect(), modifierType).getDamageValue();
             damageLogicResults.add(DamageLogicResult.builder().damages(List.of(damage)).elementTypes(List.of(ElementType.NONE)).build());
         });
         return damageLogicResults;
@@ -220,11 +212,11 @@ public class TurnEndStatusLogic {
      * @param effectTypes
      * @return
      */
-    private Map<Status, List<BattleActor>> getStatusMapByEffects(List<BattleActor> partyMembers, StatusEffectType... effectTypes) {
+    private Map<BaseStatusEffect, List<Actor>> getStatusMapByEffects(List<Actor> partyMembers, StatusModifierType... effectTypes) {
         return partyMembers.stream()
-                .flatMap(partyMember -> getBattleStatusesByEffectType(partyMember, effectTypes)
+                .flatMap(partyMember -> getEffectsByModifierTypes(partyMember, effectTypes)
                         .stream()
-                        .map(battleStatus -> Map.entry(battleStatus.getStatus(), partyMember)))
+                        .map(battleStatus -> Map.entry(battleStatus.getBaseStatusEffect(), partyMember)))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));

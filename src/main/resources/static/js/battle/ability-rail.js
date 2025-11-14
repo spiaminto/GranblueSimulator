@@ -22,6 +22,7 @@ $(function () {
     function openAbilityInfoModal($abilityIcon) {
         let iconSrc = $abilityIcon.find('img').attr('src');
         let abilityInfoText = $abilityIcon.find('.ability-info-text').text();
+        let abilityName = $abilityIcon.find('.ability-name').text();
         let isFatalChain = abilityInfoText === '';
         if (isFatalChain) {
             // 페이탈 체인
@@ -30,6 +31,7 @@ $(function () {
         let isNotReady = $abilityIcon.find('.ability-overlay').hasClass('not-ready');
         // 모달에 내용 채우기
         $('#abilityInfoModal').find('.ability-info-icon').attr('src', iconSrc).end()
+            .find('.ability-name').text(abilityName).end()
             .find('.ability-info-text').text(abilityInfoText).end()
             .find('.use-ability-button').prop('disabled', isNotReady);
         // 모달 닫기 버튼에 클릭 이벤트 핸들러 제거하는 이벤트 등록 (닫을때 내용은 사라져도 이벤트는 해제안됨)

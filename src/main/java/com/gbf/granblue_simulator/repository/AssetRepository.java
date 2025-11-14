@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.repository;
 
-import com.gbf.granblue_simulator.domain.asset.Asset;
+import com.gbf.granblue_simulator.domain.base.asset.Asset;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

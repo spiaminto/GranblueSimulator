@@ -1,13 +1,13 @@
 package com.gbf.granblue_simulator.logic.actor.enemy;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.Enemy;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.Omen;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.logic.common.ChargeGaugeLogic;
@@ -16,7 +16,7 @@ import com.gbf.granblue_simulator.logic.common.OmenLogic;
 import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
 import com.gbf.granblue_simulator.logic.common.dto.DamageLogicResult;
 import com.gbf.granblue_simulator.logic.common.dto.SetStatusResult;
-import com.gbf.granblue_simulator.repository.actor.ActorRepository;
+import com.gbf.granblue_simulator.repository.actor.BaseActorRepository;
 import com.gbf.granblue_simulator.service.BattleLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.gbf.granblue_simulator.domain.move.MoveType.STRIKE_SEALED;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectiveCoveringEffect;
+import static com.gbf.granblue_simulator.domain.base.move.MoveType.STRIKE_SEALED;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectByModifierType;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getMaxValueEffectByModifierType;
 
 /**
  * 모든 에너미로직 반환값은 null 을 사용하지 않는다.
@@ -48,29 +48,29 @@ public abstract class EnemyLogic {
 
     protected final BattleLogService battleLogService;
 
-    protected final ActorRepository actorRepository;
+    protected final BaseActorRepository baseActorRepository;
 
     // 필수 오버라이드
     // 전투 시작시 효과
-    public abstract List<ActorLogicResult> processBattleStart(BattleActor mainActor, List<BattleActor> partyMembers);
+    public abstract List<ActorLogicResult> processBattleStart(Actor mainActor, List<Actor> partyMembers);
 
     // 통상공격
-    protected abstract ActorLogicResult attack(BattleActor mainActor, List<BattleActor> partyMembers);
+    protected abstract ActorLogicResult attack(Actor mainActor, List<Actor> partyMembers);
 
     // 오의
-    protected abstract ActorLogicResult chargeAttack(BattleActor mainActor, List<BattleActor> partyMembers);
+    protected abstract ActorLogicResult chargeAttack(Actor mainActor, List<Actor> partyMembers);
 
     // 아군이 ~ 할때 효과 (적은 기본적으로 전조 처리가 있기 때문에 1개 이상 반환, 로직 작성시 전조처리를 우선할것)
-    public abstract List<ActorLogicResult> postProcessToPartyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult partyMoveResult);
+    public abstract List<ActorLogicResult> postProcessToPartyMove(Actor mainActor, List<Actor> partyMembers, ActorLogicResult partyMoveResult);
 
     // 적이 ~ 할때 효과
-    public abstract List<ActorLogicResult> postProcessToEnemyMove(BattleActor mainActor, List<BattleActor> partyMembers, ActorLogicResult enemyMoveResult);
+    public abstract List<ActorLogicResult> postProcessToEnemyMove(Actor mainActor, List<Actor> partyMembers, ActorLogicResult enemyMoveResult);
 
     // 턴 종료시 효과
-    public abstract List<ActorLogicResult> processTurnEnd(BattleActor mainActor, List<BattleActor> partyMembers);
+    public abstract List<ActorLogicResult> processTurnEnd(Actor mainActor, List<Actor> partyMembers);
 
     // 턴 종료후 전조 발동
-    public abstract List<ActorLogicResult> activateOmen(BattleActor mainActor, List<BattleActor> partyMembers);
+    public abstract List<ActorLogicResult> activateOmen(Actor mainActor, List<Actor> partyMembers);
 
     /**
      * 공격 행동을 수행
@@ -80,14 +80,14 @@ public abstract class EnemyLogic {
      * @param partyMembers
      * @return
      */
-    public ActorLogicResult processStrike(BattleActor mainActor, List<BattleActor> partyMembers) {
+    public ActorLogicResult processStrike(Actor mainActor, List<Actor> partyMembers) {
         // 공격행동 봉인시 즉시 반환
-        ActorLogicResult sealedStrikeResult = getBattleStatusByEffectType(mainActor, StatusEffectType.STRIKE_SEALED)
+        ActorLogicResult sealedStrikeResult = getEffectByModifierType(mainActor, StatusModifierType.STRIKE_SEALED)
                 .map(battleStatus -> resultMapper.toResult(mainActor, partyMembers, Move.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null))
                 .orElseGet(() -> null);
         if (sealedStrikeResult != null) return sealedStrikeResult;
         // 공격행동 결정 및 수행
-        BattleEnemy mainEnemy = (BattleEnemy) mainActor;
+        Enemy mainEnemy = (Enemy) mainActor;
         MoveType currentStandbyType = mainEnemy.getCurrentStandbyType();
         return currentStandbyType != null ?
                 chargeAttack(mainActor, partyMembers) :
@@ -95,8 +95,8 @@ public abstract class EnemyLogic {
     }
 
     // 어빌리티 수행
-    public ActorLogicResult processAbility(BattleActor mainActor, List<BattleActor> partyMembers, MoveType moveType) {
-        Move ability = mainActor.getActor().getMoves().get(moveType);
+    public ActorLogicResult processAbility(Actor mainActor, List<Actor> partyMembers, MoveType moveType) {
+        Move ability = mainActor.getBaseActor().getMoves().get(moveType);
         return switch (moveType) {
             case FIRST_ABILITY -> firstAbility(mainActor, partyMembers, ability);
             case SECOND_ABILITY -> secondAbility(mainActor, partyMembers, ability);
@@ -117,20 +117,20 @@ public abstract class EnemyLogic {
      * @param partyMembers
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAttack(BattleActor mainActor, List<BattleActor> partyMembers) {
+    protected DefaultActorLogicResult defaultAttack(Actor mainActor, List<Actor> partyMembers) {
         // 평타 횟수 (독립시행)
-        Move attackMove = mainActor.getActor().getMoves().get(
-                Math.random() < mainActor.getTripleAttackRate() ? MoveType.TRIPLE_ATTACK :
-                        Math.random() < mainActor.getDoubleAttackRate() ? MoveType.DOUBLE_ATTACK : MoveType.SINGLE_ATTACK
+        Move attackMove = mainActor.getBaseActor().getMoves().get(
+                Math.random() < mainActor.getStatus().getTripleAttackRate() ? MoveType.TRIPLE_ATTACK :
+                        Math.random() < mainActor.getStatus().getDoubleAttackRate() ? MoveType.DOUBLE_ATTACK : MoveType.SINGLE_ATTACK
         );
         // 타겟 설정
-        List<BattleActor> targets = this.getAttackTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
+        List<Actor> targets = this.getAttackTargets(attackMove.isAllTarget(), attackMove.getHitCount(), partyMembers);
         // 데미지 계산
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, attackMove);
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), attackMove.getType(), null);
         // 전체공격시 타겟 변경
-        List<BattleActor> allTargetedTargets = new ArrayList<>();
+        List<Actor> allTargetedTargets = new ArrayList<>();
         if (attackMove.isAllTarget()) {
             // 어빌리티 및 오의와 같이 전체공격시 타겟을 복제하여 설정. 데미지로직 구현상 그쪽에는 쓰지말것 (일반공격시, 타수에 맞게 데미지가 복제되므로 타겟만 후에 복제해야함)
             for (int i = 0; i < attackMove.getHitCount(); i++) allTargetedTargets.addAll(targets);
@@ -149,8 +149,8 @@ public abstract class EnemyLogic {
      * @param standby
      * @return
      */
-    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby) {
-        return defaultChargeAttack(mainActor, partyMembers, standby, mainActor.getActor().getMoves().get(standby.getType().getChargeAttackType()), null);
+    protected DefaultActorLogicResult defaultChargeAttack(Actor mainActor, List<Actor> partyMembers, Move standby) {
+        return defaultChargeAttack(mainActor, partyMembers, standby, mainActor.getBaseActor().getMoves().get(standby.getType().getChargeAttackType()), null);
     }
 
     /**
@@ -164,19 +164,19 @@ public abstract class EnemyLogic {
      * @param modifiedDamageRate
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultChargeAttack(BattleActor mainActor, List<BattleActor> partyMembers, Move standby, Move chargeAttack, Double modifiedDamageRate) {
+    protected DefaultActorLogicResult defaultChargeAttack(Actor mainActor, List<Actor> partyMembers, Move standby, Move chargeAttack, Double modifiedDamageRate) {
         // 타겟설정
-        List<BattleActor> targets = getAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
+        List<Actor> targets = getAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), partyMembers);
         // 데미지 계산
         DamageLogicResult damageLogicResult = damageLogic.processEnemy(mainActor, targets, chargeAttack, modifiedDamageRate);
         // 스테이터스 타겟 설정 (중복제거)
-        List<BattleActor> statusTargets = targets.stream().distinct().toList();
+        List<Actor> statusTargets = targets.stream().distinct().toList();
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, statusTargets, chargeAttack);
+        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(mainActor, mainActor, statusTargets, chargeAttack);
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(mainActor, targets, damageLogicResult.getDamages(), chargeAttack.getType(), standby.getOmen().getOmenType());
         // 스탠바이 초기화
-        BattleEnemy mainEnemy = (BattleEnemy) mainActor;
+        Enemy mainEnemy = (Enemy) mainActor;
         mainEnemy.setCurrentStandbyType(null);
         mainEnemy.setNextIncantStandbyType(null);
         return DefaultActorLogicResult.builder()
@@ -191,7 +191,7 @@ public abstract class EnemyLogic {
      * @param partyMembers
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability) {
+    protected DefaultActorLogicResult defaultAbility(Actor mainActor, List<Actor> partyMembers, Move ability) {
         return this.defaultAbility(mainActor, partyMembers, ability, null, null);
     }
 
@@ -205,7 +205,7 @@ public abstract class EnemyLogic {
      * @param modifiedHitCount   : 변경할 히트수 (기본 히트수 사용시 null)
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
+    protected DefaultActorLogicResult defaultAbility(Actor mainActor, List<Actor> partyMembers, Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
         // 데미지 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : ability.getDamageRate();
         // 히트수 변경 확인
@@ -215,7 +215,7 @@ public abstract class EnemyLogic {
                 damageLogic.processEnemy(mainActor, partyMembers, ability) :
                 null;
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatus(mainActor, mainActor, partyMembers, ability.getStatuses());
+        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(mainActor, mainActor, partyMembers, ability.getStatusEffects());
         // 적은 어빌리티 및 쿨타임 존재 X
         return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
     }
@@ -229,19 +229,19 @@ public abstract class EnemyLogic {
      * @param otherResult
      * @return 전조 또는 브레이크 (발생중인 전조 없으면 null)
      */
-    protected DefaultActorLogicResult defaultOmen(BattleActor mainActor, ActorLogicResult otherResult) {
-        BattleEnemy mainEnemy = (BattleEnemy) mainActor;
+    protected DefaultActorLogicResult defaultOmen(Actor mainActor, ActorLogicResult otherResult) {
+        Enemy mainEnemy = (Enemy) mainActor;
         if (mainEnemy.getCurrentStandbyType() == null)
             return DefaultActorLogicResult.builder().resultMove(null).build(); // 발생중인 전조 없음
         Move resultMove = null;
         Omen resultOmen = null;
-        Move standby = mainEnemy.getActor().getMoves().get(mainEnemy.getCurrentStandbyType());
+        Move standby = mainEnemy.getBaseActor().getMoves().get(mainEnemy.getCurrentStandbyType());
         Omen standbyOmen = standby.getOmen();
         // 전조 연산
         int processedOmenValue = omenLogic.updateOmenValue(mainEnemy, otherResult);
         if (processedOmenValue == 0) {
             // 전조 중단 (브레이크)
-            resultMove = mainEnemy.getActor().getMoves().get(standby.getType().getBreakType());
+            resultMove = mainEnemy.getBaseActor().getMoves().get(standby.getType().getBreakType());
             resultOmen = standby.getOmen();
             mainEnemy.setCurrentStandbyType(null);
             mainEnemy.setNextIncantStandbyType(null);
@@ -261,13 +261,13 @@ public abstract class EnemyLogic {
      * @param partyMembers
      * @return
      */
-    protected List<BattleActor> getAttackTargets(boolean isAllTarget, int hitCount, List<BattleActor> partyMembers) {
+    protected List<Actor> getAttackTargets(boolean isAllTarget, int hitCount, List<Actor> partyMembers) {
         // 감싸기 효과 적용 확인
-        Optional<BattleStatus> substituteEffect = getEffectiveCoveringEffect(partyMembers, StatusEffectType.SUBSTITUTE);
+        Optional<StatusEffect> substituteEffect = getMaxValueEffectByModifierType(partyMembers, StatusModifierType.SUBSTITUTE);
         return substituteEffect
                 .map(battleStatus -> isAllTarget
-                        ? Collections.nCopies(partyMembers.size(), battleStatus.getBattleActor())  // 전체타겟인 경우 전원분 감싸기 id
-                        : Collections.nCopies(hitCount, battleStatus.getBattleActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
+                        ? Collections.nCopies(partyMembers.size(), battleStatus.getActor())  // 전체타겟인 경우 전원분 감싸기 id
+                        : Collections.nCopies(hitCount, battleStatus.getActor())) // 전체타겟 아닌경우 히트수만큼 감싸기 id
                 .orElseGet(() -> isAllTarget
                         ? partyMembers
                         : IntStream.range(0, hitCount)
@@ -276,72 +276,72 @@ public abstract class EnemyLogic {
     }
 
     // 가변 오버라이드 (내부사용)
-    protected ActorLogicResult firstAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability) {
+    protected ActorLogicResult firstAbility(Actor mainActor, List<Actor> partyMembers, Move ability) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult secondAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability) {
+    protected ActorLogicResult secondAbility(Actor mainActor, List<Actor> partyMembers, Move ability) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult thirdAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability) {
+    protected ActorLogicResult thirdAbility(Actor mainActor, List<Actor> partyMembers, Move ability) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult fourthAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability) {
+    protected ActorLogicResult fourthAbility(Actor mainActor, List<Actor> partyMembers, Move ability) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult firstSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult firstSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult secondSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult secondSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult thirdSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult thirdSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult fourthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult fourthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult fifthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult fifthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult sixthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult sixthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult seventhSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult seventhSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult eighthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult eighthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult ninthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult ninthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }
 
-    protected ActorLogicResult tenthSupportAbility(BattleActor mainActor, List<BattleActor> partyMembers, Move ability, ActorLogicResult otherResult) {
+    protected ActorLogicResult tenthSupportAbility(Actor mainActor, List<Actor> partyMembers, Move ability, ActorLogicResult otherResult) {
         log.warn("No Enemy Selected");
         return null;
     }

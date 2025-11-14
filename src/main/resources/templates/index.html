@@ -115,17 +115,17 @@
           width: 100%;
       }
 
-      .character-info-wrapper {
+      .baseCharacter-info-wrapper {
           width: 100%;
       }
 
-      .character-info-wrapper::after {
+      .baseCharacter-info-wrapper::after {
           content: "";
           display: block;
           clear: both;
       }
 
-      .character-info-wrapper .character-info {
+      .baseCharacter-info-wrapper .baseCharacter-info {
           float: left;
           width: 23%;
           height: 160px;
@@ -134,16 +134,16 @@
           overflow: hidden;
       }
 
-      .character-info-wrapper .character-info:nth-child(4n) {
+      .baseCharacter-info-wrapper .baseCharacter-info:nth-child(4n) {
           margin-right: 0;
       }
 
-      .character-portrait {
+      .baseCharacter-portrait {
           height: 130px;
           overflow: hidden;
       }
 
-      .character-portrait img {
+      .baseCharacter-portrait img {
           width: 100%;
       }
 
@@ -403,28 +403,28 @@
                 </div>
               </div>
               <div class="party-body">
-                <div class="character-info-wrapper">
-                  <div class="character-info" th:each="characterInfo : ${partyInfo.characterInfos}">
-                    <div class="character-portrait" th:data-character-id="${characterInfo.id}">
+                <div class="baseCharacter-info-wrapper">
+                  <div class="baseCharacter-info" th:each="characterInfo : ${partyInfo.characterInfos}">
+                    <div class="baseCharacter-portrait" th:data-baseCharacter-id="${characterInfo.id}">
                       <img src="/static/assets/img/ch/yachima/battle-portrait.jpg"
                            th:src="${characterInfo.portraitSrc}">
                     </div>
-                    <div class="character-name" th:text="${characterInfo.name}"> 캐릭이름</div>
+                    <div class="baseCharacter-name" th:text="${characterInfo.name}"> 캐릭이름</div>
                   </div>
 
 
-                  <div class="character-info">
-                    <div class="character-portrait">
+                  <div class="baseCharacter-info">
+                    <div class="baseCharacter-portrait">
                       <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
                     </div>
                   </div>
-                  <div class="character-info">
-                    <div class="character-portrait">
+                  <div class="baseCharacter-info">
+                    <div class="baseCharacter-portrait">
                       <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
                     </div>
                   </div>
-                  <div class="character-info">
-                    <div class="character-portrait">
+                  <div class="baseCharacter-info">
+                    <div class="baseCharacter-portrait">
                       <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
                     </div>
                   </div>
@@ -436,7 +436,7 @@
                       <img src="/static/assets/img/summon/zeus/battle-portrait.jpg"
                            th:src="${summonInfo.portraitSrc}">
                     </div>
-                    <div class="character-name" th:text="${summonInfo.name}"> 솬석이름</div>
+                    <div class="baseCharacter-name" th:text="${summonInfo.name}"> 솬석이름</div>
                   </div>
 
                   <div class="summon-info">

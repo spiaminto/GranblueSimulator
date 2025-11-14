@@ -9,9 +9,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
-  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+<!--  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-gothic.css" rel="stylesheet">-->
   <!--  <link href="https://fonts.googleapis.com/css2?family=Martel:wght@600;700;800;900&display=swap" rel="stylesheet">-->
   <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
   <!--    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>-->
   <link rel="stylesheet" type="text/css" href="/js/slick/slick.css">
   <link rel="stylesheet" type="text/css" href="/js/slick/slick-theme.css">
@@ -173,6 +174,9 @@
                       }
                   }, 500);
 
+                  // 동기화
+                  requestSync();
+
               });
           });
       }
@@ -285,13 +289,13 @@
         <div class="show-status-info-button-wrapper enemy">
           <button class="btn btn-outline-light button-xsm">상세</button>
         </div>
-        <div class="status" th:each="status : ${battleEnemyInfo.statuses}"
-             th:data-status-type="${status.status.type}">
+        <div class="status" th:each="statusEffect : ${battleEnemyInfo.statuses}"
+             th:data-status-type="${statusEffect.baseStatusEffect.type}">
           <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png"
-               th:src="${status.iconSrc}"/>
-          <div class="status-name d-none" th:text="${status.status.name}">스테이터스 이름</div>
-          <div class="status-info-text d-none" th:text="${status.status.statusText}">스테이터스 설명</div>
-          <div class="status-duration d-none" th:text="${status.duration}">스테이터스 효과턴</div>
+               th:src="${statusEffect.iconSrc}"/>
+          <div class="status-name d-none" th:text="${statusEffect.baseStatusEffect.name}">스테이터스 이름</div>
+          <div class="status-info-text d-none" th:text="${statusEffect.baseStatusEffect.statusText}">스테이터스 설명</div>
+          <div class="status-duration d-none" th:text="${statusEffect.duration}">스테이터스 효과턴</div>
         </div>
       </div>
       <div class="d-flex">
@@ -521,6 +525,7 @@
                     <span class="value" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}">00</span>턴
                   </div>
                   <div class="ability-overlay"></div>
+                  <div class="ability-name" th:text="${ability.name}">어빌리티 이름</div>
                   <div class="ability-info-text" th:text="${ability.info}">어빌리티 설명</div>
                 </div>
               </div>
@@ -529,17 +534,17 @@
               <div class="show-status-info-button-wrapper">
                 <button class="btn btn-outline-light button-xsm">상세</button>
               </div>
-              <div class="status" th:each="status : ${characterInfo.statuses}"
-                   th:data-status-type="${status.status.type}"
-                   th:classappend="${statusStat.index > 0 && (
-                   characterInfo.statuses.get(statusStat.index - 1).status.name.equals(status.status.name)
-                   || characterInfo.statuses.get(statusStat.index - 1).iconSrc.equals(status.iconSrc)
+              <div class="status" th:each="statusEffect : ${characterInfo.statuses}"
+                   th:data-status-type="${statusEffect.baseStatusEffect.type}"
+                   th:classappend="${statusEffectStat.index > 0 && (
+                   characterInfo.statuses.get(statusEffectStat.index - 1).baseStatusEffect.name.equals(statusEffect.baseStatusEffect.name)
+                   || characterInfo.statuses.get(statusEffectStat.index - 1).iconSrc.equals(statusEffect.iconSrc)
                     ) ? 'd-none' : ''}">
                 <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
-                     th:src="${status.iconSrc}"/>
-                <div class="status-name d-none" th:text="${status.status.name}">스테이터스 이름</div>
-                <div class="status-info-text d-none" th:text="${status.status.statusText}">스테이터스 설명</div>
-                <div class="status-duration d-none" th:text="${status.duration}">스테이터스 효과턴</div>
+                     th:src="${statusEffect.iconSrc}"/>
+                <div class="status-name d-none" th:text="${statusEffect.baseStatusEffect.name}">스테이터스 이름</div>
+                <div class="status-info-text d-none" th:text="${statusEffect.baseStatusEffect.statusText}">스테이터스 설명</div>
+                <div class="status-duration d-none" th:text="${statusEffect.duration}">스테이터스 효과턴</div>
               </div>
             </div>
           </div>
@@ -615,7 +620,7 @@
   <div id="memberInfo" th:data-member-id="${member.getId()}">
     <p th:text="${'멤버ID ' + member.getId()}">
     </p>
-    <!--  <p id="character-info-2" th:data-character-id="${characters[0].getId()}" th:text="${'야치마 id = ' + characters[0].getId()}">-->
+    <!--  <p id="baseCharacter-info-2" th:data-character-id="${characters[0].getId()}" th:text="${'야치마 id = ' + characters[0].getId()}">-->
     <!--  </p>-->
     <!--  <p id="abilityInfo" th:data-ability-id="1" th:text="1">-->
     <p id="roomInfo" th:data-room-id="${member.room.id}"></p>
@@ -729,7 +734,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h1 class="modal-title fs-5" id="exampleModalLabel">어빌리티 설명</h1>
+        <h1 class="modal-title ability-name fs-5" id="exampleModalLabel">어빌리티 이름</h1>
       </div>
       <div class="modal-body">
         <div class="ability-info-wrapper">
@@ -766,11 +771,11 @@
       </div>
       <div class="modal-body">
         <div class="status-info-wrapper">
-          <!--          <div class="status-info">-->
-          <!--            <div class="status-info-icon-wrapper">-->
-          <!--              <img class="status-info-icon" src="">-->
+          <!--          <div class="statusEffect-info">-->
+          <!--            <div class="statusEffect-info-icon-wrapper">-->
+          <!--              <img class="statusEffect-info-icon" src="">-->
           <!--            </div>-->
-          <!--            <div class="status-info-text">-->
+          <!--            <div class="statusEffect-info-text">-->
 
         </div>
       </div>

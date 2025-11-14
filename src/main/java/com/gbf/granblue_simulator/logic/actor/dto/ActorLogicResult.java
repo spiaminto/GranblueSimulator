@@ -1,12 +1,13 @@
 package com.gbf.granblue_simulator.logic.actor.dto;
 
-import com.gbf.granblue_simulator.domain.ElementType;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.move.MotionType;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.base.types.ElementType;
+import com.gbf.granblue_simulator.domain.base.types.MoveDamageType;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.DamageStatusDetails;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.StatusDetails;
+import com.gbf.granblue_simulator.domain.base.move.MotionType;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectTargetType;
 import lombok.*;
 import lombok.experimental.Accessors;
 
@@ -25,13 +26,20 @@ public class ActorLogicResult {
     private int mainBattleActorOrder;
     private MoveType moveType;
     private MotionType motionType;
+    private int motionSkipDuration;
 
     private Integer currentTurn;
+
+    private List<StatusDto> statuses = new ArrayList<>();
+    private List<StatusDetails> statusDetails = new ArrayList<>();
+    private List <DamageStatusDetails> damageStatusDetails = new ArrayList<>();
 
     // 프론트 갱신용
     // 0: enemy , 1~: character (index 는 currentOrder)
     @Builder.Default
     private List<Integer> damages = new ArrayList<>();
+    @Builder.Default
+    private List<MoveDamageType> damageTypes = new ArrayList<>();
     @Builder.Default
     private List<ElementType> damageElementTypes = new ArrayList<>();
     @Builder.Default
@@ -42,11 +50,11 @@ public class ActorLogicResult {
     private List<Integer> chargeGauges = new ArrayList<>();
     private int fatalChainGauge;
     @Builder.Default
-    private List<List<BattleStatusDto>> addedBattleStatusesList = new ArrayList<>();
+    private List<List<StatusEffectDto>> addedStatusEffectsList = new ArrayList<>();
     @Builder.Default
-    private List<List<BattleStatusDto>> removedBattleStatusesList = new ArrayList<>();
+    private List<List<StatusEffectDto>> removedStatusEffectsList = new ArrayList<>();
     @Builder.Default
-    private List<List<BattleStatusDto>> currentBattleStatusesList = new ArrayList<>();
+    private List<List<StatusEffectDto>> currentStatusEffectsList = new ArrayList<>();
     @Builder.Default
     private List<List<Integer>> abilityCooldowns = new ArrayList<>();
     @Builder.Default
@@ -92,7 +100,7 @@ public class ActorLogicResult {
 
     @Accessors(fluent = true)
     private boolean executeChargeAttack; // 오의 재발동 여부
-    private StatusTargetType executeAttackTargetType; // 턴 진행 없이 일반공격 대상, 없으면 null
+    private StatusEffectTargetType executeAttackTargetType; // 턴 진행 없이 일반공격 대상, 없으면 null
 
     public void updateSummonIds(List<Long> summonIds) {
         this.summonIds.addAll(summonIds);

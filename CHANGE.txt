@@ -165,7 +165,7 @@
         BattleActor 어빌리티 관련 필드 리스트로 변경 및 추가
 
     프론트
-        actor.js 모션별 분기처리 함수로 분리 및 정리
+        baseActor.js 모션별 분기처리 함수로 분리 및 정리
         스테이터스 처리 통합 및 delay 제거, async 로 수정
         스테이터스 제거(디스펠) 효과 canvas 로 수정
         스테이터스 효과 표시시 아군과 적 표시 사이에 딜레이 추가
@@ -175,6 +175,65 @@
         행동시 행동이름 표시 추가
         아군, 적 턴 시작 인디케이터 추가
         공격불가 표시 구현
+
+
+251114
+
+    엔티티
+        엔티티 작명 규칙 변경 및 수정사항 반영
+        Status 엔티티 추가, StatusDetails, DamageStatusDetails 추가
+        Actor 엔티티에서 스테이터스 관련 필드 제거
+        Move 엔티티에 motionSkipDuration 추가
+
+    DamageLogic
+        공격데미지(부여데미지) 관련 연산 전체 제거, DamageStatusDetails 에서 받아서 사용하도록 변경
+        Move 별 데미지 상한 제거
+        ProcessType 제거
+        damageType 추가
+        추가데미지 관련 연산 제거, StatusDetails 에서 받아서 사용하도록 변경
+
+    StatusEffect, BaseStatusEffect
+        블록 효과 추가
+        효과 시간이 '시간' 인 상태효과 구현 및 필요한 필드 추가
+        getTransientStatusEffect 추가
+        표시 우선순위 추가
+        DISPEL, CLEAR, DISPEL_GUARD, HEAL 삭제 및 Modifier 로 통합
+
+    SetStatusLogic
+        레벨제 효과가 최고레벨이 아닐경우 효과시간을 갱신하도록 수정
+        일반 상태효과 (누적식) 가 원본 처럼 상한을 갱신할 수 있도록 구현
+        전체 리팩토링
+
+    ProcessStatusLogic
+        하나의 스테이터스가 가진 모든 Modifier 를 전부 처리후 반환할 수 있게 수정
+
+    StatusUtil
+        정리
+
+    CalcStatusLogic
+        제거
+
+    BattleLog
+        스테이터스 정보 (Status, StatusDetails, DamageStatusDetails) 저장 하도록 변경
+
+    SyncLogic
+        플레이어가 요청한 커맨드 처리 시작시 동기화 하도록 변경
+
+    디아스포라
+        일부 로직 변경
+
+    프론트
+        어빌리티 설명 모달에 어빌리티 이름 나오도록 변경
+        발생한 데미지에 따른 표시 추가 (임시)
+        데미지 크기 조정, 글꼴 추가
+        motionSkipDuration 추가, Actor.durationSkip 삭제
+        공격 딜레이 및 상태처리 딜레이 조정 및 가속 플래그 추가
+        상태 효과 남은시간 렌더링 방식 변경
+        상태 효과 info 모달 레이아웃 변경
+
+
+
+
 
 
 

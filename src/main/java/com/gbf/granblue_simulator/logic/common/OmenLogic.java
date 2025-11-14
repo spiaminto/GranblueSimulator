@@ -1,15 +1,15 @@
 package com.gbf.granblue_simulator.logic.common;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenCancelCond;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.Enemy;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.Omen;
+import com.gbf.granblue_simulator.domain.base.omen.OmenCancelCond;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectType;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
+import com.gbf.granblue_simulator.logic.actor.dto.StatusEffectDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,8 +31,8 @@ public class OmenLogic {
      * @param enemyActor
      * @return Move standby
      */
-    public Optional<Move> triggerOmen(BattleActor enemyActor) {
-        BattleEnemy enemy = (BattleEnemy) enemyActor;
+    public Optional<Move> triggerOmen(Actor enemyActor) {
+        Enemy enemy = (Enemy) enemyActor;
 
         // 1. 다음 전조를 결정
         Optional<Move> standbyOptional = Optional.ofNullable(determineStandbyMove(enemy));
@@ -54,7 +54,7 @@ public class OmenLogic {
      * @param value
      * @return
      */
-    public int updateOmenValue(BattleEnemy enemy, int value) {
+    public int updateOmenValue(Enemy enemy, int value) {
         if (value < 0) throw new IllegalArgumentException("[updateOmenValue] value < 0, value = " + value);
         int omenValue = enemy.getOmenValue();
         // 값 갱신
@@ -71,7 +71,7 @@ public class OmenLogic {
      * @param otherResult
      * @return
      */
-    public int updateOmenValue(BattleEnemy enemy, ActorLogicResult otherResult) {
+    public int updateOmenValue(Enemy enemy, ActorLogicResult otherResult) {
         int omenValue = enemy.getOmenValue();
 
         // ActorLogicResult 에 따른 갱신
@@ -87,7 +87,7 @@ public class OmenLogic {
      * @param enemy
      * @return 전조에 따른 standby Move
      */
-    protected Move determineStandbyMove(BattleEnemy enemy) {
+    protected Move determineStandbyMove(Enemy enemy) {
         // 우선순위대로 전조를 결정
         // 1. 영창기 
         if (enemy.getNextIncantStandbyType() != null)
@@ -110,7 +110,7 @@ public class OmenLogic {
      * @param standby : 결정된 전조 Move
      * @return
      */
-    protected Move setStandbyMove(BattleEnemy enemy, Move standby) {
+    protected Move setStandbyMove(Enemy enemy, Move standby) {
         if (standby == null) return null;
         // 1. 전조 set
         Omen omen = standby.getOmen();
@@ -133,10 +133,10 @@ public class OmenLogic {
      * @param enemy
      * @return Omen HpTrigger, 없으면 null
      */
-    protected Omen getValidHpTrigger(BattleEnemy enemy) {
+    protected Omen getValidHpTrigger(Enemy enemy) {
         double hpRate = enemy.getHpRate();
         double latestTriggeredHp = enemy.getLatestTriggeredHp();
-        return enemy.getActor().getMoves().values().stream()
+        return enemy.getBaseActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
                 .map(Move::getOmen)
                 .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER) // HP_TRIGGER만
@@ -161,10 +161,10 @@ public class OmenLogic {
      * @param enemy
      * @return Omen ChargeAttack, 없으면 null
      */
-    protected Omen getValidChargeAttack(BattleEnemy enemy) {
+    protected Omen getValidChargeAttack(Enemy enemy) {
         if (enemy.getChargeGauge() < enemy.getMaxChargeGauge()) return null;
         double hpRate = enemy.getHpRate();
-        return enemy.getActor().getMoves().values().stream()
+        return enemy.getBaseActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
                 .map(Move::getOmen)
                 .filter(omen -> omen.getOmenType() == OmenType.CHARGE_ATTACK)
@@ -180,8 +180,8 @@ public class OmenLogic {
      * @param otherResult
      * @return 갱신된 전조값, 0인경우 해제요망
      */
-    protected int updateOmenByOtherResult(BattleEnemy enemy, ActorLogicResult otherResult) {
-        Move standbyMove = enemy.getActor().getMoves().get(enemy.getCurrentStandbyType());
+    protected int updateOmenByOtherResult(Enemy enemy, ActorLogicResult otherResult) {
+        Move standbyMove = enemy.getBaseActor().getMoves().get(enemy.getCurrentStandbyType());
         Omen omen = standbyMove.getOmen();
         OmenCancelCond cancelCond = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex());
         Integer omenValue = enemy.getOmenValue();
@@ -195,11 +195,11 @@ public class OmenLogic {
                 enemy.setOmenValue(Math.max(omenValue - damageSum, 0));
             }
             case DEBUFF_COUNT -> {
-                int debuffCount = otherResult.getAddedBattleStatusesList().stream()
+                int debuffCount = otherResult.getAddedStatusEffectsList().stream()
                         .flatMap(battleStatuses -> battleStatuses.stream()
                                 .filter(battleStatus -> !battleStatus.getName().equals("MISS"))
-                                .map(BattleStatusDto::getStatusType))
-                        .filter(type -> type == StatusType.DEBUFF)
+                                .map(StatusEffectDto::getStatusEffectType))
+                        .filter(type -> type == StatusEffectType.DEBUFF)
                         .toList().size();
                 enemy.setOmenValue(Math.max(omenValue - debuffCount, 0));
             }

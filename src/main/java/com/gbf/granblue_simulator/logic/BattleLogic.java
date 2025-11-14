@@ -1,30 +1,31 @@
 package com.gbf.granblue_simulator.logic;
 
 import com.gbf.granblue_simulator.domain.BattleLog;
-import com.gbf.granblue_simulator.domain.ElementType;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.Room;
-import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectTargetType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifierType;
+import com.gbf.granblue_simulator.domain.base.types.ElementType;
+import com.gbf.granblue_simulator.domain.battle.BattleContext;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
 import com.gbf.granblue_simulator.exception.MoveValidationException;
 import com.gbf.granblue_simulator.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
+import com.gbf.granblue_simulator.logic.actor.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.logic.actor.enemy.EnemyLogic;
-import com.gbf.granblue_simulator.logic.common.SetStatusLogic;
 import com.gbf.granblue_simulator.logic.common.StatusUtil;
 import com.gbf.granblue_simulator.logic.common.TurnEndStatusLogic;
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import com.gbf.granblue_simulator.logic.common.dto.PotionResult;
 import com.gbf.granblue_simulator.repository.BattleLogRepository;
-import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
+import com.gbf.granblue_simulator.repository.actor.ActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,10 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatusByEffectType;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getStatusEffectMap;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectByModifierType;
 
 @Component
 @RequiredArgsConstructor
@@ -51,13 +50,16 @@ public class BattleLogic {
     private final SyncLogic syncLogic;
 
     private final MoveRepository moveRepository;
-    private final BattleActorRepository battleActorRepository;
+    private final ActorRepository actorRepository;
     private final BattleLogRepository battleLogRepository;
     private final TurnEndStatusLogic turnEndStatusLogic;
 
+    /**
+     * 방 생성 또는 입장시 실행
+     */
     public void startBattle() {
-        BattleActor enemy = battleContext.getEnemy();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
+        Actor enemy = battleContext.getEnemy();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
         Member currentMember = battleContext.getMember();
 
         // 기존 적이 있을 경우 동기화
@@ -66,18 +68,23 @@ public class BattleLogic {
                 .findFirst().ifPresent(syncLogic::syncEnemy);
 
         partyMembers.forEach(partyMember -> {
-            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getBaseActor().getNameEn() + "Logic");
             characterLogic.processBattleStart(partyMember, enemy, partyMembers);
         });
-        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getBaseActor().getNameEn() + "Logic");
         enemyLogic.processBattleStart(enemy, partyMembers);
     }
 
+    /**
+     * 커맨드 "공격" 진입점 (턴 진행)
+     *
+     * @return
+     */
     public List<ActorLogicResult> progressTurn() {
         Member currentMember = battleContext.getMember();
 
         List<ActorLogicResult> progressTurnResults = new ArrayList<>();
-        progressTurnResults.add(syncLogic.processSyncRequest(currentMember)); // 미리 동기화
+        progressTurnResults.add(syncLogic.processSync(currentMember)); // 미리 동기화
         progressTurnResults.addAll(processStrike()); // 아군의 공격 추가
         progressTurnResults.addAll(processEnemyStrike()); // 적의 공격 추가
         if (!battleContext.getFrontCharacters().isEmpty()) {
@@ -111,18 +118,18 @@ public class BattleLogic {
      * @return
      */
     protected List<ActorLogicResult> processTurnEnd() {
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
-        BattleActor enemy = battleContext.getEnemy();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        Actor enemy = battleContext.getEnemy();
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
         // 아군 턴종 처리
         partyMembers.forEach(partyMember -> {
             partyMember.changeGuard(false); // 가드 off
-            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+            CharacterLogic characterLogic = characterLogicMap.get(partyMember.getBaseActor().getNameEn() + "Logic");
             turnEndResults.addAll(characterLogic.processTurnEnd(partyMember, enemy, partyMembers));
         }); // CHECK 턴종 처리에 대한 반응 연산 필요할듯
 
         // 적 턴종료 처리
-        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getBaseActor().getNameEn() + "Logic");
         List<ActorLogicResult> enemyTurnEndResults = enemyLogic.processTurnEnd(enemy, partyMembers);
         turnEndResults.addAll(enemyTurnEndResults);
 
@@ -147,12 +154,12 @@ public class BattleLogic {
      */
     protected List<ActorLogicResult> processStrike() {
         List<ActorLogicResult> results = new ArrayList<>();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
-        BattleActor enemy = battleContext.getEnemy();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        Actor enemy = battleContext.getEnemy();
 
-        for (BattleActor mainCharacter : partyMembers) {
-            int multiStrikeCount = (int) StatusUtil.getEffectValueMax(mainCharacter, StatusEffectType.MULTI_STRIKE);
-            CharacterLogic characterLogic = characterLogicMap.get(mainCharacter.getActor().getNameEn() + "Logic");
+        for (Actor mainCharacter : partyMembers) {
+            int multiStrikeCount = (int) StatusUtil.getEffectIsMaxValue(mainCharacter, StatusModifierType.MULTI_STRIKE);
+            CharacterLogic characterLogic = characterLogicMap.get(mainCharacter.getBaseActor().getNameEn() + "Logic");
             int strikeCount = 0; // 공격행동 카운트
             boolean isNextMoveChargeAttack = false;
 
@@ -174,10 +181,10 @@ public class BattleLogic {
     }
 
     protected List<ActorLogicResult> processEnemyStrike() {
-        BattleActor enemy = battleContext.getEnemy();
+        Actor enemy = battleContext.getEnemy();
         List<ActorLogicResult> results = new ArrayList<>();
-        int multiStrikeCount = (int) StatusUtil.getEffectValueMax(enemy, StatusEffectType.MULTI_STRIKE);
-        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        int multiStrikeCount = (int) StatusUtil.getEffectIsMaxValue(enemy, StatusModifierType.MULTI_STRIKE);
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getBaseActor().getNameEn() + "Logic");
         int strikeCount = 0; // 공격행동 카운트
 
         do {
@@ -194,7 +201,8 @@ public class BattleLogic {
     }
 
     /**
-     * 사용자 요청에 따른 단일 move 처리
+     * 커맨드 "어빌리티 사용", "소환석 사용", "페이탈 체인 사용" 진입점
+     *
      * @param moveId
      * @return
      */
@@ -203,7 +211,7 @@ public class BattleLogic {
         Member currentMember = battleContext.getMember();
         List<ActorLogicResult> results = new ArrayList<>();
 
-        ActorLogicResult syncResult = syncLogic.processSyncRequest(currentMember);
+        ActorLogicResult syncResult = syncLogic.processSync(currentMember);
         results.add(syncResult);
 
         List<ActorLogicResult> moveResult =
@@ -239,16 +247,16 @@ public class BattleLogic {
      */
     protected List<ActorLogicResult> processAbility(Long moveId) {
         Move ability = moveRepository.findById(moveId).orElseThrow();
-        BattleActor mainCharacter = battleContext.getMainCharacter();
-        BattleActor enemy = battleContext.getEnemy();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
+        Actor mainCharacter = battleContext.getMainCharacter();
+        Actor enemy = battleContext.getEnemy();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
 
         // 검증
         boolean abilityUsable = mainCharacter.getAbilityUsable(ability.getType());
         if (!abilityUsable) throw new MoveValidationException("어빌리티를 사용할 수 없습니다. [어빌리티 봉인]");
 
         // 어빌리티 사용
-        CharacterLogic characterLogic = characterLogicMap.get(mainCharacter.getActor().getNameEn() + "Logic");
+        CharacterLogic characterLogic = characterLogicMap.get(mainCharacter.getBaseActor().getNameEn() + "Logic");
         List<ActorLogicResult> results = new ArrayList<>();
         ActorLogicResult abilityResult = characterLogic.processAbility(mainCharacter, enemy, partyMembers, ability.getType());
         // 반응
@@ -256,9 +264,9 @@ public class BattleLogic {
 
         // 어빌리티 후행동 - 턴 진행 없이 일반공격
         if (abilityResult.getExecuteAttackTargetType() != null) {
-            List<BattleActor> executeAttackActors = abilityResult.getExecuteAttackTargetType() == StatusTargetType.SELF ? List.of(mainCharacter) : partyMembers;
+            List<Actor> executeAttackActors = abilityResult.getExecuteAttackTargetType() == StatusEffectTargetType.SELF ? List.of(mainCharacter) : partyMembers;
             executeAttackActors.forEach(actor -> {
-                CharacterLogic logic = characterLogicMap.get(actor.getActor().getNameEn() + "Logic");
+                CharacterLogic logic = characterLogicMap.get(actor.getBaseActor().getNameEn() + "Logic");
                 ActorLogicResult executeAttackResult = logic.processAttack(actor, enemy, partyMembers);
                 results.addAll(postProcessToMove(executeAttackResult));
             });
@@ -268,9 +276,9 @@ public class BattleLogic {
     }
 
     protected List<ActorLogicResult> processSummon(Long moveId) {
-        BattleActor leaderCharacter = battleContext.getLeaderCharacter();
-        BattleActor enemy = battleContext.getEnemy();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        Actor enemy = battleContext.getEnemy();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
 
         // 기본 소환
         Move summonMove = moveRepository.findById(moveId).orElseThrow(() -> new IllegalArgumentException("없는 소환석"));
@@ -309,8 +317,8 @@ public class BattleLogic {
 
     protected List<ActorLogicResult> processFatalChain(Long moveId) {
         Move fatalChain = moveRepository.findById(moveId).orElseThrow();
-        BattleActor leaderCharacter = battleContext.getLeaderCharacter();
-        CharacterLogic leaderCharacterLogic = characterLogicMap.get(leaderCharacter.getActor().getNameEn() + "Logic");
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        CharacterLogic leaderCharacterLogic = characterLogicMap.get(leaderCharacter.getBaseActor().getNameEn() + "Logic");
 
         List<ActorLogicResult> results = new ArrayList<>();
         ActorLogicResult result = leaderCharacterLogic.processFatalChain(leaderCharacter, battleContext.getEnemy(), battleContext.getFrontCharacters(), fatalChain);
@@ -320,25 +328,27 @@ public class BattleLogic {
     }
 
     /**
-     * 가드 상태 변경후 반환
+     * 커맨드 "가드" 진입점 및 처리
      *
      * @param battleContext
      * @param targetType
      * @return Map<currentOrder::String, isGuardOn::String> '1' : 'true', ... 파티원 전체
      */
-    public List<GuardResult> processGuard(BattleContext battleContext, StatusTargetType targetType) {
-        BattleActor mainActor = battleContext.getMainCharacter();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
+    public List<GuardResult> processGuard(BattleContext battleContext, StatusEffectTargetType targetType) {
+        syncLogic.processSync(battleContext.getMember());
 
-        if (targetType == StatusTargetType.SELF) {
-            getBattleStatusByEffectType(mainActor, StatusEffectType.GUARD_DISABLED).ifPresentOrElse(
+        Actor mainActor = battleContext.getMainCharacter();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+
+        if (targetType == StatusEffectTargetType.SELF) {
+            getEffectByModifierType(mainActor, StatusModifierType.GUARD_DISABLED).ifPresentOrElse(
                     battleStatus -> mainActor.changeGuard(false), // 가드불가면 무조건 false 로 변경
                     () -> mainActor.changeGuard(!mainActor.isGuardOn()) // 가드 가능하면 토글
             );
-        } else if (targetType == StatusTargetType.PARTY_MEMBERS) {
+        } else if (targetType == StatusEffectTargetType.PARTY_MEMBERS) {
             boolean mainActorIsGuardOn = mainActor.isGuardOn(); // 파티전체의 경우, 가드 누른 캐릭터와 동일한 상태의 가드만 토글
             partyMembers.forEach(partyMember ->
-                    getBattleStatusByEffectType(partyMember, StatusEffectType.GUARD_DISABLED).ifPresentOrElse(
+                    getEffectByModifierType(partyMember, StatusModifierType.GUARD_DISABLED).ifPresentOrElse(
                             battleStatus -> partyMember.changeGuard(false),
                             () -> {
                                 if (mainActorIsGuardOn == partyMember.isGuardOn())
@@ -357,23 +367,25 @@ public class BattleLogic {
     }
 
     /**
-     * 포션사용을 처리
+     * 커맨드 "포션사용" 진입점 및 처리
      * 현재 포션사용은 언데드, 강압 효과 등 스테이터스 효과 관계없이 무조건 회복하도록 설정됨.
      *
      * @param battleContext
      * @param targetType    SELF, PARTY_MEMBERS
      * @return
      */
-    public PotionResult processPotion(BattleContext battleContext, StatusTargetType targetType) {
+    public PotionResult processPotion(BattleContext battleContext, StatusEffectTargetType targetType) {
         Member member = battleContext.getMember();
-        List<BattleActor> potionTargets = new ArrayList<>();
-        if (targetType == StatusTargetType.SELF && battleContext.getMainCharacter() != null) {
+        syncLogic.processSync(member);
+
+        List<Actor> potionTargets = new ArrayList<>();
+        if (targetType == StatusEffectTargetType.SELF && battleContext.getMainCharacter() != null) {
             int potionCount = member.getPotionCount();
             if (potionCount <= 0)
                 throw new IllegalArgumentException("포션 검증에러, targetType = " + targetType + " potionCount = " + potionCount);
             member.addPotionCount(-1);
             potionTargets = List.of(battleContext.getMainCharacter());
-        } else if (targetType == StatusTargetType.PARTY_MEMBERS) {
+        } else if (targetType == StatusEffectTargetType.PARTY_MEMBERS) {
             int allPotionCount = member.getAllPotionCount();
             if (allPotionCount <= 0)
                 throw new IllegalArgumentException("포션 검증에러, targetType = " + targetType + " potionCount = " + allPotionCount);
@@ -414,7 +426,7 @@ public class BattleLogic {
         if (toEnemy) {
             results.addAll(processReactionsToEnemyResult(beforeLogicResult)); // 이쪽은 재귀처리 안함
         } else {
-            BattleActor beforeResultActor = battleContext.getAllActors().stream()
+            Actor beforeResultActor = battleContext.getAllActors().stream()
                     .filter(battleActor -> battleActor.getId().equals(beforeLogicResult.getMainBattleActorId()))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("이전 actor 없음, actorId = " + beforeLogicResult.getMainActorId()));
 
@@ -432,20 +444,20 @@ public class BattleLogic {
      * 적 행동 → 아군A 반응 → 아군B 반응 → ... → 각 반응에 대한 재귀
      */
     private List<ActorLogicResult> processReactionsToEnemyResult(ActorLogicResult beforeEnemyResult) {
-        BattleActor enemy = battleContext.getEnemy();
+        Actor enemy = battleContext.getEnemy();
         List<ActorLogicResult> results = new ArrayList<>();
         // CHECK 적 사망시 반응 안해야함
 
         int[] currentOrderArray = IntStream.range(1, 5).toArray();
         for (int currentOrder : currentOrderArray) {
-            List<BattleActor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
+            List<Actor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
             currentPartyMembers.stream()
                     .filter(partyMember -> partyMember.getCurrentOrder() == currentOrder)
                     .findFirst().ifPresent(reactingPartyMember -> {
                         log.info("[processReactionsToEnemyResult] reaction Active, reactingPartyMember = {}", reactingPartyMember);
 
                         // 1. 이전 적의 행동에 따른 아군 반응을 순서대로 처리
-                        CharacterLogic logic = characterLogicMap.get(reactingPartyMember.getActor().getNameEn() + "Logic");
+                        CharacterLogic logic = characterLogicMap.get(reactingPartyMember.getBaseActor().getNameEn() + "Logic");
                         ActorLogicResult reactResult = logic.postProcessToEnemyMove(reactingPartyMember, enemy, currentPartyMembers, beforeEnemyResult);
 
                         // 1-2. 이전 적의 행동에 따른 아군 반응이 실제로 발생시, 해당 아군 반응에 대해 추가 아군의 반응 재귀처리
@@ -470,11 +482,11 @@ public class BattleLogic {
      * @param beforeResultActor: 이전 행동 결과의 mainActor
      * @param beforeResult:      이전 행동 결과
      */
-    private List<ActorLogicResult> processReactionsToPartyResult(BattleActor beforeResultActor, ActorLogicResult beforeResult) {
+    private List<ActorLogicResult> processReactionsToPartyResult(Actor beforeResultActor, ActorLogicResult beforeResult) {
         List<ActorLogicResult> results = new ArrayList<>();
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
-        BattleActor enemy = battleContext.getEnemy();
-        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        Actor enemy = battleContext.getEnemy();
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getBaseActor().getNameEn() + "Logic");
 
         if (beforeResult.getMoveType() == MoveType.DEAD_DEFAULT) {
             // CHECK 아군이 사망시 반응하지 않음.
@@ -504,12 +516,12 @@ public class BattleLogic {
         currentOrderList.addFirst(beforeResultActor.getCurrentOrder());
 
         for (int currentOrder : currentOrderList) {
-            List<BattleActor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
+            List<Actor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
             currentPartyMembers.stream()
                     .filter(partyMember -> partyMember.getCurrentOrder() == currentOrder)
                     .findFirst().ifPresent(reactingPartyMember -> {
                         // 2-1. 아군의 행동에 대해 아군이 순서대로(주체먼저) 반응
-                        CharacterLogic logic = characterLogicMap.get(reactingPartyMember.getActor().getNameEn() + "Logic");
+                        CharacterLogic logic = characterLogicMap.get(reactingPartyMember.getBaseActor().getNameEn() + "Logic");
                         ActorLogicResult reactResult = logic.postProcessToPartyMove(reactingPartyMember, enemy, currentPartyMembers, beforeResult);
 
                         // 2-2. 이전 아군의 행동에 따른 아군 반응이 실제로 발생시, 해당 아군 반응에 대해 추가 아군의 반응 재귀처리
@@ -534,13 +546,14 @@ public class BattleLogic {
         results.forEach(this::saveBattleLog);
     }
 
+    @SneakyThrows
     protected void saveBattleLog(ActorLogicResult logicResult) {
         if (logicResult.getMoveType().isNone()) return;
         // 현재 Status 및 관련사항은 mainActor 것만 저장함
-        BattleActor mainActor = battleActorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow(() -> new IllegalArgumentException("[saveBattleLog] mainActorId not present, id = " + logicResult.getMainBattleActorId()));
-        BattleActor enemy = battleContext.getEnemy();
+        Actor mainActor = actorRepository.findById(logicResult.getMainBattleActorId()).orElseThrow(() -> new IllegalArgumentException("[saveBattleLog] mainActorId not present, id = " + logicResult.getMainBattleActorId()));
+        Actor enemy = battleContext.getEnemy();
 
-        Long targetActorId = mainActor.isCharacter() && logicResult.getTotalHitCount() > 0 ? enemy.getActor().getId() : null; // 배틀로그중, 특정 상태의 적을 필터링 하기 위해 사용
+        Long targetActorId = mainActor.isCharacter() && logicResult.getTotalHitCount() > 0 ? enemy.getBaseActor().getId() : null; // 배틀로그중, 특정 상태의 적을 필터링 하기 위해 사용
 
         List<Integer> damages = logicResult.getDamages();
 
@@ -554,18 +567,23 @@ public class BattleLogic {
                         .toArray())
                 .toArray(int[][]::new);
 
-        List<BattleStatusDto> mainActorAddedBattleStatuses = logicResult.getAddedBattleStatusesList().stream()
+        List<StatusEffectDto> mainActorAddedBattleStatuses = logicResult.getAddedStatusEffectsList().stream()
 //                .peek(list -> log.info("[saveBattleLog] mainActorId = {}, statusList = {}, size = {}", logicResult.getMainBattleActorId(), list, list.size())) // 아군 전체에 대한 스테이터스 적용여부를 로그로 보존
                 .filter(list -> !list.isEmpty() && list.getFirst().getBattleActorId().equals(logicResult.getMainBattleActorId()))
                 .findFirst().orElseGet(ArrayList::new);
 
         List<Long> statusIds = mainActorAddedBattleStatuses.stream()
-                .map(BattleStatusDto::getStatusId)
+                .map(StatusEffectDto::getStatusId)
                 .toList();
 
         List<String> statusTypes = mainActorAddedBattleStatuses.stream()
-                .map(battleStatus -> battleStatus.getStatusType().name())
+                .map(battleStatus -> battleStatus.getStatusEffectType().name())
                 .toList();
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        List<String> statuses = logicResult.getStatuses().stream().map(gson::toJson).toList();
+        List<String> statusDetails = logicResult.getStatusDetails().stream().map(gson::toJson).toList();
+        List<String> damageStatusDetails = logicResult.getDamageStatusDetails().stream().map(gson::toJson).toList();
 
         battleLogRepository.save(
                 BattleLog.builder()
@@ -581,12 +599,15 @@ public class BattleLogic {
                         .additionalDamages(additionalDamages)
                         .statusTypes(statusTypes)
                         .statusIds(statusIds)
+                        .statuses(statuses)
+                        .statusDetails(statusDetails)
+                        .damageStatusDetails(damageStatusDetails)
                         .build());
 
     }
 
     public ActorLogicResult syncBattle(Member member) {
-        return syncLogic.processSyncRequest(member);
+        return syncLogic.processSync(member);
 
     }
 
@@ -597,6 +618,7 @@ public class BattleLogic {
             int moveCoolDown = switch (result.getMoveType().getParentType()) {
                 case ATTACK -> 3;
                 case ABILITY -> 2;
+                case SUPPORT_ABILITY -> 1;
                 case CHARGE_ATTACK -> 4;
                 case SUMMON -> 4;
                 case FATAL_CHAIN -> 4;
@@ -605,7 +627,7 @@ public class BattleLogic {
                     yield 1;
                 }
             };
-            log.info("[calcMemberMoveCooldown] moveType = {}, moveCoolDown = {}", result.getMoveType(), moveCoolDown);
+//            log.info("[calcMemberMoveCooldown] moveType = {}, moveCoolDown = {}", result.getMoveType(), moveCoolDown);
             resultMoveCooldown += moveCoolDown;
         }
         log.info("[calcMemberMoveCooldown] resultMoveCooldown = {}", resultMoveCooldown);
@@ -683,16 +705,16 @@ public class BattleLogic {
      * @param beforeLogicResult
      * @return
      */
-    protected List<ActorLogicResult> postProcessToMoveLegacy(BattleActor mainActor, List<BattleActor> partyMembers, BattleActor enemy, ActorLogicResult beforeLogicResult) {
+    protected List<ActorLogicResult> postProcessToMoveLegacy(Actor mainActor, List<Actor> partyMembers, Actor enemy, ActorLogicResult beforeLogicResult) {
         List<ActorLogicResult> results = new ArrayList<>();
         // 이전 행동 저장
 //        saveBattleLog(beforeLogicResult);
         results.add(beforeLogicResult);
         boolean toEnemy = beforeLogicResult.getMainBattleActorId().equals(enemy.getId()); // 첫 실행시 true, 이후 재귀 실행시 false
-        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getActor().getNameEn() + "Logic");
+        EnemyLogic enemyLogic = enemyLogicMap.get(enemy.getBaseActor().getNameEn() + "Logic");
         // 이전 행동에 대한 적의 반응
         List<ActorLogicResult> enemyPostProcessResult = new ArrayList<>();
-        List<BattleActor> modifiedPartyMembers = null;
+        List<Actor> modifiedPartyMembers = null;
         if (toEnemy) {
             enemyPostProcessResult.addAll(enemyLogic.postProcessToEnemyMove(enemy, partyMembers, beforeLogicResult));
         } else {
@@ -715,8 +737,8 @@ public class BattleLogic {
                     results.addAll(enemyAdditionalPostProcessResult);
                 });
 
-        for (BattleActor partyMember : modifiedPartyMembers != null ? modifiedPartyMembers : partyMembers) {
-            CharacterLogic partyMemberLogic = characterLogicMap.get(partyMember.getActor().getNameEn() + "Logic");
+        for (Actor partyMember : modifiedPartyMembers != null ? modifiedPartyMembers : partyMembers) {
+            CharacterLogic partyMemberLogic = characterLogicMap.get(partyMember.getBaseActor().getNameEn() + "Logic");
             ActorLogicResult afterLogicResult = toEnemy ?
                     partyMemberLogic.postProcessToEnemyMove(partyMember, enemy, partyMembers, beforeLogicResult) :
                     partyMemberLogic.postProcessToPartyMove(partyMember, enemy, partyMembers, beforeLogicResult);

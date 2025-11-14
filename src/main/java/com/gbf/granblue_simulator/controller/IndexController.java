@@ -1,22 +1,22 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.auth.PrincipalDetails;
-import com.gbf.granblue_simulator.controller.form.EnterRoomForm;
-import com.gbf.granblue_simulator.controller.form.ExitRoomForm;
-import com.gbf.granblue_simulator.controller.form.RoomAddForm;
-import com.gbf.granblue_simulator.controller.response.info.RoomInfo;
-import com.gbf.granblue_simulator.controller.response.info.party.PartyCharacterInfo;
-import com.gbf.granblue_simulator.controller.response.info.party.PartyInfo;
-import com.gbf.granblue_simulator.controller.response.info.party.PartySummonInfo;
+import com.gbf.granblue_simulator.controller.dto.form.EnterRoomForm;
+import com.gbf.granblue_simulator.controller.dto.form.ExitRoomForm;
+import com.gbf.granblue_simulator.controller.dto.form.RoomAddForm;
+import com.gbf.granblue_simulator.controller.dto.response.info.RoomInfo;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartyCharacterInfo;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartyInfo;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartySummonInfo;
 import com.gbf.granblue_simulator.domain.Member;
 import com.gbf.granblue_simulator.domain.Room;
-import com.gbf.granblue_simulator.domain.actor.Party;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.Party;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
 import com.gbf.granblue_simulator.repository.MemberRepository;
 import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.RoomRepository;
-import com.gbf.granblue_simulator.repository.actor.ActorRepository;
+import com.gbf.granblue_simulator.repository.actor.BaseActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import com.gbf.granblue_simulator.service.MemberService;
 import com.gbf.granblue_simulator.service.RoomService;
@@ -43,21 +43,30 @@ public class IndexController {
     private final MemberRepository memberRepository;
     private final MoveRepository moveRepository;
     private final PartyRepository partyRepository;
-    private final ActorRepository actorRepository;
+    private final BaseActorRepository baseActorRepository;
     private final MemberService memberService;
 
     @RequestMapping("/")
     public String index(@ModelAttribute("roomAddForm") RoomAddForm roomAddForm, Model model,
                         @AuthenticationPrincipal PrincipalDetails principal) {
         List<Room> rooms = roomService.findAll();
+        rooms.forEach(room -> {
+            log.info("[index] room = {}", room);
+            room.getMembers().forEach(member -> {
+                log.info("[index] member = {}", member);
+                member.getActors().forEach(actor -> {
+                    log.info("[index] actor = {}", actor);
+                });
+            });
+        });
         List<RoomInfo> roomInfos = rooms.stream()
                 .map(room -> RoomInfo.builder()
                         .id(room.getId())
                         .info(room.getInfo())
                         .ownerUsername(room.getOwnerUsername())
                         .memberCount(room.getMembers().size())
-                        .enemyHpRate(room.getMembers().getFirst().getBattleActors().stream()
-                                .filter(BattleActor::isEnemy)
+                        .enemyHpRate(room.getMembers().getFirst().getActors().stream()
+                                .filter(Actor::isEnemy)
                                 .findFirst().orElseThrow(() -> new IllegalArgumentException("적이 존재하지 않음"))
                                 .getHpRate())
                         .build()
@@ -72,7 +81,7 @@ public class IndexController {
                     .name(party.getName())
                     .info(party.getInfoText())
                     .characterInfos(
-                            actorRepository.findAllById(party.getActorIds()).stream()
+                            baseActorRepository.findAllById(party.getActorIds()).stream()
                                     .map(actor ->
                                             PartyCharacterInfo.builder()
                                                     .id(actor.getId())

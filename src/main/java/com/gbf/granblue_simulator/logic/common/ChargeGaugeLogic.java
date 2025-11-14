@@ -1,10 +1,10 @@
 package com.gbf.granblue_simulator.logic.common;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifierType;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,17 +33,16 @@ public class ChargeGaugeLogic {
      * @param mainActor
      * @param moveType
      */
-    public void afterAttack(BattleActor mainActor, List<BattleActor> partyMembers, MoveType moveType) {
-        double attackChargeGaugeIncreaseDownRate = StatusUtil.getEffectValueSum(mainActor, StatusEffectType.ATTACK_CHARGE_GAUGE_INCREASE_DOWN); // 일반공격 오의데미지 상승률 감소율
-        double attackChargeGaugeMultiplier = 1 - Math.clamp(attackChargeGaugeIncreaseDownRate, 0, 1); // 최대 100%, 최소 0
+    public void afterAttack(Actor mainActor, List<Actor> partyMembers, MoveType moveType) {
+        double attackChargeGaugeIncreaseRate = mainActor.getStatus().getStatusDetails().getCalcedAttackChargeGaugeIncreaseRate(); // 일반공격 오의데미지 증가율 (현재 0 or 1.0)
         switch (moveType) {
-            case SINGLE_ATTACK -> addChargeGauge(mainActor, baseSingleAttackGaugePoint * attackChargeGaugeMultiplier);
-            case DOUBLE_ATTACK -> addChargeGauge(mainActor, baseDoubleAttackGaugePoint * attackChargeGaugeMultiplier);
-            case TRIPLE_ATTACK -> addChargeGauge(mainActor, baseTripleAttackGaugePoint * attackChargeGaugeMultiplier);
+            case SINGLE_ATTACK -> addChargeGauge(mainActor, baseSingleAttackGaugePoint * attackChargeGaugeIncreaseRate);
+            case DOUBLE_ATTACK -> addChargeGauge(mainActor, baseDoubleAttackGaugePoint * attackChargeGaugeIncreaseRate);
+            case TRIPLE_ATTACK -> addChargeGauge(mainActor, baseTripleAttackGaugePoint * attackChargeGaugeIncreaseRate);
             case CHARGE_ATTACK_DEFAULT -> {
                 setChargeGauge(mainActor, 0); // 사용자는 초기화
                 partyMembers.stream() // 페이탈 체인 게이지 증가
-                        .filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst()
+                        .filter(battleActor -> battleActor.getBaseActor().isLeaderCharacter()).findFirst()
                         .ifPresent(mainCharacter -> addFatalChainGauge(mainCharacter, baseFatalChainGaugePoint));
                 partyMembers.stream() // 뒷자리 파티 멤버는 오의 게이지 증가
                         .filter(battleActor -> battleActor.getCurrentOrder() > mainActor.getCurrentOrder())
@@ -66,7 +65,7 @@ public class ChargeGaugeLogic {
      * @param moveType 적의 공격타입
      * @param omenType 적의 특수기 타입 (nullable)
      */
-    public void afterEnemyAttack(BattleActor enemy, List<BattleActor> targets, List<Integer> damages, MoveType moveType, OmenType omenType) {
+    public void afterEnemyAttack(Actor enemy, List<Actor> targets, List<Integer> damages, MoveType moveType, OmenType omenType) {
         if (moveType.getParentType() != MoveType.CHARGE_ATTACK) {
             addChargeGauge(enemy, baseEnemyAttackGaugePoint);
         } else if (omenType == OmenType.CHARGE_ATTACK) {
@@ -75,7 +74,7 @@ public class ChargeGaugeLogic {
 
         // 적의 공격에 따른 아군의 오의게이지 변화
         for (int i = 0; i < targets.size(); i++) {
-            BattleActor target = targets.get(i);
+            Actor target = targets.get(i);
             int damage = damages.get(i);
             int addValue = (int) Math.ceil(100 * ((double) damage / target.getMaxHp()) * 0.5);
             addChargeGauge(target, addValue);
@@ -86,23 +85,23 @@ public class ChargeGaugeLogic {
      * SetStatus 에서 오의게이지 업 스테이터스 후처리용 (어빌리티, 오의 등에서 스테이터스 형식으로 오의게이지가 증가하는 경우)
      *
      * @param actor
-     * @param chargeGaugeUpStatus
+     * @param chargeGaugeUpBaseStatusEffect
      */
-    public void processChargeGaugeFromStatus(BattleActor actor, Status chargeGaugeUpStatus) {
-        addChargeGauge(actor, (int) chargeGaugeUpStatus.getStatusEffects().get(StatusEffectType.ACT_CHARGE_GAUGE_UP).getValue());
+    public void processChargeGaugeFromStatus(Actor actor, BaseStatusEffect chargeGaugeUpBaseStatusEffect) {
+        addChargeGauge(actor, (int) chargeGaugeUpBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_CHARGE_GAUGE_UP).getValue());
     }
 
     /**
      * SetStatus 에서 페이탈체인 게이지 업 스테이터스 후처리용 (어빌리티, 오의 등에서 스테이터스 형식으로 페이탈 체인 게이지가 증가하는 경우)
      *
      * @param actor
-     * @param fatalChainGaugeUpStatus
+     * @param fatalChainGaugeUpBaseStatusEffect
      */
-    public void processFatalChainGaugeFromStatus(BattleActor actor, Status fatalChainGaugeUpStatus) {
-        actor.getMember().getBattleActors().stream()
-                .filter(battleActor -> battleActor.getActor().isLeaderCharacter()).findFirst()
+    public void processFatalChainGaugeFromStatus(Actor actor, BaseStatusEffect fatalChainGaugeUpBaseStatusEffect) {
+        actor.getMember().getActors().stream()
+                .filter(battleActor -> battleActor.getBaseActor().isLeaderCharacter()).findFirst()
                 .ifPresent(mainCharacter ->
-                        addFatalChainGauge(mainCharacter, fatalChainGaugeUpStatus.getStatusEffects().get(StatusEffectType.ACT_FATAL_CHAIN_GAUGE_UP).getValue()));
+                        addFatalChainGauge(mainCharacter, fatalChainGaugeUpBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_UP).getValue()));
     }
 
     /**
@@ -111,9 +110,9 @@ public class ChargeGaugeLogic {
      * @param actor
      * @param setValue set 할 값
      */
-    public int setChargeGauge(BattleActor actor, double setValue) {
+    public int setChargeGauge(Actor actor, double setValue) {
         if (setValue < 0) throw new IllegalArgumentException("setValue 가 음수");
-        double maxGauge = actor.getMaxChargeGauge().doubleValue();
+        int maxGauge = actor.getMaxChargeGauge();
         int setChargeGauge = (int) Math.min(setValue, maxGauge);
         actor.updateChargeGauge(setChargeGauge);
         return setChargeGauge;
@@ -126,9 +125,9 @@ public class ChargeGaugeLogic {
      * @param addValue 더할 값
      * @return
      */
-    public int addChargeGauge(BattleActor actor, double addValue) {
+    public int addChargeGauge(Actor actor, double addValue) {
         Integer maxGauge = actor.getMaxChargeGauge();
-        double gaugeIncreaseRate = actor.getChargeGaugeIncreaseRate(); // -1 ~ 1
+        double gaugeIncreaseRate = actor.getStatus().getChargeGaugeIncreaseRate(); // -1 ~ 1
         int increasedChargeGauge = Math.min(
                 (int) Math.ceil(actor.getChargeGauge() + addValue * (1 + gaugeIncreaseRate)),
                 maxGauge
@@ -144,8 +143,8 @@ public class ChargeGaugeLogic {
      * @param setValue
      * @return
      */
-    public int setFatalChainGauge(BattleActor mainCharacter, double setValue) {
-        if (mainCharacter.getFatalChainMoveId() == null || mainCharacter.getFatalChainGauge() == null || setValue < 0)
+    public int setFatalChainGauge(Actor mainCharacter, double setValue) {
+        if (mainCharacter.getFatalChainMoveId() == null || setValue < 0)
             throw new IllegalArgumentException("[setFatalChainGauge] mainCharacter.fatalChainMoveId = " + mainCharacter.getFatalChainMoveId() + " mainCharacter.fatalChainGauge = " + mainCharacter.getFatalChainGauge() + " value = " + setValue);
         int setChargeGauge = Math.min((int) setValue, 100);
         mainCharacter.updateFatalChainGauge(setChargeGauge);
@@ -159,8 +158,8 @@ public class ChargeGaugeLogic {
      * @param addValue
      * @return
      */
-    public int addFatalChainGauge(BattleActor mainCharacter, double addValue) {
-        if (mainCharacter.getFatalChainMoveId() == null || mainCharacter.getFatalChainGauge() == null || addValue < 0)
+    public int addFatalChainGauge(Actor mainCharacter, double addValue) {
+        if (mainCharacter.getFatalChainMoveId() == null || addValue < 0)
             throw new IllegalArgumentException("[addFatalChainGauge] mainCharacter.fatalChainMoveId = " + mainCharacter.getFatalChainMoveId() + " mainCharacter.fatalChainGauge = " + mainCharacter.getFatalChainGauge() + " value = " + addValue);
         int increasedFatalChainGauge = Math.min(mainCharacter.getFatalChainGauge() + (int) addValue, 100);
         mainCharacter.updateFatalChainGauge(increasedFatalChainGauge);

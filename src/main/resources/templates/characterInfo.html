@@ -206,10 +206,10 @@
                   let iconSrc = $(status).find('.status-icon').attr('src');
                   let statusInfoText = $(status).find('.status-info-text').text();
                   let statusName = $(status).find('.status-name').text();
-                  let statusType = $(status).data('status-type') === 'BUFF' ? 'status-buff' : 'status-debuff'
+                  let statusEffectType = $(status).data('status-type') === 'BUFF' ? 'status-buff' : 'status-debuff'
                   let statusDuration = $(status).find('.status-duration').text();
                   statusDuration = Number.parseInt(statusDuration) > 999 ? '영속' : statusDuration + '턴';
-                  let $statusInfo = $('<div>').addClass('status-info ' + statusType)
+                  let $statusInfo = $('<div>').addClass('status-info ' + statusEffectType)
                       .append($('<div>').addClass('status-info-icon-wrapper')
                           .append($('<img>').addClass('status-info-icon').attr('src', iconSrc)))
                       .append($('<div>').addClass('status-info-text').text(statusInfoText)
@@ -243,7 +243,7 @@
     <div class="info-container-header">
       <div class="name" th:text="${characterInfo.name}">
         팔라딘
-        <span class="is-main-character" th:text="${characterInfo.isMainCharacter() ? ' (주인공)' : ''}"> (주인공)</span>
+        <span class="is-main-baseCharacter" th:text="${characterInfo.isMainCharacter() ? ' (주인공)' : ''}"> (주인공)</span>
       </div>
       <div class="element-type" th:text="${characterInfo.elementType}"> 속성</div>
     </div>

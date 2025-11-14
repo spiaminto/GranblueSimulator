@@ -15,14 +15,15 @@ async function processAttack(response) {
         let multiAttackIndex = index % attackMultiHitCount; // 현재 인덱스의 난격 타수 순서 (공격마다 0-1-2-3-... 씩으로 진행, 0이면 난격이 아님)
         let missClassName = damage === 'MISS' ? ' damage-miss' : '';
         let attackDamageIndexClassName = ' damage-index-' + attackIndex + ' multi-' + multiAttackIndex; // 난격 여부 확인 후 클래스 설정 / [012 345 678] 3타 3난격 시 di-0 m-0, di-0 m-1, di-0 m-2, di-1 m-0, di-1 m-1, ...
+        let damageTypeClassName = ' ' + response.damageTypes[0]?.toLowerCase();
 
         let $attackDamage = $('<div>', { // 본 공격 (+ 난격)
-            class: 'attack-damage actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
+            class: 'attack-damage actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName + damageTypeClassName,
             text: damage,
         });
         $damageWrapper.append($attackDamage);
         let $additionalDamage = $('<div>', { // 추격
-            class: 'additional-damage-wrapper actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName,
+            class: 'additional-damage-wrapper actor-' + response.charOrder + ' element-type-' + elementType.toLowerCase() + attackDamageIndexClassName + missClassName + damageTypeClassName,
             text: damage // 공간 사용을 위해
         }).append((response.additionalDamages[index] || []).map(additionalDamage =>
             $('<div>', {
@@ -82,7 +83,7 @@ async function processAttack(response) {
 
     //  CHECK 일반공격후 스테이터스 갱신은 현재 없음.
 
-    let totalEndTime = lastEffectDuration + 50 + (100 * (attackMultiHitCount - 1)); // 공격은 재공격때문에 약간 지연을 줘야함 (특히 난격상황에서 더)
+    let totalEndTime = lastEffectDuration + (Constants.Delay.globalMoveDelay / 2) + (100 * (attackMultiHitCount - 1)); // 공격은 재공격때문에 약간 지연을 줘야함 (특히 난격상황에서 더)
     return new Promise(resolve => setTimeout(function () {
         console.log("[processAttack] DONE totalEndTime = " + totalEndTime);
         resolve();
@@ -90,13 +91,14 @@ async function processAttack(response) {
 }
 
 async function processAbility(response) {
-    let effectDuration = await player.play(Player.playRequest('actor-' + response.charOrder, response.motion, {abilityType: response.moveType.name}));
+    let motionSkipDuration = response.motionSkipDuration;
+    let effectDuration = await player.play(Player.playRequest('actor-' + response.charOrder, response.motion, {abilityType: response.moveType.name, motionSkipDuration:motionSkipDuration}));
 
     let enemyDamageMotion = Player.getEnemyDamageMotion();
     if (response.damages.length > 0) {
         let $damageWrapper = fillDamage(response, 0);
         // 데미지 표시
-        let damageShowClass = response.damages.length > 3 ? 'multiple-ability-damage-show' : 'ability-damage-show'
+        let damageShowClass = response.damages.length > 2 ? 'multiple-ability-damage-show' : 'ability-damage-show'
         let effectHitDuration = (effectDuration - 200) / response.damages.length; // 약간 가속하는게 나음
         response.damages.forEach(function (damage, damageIndex, damageArray) {
             let startDelay = effectHitDuration * damageIndex;
@@ -106,12 +108,18 @@ async function processAbility(response) {
             }, startDelay);
         });
         // 데미지 제거
-        // setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
+        setTimeout(() => $damageWrapper.remove(), effectDuration + Constants.Delay.damageShowDelete);
     }
 
-    // 스테이터스
-    let totalEndTime = await processStatusEffect(response, effectDuration);
-    console.log('[processAbility] DONE totalTime', totalEndTime, 'effectDuration ', effectDuration);
+    let totalEndTimePromise = processStatusEffect(response, effectDuration);
+    let totalEndTime = -1;
+    if (response.motionSkipDuration === 0) { // motionSkipDuration 미 지정시 대기
+        totalEndTime = await totalEndTimePromise;
+    } else { // motionSkipDuration 지정시 스테이터스 이펙트 관계없이 지정된 시간만큼 대기 후 반환
+        totalEndTime = await new Promise(resolve => setTimeout(() => resolve(effectDuration), effectDuration));
+    } 
+
+    console.log('[processAbility] DONE name = ', response.moveName, ' totalTime = ', totalEndTime, 'effectDuration =', effectDuration);
     return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
 }
 
@@ -274,29 +282,32 @@ async function processPotion(response) {
 
 // 데미지 삽입 (미리 삽입해놔야됨)
 function fillDamage(response, targetActorIndex) {
-    let damageType = "none";
+    let moveType = "none";
+    let isMultipleAbilityDamage = false;
     switch (response.moveType.getParentType()) {
         case MoveType.ATTACK:
-            damageType = "attack";
+            moveType = "attack";
             break;
         case MoveType.SUMMON:
         case MoveType.FATAL_CHAIN:
         case MoveType.SUPPORT_ABILITY:
         case MoveType.ABILITY:
-            damageType = "ability";
+            moveType = "ability";
+            isMultipleAbilityDamage = response.damages.length > 2;
             break;
         case MoveType.CHARGE_ATTACK:
-            damageType = "charge-attack";
+            moveType = "charge-attack";
             break;
         default:
-            damageType = "none";
+            moveType = "none";
     }
 
     let $targetActorContainer = $(`#actorContainer > .actor-${targetActorIndex}`);
     let currentDamageWrapperIndex = $targetActorContainer.find('.damage-wrapper').length;
-    let $damageWrapper = $('<div>', {class: `damage-wrapper ${damageType} damage-wrapper-index-${currentDamageWrapperIndex}`});
+    let $damageWrapper = $('<div>', {class: `damage-wrapper ${moveType} damage-wrapper-index-${currentDamageWrapperIndex}`});
     response.damages.forEach(function (damage, damageIndex) {
-        let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], damageType, damageIndex, damage, []);
+        let $damageElements = getDamageElement(response.charOrder, response.elementTypes[0], moveType, response.damageTypes[0], damageIndex, damage, []);
+        if (isMultipleAbilityDamage) $damageElements.$damage.addClass('multiple');
         $damageWrapper.prepend($damageElements.$damage);
     })
     $targetActorContainer.append($damageWrapper);

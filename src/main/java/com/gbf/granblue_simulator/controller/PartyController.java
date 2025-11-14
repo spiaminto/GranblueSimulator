@@ -1,15 +1,15 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.auth.PrincipalDetails;
-import com.gbf.granblue_simulator.controller.request.UserEditRequest;
-import com.gbf.granblue_simulator.controller.response.info.party.PartyCharacterInfo;
-import com.gbf.granblue_simulator.controller.response.info.party.PartyInfo;
-import com.gbf.granblue_simulator.controller.response.info.party.PartySummonInfo;
+import com.gbf.granblue_simulator.controller.dto.request.UserEditRequest;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartyCharacterInfo;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartyInfo;
+import com.gbf.granblue_simulator.controller.dto.response.info.party.PartySummonInfo;
 import com.gbf.granblue_simulator.domain.User;
-import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.actor.Party;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.actor.BaseActor;
+import com.gbf.granblue_simulator.domain.Party;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
 import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.UserRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
@@ -82,28 +82,28 @@ public class PartyController {
 
     @GetMapping("/character/{characterId}")
     public String character(@PathVariable Long characterId, Model model) {
-        Actor actor = actorService.findById(characterId).orElseThrow(() -> new IllegalArgumentException("없는 캐릭터"));
+        BaseActor baseActor = actorService.findById(characterId).orElseThrow(() -> new IllegalArgumentException("없는 캐릭터"));
         PartyCharacterInfo characterInfo = PartyCharacterInfo.builder()
                 .id(characterId)
-                .name(actor.getName())
-                .isMainCharacter(actor.isLeaderCharacter())
-                .portraitSrc(actor.getBattlePortraitSrc())
-                .chargeAttack(actor.getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
-                .abilities(actor.getMoves().values().stream()
+                .name(baseActor.getName())
+                .isMainCharacter(baseActor.isLeaderCharacter())
+                .portraitSrc(baseActor.getBattlePortraitSrc())
+                .chargeAttack(baseActor.getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
+                .abilities(baseActor.getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.ABILITY)
                         .sorted(Comparator.comparing(Move::getType))
                         .toList())
-                .supportAbilities(actor.getMoves().values().stream()
+                .supportAbilities(baseActor.getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.SUPPORT_ABILITY)
                         .sorted(Comparator.comparing(Move::getType))
                         .toList())
-                .portraitSrc(actor.getBattlePortraitSrc())
-                .elementType(actor.getElementType().getPresentName())
-                .atk(actor.getBaseAttackPoint())
-                .hp(actor.getBaseHitPoint())
-                .def(actor.getBaseDefencePoint())
-                .doubleAttackRate((int) (actor.getBaseDoubleAttackRate() * 100))
-                .tripleAttackRate((int) (actor.getBaseTripleAttackRate() * 100))
+                .portraitSrc(baseActor.getBattlePortraitSrc())
+                .elementType(baseActor.getElementType().getPresentName())
+                .atk(baseActor.getAtk())
+                .hp(baseActor.getMaxHp())
+                .def(baseActor.getDef())
+                .doubleAttackRate((int) (baseActor.getDoubleAttackRate() * 100))
+                .tripleAttackRate((int) (baseActor.getTripleAttackRate() * 100))
                 .build();
         model.addAttribute("characterInfo", characterInfo);
         return "characterInfo";

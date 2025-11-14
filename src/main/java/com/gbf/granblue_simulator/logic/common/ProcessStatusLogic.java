@@ -1,23 +1,24 @@
 package com.gbf.granblue_simulator.logic.common;
 
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffect;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusEffectType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusType;
-import com.gbf.granblue_simulator.repository.BattleStatusRepository;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.domain.base.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifier;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusModifierType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectType;
+import com.gbf.granblue_simulator.repository.StatusEffectRepository;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getBattleStatuesByStatusType;
-import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectValueSum;
+import static com.gbf.granblue_simulator.logic.common.StatusUtil.*;
 
 /**
  * 직접 처리가 필요한 일부 스테이터스들의 효과를 처리
@@ -29,117 +30,169 @@ import static com.gbf.granblue_simulator.logic.common.StatusUtil.getEffectValueS
 public class ProcessStatusLogic {
 
     private final ChargeGaugeLogic chargeGaugeLogic;
-    private final BattleStatusRepository battleStatusRepository;
+    private final StatusEffectRepository statusEffectRepository;
+
+    @Data
+    @Builder
+    static class ProcessStatusLogicResult {
+        private List<StatusEffect> addedStatusEffects; // A(오의 게이지 증가, 페이탈 체인 게이지 증가) 도 가능
+        @Builder.Default
+        private List<StatusEffect> removedStatusEffects = new ArrayList<>();
+        private Integer healValue;
+        private Integer damageValue;
+    }
+
+    public ProcessStatusLogicResult process(Actor targetActor, BaseStatusEffect effect) {
+        return process(targetActor, effect, null);
+    }
+
+    public ProcessStatusLogicResult process(Actor targetActor, BaseStatusEffect effect, StatusModifierType selectedModifierType) {
+
+        List<StatusEffect> addedStatusEffect = new ArrayList<>();
+        List<StatusEffect> removedStatusEffects = new ArrayList<>();
+        Integer healValue = null;
+        Integer damageValue = null;
+
+        List<StatusModifier> toProcessModifiers = effect.getStatusModifiers().values().stream()
+                .filter(modifier -> modifier.getType().needPostProcess())
+                .toList();
+
+        for (StatusModifier modifier : toProcessModifiers) {
+            // 지정된 타입이 있는경우 해당 타입만 처리
+            if (selectedModifierType != null && selectedModifierType != modifier.getType()) continue;
+
+            switch (modifier.getType()) {
+                case ACT_CHARGE_GAUGE_UP:
+                    addedStatusEffect.add(processChargeGaugeUpStatus(targetActor, modifier));
+                    break;
+                case ACT_CHARGE_GAUGE_DOWN:
+                    addedStatusEffect.add(processChargeGaugeUpStatus(targetActor, modifier));
+                    break;
+                case ACT_WEAPON_BURST:
+                    addedStatusEffect.add(processWeaponBurstStatus(targetActor, modifier));
+                    break;
+                case ACT_FATAL_CHAIN_GAUGE_UP:
+                    addedStatusEffect.add(processFatalGaugeUpStatus(targetActor, modifier));
+                    break;
+                case ACT_FATAL_CHAIN_GAUGE_DOWN:
+                    addedStatusEffect.add(processFatalGaugeUpStatus(targetActor, modifier));
+                    break;
+                case ACT_DISPEL:
+                    removedStatusEffects.addAll(processDispel(targetActor, modifier));
+                    break;
+                case ACT_CLEAR:
+                    removedStatusEffects.addAll(processClear(targetActor, modifier));
+                    break;
+                case ACT_HEAL:
+                    int heal = processHeal(targetActor, modifier);
+                    healValue = healValue == null ? heal : healValue + heal;
+                    break;
+                case ACT_DAMAGE, ACT_RATE_DAMAGE:
+                    int damage = processStatusDamage(targetActor, modifier);
+                    damageValue = damageValue == null ? damage : damageValue + damage;
+                    break;
+                default:
+                    log.warn("[process] modifier.type = {} not supported", modifier.getType());
+                    break;
+            }
+        }
+
+        return ProcessStatusLogicResult.builder()
+                .addedStatusEffects(addedStatusEffect)
+                .removedStatusEffects(removedStatusEffects)
+                .damageValue(damageValue)
+                .healValue(healValue)
+                .build();
+    }
+
 
     /**
      * 페이탈 체인 게이지 업 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param fatalGaugeUpStatus
+     * @param fatalGaugeUpModifier
      * @return
      */
-    public BattleStatus processFatalGaugeUpStatus(BattleActor targetActor, Status fatalGaugeUpStatus) {
-        if (!fatalGaugeUpStatus.getStatusEffects().containsKey(StatusEffectType.ACT_FATAL_CHAIN_GAUGE_UP))
-            throw new IllegalArgumentException("페이탈 체인 게이지 업 아님, Status.id = " + fatalGaugeUpStatus.getId());
-        chargeGaugeLogic.processFatalChainGaugeFromStatus(targetActor, fatalGaugeUpStatus);
+    protected StatusEffect processFatalGaugeUpStatus(Actor targetActor, StatusModifier fatalGaugeUpModifier) {
+        chargeGaugeLogic.processFatalChainGaugeFromStatus(targetActor, fatalGaugeUpModifier.getBaseStatusEffect());
 
-        return BattleStatus.builder()
-                .duration(0)
-                .status(Status.builder().type(StatusType.BUFF).name("페이탈체인 상승").effectText("페이탈체인 상승").build())
-                .level(0)
-                .iconSrc("")
-                .build()
-                .setBattleActor(targetActor);
+        return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "페이탈 체인 상승", targetActor);
     }
 
     /**
      * 오의 게이지 업 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param chargeGaugeUpStatus
+     * @param chargeGaugeUpModifier
      * @return
      */
-    public BattleStatus processChargeGaugeUpStatus(BattleActor targetActor, Status chargeGaugeUpStatus) {
-        if (!chargeGaugeUpStatus.getStatusEffects().containsKey(StatusEffectType.ACT_CHARGE_GAUGE_UP))
-            throw new IllegalArgumentException("오의 게이지 업 아님, Status.id = " + chargeGaugeUpStatus.getId());
-        chargeGaugeLogic.processChargeGaugeFromStatus(targetActor, chargeGaugeUpStatus);
+    protected StatusEffect processChargeGaugeUpStatus(Actor targetActor, StatusModifier chargeGaugeUpModifier) {
+        chargeGaugeLogic.processChargeGaugeFromStatus(targetActor, chargeGaugeUpModifier.getBaseStatusEffect());
 
-        return BattleStatus.builder()
-                .duration(0)
-                .status(Status.builder().type(StatusType.BUFF).name("오의게이지 상승").effectText("오의게이지 상승").build())
-                .level(0)
-                .iconSrc(chargeGaugeUpStatus.getIconSrcs().getFirst())
-                .build()
-                .setBattleActor(targetActor);
+        return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "오의 게이지 상승", targetActor);
     }
+
 
     /**
      * 웨폰버스트 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param weaponBurstStatus
+     * @param weaponBurstModifier
      * @return
      */
-    public BattleStatus processWeaponBurstStatus(BattleActor targetActor, Status weaponBurstStatus) {
-        if (!weaponBurstStatus.getStatusEffects().containsKey(StatusEffectType.ACT_WEAPON_BURST))
-            throw new IllegalArgumentException("폼버 아님, Status.id = " + weaponBurstStatus.getId());
+    protected StatusEffect processWeaponBurstStatus(Actor targetActor, StatusModifier weaponBurstModifier) {
         chargeGaugeLogic.setChargeGauge(targetActor, 100);
-
-        return BattleStatus.builder()
-                .duration(0)
-                .status(Status.builder().type(StatusType.BUFF).name("오의게이지 충전").effectText("오의게이지 충전").build())
-                .level(0)
-                .iconSrc(weaponBurstStatus.getIconSrcs().getFirst())
-                .build()
-                .setBattleActor(targetActor);
+        return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "오의 사용 가능", targetActor);
     }
 
     /**
      * 디스펠 스테이터스를 받아 디스펠로 삭제된 배틀 스테이터스 (버프) 를 반환
      *
      * @param target
-     * @param dispelStatus
+     * @param dispelModifier
      * @return
      */
-    public List<BattleStatus> processDispel(BattleActor target, Status dispelStatus) {
-        if (!dispelStatus.getStatusEffects().containsKey(StatusEffectType.ACT_DISPEL))
-            throw new IllegalArgumentException("디스펠 효과 없음 Status.id = " + dispelStatus.getId());
-        List<BattleStatus> dispelGuardStatuses = getBattleStatuesByStatusType(target, StatusType.DISPEL_GUARD);
-        if (!dispelGuardStatuses.isEmpty()) {
-            // 디스펠 가드 성공
-            BattleStatus dispelGuardStatus = dispelGuardStatuses.getFirst(); // 중복 불가긴 함
-            target.getBattleStatuses().remove(dispelGuardStatus);
-            battleStatusRepository.delete(dispelGuardStatus);
-            return List.of(dispelGuardStatus);
-        }
-        List<BattleStatus> dispelledBattleStatuses = target.getBattleStatuses().stream()
-                .filter(status -> status.getStatus().getType().isBuff() && status.getStatus().removable())
-                .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
-                .limit((int) dispelStatus.getStatusEffects().get(StatusEffectType.ACT_DISPEL).getValue()) // 적의 dispel 은 99정도로 들어옴
-                .toList();
-        target.getBattleStatuses().removeAll(dispelledBattleStatuses);
-        battleStatusRepository.deleteAll(dispelledBattleStatuses);
-        return dispelledBattleStatuses;
+    protected List<StatusEffect> processDispel(Actor target, StatusModifier dispelModifier) {
+        BaseStatusEffect dispelBaseStatusEffect = dispelModifier.getBaseStatusEffect();
+        if (!dispelBaseStatusEffect.getStatusModifiers().containsKey(StatusModifierType.ACT_DISPEL))
+            throw new IllegalArgumentException("디스펠 효과 없음 Status.id = " + dispelBaseStatusEffect.getId());
+        return getEffectByModifierType(target, StatusModifierType.ACT_DISPEL_GUARD)
+                .map(dispelGuardStatus -> {
+                    // 디스펠 가드 성공
+                    target.getStatusEffects().remove(dispelGuardStatus);
+                    statusEffectRepository.delete(dispelGuardStatus);
+                    return List.of(dispelGuardStatus);
+                }).orElseGet(() -> {
+                    List<StatusEffect> dispelledStatusEffects = target.getStatusEffects().stream()
+                            .filter(status -> status.getBaseStatusEffect().getType().isBuff() && status.getBaseStatusEffect().isRemovable())
+                            .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
+                            .limit((int) dispelBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_DISPEL).getValue()) // 적의 dispel 은 99정도로 들어옴
+                            .toList();
+                    target.getStatusEffects().removeAll(dispelledStatusEffects);
+                    statusEffectRepository.deleteAll(dispelledStatusEffects);
+                    return dispelledStatusEffects;
+                });
     }
 
     /**
      * 클리어 스테이터스를 받아 삭제된 배틀 스테이터스 (디버프) 를 반환
      *
      * @param target
-     * @param clearStatus
+     * @param clearModifier
      * @return
      */
-    public List<BattleStatus> processClear(BattleActor target, Status clearStatus) {
-        if (!clearStatus.getStatusEffects().containsKey(StatusEffectType.ACT_CLEAR))
-            throw new IllegalArgumentException("클리어 효과 없음 Status.id = " + clearStatus.getId());
-        List<BattleStatus> clearedBattleStatuses = target.getBattleStatuses().stream()
-                .filter(status -> status.getStatus().getType().isDebuff() && status.getStatus().removable())
-                .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
-                .limit((int) clearStatus.getStatusEffects().get(StatusEffectType.ACT_CLEAR).getValue())
+    protected List<StatusEffect> processClear(Actor target, StatusModifier clearModifier) {
+        BaseStatusEffect clearBaseStatusEffect = clearModifier.getBaseStatusEffect();
+        if (!clearBaseStatusEffect.getStatusModifiers().containsKey(StatusModifierType.ACT_CLEAR))
+            throw new IllegalArgumentException("클리어 효과 없음 Status.id = " + clearBaseStatusEffect.getId());
+        List<StatusEffect> clearedStatusEffects = target.getStatusEffects().stream()
+                .filter(status -> status.getBaseStatusEffect().getType().isDebuff() && status.getBaseStatusEffect().isRemovable())
+                .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
+                .limit((int) clearBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_CLEAR).getValue())
                 .toList(); // 해제될 디버프 (클리어의 value 값 갯수만큼만 최근에 추가된 디버프부터 해제함)
-        target.getBattleStatuses().removeAll(clearedBattleStatuses);
-        battleStatusRepository.deleteAll(clearedBattleStatuses);
-        return clearedBattleStatuses;
+        target.getStatusEffects().removeAll(clearedStatusEffects);
+        statusEffectRepository.deleteAll(clearedStatusEffects);
+        return clearedStatusEffects;
     }
 
     /**
@@ -147,22 +200,21 @@ public class ProcessStatusLogic {
      * HEAL, HEAL_FOR_ALL, BUFF.TURN_RECOVERY 에서 사용
      *
      * @param target
-     * @param healStatus
+     * @param healModifier
      * @return
      */
-    public int processHeal(BattleActor target, Status healStatus) {
-        if (!healStatus.getStatusEffects().containsKey(StatusEffectType.ACT_HEAL))
-            throw new IllegalArgumentException("힐 이펙트가 없음 Status.id = " + healStatus.getId());
+    protected int processHeal(Actor target, StatusModifier healModifier) {
+        BaseStatusEffect healBaseStatusEffect = healModifier.getBaseStatusEffect();
+        if (!healBaseStatusEffect.getStatusModifiers().containsKey(StatusModifierType.ACT_HEAL))
+            throw new IllegalArgumentException("힐 이펙트가 없음 Status.id = " + healBaseStatusEffect.getId());
         Integer currentHp = target.getHp();
-        int healInitValue = (int) healStatus.getStatusEffects().get(StatusEffectType.ACT_HEAL).getValue();
-        Integer healResultValue = StatusUtil.getBattleStatusByEffectType(target, StatusEffectType.UNDEAD)
+        int healInitValue = (int) healBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_HEAL).getValue();
+        Integer healResultValue = StatusUtil.getEffectByModifierType(target, StatusModifierType.UNDEAD)
                 .map(undeadBattleStatus ->
                         -1 * healInitValue // 언데드는 힐 상승 미적용
                 ).orElseGet(() -> {
-                    double healUpRate = getEffectValueSum(target, StatusEffectType.HEAL_UP);
-                    double healDownRate = getEffectValueSum(target, StatusEffectType.HEAL_DOWN);
-                    double resultHealRate = Math.clamp(0, 1 + healUpRate + healDownRate, 2.0); // 하한 0 상한 2 (100%증가)
-                    return (int) (healInitValue * resultHealRate);
+                    double healRate = target.getStatus().getStatusDetails().getCalcedHealRate();
+                    return (int) (healInitValue * healRate);
                 });
         int healedHp = currentHp + healResultValue;
         target.updateHp(healedHp);
@@ -170,11 +222,12 @@ public class ProcessStatusLogic {
         return healResultValue;
     }
 
-    public int processStatusDamage(BattleActor target, Status damageStatus) {
-        StatusEffect constantDamageEffect = damageStatus.getStatusEffects().get(StatusEffectType.ACT_DAMAGE);
-        StatusEffect rateDamageEffect = damageStatus.getStatusEffects().get(StatusEffectType.ACT_RATE_DAMAGE);
+    protected int processStatusDamage(Actor target, StatusModifier damageModifier) {
+        BaseStatusEffect damageBaseStatusEffect = damageModifier.getBaseStatusEffect();
+        StatusModifier constantDamageEffect = damageBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_DAMAGE);
+        StatusModifier rateDamageEffect = damageBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_RATE_DAMAGE);
         if (constantDamageEffect == null && rateDamageEffect == null)
-            throw new IllegalArgumentException("데미지 이펙트가 없음 Status.id = " + damageStatus.getId());
+            throw new IllegalArgumentException("데미지 이펙트가 없음 Status.id = " + damageBaseStatusEffect.getId());
 
         Integer currentHp = target.getHp();
         int damage = constantDamageEffect != null
@@ -189,13 +242,15 @@ public class ProcessStatusLogic {
 
     /**
      * 캐릭터에 어빌리티 봉인 효과가 있는경우 설정
+     *
      * @param target
-     * @param abilitySealedStatus
+     * @param abilitySealedBaseStatusEffect
      */
-    public void processAbilitySealed(BattleActor target, Status abilitySealedStatus) {
-        StatusEffect abilitySealedEffect = abilitySealedStatus.getStatusEffects().get(StatusEffectType.ABILITY_SEALED);
+    public void processAbilitySealed(Actor target, BaseStatusEffect abilitySealedBaseStatusEffect) {
+        StatusModifier abilitySealedEffect = abilitySealedBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ABILITY_SEALED);
         double abilitySealedType = abilitySealedEffect.getValue(); // 0:전체 1:공격 2:강화 3:약체 4:회복
-        if (abilitySealedType != 1) throw new IllegalArgumentException("[processAbilitySealed] 미구현 상태, abilitySealedType = " + abilitySealedType);
+        if (abilitySealedType != 1)
+            throw new IllegalArgumentException("[processAbilitySealed] 미구현 상태, abilitySealedType = " + abilitySealedType);
 //        target.sealAbilityCoolDown(MoveType.FIRST_ABILITY);
 //        target.sealAbilityCoolDown(MoveType.SECOND_ABILITY);
 //        target.sealAbilityCoolDown(MoveType.THIRD_ABILITY);

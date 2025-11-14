@@ -40,7 +40,7 @@
           display: none;
       }
 
-      .enemy-input-wrapper {
+      .baseEnemy-input-wrapper {
           background-color: rgba(255, 0, 0, 0.1);
       }
 
@@ -113,11 +113,11 @@
 // placeholder
           $('input, textarea').each(function (index, element) {
               if (element.name.includes('ideo')) {
-                  element.value = '/static/assets/video/enemy/';
+                  element.value = '/static/assets/video/baseEnemy/';
               } else if (element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes("Image")) { // mage 하면 damage 랑겹침
-                  element.value = '/static/assets/img/enemy/'
+                  element.value = '/static/assets/img/baseEnemy/'
               } else if (element.name.includes('udio')) {
-                  element.value = '/static/assets/audio/enemy/'
+                  element.value = '/static/assets/audio/baseEnemy/'
               }
           })
 // 스테이터스 체크
@@ -125,38 +125,38 @@
               $(this).is(':checked') ? $(this).parent().next().show() : $(this).parent().next().find('input, textarea').val('').end().hide();
           })
 // 통신
-          $('.enemy-submit-button').on('click', function (e) {
+          $('.baseEnemy-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#enemyInputForm').get(0));
-              ajaxRequest("/insert/enemy", requestData);
+              ajaxRequest("/insert/baseEnemy", requestData);
           })
           $('.attack-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#attackInputForm').get(0));
-              ajaxRequest("/insert/enemy-attack", requestData);
+              ajaxRequest("/insert/baseEnemy-attack", requestData);
           })
           $('.idle-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#idleInputForm').get(0));
-              ajaxRequest("/insert/enemy-idle", requestData);
+              ajaxRequest("/insert/baseEnemy-idle", requestData);
           })
           $('.damaged-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#damagedInputForm').get(0));
-              ajaxRequest("/insert/enemy-damaged", requestData);
+              ajaxRequest("/insert/baseEnemy-damaged", requestData);
           })
           $('.break-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#breakInputForm').get(0));
-              ajaxRequest("/insert/enemy-break", requestData);
+              ajaxRequest("/insert/baseEnemy-break", requestData);
           })
           $('.standby-submit-button').on('click', function (e) {
               let requestData = serializeJson($('#standbyInputForm').get(0));
-              ajaxRequest("/insert/enemy-standby", requestData);
+              ajaxRequest("/insert/baseEnemy-standby", requestData);
           })
           $('.charge-attack-submit-button').on('click', function (e) {
               e.preventDefault();
               let requestData = serializeJson($('#chargeAttackForm').get(0));
-              ajaxRequest("/insert/enemy-charge-attack", requestData);
+              ajaxRequest("/insert/baseEnemy-charge-attack", requestData);
           })
           $('.ability-submit-button').click(function () {
               let requestData = serializeJson($('#abilityForm').get(0));
-              ajaxRequest("/insert/enemy-ability", requestData);
+              ajaxRequest("/insert/baseEnemy-ability", requestData);
           })
 
           // requestData 는 JSON string
@@ -259,24 +259,24 @@
 
 <h1>적 삽입</h1>
 
-<h2>enemy</h2>
-<div class="enemy-input-wrapper">
+<h2>baseEnemy</h2>
+<div class="baseEnemy-input-wrapper">
   <form id="enemyInputForm">
-    <div>enemy.name</div>
+    <div>baseEnemy.name</div>
     <input class="form-control mb-2" type="text" name="name" placeholder="">
     <div>영문명 Actor.nameEn</div>
     <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
     <button type="button" class="apply-name-button btn btn-primary">이름 적용</button>
-    <div>enemy.elementType FIRE , ... NONE </div>
+    <div>baseEnemy.elementType FIRE , ... NONE </div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
 
-    <div>enemy.backgroundImageSrc</div>
+    <div>baseEnemy.backgroundImageSrc</div>
     <input class="form-control mb-2" type="text" name="backgroundImageSrc" placeholder="">
-    <div>enemy.hpTriggers {100, 90, 80, ...}</div>
+    <div>baseEnemy.hpTriggers {100, 90, 80, ...}</div>
     <input class="form-control mb-2" type="text" name="hpTriggers" placeholder="">
-    <div>enemy.bgmTriggers {100, 90, 80, ...}</div>
+    <div>baseEnemy.bgmTriggers {100, 90, 80, ...}</div>
     <input class="form-control mb-2" type="text" name="bgmTriggers" placeholder="">
-    <div>enemy.bgmSrcs {src \n}</div>
+    <div>baseEnemy.bgmSrcs {src \n}</div>
     <textarea rows="7" class="form-control mb-2" type="text" name="bgmSrcs" placeholder=""></textarea>
 
     <h3>dead</h3>
@@ -292,7 +292,7 @@
     <div>asset.audio.src</div>
     <input class="form-control mb-2" type="text" name="formChangeSeAudioSrc" placeholder="">
 
-    <button type="button" class="enemy-submit-button btn btn-primary">적 저장</button>
+    <button type="button" class="baseEnemy-submit-button btn btn-primary">적 저장</button>
   </form>
 </div>
 
@@ -647,16 +647,16 @@
 
 
     <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-    <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusEffects" placeholder=""></textarea>
+    <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusModifiers" placeholder=""></textarea>
 
     <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
     <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
   </div>
 </div>
 
-<h2>enemy 에셋 </h2>
+<h2>baseEnemy 에셋 </h2>
 <p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
-<form id="enemyAssetForm" target="/insert-enemy-asset" method="POST">
+<form id="enemyAssetForm" target="/insert-baseEnemy-asset" method="POST">
 
   <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
   <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="enemyAssetForm"
@@ -664,7 +664,7 @@
   <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="enemyAssetForm"
          value="복원">
 
-  <div>actor id</div>
+  <div>baseActor id</div>
   <input class="form-control mb-2" type="text" name="actorId" placeholder="">
   <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
   <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">

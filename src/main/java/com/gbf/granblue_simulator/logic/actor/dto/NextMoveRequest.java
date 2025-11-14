@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.logic.actor.dto;
 
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectTargetType;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,9 +13,9 @@ public class NextMoveRequest {
     @Accessors(fluent = true)
     private boolean hasNextMove;
     private MoveType nextMoveType;
-    private StatusTargetType nextMoveTarget;
+    private StatusEffectTargetType nextMoveTarget;
 
-    public static NextMoveRequest of(boolean hasNextMove, MoveType nextMoveType, StatusTargetType nextMoveTarget) {
+    public static NextMoveRequest of(boolean hasNextMove, MoveType nextMoveType, StatusEffectTargetType nextMoveTarget) {
         NextMoveRequest request = new NextMoveRequest();
         request.hasNextMove = hasNextMove;
         request.nextMoveType = nextMoveType;

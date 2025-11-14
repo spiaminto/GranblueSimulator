@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.domain;
 
-import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
 import io.hypersistence.utils.hibernate.type.array.IntArrayType;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
@@ -56,6 +56,18 @@ public class BattleLog {
     @Type(ListArrayType.class)
     @Column(name = "status_ids", columnDefinition = "bigint[]")
     private List<Long> statusIds;
+
+    @Type(ListArrayType.class)
+    @Column(name = "statuses", columnDefinition = "text[]")
+    private List<String> statuses;
+
+    @Type(ListArrayType.class)
+    @Column(name = "status_details", columnDefinition = "text[]")
+    private List<String> statusDetails;
+
+    @Type(ListArrayType.class)
+    @Column(name = "damage_status_details", columnDefinition = "text[]")
+    private List<String> damageStatusDetails;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

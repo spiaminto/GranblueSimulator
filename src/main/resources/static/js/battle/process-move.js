@@ -177,7 +177,8 @@ async function processStrikeSealed(response) {
             name: '공격불가',
             imageSrc: '',
             effectText: '공격불가',
-            duration: '1'
+            durationType: 'TURN',
+            duration: '1',
         })
     );
     // 공격불가만 먼저 띄우기
@@ -203,14 +204,14 @@ async function processTurnEndProcess(response) {
     // }
 
     // 스테이터스 처리 (턴종은 스테이터스 처리가 우선)
-    totalEndTime = await processStatusEffect(response, 0);
+    totalEndTime = await processStatusEffect(response, 0, true);
 
     // 데미지 있으면 턴종데미지
     if (response.damages.reduce((acc, item) => acc + item, 0) > 0) {
         if (response.enemyAttackTargetOrders.length === 0) {
             // 적에 대한 턴종 데미지
             let $damageWrapper = $('<div>', {class: 'damage-wrapper ability'});
-            let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 0, response.damages[0], []);
+            let $damageElements = getDamageElement(0, response.elementTypes[0], 'ability', 'normal',0, response.damages[0], []);
             $damageWrapper.append($damageElements.$damage.addClass('party-turn-damage-show')).appendTo($('#actorContainer>.actor-0'));
             // 모션 재생
             setTimeout(() => player.play(Player.playRequest('actor-0', Player.c_animations.DAMAGE)), 100);
@@ -221,7 +222,7 @@ async function processTurnEndProcess(response) {
             enemyDamagesPostProcess(response, 0, true);
         }
         window.effectAudioPlayer.loadAndPlay(GlobalSrc.DEBUFF.audio);
-        totalEndTime += 600;
+        totalEndTime += 500;
     }
 
     console.log('[processTurnEndProcess] DONE totalTime', totalEndTime);

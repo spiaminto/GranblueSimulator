@@ -1,9 +1,7 @@
 package com.gbf.granblue_simulator.repository.actor;
 
-import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,6 +9,6 @@ import java.util.List;
 @Repository
 public interface ActorRepository extends JpaRepository<Actor, Long> {
 
-    List<Actor> findByNameEnContains(String nameEn);
+    List<Actor> findByMemberIdOrderByCurrentOrderAsc(Long memberId);
 
 }

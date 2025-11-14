@@ -1,8 +1,8 @@
 package com.gbf.granblue_simulator.logic.actor.dto;
 
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.status.Status;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectTargetType;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -25,7 +25,7 @@ public class EnemyLogicResult {
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
     @Builder.Default
-    private List<Status> statusList = new ArrayList<>();
+    private List<BaseStatusEffect> baseStatusEffectList = new ArrayList<>();
     @Builder.Default
     private List<Integer> chargeGauges = new ArrayList<>(); // order by BattleActor.currentOrder
     private Integer enemyChargeGauge;
@@ -37,6 +37,6 @@ public class EnemyLogicResult {
     @Accessors(fluent = true)
     private boolean hasNextMove; // 후행동
     private MoveType nextMoveType;
-    private StatusTargetType nextMoveTarget;
+    private StatusEffectTargetType nextMoveTarget;
 
 }

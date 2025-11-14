@@ -1,31 +1,32 @@
 package com.gbf.granblue_simulator.controller;
 
 import com.gbf.granblue_simulator.auth.PrincipalDetails;
-import com.gbf.granblue_simulator.controller.request.battle.*;
-import com.gbf.granblue_simulator.controller.response.battle.*;
-import com.gbf.granblue_simulator.controller.response.info.battle.*;
+import com.gbf.granblue_simulator.controller.dto.request.battle.*;
+import com.gbf.granblue_simulator.controller.dto.response.battle.*;
+import com.gbf.granblue_simulator.controller.dto.response.info.battle.*;
 import com.gbf.granblue_simulator.domain.Member;
-import com.gbf.granblue_simulator.domain.actor.Party;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.asset.Asset;
-import com.gbf.granblue_simulator.domain.move.MotionType;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
-import com.gbf.granblue_simulator.domain.move.prop.status.StatusTargetType;
+import com.gbf.granblue_simulator.domain.Party;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.Enemy;
+import com.gbf.granblue_simulator.domain.base.asset.Asset;
+import com.gbf.granblue_simulator.domain.base.move.MotionType;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.battle.BattleContext;
+import com.gbf.granblue_simulator.domain.base.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.logic.BattleLogic;
 import com.gbf.granblue_simulator.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.logic.actor.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.logic.common.dto.GuardResult;
 import com.gbf.granblue_simulator.logic.common.dto.PotionResult;
 import com.gbf.granblue_simulator.repository.AssetRepository;
 import com.gbf.granblue_simulator.repository.MemberRepository;
 import com.gbf.granblue_simulator.repository.PartyRepository;
 import com.gbf.granblue_simulator.repository.RoomRepository;
+import com.gbf.granblue_simulator.repository.actor.BaseActorRepository;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
-import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
-import com.gbf.granblue_simulator.repository.actor.BattleCharacterRepository;
-import com.gbf.granblue_simulator.repository.actor.BattleEnemyRepository;
+import com.gbf.granblue_simulator.repository.actor.CharacterRepository;
+import com.gbf.granblue_simulator.repository.actor.EnemyRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import com.gbf.granblue_simulator.service.MemberService;
 import lombok.RequiredArgsConstructor;
@@ -49,10 +50,10 @@ import static com.gbf.granblue_simulator.controller.BattleInfoMapper.*;
 public class BattleController {
 
     private final MemberRepository memberRepository;
-    private final BattleCharacterRepository battleCharacterRepository;
+    private final CharacterRepository characterRepository;
+    private final BaseActorRepository baseActorRepository;
     private final ActorRepository actorRepository;
-    private final BattleActorRepository battleActorRepository;
-    private final BattleEnemyRepository battleEnemyRepository;
+    private final EnemyRepository enemyRepository;
     private final MoveRepository moveRepository;
 
     private final BattleLogic battleLogic;
@@ -69,10 +70,10 @@ public class BattleController {
     public ResponseEntity<Map<String, Object>> getEnemySrcMap(@RequestParam Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         battleContext.init(member, null);
-        BattleActor enemy = battleContext.getEnemy();
+        Actor enemy = battleContext.getEnemy();
 
         Map<String, Object> result = new HashMap<>();
-        List<Asset> enemyAssets = assetRepository.findAllByActorId(enemy.getActor().getId());
+        List<Asset> enemyAssets = assetRepository.findAllByActorId(enemy.getBaseActor().getId());
         List<AssetInfo.Asset> assetInfoAsset = toAssetInfoAsset(0L, "", enemyAssets, new ArrayList<>(), null);
         AssetInfo enemyAssetInfo = AssetInfo.builder()
                 .asset(assetInfoAsset.getFirst())
@@ -211,10 +212,10 @@ public class BattleController {
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         Long mainActorId = request.getCharacterId();
         String potionType = request.getPotionType();
-        StatusTargetType potionTargetType = potionType.equals("single")
-                ? StatusTargetType.SELF
+        StatusEffectTargetType potionTargetType = potionType.equals("single")
+                ? StatusEffectTargetType.SELF
                 : potionType.equals("all")
-                ? StatusTargetType.PARTY_MEMBERS
+                ? StatusEffectTargetType.PARTY_MEMBERS
                 : null;
         if (potionTargetType == null) ResponseEntity.badRequest().build();
         battleContext.init(member, mainActorId);
@@ -257,7 +258,7 @@ public class BattleController {
     @Transactional
     public String battlePage(Model model) {
 
-        Member findMember = memberRepository.findByRoomIdAndUserId(147L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+        Member findMember = memberRepository.findByRoomIdAndUserId(167L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         model.addAttribute("member", findMember);
         battleContext.init(findMember, null);
 
@@ -273,12 +274,12 @@ public class BattleController {
     }
 
     public void setInfoAttributes(Model model, Member member) {
-        List<BattleActor> partyMembers = battleContext.getFrontCharacters();
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
         log.info("frontCharacters = {}", partyMembers);
-        BattleActor enemyActor = battleContext.getEnemy();
+        Actor enemyActor = battleContext.getEnemy();
         log.info("enemy = {}", enemyActor);
-        BattleActor leaderCharacter = battleContext.getLeaderCharacter();
-        List<BattleActor> currentFieldActors = battleContext.getCurrentFieldActors();
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        List<Actor> currentFieldActors = battleContext.getCurrentFieldActors();
 
         Party party = partyRepository.findById(member.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
 
@@ -289,7 +290,7 @@ public class BattleController {
         model.addAttribute("battleCharacterInfoMap", battleCharacterInfoMap);
 
         // 적 인포
-        BattleEnemy enemy = (BattleEnemy) enemyActor;
+        Enemy enemy = (Enemy) enemyActor;
         BattleEnemyInfo battleEnemyInfo = toEnemyInfo(enemy);
         model.addAttribute("battleEnemyInfo", battleEnemyInfo);
 
@@ -306,20 +307,20 @@ public class BattleController {
 
         // 캐릭터 + 적 에셋
         List<Long> assetIds = partyMembers.stream()
-                .map(partyMember -> party.getActorIds().indexOf(partyMember.getActor().getId())) // 파티에서 현재 프론트 멤버의 id 기준 인덱스 구해서
+                .map(partyMember -> party.getActorIds().indexOf(partyMember.getBaseActor().getId())) // 파티에서 현재 프론트 멤버의 id 기준 인덱스 구해서
                 .map(index -> party.getActorAssetIds().get(index))// 해당 인덱스에 대응하는 assetId 를 반환 CHECK actorIds 와 actorAssetIds 는 반드시 순서가 동일해야함
                 .toList();
         List<Asset> actorAssets = assetRepository.findWithChildrenByAssetId(assetIds); // CHECK 여기서 IN절 조회로 순서섞임, 캐릭터의 무브별로 분리되어있으므로, AssetInfo 로 변환후 정렬
-        List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getActor().getId());
+        List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getBaseActor().getId());
         actorAssets.addAll(enemyAsset);
         // 솬석, 페이탈체인 에셋
         List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
         Asset fatalChainAsset = assetRepository.findByMoveId(leaderCharacter.getFatalChainMoveId()).getFirst();
 
         // AssetInfo.Asset 으로 변환
-        List<AssetInfo.Asset> assetInfoAssets = toAssetInfoAsset(leaderCharacter.getActor().getId(), leaderCharacter.getActor().getWeaponId(), actorAssets, summonAssets, fatalChainAsset);
+        List<AssetInfo.Asset> assetInfoAssets = toAssetInfoAsset(leaderCharacter.getBaseActor().getId(), leaderCharacter.getBaseActor().getWeaponId(), actorAssets, summonAssets, fatalChainAsset);
         // BattleActor.currentOrder 을 매핑해주기 위한 맵
-        Map<Long, Integer> actorIdByCurrentOrderMap = currentFieldActors.stream().collect(Collectors.toMap(battleActor -> battleActor.getActor().getId(), BattleActor::getCurrentOrder));
+        Map<Long, Integer> actorIdByCurrentOrderMap = currentFieldActors.stream().collect(Collectors.toMap(battleActor -> battleActor.getBaseActor().getId(), Actor::getCurrentOrder));
 
         // 에셋 기타 상태
         Move enemyStartMove = enemy.getCurrentStandbyType() != null ? enemy.getMove(enemy.getCurrentStandbyType()) : enemy.getMove(MoveType.IDLE_DEFAULT);
@@ -327,8 +328,8 @@ public class BattleController {
 
         // AssetInfo 조합
         List<AssetInfo> assetInfos = assetInfoAssets.stream().map(asset -> {
-                    boolean isEnemy = enemyActor.getActor().getId().equals(asset.getActorId());
-                    boolean isMainCharacter = leaderCharacter.getActor().getId().equals(asset.getActorId());
+                    boolean isEnemy = enemyActor.getBaseActor().getId().equals(asset.getActorId());
+                    boolean isMainCharacter = leaderCharacter.getBaseActor().getId().equals(asset.getActorId());
                     MotionType startMotion = isEnemy ? enemyStartMove.getMotionType() : MotionType.STB_WAIT;
                     int currentOrder = actorIdByCurrentOrderMap.get(asset.getActorId());
                     return AssetInfo.builder()
@@ -361,9 +362,11 @@ public class BattleController {
                 .moveType(result.getMoveType())
                 .moveName(result.getMoveName())
                 .motion(result.getMotionType().getMotion())
+                .motionSkipDuration(result.getMotionSkipDuration())
                 .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
                 .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
                 .elementTypes(result.getDamageElementTypes())
+                .damageTypes(result.getDamageTypes())
                 .totalHitCount(result.getTotalHitCount())
                 .attackMultiHitCount(result.getAttackMultiHitCount())
                 .hps(result.getHps())
@@ -378,48 +381,9 @@ public class BattleController {
                 .omenName(result.getOmenName())
                 .omenInfo(result.getOmenInfo())
                 .heals(result.getHeals())
-                .addedBattleStatusesList(result.getAddedBattleStatusesList().stream()
-                        .map(battleStatuses ->
-                                battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatusType().name())
-                                                        .name(battleStatus.getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getEffectText())
-                                                        .statusText(battleStatus.getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build()
-                                        ).toList()
-                        ).toList())
-                .removedBattleStatusesList(result.getRemovedBattleStatusesList().stream()
-                        .map(battleStatuses ->
-                                battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatusType().name())
-                                                        .name(battleStatus.getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getEffectText())
-                                                        .statusText(battleStatus.getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build()
-                                        ).toList()
-                        ).toList())
-                .currentBattleStatusesList(result.getCurrentBattleStatusesList().stream()
-                        .map(battleStatuses ->
-                                battleStatuses.isEmpty() ? new ArrayList<StatusDto>() : battleStatuses.stream()
-                                        .map(battleStatus ->
-                                                StatusDto.builder()
-                                                        .type(battleStatus.getStatusType().name())
-                                                        .name(battleStatus.getName())
-                                                        .imageSrc(battleStatus.getIconSrc())
-                                                        .effectText(battleStatus.getEffectText())
-                                                        .statusText(battleStatus.getStatusText())
-                                                        .duration(battleStatus.getDuration())
-                                                        .build()
-                                        ).toList()
-                        ).toList())
+                .addedBattleStatusesList(toStatusEffectDtosList(result.getAddedStatusEffectsList()))
+                .removedBattleStatusesList(toStatusEffectDtosList(result.getRemovedStatusEffectsList()))
+                .currentBattleStatusesList(toStatusEffectDtosList(result.getCurrentStatusEffectsList()))
                 .enemyAttackTargetOrders(result.getEnemyAttackTargetOrders())
                 .abilityCoolDowns(result.getAbilityCooldowns())
                 .abilityUsables(result.getAbilityUsables())
@@ -429,6 +393,26 @@ public class BattleController {
                 .memberHonors(battleContext.getMember().getRoom().getMembers().stream().collect(Collectors.toMap(member -> member.getUser().getUsername(), Member::getHonor)))
                 .resultHonor(result.getHonor())
                 .build();
+    }
+
+    private List<List<StatusDto>> toStatusEffectDtosList(List<List<StatusEffectDto>> statusEffectDtosList) {
+        return statusEffectDtosList.stream()
+                .map(statusEffects ->
+                        statusEffects.isEmpty() ? new ArrayList<StatusDto>() : statusEffects.stream()
+                                .map(statusEffect ->
+                                        StatusDto.builder()
+                                                .type(statusEffect.getStatusEffectType().name())
+                                                .name(statusEffect.getName())
+                                                .imageSrc(statusEffect.getIconSrc())
+                                                .effectText(statusEffect.getEffectText())
+                                                .statusText(statusEffect.getStatusText())
+                                                .displayPriority(statusEffect.getDisplayPriority())
+                                                .durationType(statusEffect.getDurationType())
+                                                .duration(statusEffect.getDuration())
+                                                .remainingDuration(statusEffect.getRemainingDuration())
+                                                .build()
+                                ).toList()
+                ).toList();
     }
 
 

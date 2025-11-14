@@ -1,16 +1,16 @@
 package com.gbf.granblue_simulator.controller;
 
-import com.gbf.granblue_simulator.controller.response.info.battle.*;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleStatus;
-import com.gbf.granblue_simulator.domain.asset.Asset;
-import com.gbf.granblue_simulator.domain.asset.AssetType;
-import com.gbf.granblue_simulator.domain.move.MotionType;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
-import com.gbf.granblue_simulator.domain.move.prop.omen.Omen;
-import com.gbf.granblue_simulator.domain.move.prop.omen.OmenType;
+import com.gbf.granblue_simulator.controller.dto.response.info.battle.*;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.Enemy;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.domain.base.asset.Asset;
+import com.gbf.granblue_simulator.domain.base.asset.AssetType;
+import com.gbf.granblue_simulator.domain.base.move.MotionType;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.omen.Omen;
+import com.gbf.granblue_simulator.domain.base.omen.OmenType;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,21 +22,21 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class BattleInfoMapper {
 
-    public static BattleCharacterInfo toCharacterInfo(BattleActor partyMember) {
+    public static BattleCharacterInfo toCharacterInfo(Actor partyMember) {
         return BattleCharacterInfo.builder()
                 .id(partyMember.getId())
                 .name(partyMember.getName())
                 .order(partyMember.getCurrentOrder())
-                .portraitSrc(partyMember.getActor().getBattlePortraitSrc())
-                .statuses(partyMember.getBattleStatuses().stream()
-                        .sorted(Comparator.comparing(BattleStatus::getUpdatedAt).reversed())
-                        .filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
+                .portraitSrc(partyMember.getBaseActor().getBattlePortraitSrc())
+                .statuses(partyMember.getStatusEffects().stream()
+                        .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
+                        .filter(battleStatus -> battleStatus.getBaseStatusEffect().getType().isPresentable()).toList())
                 .hp(partyMember.getHp())
                 .maxHp(partyMember.getMaxHp())
                 .hpRate(partyMember.getHpRate())
                 .chargeGauge(partyMember.getChargeGauge())
                 .maxChargeGauge(partyMember.getMaxChargeGauge())
-                .abilities(partyMember.getActor().getMoves().values().stream()
+                .abilities(partyMember.getBaseActor().getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.ABILITY)
                         .sorted(Comparator.comparing(Move::getType))
                         .map(move -> AbilityInfo.builder()
@@ -47,13 +47,13 @@ public final class BattleInfoMapper {
                                 .iconImageSrc(move.getIconImageSrc())
                                 .build())
                         .toList())
-                .chargeAttack(partyMember.getActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
+                .chargeAttack(partyMember.getBaseActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
                 .abilityCoolDowns(partyMember.getAbilityCooldowns())
                 .build();
     }
 
 
-    public static BattleEnemyInfo toEnemyInfo(BattleEnemy enemy) {
+    public static BattleEnemyInfo toEnemyInfo(Enemy enemy) {
         String omenPrefix = null;
         Integer omenValue = null;
         OmenType omenType = null;
@@ -75,7 +75,7 @@ public final class BattleInfoMapper {
                 .id(enemy.getId())
                 .name(enemy.getName())
                 .phase(enemy.getCurrentForm())
-                .statuses(enemy.getBattleStatuses().stream().filter(battleStatus -> battleStatus.getStatus().getType().isPresentable()).toList())
+                .statuses(enemy.getStatusEffects().stream().filter(battleStatus -> battleStatus.getBaseStatusEffect().getType().isPresentable()).toList())
                 .hpRate(enemy.getHpRate())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
@@ -156,7 +156,7 @@ public final class BattleInfoMapper {
                 }).collect(Collectors.toList());
     }
 
-    public static FatalChainInfo toFatalChainInfo(BattleActor mainCharacter, Move fatalChainMove) {
+    public static FatalChainInfo toFatalChainInfo(Actor mainCharacter, Move fatalChainMove) {
         return FatalChainInfo.builder()
                 .id(fatalChainMove.getId())
                 .name(fatalChainMove.getName())
@@ -168,7 +168,7 @@ public final class BattleInfoMapper {
 
     }
 
-    public static SummonInfo toSummonInfo(Move move, BattleActor mainCharacter) {
+    public static SummonInfo toSummonInfo(Move move, Actor mainCharacter) {
         return SummonInfo.builder()
                 .id(move.getId())
                 .name(move.getName())

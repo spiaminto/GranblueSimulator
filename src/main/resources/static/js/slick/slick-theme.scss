@@ -3,9 +3,9 @@
 // Default Variables
 
 // Slick icon entity codes outputs the following
-// "\2190" outputs ascii character "←"
-// "\2192" outputs ascii character "→"
-// "\2022" outputs ascii character "•"
+// "\2190" outputs ascii baseCharacter "←"
+// "\2192" outputs ascii baseCharacter "→"
+// "\2022" outputs ascii baseCharacter "•"
 
 $slick-font-path: "./fonts/" !default;
 $slick-font-family: "slick" !default;
@@ -13,9 +13,9 @@ $slick-loader-path: "./" !default;
 $slick-arrow-color: white !default;
 $slick-dot-color: black !default;
 $slick-dot-color-active: $slick-dot-color !default;
-$slick-prev-character: "\2190" !default;
-$slick-next-character: "\2192" !default;
-$slick-dot-character: "\2022" !default;
+$slick-prev-baseCharacter: "\2190" !default;
+$slick-next-baseCharacter: "\2192" !default;
+$slick-dot-baseCharacter: "\2022" !default;
 $slick-dot-size: 6px !default;
 $slick-opacity-default: 0.75 !default;
 $slick-opacity-on-hover: 1 !default;
@@ -107,9 +107,9 @@ $slick-opacity-not-active: 0.25 !default;
         right: -25px;
     }
     &:before {
-        content: $slick-prev-character;
+        content: $slick-prev-baseCharacter;
         [dir="rtl"] & {
-            content: $slick-next-character;
+            content: $slick-next-baseCharacter;
         }
     }
 }
@@ -121,9 +121,9 @@ $slick-opacity-not-active: 0.25 !default;
         right: auto;
     }
     &:before {
-        content: $slick-next-character;
+        content: $slick-next-baseCharacter;
         [dir="rtl"] & {
-            content: $slick-prev-character;
+            content: $slick-prev-baseCharacter;
         }
     }
 }
@@ -173,7 +173,7 @@ $slick-opacity-not-active: 0.25 !default;
                 position: absolute;
                 top: 0;
                 left: 0;
-                content: $slick-dot-character;
+                content: $slick-dot-baseCharacter;
                 width: 20px;
                 height: 20px;
                 font-family: $slick-font-family;

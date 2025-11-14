@@ -276,7 +276,7 @@ function enemyDamagesPostProcess(response, effectDuration, isTurnDamage = false)
         lastStartDelay = startDelay;
 
         // 데미지 채우기
-        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', index, damage, response.additionalDamages[index], true);
+        let $damageElements = getDamageElement(targetOrder, elementType, 'attack', response.damageTypes[index], index, damage, response.additionalDamages[index], true);
         let $enemyDamageWrapper = $enemyDamageWrappers.get(targetOrder);
         $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
         // 마지막에 돔에 추가
@@ -299,5 +299,5 @@ function enemyDamagesPostProcess(response, effectDuration, isTurnDamage = false)
         }, startDelay)
     })
     // 데미지 제거
-    setTimeout(() => $enemyDamageWrappers.values().forEach((wrapper) => $(wrapper).remove()), lastStartDelay + Constants.Delay.damageShowDelete);
+    // setTimeout(() => $enemyDamageWrappers.values().forEach((wrapper) => $(wrapper).remove()), lastStartDelay + Constants.Delay.damageShowDelete);
 }

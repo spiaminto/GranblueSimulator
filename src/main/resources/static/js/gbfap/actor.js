@@ -40,8 +40,6 @@ class Actor {
         this.isChargeAttackSkip = false;
         this.chargeAttackStartFrame = 0;
 
-        this.durationSkip = false; // 내부에서는 duration 유지해서 모션 재생하되, 외부에 즉시실행하도록 (-2) 반환하기 위한 플래그
-
         // offset, scaling -> setOffset 에서 초기화
         this.m_offset = {
             position: {x: 0.0, y: 0.0},
@@ -136,11 +134,10 @@ class Actor {
             duration = this.playMotion(this.playingMotion);
         }
 
-        console.debug('[play] actor = ', this.actorId, '\nmotion = ', playRequest.motion, '\nduration = ', duration, 'durationSkip = ', this.durationSkip);
+        console.debug('[play] actor = ', this.actorId, '\nmotion = ', playRequest.motion, '\nduration = ', duration, '\nselected duration = ', 'durationSkip = ', this.playingOptions.motionSkipDuration);
 
-        if (this.durationSkip) {
-            duration = -2;
-            this.durationSkip = false;
+        if (this.playingOptions.motionSkipDuration > 0) {
+            duration = this.playingOptions.motionSkipDuration * 33; // 프레임 -> ms
         }
 
         return duration;
@@ -232,7 +229,7 @@ class Actor {
 
         // 최종 duration 변환하여 반환
         let durationSeconds = duration / createjs.Ticker.framerate; // fps -> s
-        let ceiledDurationSeconds = Math.ceil(durationSeconds * 10) / 10; // ceil to X.Y
+        let ceiledDurationSeconds = Math.ceil(durationSeconds * 100) / 100; // 0.3333... -> 0.34
         let ceiledDurationMilliSeconds = ceiledDurationSeconds * 1000;
 
         return ceiledDurationMilliSeconds;
@@ -409,11 +406,6 @@ class Actor {
         duration = Math.max(abilityMotionDuration, abilityEffectDuration);
         if (isPlayingEffectOnly || isEffectOnlyMotion) // effectOnly 면 effect 사용
             duration = abilityEffectDuration;
-
-        if (this.isCharacter() && (!abilityCjsName || isPlayingEffectOnly || isEffectOnlyMotion))
-            this.durationSkip = true; // 캐릭터이면서, 어빌리티 이펙트 없을시 -> 모션만 재생하는 서포트 어빌리티이므로 스킵
-        if (abilityCjsName.includes('ab_powerup'))
-            this.durationSkip = true; // 적 파워업시 모션재생유지, 외부 프로세스는 즉시다음으로
 
         return duration;
     }

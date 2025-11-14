@@ -1,13 +1,19 @@
 // 응답
 // 상태 정보 클래스
 class StatusDto {
-    constructor({type, name, imageSrc, effectText, statusText, duration}) {
+    constructor({type, name, imageSrc, effectText, statusText, duration, durationType, remainingDuration}) {
         this.type = type;
         this.name = name;
         this.imageSrc = imageSrc;
         this.effectText = effectText;
         this.statusText = statusText;
+        this.durationType = durationType;
         this.duration = duration;
+        console.log(durationType);
+        this.remainingDuration =
+            durationType.includes('INFINITE') ? '영속'
+                : durationType.includes('TURN') ? remainingDuration + ' 턴'
+                    : durationType.includes('TIME') ? Math.floor(remainingDuration / 60) + ':' + (remainingDuration % 60).toString().padStart(2, '0') : '오류';
     }
 }
 
@@ -19,6 +25,7 @@ class MoveResponse {
         this.moveType = MoveType.byName(data.moveType);
         this.moveName = data.moveName;
         this.motion = data.motion || 'none';
+        this.motionSkipDuration = data.motionSkipDuration || 0;
 
         this.summonIds = data.summonIds || [];
         this.summonCjsNames = data.summonCjsNames || [];
@@ -30,6 +37,7 @@ class MoveResponse {
         this.totalHitCount = data.totalHitCount;
         this.attackMultiHitCount = data.attackMultiHitCount;
         this.elementTypes = data.elementTypes || [];
+        this.damageTypes = data.damageTypes || [];
 
         this.damages = data.damages || [];
         this.additionalDamages = data.additionalDamages || [];
@@ -37,7 +45,7 @@ class MoveResponse {
         this.hps = data.hps || [];
         this.hpRates = data.hpRates || [];
         this.hpRates.forEach(function (hpRate, index) {
-            player.actors.get('actor-' + index)?.setHpRate(hpRate);
+            if (window.player) player.actors.get('actor-' + index)?.setHpRate(hpRate);
         })
         this.heals = data.heals || [];
 

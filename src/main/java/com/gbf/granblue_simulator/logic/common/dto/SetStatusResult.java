@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.logic.common.dto;
 
-import com.gbf.granblue_simulator.logic.actor.dto.BattleStatusDto;
+import com.gbf.granblue_simulator.logic.actor.dto.StatusEffectDto;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,11 +15,13 @@ import java.util.stream.IntStream;
 public class SetStatusResult {
     // order by currentOrder [적][아군][아군][아군][아군]
     @Builder.Default
-    private List<List<BattleStatusDto>> addedStatusesList = new ArrayList<>();
+    private List<List<StatusEffectDto>> addedStatusesList = new ArrayList<>();
     @Builder.Default
-    private List<List<BattleStatusDto>> removedStatuesList = new ArrayList<>();
+    private List<List<StatusEffectDto>> removedStatuesList = new ArrayList<>();
     @Builder.Default
     private List<Integer> healValues = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> damageValues = new ArrayList<>();
 
     /**
      * 빈 결과를 프론트에 맞게 생성 (resultMapper 에서 null 로 받을시 사용)
@@ -27,9 +29,10 @@ public class SetStatusResult {
      */
     public static SetStatusResult emptyResult() {
         return SetStatusResult.builder()
-                .addedStatusesList(IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList()))
-                .removedStatuesList(IntStream.range(0, 5).mapToObj(i -> new ArrayList<BattleStatusDto>()).collect(Collectors.toList()))
+                .addedStatusesList(IntStream.range(0, 5).mapToObj(i -> new ArrayList<StatusEffectDto>()).collect(Collectors.toList()))
+                .removedStatuesList(IntStream.range(0, 5).mapToObj(i -> new ArrayList<StatusEffectDto>()).collect(Collectors.toList()))
                 .healValues(new ArrayList<>(Collections.nCopies(5, null)))
+                .damageValues(new ArrayList<>(Collections.nCopies(5, null)))
                 .build();
     }
 }

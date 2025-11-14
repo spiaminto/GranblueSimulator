@@ -1,21 +1,21 @@
 package com.gbf.granblue_simulator.service;
 
 import com.gbf.granblue_simulator.domain.Member;
+import com.gbf.granblue_simulator.domain.Party;
 import com.gbf.granblue_simulator.domain.Room;
 import com.gbf.granblue_simulator.domain.User;
-import com.gbf.granblue_simulator.domain.actor.Actor;
-import com.gbf.granblue_simulator.domain.actor.Party;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleActor;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleCharacter;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleContext;
-import com.gbf.granblue_simulator.domain.actor.battle.BattleEnemy;
-import com.gbf.granblue_simulator.domain.move.Move;
-import com.gbf.granblue_simulator.domain.move.MoveType;
+import com.gbf.granblue_simulator.domain.base.actor.BaseActor;
+import com.gbf.granblue_simulator.domain.base.move.Move;
+import com.gbf.granblue_simulator.domain.base.move.MoveType;
+import com.gbf.granblue_simulator.domain.battle.BattleContext;
+import com.gbf.granblue_simulator.domain.battle.actor.Actor;
+import com.gbf.granblue_simulator.domain.battle.actor.Character;
+import com.gbf.granblue_simulator.domain.battle.actor.Enemy;
+import com.gbf.granblue_simulator.domain.battle.actor.prop.Status;
 import com.gbf.granblue_simulator.logic.BattleLogic;
-import com.gbf.granblue_simulator.logic.common.CalcStatusLogic;
 import com.gbf.granblue_simulator.repository.*;
 import com.gbf.granblue_simulator.repository.actor.ActorRepository;
-import com.gbf.granblue_simulator.repository.actor.BattleActorRepository;
+import com.gbf.granblue_simulator.repository.actor.BaseActorRepository;
 import com.gbf.granblue_simulator.repository.move.MoveRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -39,13 +39,13 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
-    private final ActorRepository actorRepository;
+    private final BaseActorRepository baseActorRepository;
     private final PartyRepository partyRepository;
-    private final BattleActorRepository battleActorRepository;
+    private final ActorRepository actorRepository;
     private final BattleLogic battleLogic;
     private final MoveRepository moveRepository;
-    private final CalcStatusLogic calcStatusLogic;
-    private final BattleStatusRepository battleStatusRepository;
+    private final StatusEffectRepository statusEffectRepository;
+    private final StatusRepository statusRepository;
 
     public boolean updateChargeAttackOn(Long roomId, Long userId, boolean chargeAttackOn) {
         Member member = memberRepository.findByRoomIdAndUserId(roomId, userId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
@@ -77,21 +77,21 @@ public class MemberService {
         return member;
     }
 
-    private List<BattleActor> createBattleActors(Member member) {
+    private List<Actor> createBattleActors(Member member) {
         Party party = partyRepository.findById(member.getUser().getPrimaryPartyId()).orElseThrow(() -> new IllegalArgumentException("없는 파티"));
 
-        Map<Long, Actor> actorMap = actorRepository.findAllById(party.getActorIds()).stream()
-                .collect(Collectors.toMap(Actor::getId, Function.identity()));
-        List<Actor> actors = party.getActorIds().stream()
+        Map<Long, BaseActor> actorMap = baseActorRepository.findAllById(party.getActorIds()).stream()
+                .collect(Collectors.toMap(BaseActor::getId, Function.identity()));
+        List<BaseActor> baseActors = party.getActorIds().stream()
                 .map(actorMap::get)
                 .filter(Objects::nonNull)
                 .toList(); // in 쿼리 순서고정
-        actors.forEach(actor -> log.info("[createBattleActors] actor = {}", actor) );
+        baseActors.forEach(actor -> log.info("[createBattleActors] actor = {}", actor) );
 
-        Actor enemyActor = actorRepository.findById(7L).get(); // CHECK 현재 디아스포라로 고정
+        BaseActor enemyBaseActor = baseActorRepository.findById(7L).get(); // CHECK 현재 디아스포라로 고정
 
         // 파티 생성
-        List<BattleActor> partyMembers = actors.stream()
+        List<Actor> partyMembers = baseActors.stream()
                 .map(actor -> {
                             Long fatalChainMoveId = actor.isLeaderCharacter() ?
                                     moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, actor.getElementType()).getFirst().getId() :
@@ -101,12 +101,12 @@ public class MemberService {
                                     Collections.emptyList();
                             List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
                             List<Integer> summonCoolDowns = summons.stream().map(Move::getCoolDown).toList();
-                            log.info("[createBattleActors] actor.name = {}, indexOf = {}", actor.getName(), actors.indexOf(actor));
-                            return BattleCharacter.builder()
+                            log.info("[createBattleActors] actor.name = {}, indexOf = {}", actor.getName(), baseActors.indexOf(actor));
+                            return Character.builder()
                                     .name(actor.getName())
                                     .member(member)
-                                    .currentOrder(actors.indexOf(actor) + 1) // 1부터
-                                    .actor(actor)
+                                    .currentOrder(baseActors.indexOf(actor) + 1) // 1부터
+                                    .baseActor(actor)
                                     // 주인공만
                                     .fatalChainMoveId(fatalChainMoveId)
                                     .summonMoveIds(summonMoveIds)
@@ -114,22 +114,30 @@ public class MemberService {
                                     .build();
                         }
                 ).collect(Collectors.toList()); // toList 타입추론 불가
-        battleActorRepository.saveAll(partyMembers);
-        member.getBattleActors().addAll(partyMembers);
+        partyMembers.forEach(Actor::init);
+        actorRepository.saveAll(partyMembers);
+        member.getActors().addAll(partyMembers);
 
         // 적 생성
-        BattleActor enemy = BattleEnemy.builder()
-                .name(enemyActor.getName())
+        Actor enemy = Enemy.builder()
+                .name(enemyBaseActor.getName())
                 .member(member)
                 .currentOrder(0)
-                .actor(enemyActor)
+                .baseActor(enemyBaseActor)
                 .build();
-        battleActorRepository.save(enemy);
-        member.getBattleActors().add(enemy);
+        enemy.init();
+        actorRepository.save(enemy);
+        member.getActors().add(enemy);
 
-        // 전투 시작
-        partyMembers.forEach(calcStatusLogic::initStatus);
-        calcStatusLogic.initStatus(enemy);
+        Status enemyStatus = Status.builder().build();
+        enemyStatus.init(enemy);
+        statusRepository.save(enemyStatus);
+
+        partyMembers.forEach(partyMember -> {
+            Status status = Status.builder().build();
+            status.init(partyMember);
+            statusRepository.save(status);
+        });
 
         battleContext.init(member, null);
         battleLogic.startBattle();
@@ -140,12 +148,13 @@ public class MemberService {
     public void exitRoom(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         Room room = member.getRoom();
-        List<BattleActor> battleActors = member.getBattleActors();
+        List<Actor> actors = member.getActors();
 
         // 배틀 엑터, 배틀 스테이터스 삭제
-        battleActors.forEach(battleActor -> {
-            battleStatusRepository.deleteAll(battleActor.getBattleStatuses());
-            battleActorRepository.delete(battleActor);
+        actors.forEach(actor -> {
+            statusEffectRepository.deleteAll(actor.getStatusEffects());
+            statusRepository.delete(actor.getStatus());
+            actorRepository.delete(actor);
         });
         // 멤버 삭제
         memberRepository.delete(member);
