@@ -1,0 +1,174 @@
+#abilitySlider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    /*background-color: transparent;*/
+    padding: 4px 12px;
+    width: 320px;
+    height: 152px;
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
+    background-size: 3px;
+    background-position-y: -15px;
+
+}
+
+.ability-panel {
+    position: relative;
+    height: 152px;
+    justify-content: space-between;
+    color: white;
+
+    margin-left: 1px; /*복사된 다음 엘리먼트의 왼쪽 외각선 표시 방지*/
+}
+
+/* 오의 정보 ========================================================================================================== */
+.charge-attack-wrapper {
+    position: absolute;
+    top: 0;
+    left: 60px;
+    width: 230px;
+    height: 41px;
+
+    padding: 3px;
+    border-radius: 5px;
+    overflow: hidden;
+
+    box-shadow: inset 0 0 6px 1px rgba(168,132,99,0.5);
+    border: 1px solid #a88463;
+    margin-bottom: 1px;
+}
+
+.charge-attack-info {
+    height: 13px;
+    font-size: 8px;
+}
+
+/* 어빌리티 슬라이더 - 어빌리티 커맨드 ===================================================================================== */
+.ability-wrapper {
+    position: absolute;
+    top: 45px;
+    left: 60px;
+    height: 66px;
+    width: 230px;
+
+    display: flex;
+    padding: 3px 0;
+    justify-content: space-evenly;
+    margin-bottom: 2px;
+
+    box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
+    border: 1px solid #639fa8;
+    border-radius: 5px;
+    background: #150f0f;
+}
+
+.ability-battle-portrait {
+    top: 0;
+    width: 54px;
+    height: 115px;
+    position: relative;
+}
+
+.ability-battle-portrait img {
+    height: 100%;
+}
+
+.ability-icon {
+    position: relative;
+    align-content: center;
+    width: 37px;
+    cursor: pointer;
+}
+
+.ability-icon img {
+    margin: auto 0;
+    width: 100%;
+}
+
+.ability-cooldown-text {
+    text-align: center;
+    font-size: 13px;
+}
+
+#partyCommandContainer #abilitySlider .ability-overlay {
+    height: 65%; /* .command-overlay height 100% override */
+}
+
+.ability-wrapper .ability-info-text, .ability-wrapper .ability-name {
+    display: none;
+}
+
+.panel-wrapper {
+    width: 262px; /* battle-portriat 합쳐 100% */
+    position: absolute;
+    top: 0;
+}
+
+/* 상태 효과 아이콘 ====================================================================================================== */
+.status-container.party {
+    position: absolute;
+    overflow: hidden;
+    width: 100%;
+    top: 117px;
+
+    padding: 0 4px;
+    border-radius: 5px;
+    height: 24px;
+    align-content: center;
+    display: flex;
+
+    box-shadow: inset 0 0 6px 1px rgba(77,73,72,0.5);
+    border: 1px solid #4d4948;
+}
+
+.status-container.party .show-status-info-button-wrapper {
+    display: flex;
+    width: 33px;
+    margin-right: 6px;
+    align-items: center;
+}
+
+.show-status-info-button-wrapper button {
+    width: 33px;
+}
+
+.status-container.party .status {
+    display: flex;
+    align-items: center;
+}
+
+.status-container.party .status .status-icon {
+    display: inline-block;
+    width: 22px;
+}
+
+
+/* 슬라이드 버튼 (주의 #battleMemberPresentContainer 의 자식임) ============================================================= */
+.ability-slider-slide-button-wrapper {
+    display: none;
+    position: absolute;
+    z-index: 10;
+}
+
+.ability-slider-slide-button-wrapper button {
+    font-size: 1.25rem;  /* btn-sm 0.875rem */
+    color: white;
+
+    @media (min-width: 600px) {
+        font-size: 1.5rem;
+    }
+
+}
+
+.ability-slider-slide-button-wrapper.to-right {
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0;
+}
+
+.ability-slider-slide-button-wrapper.to-left {
+    top: 50%;
+    transform: translateY(-50%);
+    left: -5px;
+}

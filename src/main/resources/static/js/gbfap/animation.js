@@ -87,22 +87,36 @@ class Animation {
               cjs: "ab_3040351000_02",
                 isTargetedEnemy: false
             },
+            EF: {
+                cjs: "ef_0080",
+                isTargetedEnemy: false
+            },
         };
     }
 }
 
 const BASE_ABILITY = {
+    AB_START: 'AB_START',
+
     RAID_BUFF: 'RAID_BUFF',
     RAID_DEBUFF: 'RAID_DEBUFF',
+
     RAID_HEAL: 'RAID_HEAL',
-    RAID_ATK_UP_WATER: 'RAID_ATK_UP_WATER',
-    AB_START: 'AB_START',
     HEAL: 'HEAL',
+
+    RAID_ATK_UP_WATER: 'RAID_ATK_UP_WATER',
+
+    DISPEL: 'DISPEL',
+    CLEAR: 'CLEAR', // ab_0004.js
+
+    REFLECT: 'REFLECT', // ab_0090.js
+    // ef_0080.png
+
     ENEMY_POWER_UP: 'ENEMY_POWER_UP',
     ENEMY_AB_START: 'ENEMY_AB_START',
     ENEMY_CT_MAX: 'ENEMY_CT_MAX',
-    DISPEL: 'DISPEL',
     ENEMY_RELEASE_POWER: 'ENEMY_RELEASE_POWER',
+
 
     ATTACK_SEALED: 'ATTACK_SEALED',
 };

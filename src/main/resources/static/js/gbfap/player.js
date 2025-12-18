@@ -14,7 +14,7 @@ function initPlayer() {
 class Player {
 
     constructor() {
-        this.locked = false; // 사용자가 조작불가능한 상태 (공격버튼 클릭)
+        this.locked = false; // 사용자가 조작불가능한 상태 (어빌리티 레일에 커맨드 등록 불가)
 
         // player size
         this.width = 0;
@@ -56,8 +56,7 @@ class Player {
         // background
         let bg = add_to(fragment, "div", {id: ["canvasBackground"]});
         this.m_background = add_to(bg, "img", {id: ["canvasBackgroundImage"]});
-        let currentPhase = Number($('.enemy-info-container').attr('data-phase'));
-        this.m_background.src = Constants.DIASPORA[currentPhase].backgroundImage;
+        this.m_background.src = Constants.enemy[window.enemyInitialMainCjsName].backgroundImage;
 
         this.m_html.appendChild(fragment);
     }
@@ -68,20 +67,16 @@ class Player {
         if (cjsStage) throw new Error("global cjsStage has been initialized already.");
 
         this.m_stage = new createjs.Stage(this.m_canvas);
-        createjs.Ticker.timingMode = createjs.Ticker.RAF_SYNCHED;
-        createjs.Ticker.framerate = 30; // original : 30.303030303030305
+
+        /**
+         * 일관성 있는 가속을 위해 timingMode 를 TIMEOUT 으로 사용 -> 성능 문제 있는지 체크필요
+         */
+        createjs.Ticker.interval = 30; // framerate = 33.3333333...
+        // createjs.Ticker.timingMode = createjs.Ticker.RAF_SYNCHED;
+        // createjs.Ticker.framerate = 30.303030303030305; // interval 33
+
         createjs.Ticker.addEventListener("tick", this.m_stage);
         window.cjsStage = this.m_stage;
-
-        // 그랑블루 사양에 따른 일부 변수추가할당
-        // 페이탈체인 용
-        window.stage = {};
-        window.stage.global = {};
-        window.stage.global.is_pair_chain = false; // 보이스 재생용인듯. 잇는캐릭 잇고 없는 캐릭 잇어서 비활성화
-        
-        // 합체소환
-        window.stage.gGameStatus = {};
-        window.stage.gGameStatus.raid_union_summon_name = 'hello';
     }
 
     // change the player size
@@ -111,24 +106,45 @@ class Player {
         }
     }
 
+    /**
+     * 플레이어를 잠근다
+     * 해당 플래그가 켜지면, 어빌리티 레일에 커맨드를 등록할 수 없게된다
+     * @param lock
+     */
     lockPlayer(lock) {
         this.locked = lock;
     }
 
     /**
+     * 액터의 모션 재생을 요청하고, 요청 정보를 반환한다.
+     *
      * @param {string} actorId
-     * @param {string} motion
-     * @param {Object} options
-     * @param {string} [options.abilityType]
-     * @param {string} [options.effectType]
-     * @param {boolean} [options.isEffectOnly]
-     * @param {boolean} [options.isMotionOnly]
-     * @param {number} [options.attackMultiHitCount]
-     * @param {boolean} [options.isLastAttack]
-     * @param {number} [options.summonId]
-     * @param {string} [options.unionSummonCjs]
-     * @param {number} [options.motionSkipDuration]
-     * @returns {{ actorId: string, motion: string, abilityType: string, effectType: string, isEffectOnly: boolean, isMotionOnly: boolean, multiHitCount: number, isLastAttack: boolean, isEffecting: boolean, summonId: number, unionSummonCjs: string }}
+     * @param {string} motion - 재생할 모션 이름
+     * @param {Object} [options={}] - 옵션
+     * @param {string} [options.abilityType='NONE'] - 어빌리티 타입
+     * @param {string} [options.effectType='NONE'] - 이펙트 타입
+     * @param {boolean} [options.isEffectOnly=false] - 이펙트만 여부
+     * @param {boolean} [options.isMotionOnly=false] - 모션만 여부
+     * @param {number} [options.attackMultiHitCount=0] - 난격 카운트
+     * @param {boolean} [options.isLastAttack=false] - 공격 막타 여부
+     * @param {number} [options.summonId=0] - 소환석 id
+     * @param {string} [options.unionSummonId=''] - 합체소환 id
+     *
+     * @returns {{
+     *   actorId: string,
+     *   motion: string,
+     *   options: {
+     *     isEffecting: boolean,
+     *     abilityType: string,
+     *     effectType: string,
+     *     isEffectOnly: boolean,
+     *     isMotionOnly: boolean,
+     *     attackMultiHitCount: number,
+     *     isLastAttack: boolean,
+     *     summonId: number,
+     *     unionSummonId: number,
+     *   }
+     * }} 요청 처리 결과 객체
      */
     static playRequest(actorId, motion, options = {}) {
         let isEffecting = Player.c_animations.isEffecting(motion); // 화면 점유 여부
@@ -145,86 +161,117 @@ class Player {
                 attackMultiHitCount: options.attackMultiHitCount || 0,
                 isLastAttack: options.isLastAttack || false,
                 summonId: options.summonId || 0,
-                unionSummonCjs: options.unionSummonCjs || '',
-                motionSkipDuration: options.motionSkipDuration || 0,
+                unionSummonId: options.unionSummonId || 0,
             },
         }
     }
 
-    static getEnemyDamageMotion() {
-        let standbyMotion = $('.enemy-info-container').attr('data-standby-motion');
+    getEnemyDamageMotion() {
+        let standbyMotion = gameStateManager.getState('omen.motion');
         return Player.c_animations.getDamagedMotion(standbyMotion)
     }
 
-    static getCharacterWaitMotion(actorIndex) {
-        let actor = player.actors.get('actor-' + actorIndex);
-        let motion = Player.c_animations.STB_WAIT;
-        // 어빌리티 슬라이더 열려있음 -> CHECK 애초에 어빌리티 슬라이더 이동중에 ABILITY 로 직접 재생 호출하고있음.
-        // let isAbilitySliderOpen = $('#abilitySlider').css('z-index') >= 0;
-        // if (isAbilitySliderOpen) {
-        //     let Slick = $('#abilitySlider').slick('getSlick');
-        //     let currentSlide = Slick.currentSlide;
-        //     let actorIndex = Slick.animating ? currentSlide + 2 : currentSlide + 1; // slick 이 움직이고 있을때 beforeChange 로 들어오면, currentSlide 는 아직 이전 슬라이드를 가리킴
-        //     console.log('currentSlide = ', currentSlide, 'animating = ', Slick.animating);
-        //     if (actorIndex === actor.actorIndex) {
-        //         return Player.c_animations.ABILITY;
-        //     }
-        // }
-        // 오의 on 및 오의게이지에 따른 모션
-        let chargeGaugeValue = Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text());
-        let chargeAttackOn = $('#chargeAttackActiveCheck').prop('checked');
-        if (actor.isCharacter() && chargeGaugeValue === 100 && chargeAttackOn) { // CHECK 200대응 필요
-            return actor.playingMotion === Player.c_animations.ABILITY
-                ? Player.c_animations.NONE // 이미 ABILITY 재생중이면 무시
-                : Player.c_animations.ABILITY; // 오의게이지 차있으면 ABILITY
-        }
-        // 빈사상태일때 모션 (후순위)
-        if (actor.hpRate <= 25) return Player.c_animations.DOWN;
+    /**
+     * 캐릭터의 상태에 따른 대기모션을 반환
+     * @param actorIndex
+     * @return {string|string}
+     */
+    getCharacterWaitMotion(actorIndex) {
+        // global actor 스킵
+        if (actorIndex > 4) return Player.c_animations.WAIT;
+        // 퀘스트 클리어 시 WIN
+        if (stage.gGameStatus.isQuestCleared) return Player.c_animations.WIN;
 
-        return motion; // 기본
+        let actor = player.actors.get('actor-' + actorIndex);
+
+        // 오의게이지 100 이상
+        let chargeGauge = gameStateManager.getState('chargeGauges')[actorIndex];
+        if (actor.isCharacter() && chargeGauge >= 100) { // CHECK 200대응 필요
+            if ($('#chargeAttackActiveCheck').prop('checked')) return Player.c_animations.ABILITY; // 오의 on 시 ABILITY
+            else {
+                let isAbilityPanelActive = window.abilityPanels[actorIndex].is('.active');
+                if (isAbilityPanelActive) return Player.c_animations.NONE; // 어빌리티 패널 열려있을시 무시
+                // else 처리 x
+            }
+        }
+        // 빈사 상태일시 DOWN
+        if (actor.hpRate <= 25) return Player.c_animations.DOWN; // 후순위
+
+        return Player.c_animations.STB_WAIT; // 기본
     }
 
     /**
-     * 두 액터의 playReqeusts 를 첫번째 액터의 이펙트에 맞춰 재생
-     * @param playRequest
-     * @param otherPlayRequests
+     * 첫번째 playRequest 에 맞추어 두번째 otherPlayRequests 를 같이 재생
+     * @param playRequest 같이 재생할 기준 request
+     * @param otherPlayRequests 같이 재생될 requests
+     * @return {Promise<Number>} 기준 request 의 duration 을 반환, duration 반환을 위해 await 로 연산 대기 필요
      */
     async playWithOthers(playRequest, otherPlayRequests) {
         console.debug('[playMotionsWithOthers] playRequest = ', playRequest, '\n otherPlayRequests = ', otherPlayRequests);
-        otherPlayRequests.forEach((otherPlayRequest) => this.play(otherPlayRequest, true)); // 이쪽은 미리 synced 이벤트 처리
-        return this.play(playRequest); // 실 재생을 나중에
+        otherPlayRequests.forEach((otherPlayRequest) => {
+            this.actors.get(otherPlayRequest.actorId).play(otherPlayRequest, true);
+        }); // 이쪽은 미리 synced 이벤트 처리
+        return this.play(playRequest, false); // 실 재생을 나중에
     }
 
     /**
-     * 한 액터의 모션 시퀀스 재생
+     * 하나의 actor 모션 을 재생
      * @param playRequest
-     * @param synced
+     * @param {boolean} waitUntilFinished true 일때 await 시 모션 duration 만큼 기다린 후 반환, false 일때 duration 계산 직후 반환
+     * @param {number} minusDelay waitUntilFinished 가 true 일때, 추가로 당기고 싶으면 추가 (주로 실제 모션이 끝나기 직전에 다음 연출을 이어가야 할때 사용)
+     * @return {Promise<Number>} duration 을 반환, waitUntilFinished 상태에 따라 대기시간이 달라짐
      */
-    async play(playRequest, synced = false) {
-        console.debug('[playMotions] playRequest = ', playRequest);
+    async play(playRequest, waitUntilFinished = false, minusDelay = 0) {
+        console.log('[Player.play()] playRequest = ', playRequest, ' time = ', new Date().toISOString());
         if (playRequest.motion === Player.c_animations.NONE) return 0;
+
         let actor = this.actors.get(playRequest.actorId);
-        let duration = actor.play(playRequest, synced);
-        console.log('duration = ', duration);
-        return duration;
+        let duration = actor.play(playRequest, false);
+        console.log('[Player.play()] duration = ', duration, ' minusDelay = ', minusDelay, ' time = ', new Date().toISOString());
+
+        let delay = duration - minusDelay || 0;
+        return waitUntilFinished ?
+            new Promise((resolve) => setTimeout(() => resolve(delay), delay))
+            : duration;
+    }
+
+    /**
+     * 한 actor 의 모션을 다른 actor 의 재생과 동기화 하여 재생
+     * attack + damage 등에서 사용
+     * @param playRequest
+     * @return {Promise<*>}
+     */
+    async playSynced(playRequest) {
+        let actor = this.actors.get(playRequest.actorId);
+        return actor.play(playRequest, true);
     }
 
     getGlobalActor() {
         return this.actors.get('global');
     }
 
-    getCharacterCount() {
-        return this.actors.values().toArray().filter(actor => actor.isCharacter()).length;
+    getCharacters() {
+        return this.actors.values().filter(actor => actor.isCharacter()).toArray();
     }
 
     alterStageIndex(cjs, indexType = null) {
-        if (indexType) {
-            let index = indexType(this.m_stage);
-            this.m_stage.setChildIndex(cjs, index);
+        console.log('[alterStageIndex] cjs = ', cjs, ' indexType = ', indexType);
+        if (!indexType) return; // indexType 이 null 인경우 변경하지 않음
+        let stageIndex = null;
+
+        if (indexType === Player.z_index.INITIAL) {
+            // 원래 자기 자리로 돌아감
+            let mainCjs = this.actors.values().find((actor) => actor.mainCjs === cjs);
+            if (!mainCjs) return; // globalActor 의 경우 여기로 탐
+
+            stageIndex = mainCjs.actorIndex;
         } else {
-            let actorIndex = this.actors.values().find((actor) => actor.mainCjs === cjs).actorIndex;
-            this.m_stage.setChildIndex(cjs, actorIndex);
+            stageIndex = indexType(this.m_stage);
         }
+
+        stageIndex = Math.min(stageIndex, this.m_stage.children.length - 1); // length 넘어가면 무효화되는거 방지
+        console.log('[alterStageIndex] stageIndex = ', stageIndex);
+        this.m_stage.setChildIndex(cjs, stageIndex);
     }
 
     removeActor(actorIndex) {
@@ -250,7 +297,7 @@ class Player {
         beep();
     }
 
-    // audio toggle button
+// audio toggle button
     /**
      * set audio enabled
      * @param enabled boolean
@@ -279,17 +326,18 @@ class Player {
 
 // constants ================================================================================================
 // enum, z_index shorthand
-    static z_index = Object.freeze({
+    static z_index = {
+        INITIAL: () => -1, // 자신의 원래 위치 (by actorIndex)
         BOTTOM: () => 0, // enemy
         UPPER_BOTTOM: (stage) => 1, // fatal chain effect
         UUNDER_TOP: (stage) => stage.children.length - 3, // mortal character motion
         UNDER_TOP: (stage) => stage.children.length - 2, // mortal effect, character motion
         TOP: (stage) => stage.children.length - 1, // effect, mortal_skip
-    });
+    };
 
 // constant associated with in-game motion names.
 // the list is non exhaustive.
-    static c_animations = Object.freeze({
+    static c_animations = {
         // special ones added for the player innerworkings
         // for summon
         SUMMON_ATTACK: "summon_atk",
@@ -396,8 +444,14 @@ class Player {
 
         // 어빌리티 처리 but 모션 없음
         ABILITY_EFFECT_ONLY: "ab_motion_effect_only",
-        // 어빌리티 처리용 데미지 모션 (디스펠, 장악)
-        ABILITY_DAMAGE_MOTION: "ab_motion_damage",
+        // 어빌리티로 처리되는 데미지 모션 (디스펠, 장악)
+        ABILITY_MOTION_DAMAGE: "ab_motion_damage",
+        // 어빌리티로 처리되는 win 모션
+        ABILITY_MOTION_WIN: 'ab_motion_win',
+
+        // UI 로 처리되는 모션 (playingOption 에서 abilityType 으로 구분하므로 일단 이렇게 해놧음)
+        ABILITY_UI: 'ab_motion_ui',
+
 
         ABILITY_MOTION_OLD: "attack_noeffect",
         ABILITY_MOTION: "ab_motion",
@@ -650,11 +704,11 @@ class Player {
 
         isAbilityMotion(motion) { // skill / ability use + WIN, TO_STB_WAIT 도 ability 모션으로 사용
             switch (motion) {
-                case Player.c_animations.WIN:
                 case Player.c_animations.TO_STB_WAIT:
 
                 case Player.c_animations.ABILITY_EFFECT_ONLY: // 어빌리티, 모션 X
-                case Player.c_animations.ABILITY_DAMAGE_MOTION:
+                case Player.c_animations.ABILITY_MOTION_DAMAGE:
+                case Player.c_animations.ABILITY_MOTION_WIN:
 
                 case Player.c_animations.ABILITY_MOTION:
                 case Player.c_animations.ABILITY_MOTION_2:
@@ -675,8 +729,10 @@ class Player {
         // 어빌리티 처리에서 다른 모션을을 사용하기 위한 메서드 (일단 이렇게 해놓고 필요하면 나중에 요청타입 구분)
         getCleanAbilityMotion(motion) {
             switch (motion) {
-                case Player.c_animations.ABILITY_DAMAGE_MOTION:
+                case Player.c_animations.ABILITY_MOTION_DAMAGE:
                     return Player.c_animations.DAMAGE;
+                case Player.c_animations.ABILITY_MOTION_WIN:
+                    return Player.c_animations.WIN;
                 default:
                     return motion;
             }
@@ -697,7 +753,8 @@ class Player {
             }
         }
 
-    });
+    };
+
 
 // translate animation to more humanly readable names.
 // Unofficial/Made up and Non exhaustive.
@@ -1124,5 +1181,37 @@ class Player {
         ;
     }
 
-// constants ================================================================================================
+// test =====================================================================================
+
+    tickTest() {
+        let startTime = window.performance.now();
+        let tickCount = 0;
+
+        function tickCounter(event) {
+            // 경과 시간 계산 (현재 시간 - 시작 시간)
+            let elapsed = window.performance.now() - startTime;
+
+            // 틱 카운트 증가
+            tickCount++;
+            // console.log(`[Tick] Count: ${tickCount}, Elapsed: ${elapsed.toFixed(2)}ms`);
+
+            // 500ms가 지났는지 확인
+            if (elapsed >= 500) {
+                // 결과 출력
+                console.log(`=== Result ===`);
+                console.log(`Total Ticks: ${tickCount}`);
+                console.log(`Time Elapsed: ${elapsed.toFixed(2)}ms`);
+                console.log(`Estimated FPS: ${(tickCount / (elapsed / 1000)).toFixed(2)}`);
+
+                // 리스너 제거 (더 이상 실행되지 않도록)
+                createjs.Ticker.removeEventListener("tick", tickCounter);
+            }
+        }
+
+        createjs.Ticker.addEventListener("tick", tickCounter);
+    }
+
 }
+
+Object.freeze(Player.c_animations);
+Object.freeze(Player.z_index);

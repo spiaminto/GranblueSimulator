@@ -1,28 +1,20 @@
 #battleCanvasTopMenu {
-    height: 30px;
+    height: 25px;
 }
 
 .top-menu-container {
     position: relative;
     z-index: 100;
     height: 100%;
+    font-size: 15px;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    background-color: black;
-    border-bottom: 2px lightgrey solid;
+    background-color: #050606;
     color: lightgrey;
 }
 
-
-.top-menu-button-wrapper {
-    height: 100%;
-}
-
 .top-menu-container .btn {
-    height: 100%;
-    line-height: 100%;
     border-radius: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 14px;
 }

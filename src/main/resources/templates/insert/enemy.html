@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>적 삽입</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/js/lib/form-to-json.js"></script>
+  <style>
+      h2 {
+          font-weight: bold;
+          margin-top: 1.5rem;
+      }
+
+      h3 {
+          font-weight: bold;
+          margin-top: 1rem;
+      }
+
+      .form-control {
+          width: 95%;
+          margin-left: 1rem;
+      }
+
+      .form-check {
+          margin-left: 1rem;
+      }
+
+      .btn {
+          margin: 1rem 1.5rem;
+      }
+
+      .status-input-wrapper {
+          display: none;
+      }
+
+      .status-input-wrapper-origin {
+          display: none;
+      }
+
+      .baseEnemy-input-wrapper {
+          background-color: rgba(255, 0, 0, 0.1);
+      }
+
+      .attack-input-wrapper {
+          background-color: rgba(0, 255, 0, 0.1);
+      }
+
+      .standby-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
+      .idle-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
+      .damaged-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
+      .break-input-wrapper {
+          background-color: rgba(0, 0, 150, 0.15);
+      }
+
+      .charge-attack-input-wrapper {
+          background-color: rgba(0, 0, 255, 0.15);
+      }
+
+      .ability-input-wrapper {
+          background-color: rgba(255, 255, 0, 0.1);
+      }
+
+  </style>
+  <script>
+      $(function () {
+          // 상태 =================
+          let characterId = null;
+          // 상태 =================
+
+// 스테이터스 복사 및 추가
+          $('.status-input-wrapper-origin')
+          $('.charge-attack-input-wrapper .status-input-wrapper').each(function (index, element) {
+              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
+              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
+              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']')); // name = statues[0].type 의 '[0]' 을 '[index]' 로 수정
+              $(this).append($('.status-input-wrapper-origin').clone()
+                  .find('input, textarea').each(function (index, element) {
+                  $(element).attr('name', changedAttrs[index]);
+              }).end().html())
+          })
+          $('.ability-input-wrapper .status-input-wrapper').each(function (index, element) {
+              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
+              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
+              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']'));
+              $(this).append($('.status-input-wrapper-origin').clone()
+                  .find('input, textarea').each(function (index, element) {
+                      $(element).attr('name', changedAttrs[index]);
+                  }).end().html())
+          })
+
+// src 에 이름적용
+          $('.apply-name-button').on('click', function () {
+              let nameEnVal = $("input[name='nameEn']").val();
+              $('input, textareat').each(function (index, element) {
+                  if (element.name.includes('ideo') || element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes('udio')) {
+                      element.value = element.value + nameEnVal + '/';
+                  }
+              })
+          })
+
+// placeholder
+          $('input, textarea').each(function (index, element) {
+              if (element.name.includes('ideo')) {
+                  element.value = '/static/assets/video/baseEnemy/';
+              } else if (element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes("Image")) { // mage 하면 damage 랑겹침
+                  element.value = '/static/assets/img/baseEnemy/'
+              } else if (element.name.includes('udio')) {
+                  element.value = '/static/assets/audio/baseEnemy/'
+              }
+          })
+// 스테이터스 체크
+          $('.status-input-check').change(function () {
+              $(this).is(':checked') ? $(this).parent().next().show() : $(this).parent().next().find('input, textarea').val('').end().hide();
+          })
+// 통신
+          $('.baseEnemy-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#enemyInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy", requestData);
+          })
+          $('.attack-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#attackInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy-attack", requestData);
+          })
+          $('.idle-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#idleInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy-idle", requestData);
+          })
+          $('.damaged-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#damagedInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy-damaged", requestData);
+          })
+          $('.break-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#breakInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy-break", requestData);
+          })
+          $('.standby-submit-button').on('click', function (e) {
+              let requestData = serializeJson($('#standbyInputForm').get(0));
+              ajaxRequest("/insert/baseEnemy-standby", requestData);
+          })
+          $('.charge-attack-submit-button').on('click', function (e) {
+              e.preventDefault();
+              let requestData = serializeJson($('#chargeAttackForm').get(0));
+              ajaxRequest("/insert/baseEnemy-charge-attack", requestData);
+          })
+          $('.ability-submit-button').click(function () {
+              let requestData = serializeJson($('#abilityForm').get(0));
+              ajaxRequest("/insert/baseEnemy-ability", requestData);
+          })
+
+          // requestData 는 JSON string
+          function ajaxRequest(url, requestData) {
+              console.log(requestData);
+              requestData = JSON.stringify(requestData);
+              $.ajax({
+                  type: "POST",
+                  url: url,
+                  contentType: "application/json",
+                  headers: {
+                      // 'X-CSRF-TOKEN': $('#csrfToken').val()
+                  },
+                  data: requestData,
+                  success: function (data) {
+                      console.log(data)
+                      alert(data.message)
+                      if (data.actorId) $("input[name='characterId']").val(data.actorId);
+                      if (data.rootCjsName) $("input[name='rootCjsName']").val(data.rootCjsName);
+                  },
+                  error: function (xhr) {
+                      console.log(xhr);
+                  }
+              })
+          }
+
+          // 폼 저장
+          $('.form-save-button').on('click', function () {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              // input, textarea 값 저장
+              let data = {};
+              $form.find('input, textarea').each(function () {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  data[name] = $input.attr('type') === 'checkbox' ? $input.prop('checked') : $input.val();
+              });
+              // status-input-wrapper 체크박스 상태 별도로 저장 (show, hide용)
+              data.statusChecks = $form.find('.status-input-check').toArray().map(inputCheck =>
+                  $(inputCheck).prop('checked')
+              );
+              localStorage.setItem(formName, JSON.stringify(data));
+              alert('저장');
+          });
+
+          // 폼 복원
+          $('.form-load-button').on('click', function () {
+              let formName = $(this).attr('data-form');
+              let $form = $('#' + formName);
+              let data = JSON.parse(localStorage.getItem(formName));
+              if (!data) {
+                  return;
+              }
+              // input, textarea 값 복원
+              $form.find('input, textarea').each(function () {
+                  let $input = $(this);
+                  let name = $input.attr('name');
+                  if (!name) return;
+                  $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
+              });
+              // status 체크박스 show/hide 및 입력란 표시
+              $form.find('.status-input-check').each(function (idx) {
+                  let checked = data.statusChecks && data.statusChecks[idx];
+                  $(this).prop('checked', !!checked).trigger('change');
+              });
+              alert('복원');
+          });
+
+          //applyCjsName
+          $('#applyCjsButton').on('click', function () {
+              let assetType = $('#enemyAssetForm select[name="assetType"]').val(); // ACTOR, SPECIAL, ...
+              let isAll = $('#enemyAssetForm .is-all-check').prop('checked');
+              let allPrefix = isAll ? 'all_' : '';
+              let cjsId = $('#enemyAssetForm input[name="cjsId"]').val(); // 000019234
+              let cjsName = '';
+
+              switch (assetType) {
+                  case 'ACTOR':
+                      cjsName = 'enemy_' + cjsId + '_02'; // enemy_4300903
+                      break;
+                  case 'ATTACK':
+                      cjsName = 'phit_' + cjsId; // phit_3040502000, 필요한경우 _01, _02
+                      break;
+                  case 'SPECIAL':
+                      cjsName = 'esp_' + cjsId + '_01'; // esp_4300913_03
+                      break;
+                  default :
+                      console.error('not supported type');
+              }
+
+              $('#enemyAssetForm input[name="cjsName"]').val(cjsName);
+          })
+
+          // ready
+      })
+  </script>
+</head>
+<body>
+
+<h1>적 삽입</h1>
+
+<h2>baseEnemy</h2>
+<div class="baseEnemy-input-wrapper">
+  <form id="enemyInputForm">
+    <div>baseEnemy.name</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>영문명 Actor.nameEn</div>
+    <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
+    <button type="button" class="apply-name-button btn btn-primary">이름 적용</button>
+    <div>baseEnemy.elementType FIRE , ... NONE </div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+
+    <div>baseEnemy.backgroundImageSrc</div>
+    <input class="form-control mb-2" type="text" name="backgroundImageSrc" placeholder="">
+    <div>baseEnemy.hpTriggers {100, 90, 80, ...}</div>
+    <input class="form-control mb-2" type="text" name="hpTriggers" placeholder="">
+    <div>baseEnemy.bgmTriggers {100, 90, 80, ...}</div>
+    <input class="form-control mb-2" type="text" name="bgmTriggers" placeholder="">
+    <div>baseEnemy.bgmSrcs {src \n}</div>
+    <textarea rows="7" class="form-control mb-2" type="text" name="bgmSrcs" placeholder=""></textarea>
+
+    <h3>dead</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="deadEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="deadSeAudioSrc" placeholder="">
+
+    <h3>form-change</h3>
+    <p>나중에 form-change-entry 의 경우 타입을 따로 수정해줘야됨. </p>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="formChangeEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="formChangeSeAudioSrc" placeholder="">
+
+    <button type="button" class="baseEnemy-submit-button btn btn-primary">적 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>attack</h2>
+<div class="attack-input-wrapper">
+  <form id="attackInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
+
+    <h3>single</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="singleAttackEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="singleAttackSeAudioSrc" placeholder="">
+
+    <h3>double</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="doubleAttackEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="doubleAttackSeAudioSrc" placeholder="">
+
+    <h3>triple</h3>
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="tripleAttackEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="tripleAttackSeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary attack-submit-button">어택 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<p class="fw-bold"> 아래에서 IDLE_DEFAULT 와 DAMAGED_DEFAULT 를 먼저 작성한뒤 스탠바이 작성 시작할 것 </p>
+<p class="fw-bold"> standby 부터는 standby - idle - damaged - break - chargeattack 까지 한꺼번에 전부 작성하도록 한다.</p>
+<p> 전조에 따른 에셋이 동일하더라도, STANDBY 타입으로 분류하기 때문에 STNADBY 타입에 맞춰 나머지 무브들까지 다 기입하도록 한다.</p>
+<p> 예를들어, STANDBY_A 작성을 시작했다면, idle, damaged,break,chargeattack 까지 동일한 A 타입으로 작성ㅎ여 저장한후 STANDBY_B 작성으로 넘어가도록 / idle, break 등의 asset 이 같은 STANDBY_A 와 STANDBY_D 가존재할 수 있음을 기억.</p>
+
+<h2>STAND BY</h2>
+<div class="standby-input-wrapper">
+  <form id="standbyInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type move.type STANDBY_A ... (DEFAULT 없음)</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+
+    <div>omen.name 전조이름 (차지어택과 동일하게 지정할것)</div>
+    <input class="form-control mb-2" type="text" name="omen.name" placeholder="">
+
+    <div>omen.type 타입 INCANT_ATTACK, CHARGE_ATTACK, HP_TRIGGER</div>
+    <input class="form-control mb-2" type="text" name="omen.type" placeholder="">
+
+    <div>omen.info 전조설명</div>
+    <input class="form-control mb-2" type="text" name="omen.info" placeholder="">
+
+    <div>해제 조건 {type, presentInfo, initValue \n} 로 입력</div>
+    <div>type: HIT_COUNT, ... / presentInfo: value 를 @ 로 대체한 적 체력 밑에 보여줄 문구</div>
+    <textarea rows="3" class="form-control mb-2" type="text" name="omen.cancelConditions" placeholder=""></textarea>
+
+    <div>omen.triggerHp HP 트리거용 HP 비율 {90, 80, 70, ...}, CT기도 1개 입력해야함. 영창기는 100 </div>
+    <input class="form-control mb-2" type="text" name="omen.triggerHps" placeholder="">
+
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="standbyEffectVideoSrc" placeholder="">
+    <div>asset.seAudio.src</div>
+    <input class="form-control mb-2" type="text" name="standbySeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary standby-submit-button">스탠바이 저장</button>
+
+  </form>
+</div>
+
+<hr>
+
+<h2>idle</h2>
+<div class="idle-input-wrapper">
+  <form id="idleInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type IDLE_DEFAULT, IDLE_A, B, ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary idle-submit-button">아이들 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>damaged</h2>
+<div class="damaged-input-wrapper">
+  <form id="damagedInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type DAMAGED_DEFAULT, DAMAGED_A,  ...</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="damagedEffectVideoSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary damaged-submit-button">피격 저장</button>
+  </form>
+</div>
+</div>
+
+<hr>
+
+<h2>break</h2>
+<div class="break-input-wrapper">
+  <form id="breakInputForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type Move.type BREAK_A, B, ... (DEFAULT 없음) </div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>asset.effectVideo.src</div>
+    <input class="form-control mb-2" type="text" name="breakEffectVideoSrc" placeholder="">
+    <div>asset.audio.src</div>
+    <input class="form-control mb-2" type="text" name="breakSeAudioSrc" placeholder="">
+
+    <button type="button" class="btn btn-primary break-submit-button">　브레이크 저장</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>charge attack</h2>
+<div class="charge-attack-input-wrapper">
+  <form id="chargeAttackForm">
+    <div>enemyId</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>name 오의 이름</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>name 오의 move 타입 CHARGE_ATTACK_A ....</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <div>info 오의 설명 텍스트</div>
+    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ...</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+    <div>damageRate 오의 히트수 (정수)</div>
+    <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
+    <div>damageRate 오의 1타당 데미지 배율 (정수)</div>
+    <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>randomStatusCount 랜덤 스테이터스 부여일시 갯수, 없으면 0 </div>
+    <input class="form-control mb-2" type="number" name="randomStatusCount" placeholder="" value="0">
+    <div>damageConstant: 오의 1타당 고정 데미지 없으면 0</div>
+    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="" value="0">
+    <div>effectVideoSrc 이펙트 비디오</div>
+    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
+    <div>seAudioSrc SE 오디오</div>
+    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
+    <div>effectHitDelay 이펙트 피격 딜레이 ms (이펙트 발생후 ~ 상대 피격 이펙트 발생까지 딜레이) </div>
+    <input class="form-control mb-2" type="number" name="effectHitDelay" placeholder="">
+
+    <h3>status1</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status2</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status3</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status4</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status5</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status6</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status7</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <button type="button" class="btn btn-primary charge-attack-submit-button">오의</button>
+  </form>
+</div>
+
+<hr>
+<hr>
+
+<h2> support ability </h2>
+<p> 적의 서포트 어빌리티는 고유버프 및 기믹을 구현하기 위한 Move 이기 때문에 필요한 부분만 작성하면됨</p>
+<p> 현재 구현목적 : 배틀 시작시 스테이터스 부여 (스테이터스가 Move 에 종속되있어서 어쩔수 없이 Move  에 저장하고 발동시켜야됨) </p>
+
+<div class="ability-input-wrapper">
+  <form id="abilityForm">
+    <div>적 id</div>
+    <input class="form-control mb-2" type="text" name="enemyId" placeholder="">
+
+    <div>type: 어빌리티, 보스는 서포트어빌리티만 Move.type (FIRST_SUPPORT_ABILITY, ...)</div>
+    <input class="form-control mb-2" type="text" name="type" placeholder="">
+
+    <div>name: 어빌리티 이름 -> 현재 사용하지 않음</div>
+    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <div>info: 어빌리티 설명 텍스트 -> 현재 사용하지 않음</div>
+    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>isAllTarget : 전체공격 여부 true, false</div>
+    <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
+    <div>damageRate: 데미지 배율</div>
+    <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <div>damageConstant: 데미지 고정값 (없으면 0)</div>
+    <input class="form-control mb-2" type="number" name="damageConstant" placeholder="">
+    <div>move.elementType FIRE, WATER, NONE, RANDOM, ... 속성</div>
+    <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+    <div>hitCount: 히트수</div>
+    <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
+    <div>coolDown: 어빌리티 쿨타임</div>
+    <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
+    <div>duration: 어빌리티 효과시간 (두개 이상일 경우 쉼표로 구분하여 작성, 로직용 아니고 표현용) </div>
+    <input class="form-control mb-2" type="text" name="duration" placeholder="">
+
+    <div>iconSrc: asset.iconImageSrc 에서 사용 </div>
+    <input class="form-control mb-2" type="text" name="iconSrc" placeholder="">
+
+    <div>이펙트 비디오 asset.effectVideo</div>
+    <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
+    <div>모션 비디오 asset.motionVideo</div>
+    <input class="form-control mb-2" type="text" name="motionVideoSrc" placeholder="">
+
+    <div>SE 오디오 asset.seAudioSrc</div>
+    <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
+    <div>Voice 오디오 asset.voiceAudioSrc</div>
+    <input class="form-control mb-2" type="text" name="voiceAudioSrc" placeholder="">
+
+    <h3>status1</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status2</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status3</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status4</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status5</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status6</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <h3>status7</h3>
+    <div class="form-check">
+      있음
+      <input class="form-check-input status-input-check" type="checkbox" value="">
+    </div>
+    <div class="status-input-wrapper">
+    </div>
+
+    <button type="button" class="btn btn-primary ability-submit-button">어빌리티</button>
+  </form>
+
+  <!-- 스테이터스 추가 원본 -->
+  <div class="status-input-wrapper-origin">
+    <div>type 타입</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
+    <div>effectText 이펙트 텍스트 (name 동일값)</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
+    <div>maxLevel 최대레벨, 없으면 0</div>
+    <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="" value="0">
+    <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ... </div>
+    <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
+    <div>statusText 스테이터스 텍스트</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
+    <div>duration 효과시간</div>
+    <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
+    <div>removable 소거불가, 해제불가, 회복불가 여부, 소거불가이면 false 가능이면 true</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="" value="true">
+    <div>isResistible 필중여부, 필중이면 false 필중 아니면 true</div>
+    <input class="form-control mb-2" type="text" name="statuses[0].isResistible" placeholder="" value="true">
+
+
+    <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
+    <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusModifiers" placeholder=""></textarea>
+
+    <div>iconImageSrcs 아이콘 src, 레벨 오름차순 정렬해서 엔터로 구분</div>
+    <textarea rows="10" class="form-control mb-2" type="text" name="statuses[0].iconSrcs" placeholder=""></textarea>
+  </div>
+</div>
+
+<h2>baseEnemy 에셋 </h2>
+<p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
+<form id="enemyAssetForm" target="/insert-baseEnemy-asset" method="POST">
+
+  <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+  <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="enemyAssetForm"
+         value="저장">
+  <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="enemyAssetForm"
+         value="복원">
+
+  <div>baseActor id</div>
+  <input class="form-control mb-2" type="text" name="actorId" placeholder="">
+  <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
+  <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
+
+  <div>asset name [디아스포라 1 / 디아스포라 1 평타 / 디아스포라 1 오의2 / 디아스포라 서포어비1 ]</div>
+  <input class="form-control mb-2" type="text" name="assetName" placeholder="">
+
+  <div> asset type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
+  <select class="form-select" size="5" name="assetType" required>
+    <option selected>Open this select menu</option>
+    <option value="ACTOR">ACTOR</option>
+    <option value="SPECIAL">SPECIAL</option>
+    <option value="ATTACK">ATTACK</option>
+    <option value="FIRST_SUPPORT_ABILITY">SA1</option>
+    <option value="SECOND_SUPPORT_ABILITY">SA2</option>
+    <option value="THIRD_SUPPORT_ABILITY">SA3</option>
+    <option value="FOURTH_SUPPORT_ABILITY">SA4</option>
+    <option value="FIFTH_SUPPORT_ABILITY">SA5</option>
+    <option value="SIXTH_SUPPORT_ABILITY">SA6</option>
+    <option value="SEVENTH_SUPPORT_ABILITY">SA7</option>
+    <option value="EIGHTH_SUPPORT_ABILITY">SA8</option>
+  </select>
+
+  <div>cjs id (공통적용, submit x)</div>
+  <div> 적의 경우 어빌리티는 'ab_powerup' 이런거임. 서포어비로 등록</div>
+  <div> 오의는 특수기 별로 따로 지정하지 않아도 정상작동, 123 만 맞춰서 등록 </div>
+  <div class="input-group mb-2">
+    <input type="text" class="form-control me-2" name="cjsId" placeholder="">
+    <div class="input-group-text me-2">
+      all
+      <input class="form-check-input mt-0 is-all-check" type="checkbox" value="">
+    </div>
+    <button class="btn btn-outline-secondary" type="button" id="applyCjsButton">id 적용</button>
+  </div>
+
+  <div> cjsName</div>
+  <input class="form-control mb-2" type="text" name="cjsName" placeholder="">
+
+</form>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

@@ -8,7 +8,7 @@
 //import com.gbf.granblue_simulator.domain.entity.Character;
 //import com.gbf.granblue_simulator.domain.move.MoveType;
 //import com.gbf.granblue_simulator.repository.move.AssetRepository;
-//import com.gbf.granblue_simulator.repository.actor.CharacterRepository;
+//import com.gbf.granblue_simulator.battle.repository.CharacterRepository;
 //import com.gbf.granblue_simulator.repository.ImageRepository;
 //import jakarta.persistence.EntityManager;
 //import jakarta.transaction.Transactional;

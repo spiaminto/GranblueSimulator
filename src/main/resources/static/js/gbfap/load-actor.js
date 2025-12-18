@@ -5,19 +5,119 @@ var loader = null; // the loaded instance
 var _ = null; // contains underscore 3rd party library
 var cjsStage = null;
 
-// start load Actor
-function loadActor(animation, override_config = null) {
-    // if a config is provided
-    if (override_config != null) {
-        // process directly
-        processConfig(override_config, animation);
-    } else { // not used
-        // else load the configuration from the json folder
-        fetchJSON("json/config.json?" + Date.now()).then((value) => {
-            processConfig(value, animation);
-        });
-    }
+function initAsset() {
+    let actorAssets = window.assetInfos.map((assetInfo, index) =>
+        new Animation('actor-' + assetInfo.currentOrder, {
+            cjs: assetInfo.asset.mainCjs,
+            weapon: assetInfo.asset.weaponId,
+            attacks: assetInfo.asset.attackCjses,
+            abilities: assetInfo.asset.abilityCjses,
+            specials: assetInfo.asset.specialCjses,
+            additionalCjs: assetInfo.asset.additionalMainCjs,
+            additionalSpecials: assetInfo.asset.additionalSpecialCjses,
+            chargeAttackStartFrame: assetInfo.asset.chargeAttackStartFrame,
+            summons: assetInfo.asset.summonCjses,
+            isEnemy: assetInfo.isEnemy,
+            isLeaderCharacter: assetInfo.isLeaderCharacter,
+            isChargeAttackSkip: assetInfo.isChargeAttackSkip,
+            currentOrder: assetInfo.currentOrder,
+            startMotion: assetInfo.startMotion,
+        })
+    );
+    actorAssets.push(
+        new Animation("global", {
+            // cjs: "raid_mortal_skip", // animation to play
+            cjs: "npc_3040585000_01", // animation to play
+            specials: ["raid_mortal_skip"], // charge attacks
+            abilities: {
+                BUFF: { // abilityType
+                    cjs: 'raid_effect_buff',
+                    isTargetedEnemy: true
+                },
+                DEBUFF: {
+                    cjs: 'raid_effect_debuff',
+                    isTargetedEnemy: true
+                },
+                HEAL: {
+                    cjs: 'raid_effect_heal',
+                    isTargetedEnemy: false,
+                },
+                AB_START: {
+                    cjs: 'ab_start',
+                    isTargetedEnemy: true,
+                },
+                UNION_SUMMON: {
+                    cjs: 'raid_union_summon',
+                    isTargetedEnemy: false
+                },
+                BUFF_FOR_ALL: {
+                    cjs: 'summon_2040216000_01_damage',
+                    isTargetedEnemy: false
+                },
+                QUEST_CLEAR: {
+                    cjs: 'quest_clear',
+                    isTargetedEnemy: false
+                },
+                QUEST_FAILED: {
+                    cjs: 'quest_failed',
+                    isTargetedEnemy: false
+                },
+            },
+            currentOrder: 5,
+            summons: {},
+            demoMotions: ["stbwait"], // animation playlist under the Demo action
+            isEnemy: false
+        }))
+    console.log(`[loadActor] initAsset actorAssets = `, actorAssets);
 
+    let enemyAsset = actorAssets.find(asset => asset.name === "actor-0");
+    window.enemyInitialMainCjsName = enemyAsset.cjs; // 임시로 저장
+    return actorAssets;
+}
+
+// start load Actors
+function initActors(override_config = null) {
+    let animations = initAsset();
+    if (animations.length === 0) new Error("[loadActors] no animations loaded");
+    let firstAnimation = animations[0];
+
+    override_config = {
+        use_game_config: "local",
+        game: {
+            local: {
+                corsProxy: null,
+                xjsUri: "/gbf",
+                jsUri: "/gbf",
+                imgUri: "/gbf/img",
+                soundUri: "https://prd-game-a5-granbluefantasy.akamaized.net/assets/sound",
+                extern: "https://prd-game-a1-granbluefantasy.akamaized.net/assets",
+                bgUri: ".",
+                testUri: null
+            }, buttons: {},
+            default_background: "",
+            backgrounds: {
+                "<img src=\"/assets/bg_grid.png\">": "/assets/bg_grid.jpg",
+            },
+            audio_disabled: false
+        }
+    }
+    processConfig(override_config, firstAnimation); // direct load
+
+    // if a config is provided
+    // if (override_config != null) {
+    //    // process directly
+    // processConfig(override_config, firstAnimation);
+    // } else { // not used
+    //     // else load the configuration from the json folder
+    // fetchJSON("json/config.json?" + Date.now()).then((value) => {
+    //     processConfig(value, firstAnimation);
+    // });
+    // }
+
+    animations.forEach(animation => loadActor(animation));
+}
+
+function loadActor(animation) {
     playerStartFire(animation);
 }
 
@@ -67,7 +167,7 @@ function playerStartFire(animation) {
         let actorId = animation.name; // animations 는 버전별이고 우리는 1개만 사용, 이름 'actor0', 'actor1', ...
         let actor = new Actor(actorId);
         player.actors.set(actorId, actor);
-        actor.setAnimation(animation);
+        actor.initAnimation(animation);
     });
 }
 

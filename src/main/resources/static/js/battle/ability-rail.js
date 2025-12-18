@@ -1,163 +1,182 @@
-$(function () {
+/**
+ * 어빌리티 아이콘 클릭시 <br>
+ * 모달로 열지 process 할지 구분
+ */
+function onAbilityIconClicked(event) {
+    let $target = $(event.target);
+    if ($target.is('.button-click')) return;
+    $target.addClass('button-click').one('animationend', () => $target.removeClass('button-click'));
+    window.effectAudioPlayer.loadAndPlay(Sounds.global.BUTTON_CLICK.src);
 
-    $('#showAbilityInfoCheck').on('change', function () {
-        console.log($(this).is(':checked'));
-        let isShowAbilityInfoCheck = $(this).is(':checked');
-        let $abilityIcons = $('#abilitySlider .ability-icon');
-        if (isShowAbilityInfoCheck) {
-            $abilityIcons.off('click');
-            $abilityIcons.on('click', function () {
-                openAbilityInfoModal($(this));
-            });
-        } else {
-            $abilityIcons.off('click');
-            $abilityIcons.on('click', processAbilityClick);
-        }
-    })
+    console.log('[onclickAbilityIcon] this = ', this);
+    let abilityId = this.dataset.moveId;
+    let ability = stage.gGameStatus.ability[abilityId];
 
-    $('.fatal-chain-gauge-wrapper').on('click', function () {
-        openAbilityInfoModal($(this));
-    })
+    let isShowAbilityInfoCheck = $('#showAbilityInfoCheck').is(':checked');
+    if (isShowAbilityInfoCheck) {
+        openAbilityInfoModal(ability);
+    } else {
+        processMoveClick(ability); // 어빌리티, 페이탈체인
+    }
+}
 
-    function openAbilityInfoModal($abilityIcon) {
-        let iconSrc = $abilityIcon.find('img').attr('src');
-        let abilityInfoText = $abilityIcon.find('.ability-info-text').text();
-        let abilityName = $abilityIcon.find('.ability-name').text();
-        let isFatalChain = abilityInfoText === '';
-        if (isFatalChain) {
-            // 페이탈 체인
-            abilityInfoText = $($abilityIcon).find('.fatal-chain-gauge-info').text();
-        }
-        let isNotReady = $abilityIcon.find('.ability-overlay').hasClass('not-ready');
-        // 모달에 내용 채우기
-        $('#abilityInfoModal').find('.ability-info-icon').attr('src', iconSrc).end()
-            .find('.ability-name').text(abilityName).end()
-            .find('.ability-info-text').text(abilityInfoText).end()
-            .find('.use-ability-button').prop('disabled', isNotReady);
-        // 모달 닫기 버튼에 클릭 이벤트 핸들러 제거하는 이벤트 등록 (닫을때 내용은 사라져도 이벤트는 해제안됨)
-        $('#abilityInfoModal .close-ability-info-modal-button').one('click', function () {
-            $('#abilityInfoModal .use-ability-button').off('click');
-        })
-        $('#abilityInfoModal .use-ability-button').one('click', function () {
-            $('#abilityInfoModal .close-ability-info-modal-button').click();
-            if (isFatalChain) {
-                let characterId = $('#partyCommandContainer .battle-portrait').eq(0).data('character-id');
-                requestMove(characterId, $abilityIcon.find('.fatal-chain-gauge-info').attr('data-fatal-chain-move-id'));
-            } else
-                processAbilityClick($abilityIcon);
-        });
-        $('.ability-info-modal-button').click();
+/**
+ * 기본 커맨드 클릭 수행
+ * @param moveInfo {MoveInfo} 어빌리티, 페이탈체인 / 소환석 / 포션
+ */
+function processMoveClick(moveInfo) {
+    console.log('[processMoveClick] moveInfo = ', moveInfo);
+    if (player.locked || stage.gGameStatus.isQuestCleared) return;
+
+    if (moveInfo.type === 'ABILITY') {
+        // 쿨타임 검증
+        let $abilityOverlay = window.abilityPanels[moveInfo.actorIndex].find(`.ability-icon[data-move-id=${moveInfo.id}] .ability-overlay`);
+        let cooldown = stage.gGameStatus.abilityCoolDowns[moveInfo.actorIndex][moveInfo.order - 1];
+        if (cooldown > 0 || $abilityOverlay.is('.not-ready') || $abilityOverlay.is('.none-usable')) return;
+
+        // 클릭시 오버레이 설정 : Modal 에서 사용 클릭시에도 지정해야되서, icon onclick 대신 여기서 함
+        // gameStateManager.abilityCooldowns 로 상태변경시 renderer 에서 재랜더링함. (여기서는 상태 값 변경 X)
+        // 여기서 즉시 오버레이를 띄워야 레일위에서 처리 대기중에 재등록 방지가능
+        $abilityOverlay.addClass('not-ready');
     }
 
-    // 어빌리티 슬라이더에서 어빌리티 클릭
-    $('#abilitySlider .ability-icon').on('click', processAbilityClick);
-
-    function processAbilityClick($abilityIcon) {
-        if (player.locked) return;
-        // console.log($abilityIcon); // ability-icon 에 직접 연결하지 않으면 이벤트 정보가 들어옴. type 속성으로 'click' 등을 짐
-        $abilityIcon = $abilityIcon.type ? $(this) : $abilityIcon; // type 속성이 있으면 ability-icon과 직접연결됨, 없으면 파라미터로 ability-icon 받아옴
-        if ($abilityIcon.find('.ability-overlay').hasClass('none-usable')) return;
-
-        // 어빌리티 사용 가능한 상태가 아님 DEV 개발중에는 어빌리티 오버레이에 상관없이 실행
-        // if ($abilityIcon.find('.ability-overlay').hasClass('not-ready')) return false;
-
-        let $abilityPanel = $abilityIcon.closest('.ability-panel');
-        let charOrder = $abilityPanel.data('characterOrder');
-        let abilityId = $abilityIcon.attr('data-ability-id');
-        let currentAbilityRailLength = $('#abilityRail img').length;
-
-        // 어빌리티 not-ready 로 변경 (오버레이)
-        let $processedAbilityIcon = $abilityPanel.find($(`.ability-icon[data-ability-id="${abilityId}"]`));
-        $processedAbilityIcon.find('.ability-overlay').addClass('not-ready');
-        let abilityIconSrc = $processedAbilityIcon.find('img').attr('src');
-
-        // 어빌리티 레일에 등록
-        $(`<div class="rail-item rail-item-${currentAbilityRailLength}"
-              data-rail-item-type='ABILITY' data-character-order='${charOrder}' data-ability-id='${abilityId}'>
-              <img src="${abilityIconSrc}">
-        </div>`)
-            .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
-                if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
-                $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
-                $(this).remove(); // 제거
-            })
-            .appendTo($('#abilityRail'));
+    if (moveInfo.type === 'SUMMON') {
+        // 쿨타임 검증
+        let $summonOverlay = $(`#partyCommandContainer .summon-display-wrapper .summon-list-item[data-move-id=${moveInfo.id}] .summon-overlay`);
+        let cooldown = gameStateManager.getState('summonCooldowns')[moveInfo.order - 1];
+        if (cooldown > 0 || $summonOverlay.is('.not-ready') || $summonOverlay.is('.none-usable')) return;
+        $summonOverlay.addClass('not-ready');
+        $('.summon-display-button').click();
     }
 
-    // 공격버튼 클릭
-    $('#attackButton').on('click', processAttackClick)
+    // 어빌리티 레일에 등록
+    appendToAbilityRail(moveInfo);
+}
 
-    function processAttackClick() {
-        let isCanceling = $('#attackButtonWrapper').hasClass('cancel');
-        if (isCanceling) {
-            cancelAttack();
-            return;
-        }
+/**
+ * 공격 버튼 클릭
+ */
+function onAttackButtonClicked() {
+    let isAttackClicked = stage.gGameStatus.isAttackClicked;
+    let isQuestCleared = stage.gGameStatus.isQuestCleared;
 
-        if (player.locked) return;
+    if (isQuestCleared) {
+        let roomId = $('#roomInfo').attr('data-room-id');
+        location.replace('/room/' + roomId + '/result');
+        return;
+    }
+
+    if (player.locked) return;
+
+    if (isAttackClicked) { // attack button 클릭되어있음 -> attack cancel
+        player.lockPlayer(false); // 공격 취소시 락 해제
+        effectAudioPlayer.loadAndPlay(Sounds.global.CANCEL_ATTACK.src);
+        window.gameStateManager.setState('isAttackClicked', false);
+        $('#abilityRail .rail-item-attack').remove(); // 레일에서 삭제
+    } else {
         player.lockPlayer(true); // 플레이어 잠금
-        $('#attackButtonWrapper').addClass('cancel');
-        effectAudioPlayer.loadAndPlay(GlobalSrc.REQUEST_ATTACK.audio);
-        $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack-cancel.png')
-        let currentAbilityRailLength = $('#abilityRail img').length;
-        $('<div>')
-            .addClass('rail-item-attack rail-item rail-item-' + currentAbilityRailLength)
-            .attr('data-rail-item-type', 'ATTACK')
-            .append($('<img>')
-                .attr('src', '/static/assets/img/ui/ui-attack-icon.png'))
-            .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
-                if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
-                $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
-                $(this).remove(); // 제거
-            })
-            .appendTo($('#abilityRail'));
+        effectAudioPlayer.loadAndPlay(Sounds.global.REQUEST_ATTACK.src);
+        window.gameStateManager.setState('isAttackClicked', true);
+        appendToAbilityRail(stage.gGameStatus.attack); // 레일에 등록
+    }
+}
+
+function appendToAbilityRail(moveInfo) {
+    let currentAbilityRailLength = $('#abilityRail img').length;
+    $(`<div class="rail-item rail-item-${currentAbilityRailLength}"
+              data-rail-item-type='${moveInfo.type}' 
+              data-actor-index='${moveInfo.actorIndex}' 
+              data-move-id='${moveInfo.id}'
+              data-actor-id="${moveInfo.actorId}"
+              data-additional-type="${moveInfo.additionalType}">
+              <img src="${moveInfo.iconSrc}" alt="icon image">
+        </div>`)
+        .on('click', function () { // 클릭시 어빌리티 레일에서 제거 이벤트
+            if ($(this).index() === 1) return; // 자신이 첫번째 어빌리티면 클릭 불가 (더미 = 0)
+            // $(this).find('.ability-overlay').removeClass('not-ready'); // 오버레이 해제
+            $(this).remove(); // 제거
+        })
+        .appendTo($('#abilityRail'));
+}
+
+function openAbilityInfoModal(moveInfo) {
+    let isSummon = moveInfo.type === 'SUMMON';
+    let imageSrc = isSummon ? moveInfo.portraitSrc : moveInfo.iconSrc;
+
+    let $unionSummonWrapper = $('');
+    let unionSummonId = gameStateManager.getState('unionSummonId');
+    if (isSummon && unionSummonId) {
+        let doUnionSummon = stage.gGameStatus.doUnionSummon;
+
+        let unionSummonConst = Constants.summon[unionSummonId];
+        $unionSummonWrapper = $(`
+            <br>            
+            <hr>
+            <br>
+            <div class="ability-info-wrapper">
+              <div class="ability-info-icon-wrapper">
+                <img class="ability-info-icon" src="${unionSummonConst.portraitSrc}">
+              </div>
+              <div class="ability-info-text-wrapper">
+                <div class="row">
+                  <h5 class="col-8">${unionSummonConst.name}</h5>
+                  <div class="col">
+                    <div class="form-check form-switch do-union-summon-check-wrapper">
+                      <input class="form-check-input" type="checkbox" role="switch" id="doUnionSummonCheck">
+                      <label class="form-check-label" for="doUnionSummonCheck">합체 소환</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="ability-info-text">
+                  ${unionSummonConst.info}
+                </div>
+              </div>    
+            </div>`);
+        $unionSummonWrapper.find('#doUnionSummonCheck')
+            .attr('checked', doUnionSummon)
+            .on('change', function () {
+                let isChecked = $(this).is(':checked');
+                window.gameStateManager.setState('doUnionSummon', isChecked);
+            });
     }
 
-    const abilityRailMutationObserver = new MutationObserver((entries) => {
-        console.log(entries);
-        let $abilityRail = $(entries[0].target); // #abilityRail
-        let $addedRailItem = $(entries[0].addedNodes);
-        let $removedRailItem = $(entries[0].removedNodes);
-        let isExecuted = false; // 처리 수행이 있었다면 true 로 반환
+    let $modalContent = $(`
+            <div class="modal-content">
+              <div class="modal-header">
+                <h4 class="modal-title">커맨드 정보</h4>
+              </div>
+              <div class="modal-body">
+                <div class="ability-info-wrapper">
+                  <div class="ability-info-icon-wrapper">
+                    <img class="ability-info-icon" src="${imageSrc}">
+                  </div>
+                  <div class="ability-info-text-wrapper">
+                    <h5>${moveInfo.name}</h5>
+                    <div class="ability-info-text">
+                      ${moveInfo.info}
+                    </div>
+                  </div>                 
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button"
+                        data-bs-dismiss="modal">
+                  닫기
+                </button>
+                <button type="button" class="btn btn-primary use-ability-button">사용</button>
+              </div>
+            </div>
+        `)
+        .find('.modal-body')
+        .append($unionSummonWrapper)
+        .end()
+        .find('.use-ability-button')
+        .one('click', function () {
+            $('#abilityInfoModal .close-ability-info-modal-button').click();
+            processMoveClick(moveInfo);
+        }).end();
 
-        if ($abilityRail.children('.rail-item').length < 1) {
-            return false; // 남은 아이템 없음
-        } else {
-            let $latestRailItem = $abilityRail.children('.rail-item').first();
-            let railItemType = $latestRailItem.attr('data-rail-item-type');
+    $('#abilityInfoModal .modal-content').replaceWith($modalContent);
+    $('.ability-info-modal-button').click();
+}
 
-            if (($addedRailItem.hasClass('rail-item-1')) // 첫 아이템 추가
-                || $removedRailItem.hasClass('active')) { // || 아이템 실행 완료후 삭제됨 -> 다음 아이템 실행
-                switch (railItemType) {
-                    case 'ABILITY':
-                        let charOrder = $latestRailItem.attr('data-character-order');
-                        let abilityId = $latestRailItem.attr('data-ability-id');
-                        $latestRailItem.addClass('active');
-                        setTimeout(() => {
-                            let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
-                            requestMove(characterId, abilityId);
-                        }, 300);
-                        isExecuted = true;
-                        break;
-
-                    case 'ATTACK':
-                        $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 공격은 실행즉시 레일에서 삭제
-                        requestTurnProgress();
-                        isExecuted = true;
-                        break;
-
-                    default:
-                        console.log('invalid railItemType ', railItemType);
-                        break;
-                }
-            } else { // 레일에서 삭제된 아이템이 실행 없이 삭제 -> 사용자가 직접 삭제함
-                if ($removedRailItem.attr('data-rail-item-type') === 'ATTACK') cancelAttack();
-                isExecuted = false;
-            }
-        }
-        return isExecuted;
-    })
-    abilityRailMutationObserver.observe(document.querySelector('#abilityRail'), {childList: true});
-
-
-})

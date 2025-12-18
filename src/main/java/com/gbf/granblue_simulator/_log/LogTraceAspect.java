@@ -39,7 +39,7 @@ public class LogTraceAspect {
     @Pointcut("execution(* com.gbf.granblue_simulator.logic..*(..))")
     public void allLogic() {};
 
-    @Around("(allLogic() && ignoreHealthCheck())")
+    @Around("(allService() || allLogic()) && ignoreHealthCheck()")
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
         if (!activated) return null;
 

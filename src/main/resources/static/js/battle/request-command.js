@@ -1,4 +1,23 @@
-function requestSync() {
+function requestMembersInfo() {
+    let roomId = $('#roomInfo').data('room-id');
+    console.log('[requestMembersInfo] roomId = ', roomId);
+    $.ajax({
+        url: `/api/room/${roomId}/members`,
+        type: 'GET',
+        headers: {
+            // 'X-CSRF-TOKEN': $('#csrfToken').val()
+        },
+        success: function (response) {
+            console.log(response);
+            gameStateManager.setState('memberInfos', response);
+        },
+        error: function (error) {
+            console.log(error);
+        }
+    })
+}
+
+function requestSync(isInit = false) {
     let memberId = $('#memberInfo').data('member-id');
     console.log('[requestSync] memberId = ', memberId);
     $.ajax({
@@ -11,22 +30,31 @@ function requestSync() {
         data: JSON.stringify({
             memberId: memberId,
         }),
-        async: false,
         success: function (response) {
             // console.log(response);
-            processResponseMoves(response);
+            if (isInit) initGameStatus(response);
+            else processResponseMoves(response);
         },
-        error: function (response) {
-            console.log(response);
+        error: function (error) {
+            console.log(error);
         }
     });
 }
 
-function requestMove(characterId, moveId) {
+function requestMove(characterId, moveId, moveType) {
     let memberId = $('#memberInfo').data('member-id');
-    console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' memberId = ', memberId);
+    let apiUrl =
+        moveType === 'ABILITY' ? '/api/ability'
+            : moveType === 'FATAL_CHAIN' ? '/api/fatal-chain'
+                : moveType === 'SUMMON' ? '/api/summon' : null;
+    if (!apiUrl) {
+        alert('커맨드 에러, 새로고침 해주세요. 커맨드 = ' + moveType);
+        return;
+    }
+
+    console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' memberId = ', memberId, ' moveType = ', moveType, ' apiUrl = ', apiUrl);
     $.ajax({
-        url: '/api/move',
+        url: apiUrl,
         type: 'POST',
         contentType: 'application/json',
         headers: {
@@ -35,20 +63,30 @@ function requestMove(characterId, moveId) {
         data: JSON.stringify({
             memberId: memberId,
             characterId: characterId,
-            moveId: moveId
+            moveId: moveId,
+            // 옵션들
+            doUnionSummon: stage.gGameStatus.doUnionSummon,
         }),
         async: false,
         success: function (response) {
             // console.log(response);
             processResponseMoves(response, 'move');
         },
-        error: function (response) {
-            console.log(response);
-            let responseObj = response.responseJSON;
-            if (response.status === 400) {
+        error: function (error) {
+            console.log(error);
+            let responseObj = error.responseJSON;
+            if (error.status === 400) {
                 alert(responseObj.message);
-                $('.ability-rail-wrapper .rail-item').remove();
-                // TODO 해당하는 모든 어빌리티 오버레이 취소
+
+                // 실패한 무브 레일에서 제거 (자동으로 다음 무브 이어서 실행)
+                $('.ability-rail-wrapper .rail-item').eq(0).remove();
+                // 오버레이 정상화
+                gameStateManager.setState('abilityCoolDowns', gameStateManager.getState("abilityCoolDowns"), {force: true});
+
+                if (!responseObj.isConditionFailed) {
+                    // 발동 조건 검증 실패 외의 경우, 어빌리티 레일 전부 취소
+                    $('.ability-rail-wrapper .rail-item').remove();
+                }
             }
         }
     });
@@ -93,7 +131,7 @@ function requestTurnProgress() {
  */
 function requestGuard(charOrder, type) {
     console.log('[requestGuard] charOrder = ', charOrder, ' type = ', type);
-    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('character-id');
+    let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('actor-id');
     let memberId = $('#memberInfo').data('member-id');
     let roomId = $('#roomInfo').data('room-id');
     $.ajax({
@@ -105,7 +143,7 @@ function requestGuard(charOrder, type) {
         },
         data: JSON.stringify({
             characterId: characterId,
-            charOrder: charOrder,
+            actorOrder: charOrder,
             memberId: memberId,
             roomId: roomId,
             targetType: type
@@ -115,8 +153,8 @@ function requestGuard(charOrder, type) {
             console.log('[requestGuard]', response);
             processGuard(response);
         },
-        error: function (response) {
-            console.log(response);
+        error: function (error) {
+            console.log(error);
         }
     });
 }
@@ -127,9 +165,8 @@ function requestGuard(charOrder, type) {
  */
 function requestToggleChargeAttack(chargeAttackActiveChecked) {
     console.log(`[requestToggleChargeAttack] chargeAttackActiveChecked = ${chargeAttackActiveChecked}`);
-    window.effectAudioPlayer.loadSound(GlobalSrc.BEEP.audio).then(() => {
-        window.effectAudioPlayer.playAllSounds();
-    })
+    window.effectAudioPlayer.loadAndPlay(Sounds.BEEP.src);
+
     let roomId = $('#roomInfo').data('room-id');
     $.ajax({
         url: '/api/toggle-charge-attack',
@@ -146,39 +183,25 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
         success: function (response) {
             // console.log(response);
             $('#chargeAttackActiveCheck').prop('checked', response.chargeAttackOn);
-            if (response.chargeAttackOn === true) {
-                window.effectAudioPlayer.loadSound(GlobalSrc.CHARGE_ATTACK_READY.audio).then(() => {
-                    window.effectAudioPlayer.playAllSounds();
-                })
-                player.actors.values()
-                    .filter(actor => actor.isCharacter() && Number($(`#partyCommandContainer .battle-portrait.actor-${actor.actorIndex} .charge-gauge-value .value`).text()) === 100)
-                    .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, Player.c_animations.ABILITY)));
-            } else {
-                player.actors.values()
-                    .filter(actor => actor.isCharacter())
-                    .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, Player.c_animations.STB_WAIT)));
-                if ($('#abilitySlider').css('z-index') >= 0) { // 어빌리티 슬라이더 열려있음
-                    let currentSlide = $('#abilitySlider').slick('getSlick').currentSlide;
-                    player.play(Player.playRequest(`actor-${currentSlide + 1}`, Player.c_animations.ABILITY));
-                }
-            }
+            // 대기모션 갱신
+            player.getCharacters().forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, player.getCharacterWaitMotion(actor.actorIndex))));
+            if (response.chargeAttackOn === true)
+                window.effectAudioPlayer.loadAndPlay(Sounds.CHARGE_ATTACK_READY.src);
         },
-        error: function (response) {
-            console.log(response);
+        error: function (error) {
+            console.log(error);
         }
     });
 }
 
 /**
  * 포션 요청
- * @param usePotionButtonElement
+ * @param potionType
+ * @param actorId
  */
-function requestPotion(usePotionButtonElement) {
-    let potionType = $(usePotionButtonElement).attr('data-potion-type');
-    let potionTargetCharOrder = potionType === 'single' ? $('.potion-target-radio-container input[name="potionTarget"]:checked').val() : -1;
-    let characterId = $('#partyCommandContainer .battle-portrait').eq(potionTargetCharOrder - 1).data('character-id');
+function requestPotion(potionType, actorId) {
+    console.log('[requestPotion] actorId = ', actorId, ' potionType = ', potionType);
     let memberId = $('#memberInfo').data('member-id');
-    console.log('[requestPotion] potionTargetCharOrder = ', potionTargetCharOrder, ' potionType = ', potionType);
     $.ajax({
         url: '/api/use-potion',
         type: 'POST',
@@ -187,21 +210,45 @@ function requestPotion(usePotionButtonElement) {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         data: JSON.stringify({
-            characterId: characterId,
+            actorId: actorId,
             memberId: memberId,
             potionType: potionType // 영원히 바뀔일 없으니 single, all, elixir 로 고정
         }),
         async: false,
         success: function (response) {
-            $(usePotionButtonElement)
+            $('#usePotionButton')
                 .attr('data-potion-type', '')
                 .prop('disabled', true);
-            $('#potionModal .close-button').click();
 
             setTimeout(() => processPotion(response), 500); // 모달 닫히는 시간 고려
         },
-        error: function (response) {
-            console.error(response);
+        error: function (error) {
+            console.error(error);
+            alert(response.responseText);
+        }
+    });
+}
+
+// test ==============================================================================================================
+function requestResetCooldown() {
+    let memberId = $('#memberInfo').data('member-id');
+    console.log('[requestRestCooldown] memberId = ', memberId);
+    $.ajax({
+        url: '/test/reset-cooldowns',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('#csrfToken').val()
+        },
+        data: JSON.stringify({
+            memberId: memberId,
+        }),
+        success: function (response) {
+            // console.log(response);
+            processResponseMoves(response);
+        },
+        error: function (error) {
+            console.log(error);
         }
     });
 }

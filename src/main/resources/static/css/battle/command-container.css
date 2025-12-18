@@ -1,0 +1,513 @@
+#commandContainer {
+    /* 셰이크 효과를 위해 background 에 1px 추가, 마진 패딩 삭제*/
+    /*margin: -10px auto 0;*/
+    /*padding-top: 12px;*/
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x 1px;
+}
+
+#commandContainer .value {
+    font-family: 'Lusitana', sans-serif;
+}
+
+/* 어빌리티 레일 ======================================================================================================== */
+#abilityRailContainer {
+    width: 100%;
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.ability-rail-wrapper {
+    width: 65%;
+    overflow: hidden;
+
+    box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
+    border: 1px solid #639fa8;
+    border-radius: 5px;
+}
+
+#abilityRail {
+    display: flex;
+    min-width: 100%;
+}
+
+.rail-item, .rail-ability-dummy {
+    width: 12%;
+    margin-right: 1%;
+    flex: 0 0 auto;
+}
+
+.rail-item img, .rail-ability-dummy img  {
+    width: 100%;
+    vertical-align: sub;
+}
+
+.rail-ability-dummy {
+    margin-left: -12%;
+}
+
+/* 공격 버튼 ========================================================================================================== */
+#attackButtonWrapper {
+    width: 25%;
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+#attackButtonWrapper img {
+    width: 150%;
+    position: absolute;
+    left: -30%;
+    top: -25%;
+}
+
+#attackButton {
+    width: 100%;
+    position: absolute;
+    height: 100%;
+    z-index: 1;
+    opacity: 0;
+}
+
+/* 기본 portrait + 표시 ================================================================================================ */
+#partyCommandContainer {
+    height: 122px; /* 110 + 4 + 4 */
+    position: relative;
+    padding: 4px 10px;
+
+    display: flex;
+}
+
+.battle-member-wrapper {
+    display: flex;
+    width: 230px;
+    height: 110px;
+}
+
+.battle-portrait {
+    width: 56px;
+    position: relative;
+    height: 114px;
+    margin-right: 3px;
+    align-self: flex-start;
+}
+
+.battle-portrait img {
+    height: 100%;
+}
+
+.hp-gauge-wrapper {
+    position: absolute;
+    width: 95%;
+    padding: 3px;
+    top: 83px;
+    left: 0;
+}
+
+.charge-gauge-wrapper {
+    position: absolute;
+    width: 95%;
+    padding: 3px;
+    top: 95px;
+    left: 0;
+}
+
+.charge-gauge-value {
+    position: absolute;
+    right: 0;
+    bottom: 2px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
+    color: white;
+}
+
+.hp-gauge-value {
+    position: absolute;
+    right: 0;
+    bottom: 2px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
+    color: white;
+}
+
+
+.hp-gauge .progress{
+    height: 5px;
+    border: solid 1px black;
+}
+
+.charge-gauge .progress{
+    height: 3px;
+}
+
+.hp-gauge .progress-bar {
+    background-color: #0cc223;
+}
+
+.ability-usable-indicator-wrapper {
+    height: 11px;
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+    padding: 1px 3px;
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.ability-usable-indicator {
+    width: 7px;
+    height: 7px;
+    background-color: #0d1111;
+    border-radius: 0.1rem;
+    border: solid 1px #4e6c73;
+}
+
+.ability-usable-indicator.none {
+    border: none;
+}
+
+.ability-usable-indicator.attack {
+    background-color: #eb7676;
+    border: none;
+}
+
+.ability-usable-indicator.buff {
+    background-color: #f1c86d;
+    border: none;
+}
+
+.ability-usable-indicator.debuff {
+    background-color: #94c9f7;
+    border: none;
+}
+
+.ability-usable-indicator.heal {
+    background-color: #aff39b;
+    border: none;
+}
+
+/* 소환석 ============================================================================================================= */
+
+.summon-button-wrapper {
+    position: relative;
+    width: 56px;
+    height: 114px;
+    margin-left: auto;
+    justify-items: flex-end;
+}
+
+#partyCommandContainer .summon-button-overlay {
+    z-index: 1; /* #abilitySlider = 5 */
+}
+
+.summon-portrait {
+    height: 114px;
+}
+
+.summon-portrait img{
+    height: 100%;
+}
+
+
+.summon-display-button {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    opacity: 0;
+}
+
+.summon-display-wrapper {
+    position: absolute;
+    width: 240px;
+}
+
+.summon-collapse {
+    width: 240px;
+}
+
+.summon-list {
+    background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
+    background-size: 3px;
+    background-position-y: -20px
+}
+
+.summon-list-item {
+    float: left;
+    width: 56px;
+    height: 114px;
+    margin-right: 3px;
+    position: relative;
+}
+
+.summon-list-item img {
+    height: 100%;
+}
+
+.summon-cooldown {
+    position: absolute;
+    bottom: 3%;
+    right: 5%;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
+    text-align: end;
+    line-height: 15px;
+}
+
+.summon-list-item:not(.empty):hover {
+    cursor: pointer;
+}
+
+.summon-list-item.disabled {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.union-summon-chance-wrapper {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    align-content: end;
+}
+
+.union-summon-chance-wrapper img {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.union-summon-chance-wrapper img:nth-child(2) { /* chance indicator */
+    top: 50%;
+}
+
+
+/* advanced 커맨드 (가드 + 페이탈 체인) ============================================================================== */
+.advanced-command-container {
+    padding: 0 8px;
+}
+
+.advanced-command-container::after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
+.advanced-command-container .guard-button-wrapper {
+    width: 230px;
+    display: flex;
+    float: left;
+    margin-left: 4px;
+}
+
+.guard-button-wrapper .guard-button {
+    width: 54px;
+    text-align: center;
+    margin-left: 4px;
+}
+
+.guard-button-wrapper .guard-button:first-child {
+    margin-left: 0;
+}
+
+.guard-button img {
+    width: 90%;
+    vertical-align: sub;
+}
+
+.fatal-chain-gauge-wrapper{
+    width: 65px;
+    float: right;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.fatal-chain-gauge-label {
+    color: white;
+    margin-left: -5px;
+    padding-right: 3px;
+    font-size: 15px;
+    font-style: italic;
+}
+
+.fatal-chain-gauge {
+    width: 100%;
+    position: relative;
+    border: solid 1px black;
+}
+
+.fatal-chain-gauge-value {
+    position: absolute;
+    bottom: 0;
+    font-weight: bold;
+    font-size: 12px;
+    text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+    color: white;
+    top: -2px;
+    right: 3px;
+}
+
+.fatal-chain-gauge-info {
+    display: none;
+}
+
+/* 서브 커맨드 (어빌리티 설명, 오의ON, 회복버튼) ============================================================================ */
+.sub-command-container {
+    color: white;
+    display: flex;
+    padding: 7px 10px;
+    height: 35px;
+    font-size: 12px;
+    align-items: center;
+}
+
+.potion-modal-button {
+    padding-left: 1rem;
+    font-size: 12px;
+    line-height: 12px;
+    padding-right: 1rem;
+}
+
+.sub-command-container .form-switch {
+    display: flex;
+    align-items: center;
+}
+
+.sub-command-container .form-switch input {
+    margin-top: 0;
+    height: 15px;
+}
+
+.sub-command-container .form-check-label {
+    margin-left: 4px;
+}
+
+.show-ability-info-check-wrapper {
+    margin-left: 4px;
+}
+
+.charge-attack-check-wrapper {
+    margin-left: 4px;
+}
+
+/* 멤버 정보 ========================================================================================================== */
+
+.member-info-container {
+    border-top: solid 1px;
+    border-color: #35b1b9;
+
+    background-color: #050606;
+    color: white;
+    font-size: 9px;
+    padding: 5px 5px;
+    height: 40px;
+}
+
+.member-info-container::after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
+.member-info-wrapper {
+    float: left;
+
+    width: 32%;
+    height: 32px;
+    position: relative;
+    padding: 2px 3px;
+    background: url(/assets/img/ui/member-bg.png) no-repeat;
+    background-size: contain;
+}
+
+.member-info-wrapper:not(:first-child) {
+    margin-left: 5px;
+}
+
+.member-info-wrapper.me {
+    background: url(/assets/img/ui/member-bg-me.png) no-repeat;
+}
+
+.member-info-wrapper .element-type {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+
+    background: url(/assets/img/ui/element-type.png) no-repeat 0 0;
+    background-size: 16px 105px;
+    width: 16px;
+    height: 16px;
+}
+
+.member-info-wrapper .element-type.earth {
+    /*background-position: 0 0;*/
+}
+
+.member-info-wrapper .element-type.wind {
+    background-position: 0 -17px; /*17.5*/
+}
+
+.member-info-wrapper .element-type.dark {
+    background-position: 0 -35px;
+}
+
+.member-info-wrapper .element-type.fire {
+    background-position: 0 -53px;
+}
+
+.member-info-wrapper .element-type.light {
+    background-position: 0 -71px;
+}
+
+.member-info-wrapper .element-type.water {
+    background-position: 0 -89px;
+}
+
+.member-info-wrapper .member-username {
+    text-indent: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: bold;
+}
+
+.member-info-wrapper .member-leader-actor-name {
+    font-size: 8px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.member-info-wrapper .honor {
+    text-align: end;
+    line-height: 9px;
+}
+
+.member-info-wrapper .honor-icon {
+    position: absolute;
+    right: 5px;
+    top: -5px;
+
+    width: 11px;
+    height: 21px;
+}
+
+.member-info-wrapper .honor-icon.place-0 {
+    background: url(/assets/img/ui/honor-gold.png) no-repeat;
+    background-size: contain;
+}
+
+.member-info-wrapper .honor-icon.place-1 {
+    background: url(/assets/img/ui/honor-silver.png) no-repeat;
+    background-size: contain;
+}
+
+
+

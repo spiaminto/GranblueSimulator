@@ -62,10 +62,13 @@ public class ThreadLocalLogTrace implements LogTrace {
                 sb.append(param).append(",\n");
             }
             String stackTrace = Arrays.stream(e.getStackTrace())
-                    .limit(15)
+                    .limit(30)
                     .map(StackTraceElement::toString)
                     .collect(Collectors.joining("\n"));
-            log.error("[{}] {}{} \n exception = \n{}\n from = \n{}\n params = \n{}", traceId.getId(), addSpace(EX_PREFIX, traceId.getLevel()), status.getMessage(), e, stackTrace, sb);
+            log.error("[{}] {}{} ", traceId.getId(), addSpace(EX_PREFIX, traceId.getLevel()), status.getMessage());
+            if (traceId.isFirstLevel()) {
+                log.error("[{}] \n exception = \n{}\n from = \n{}\n params = \n{}", status.getMessage(), e, stackTrace, sb);
+            }
         } else if (completeEnabled) {
             log.info("[{}] {}{}", traceId.getId(), addSpace(COMPLETE_PREFIX, traceId.getLevel()), status.getMessage());
         }

@@ -252,7 +252,6 @@ class Loader {
             for (const [dupe, orig] of Object.entries(weapon_dupe_table)) {
                 window.images[dupe] = window.images[orig];
             }
-
             actor.initToPlayer();
         });
     }
