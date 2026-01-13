@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.battle.service;
 
 import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.repository.ActorRepository;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,13 +39,17 @@ public class BattleCommandService {
     private final BattleLogic battleLogic;
     private final SyncLogic syncLogic;
     private final MoveRepository moveRepository;
+    private final ActorRepository actorRepository;
 
     /**
      * 방 생성 또는 입장시 실행
      */
+    // @Transactional(timeout = ...) // MemberService.enterRoom()
     public void startBattle() {
         Member currentMember = battleContext.getMember();
+
         // 기존 적이 있을 경우 동기화
+        getActorLock(); // 락 걸고 동기화
         currentMember.getRoom().getMembers().stream()
                 .filter(roomMember -> !roomMember.equals(currentMember))
                 .findFirst().ifPresent(syncLogic::syncEnemy); // referenceMember.enemy 로 내 enemy 를 즉시 동기화
@@ -56,11 +62,14 @@ public class BattleCommandService {
      *
      * @return
      */
+    @Transactional(timeout = 1)
     public List<ActorLogicResult> progressTurn() {
         Member currentMember = battleContext.getMember();
         List<ActorLogicResult> progressTurnResults = new ArrayList<>();
         // 1. 동기화
-        progressTurnResults.add(syncLogic.processSync());
+        progressTurnResults.addAll(syncLogic.processSync());
+        // 1.1 락 획득
+        getActorLock();
         // 2. 아군 전체가 공격행동
         progressTurnResults.addAll(battleLogic.processStrike());
         // 3. 적이 공격행동
@@ -78,7 +87,7 @@ public class BattleCommandService {
         // 커맨드 후처리
         postProcessCommand(progressTurnResults);
 
-        progressTurnResults.forEach(result -> log.info("[progressTurn] Result: {}", result));
+//        progressTurnResults.forEach(result -> log.info("[progressTurn] Result: {}", result));
         return progressTurnResults;
     }
 
@@ -88,6 +97,7 @@ public class BattleCommandService {
      * @param moveId
      * @return
      */
+    @Transactional(timeout = 1)
     public List<ActorLogicResult> ability(Long moveId) {
         Move ability = moveRepository.findById(moveId).orElseThrow(() -> new MoveValidationException("해당 행동이 존재하지 않음 moveId = " + moveId));
         Actor mainCharacter = battleContext.getMainActor();
@@ -97,11 +107,15 @@ public class BattleCommandService {
         if (mainCharacter.getAbilitySealed(ability.getType()))
             throw new MoveValidationException("어빌리티 봉인 중,  actor = " + mainCharacter.getName() + ", ability = " + ability.getName());
 
+        mainCharacter.updateCommandType(ability.getType());
         List<ActorLogicResult> results = new ArrayList<>();
 
         // 동기화
-        ActorLogicResult syncResult = syncLogic.processSync();
-        results.add(syncResult);
+        List<ActorLogicResult> syncResults = syncLogic.processSync();
+        results.addAll(syncResults);
+
+        // 락 획득
+        getActorLock();
 
         // 실행
         List<ActorLogicResult> moveResults = battleLogic.processAbility(ability);
@@ -119,6 +133,7 @@ public class BattleCommandService {
      *
      * @return
      */
+    @Transactional(timeout = 1)
     public List<ActorLogicResult> fatalChain() {
         Member member = battleContext.getMember();
         Long fatalChainMoveId = member.getFatalChainMoveId();
@@ -128,8 +143,11 @@ public class BattleCommandService {
         List<ActorLogicResult> results = new ArrayList<>();
 
         // 동기화
-        ActorLogicResult syncResult = syncLogic.processSync();
-        results.add(syncResult);
+        List<ActorLogicResult> syncResults = syncLogic.processSync();
+        results.addAll(syncResults);
+
+        // 락 획득
+        getActorLock();
 
         // 실행
         List<ActorLogicResult> moveResults = battleLogic.processFatalChain(fatalChain);
@@ -149,6 +167,7 @@ public class BattleCommandService {
      * @param doUnionSummon
      * @return
      */
+    @Transactional(timeout = 1)
     public List<ActorLogicResult> summon(Long summonId, boolean doUnionSummon) {
         Actor leaderCharacter = battleContext.getLeaderCharacter();
         if (leaderCharacter.isAlreadyDead()) throw new MoveValidationException("주인공이 사망하면 소환석을 사용할수 없음");
@@ -157,7 +176,10 @@ public class BattleCommandService {
         List<ActorLogicResult> results = new ArrayList<>();
 
         // 동기화
-        results.add(syncLogic.processSync());
+        results.addAll(syncLogic.processSync());
+
+        // 락 획득
+        getActorLock();
 
         // 실행
         results.addAll(battleLogic.processSummon(summonMove, doUnionSummon));
@@ -194,7 +216,7 @@ public class BattleCommandService {
         return potionResult;
     }
 
-    public ActorLogicResult sync() {
+    public List<ActorLogicResult> sync() {
         return syncLogic.processSync();
     }
 
@@ -232,7 +254,7 @@ public class BattleCommandService {
                 case SUMMON -> 4;
                 case FATAL_CHAIN -> 4;
                 default -> {
-                    log.warn("[calcMemberMoveCooldown] default case, moveType = {}, result = {}", result.getMove().getType(), result);
+//                    log.warn("[calcMemberMoveCooldown] default case, moveType = {}, result = {}", result.getMove().getType(), result);
                     yield 1;
                 }
             };
@@ -270,13 +292,13 @@ public class BattleCommandService {
             if (move.getName() != null) {
                 Integer value = additionalHonorMovenameMap.get(move.getName());
                 if (value != null) resultHonor += basicMaxHonor / 100;
-                log.info("[calcHonor] ABILITY moveName = {}, honor = {}", move.getName(), basicMaxHonor / 100);
+//                log.info("[calcHonor] ABILITY moveName = {}, honor = {}", move.getName(), basicMaxHonor / 100);
             }
 
             //2. 적의 전조를 해제시 기본 총 공헌도의 1% 분의 공헌도를 획득
             if (move.getType().getParentType() == MoveType.BREAK) {
                 resultHonor += basicMaxHonor / 100;
-                log.info("[calcHonor] BREAK moveType = {}, honor = {}", move.getType(), basicMaxHonor / 100);
+//                log.info("[calcHonor] BREAK moveType = {}, honor = {}", move.getType(), basicMaxHonor / 100);
             }
 
             // 3. 줄어든 적의 체력의 1% 만큼 공헌도 획득 ( = 기본 총 공헌도 분배)
@@ -284,11 +306,11 @@ public class BattleCommandService {
                 ActorLogicResult beforeResult = results.get(index - 1);
                 Integer beforeEnemyHp = beforeResult.getSnapshots().get(enemy.getId()).getHp();
                 Integer currentEnemyHp = result.getSnapshots().get(enemy.getId()).getHp();
-                 currentEnemyHp = currentEnemyHp > 0 ? currentEnemyHp : 0; // 오버된 데미지는 적용 x
+                currentEnemyHp = currentEnemyHp > 0 ? currentEnemyHp : 0; // 오버된 데미지는 적용 x
                 int hpDiff = beforeEnemyHp - currentEnemyHp;
                 int honor = hpDiff > 0 ? hpDiff / 100 : 0;
                 resultHonor += honor;
-                log.info("[calcHonor] DAMAGE beforeEnemyHp = {}, currentEnemyHp = {}, honor = {}", beforeEnemyHp, currentEnemyHp, honor);
+//                log.info("[calcHonor] DAMAGE beforeEnemyHp = {}, currentEnemyHp = {}, honor = {}", beforeEnemyHp, currentEnemyHp, honor);
             }
 
             result.updateHonor(resultHonor);
@@ -297,6 +319,18 @@ public class BattleCommandService {
         }
 
         return totalHonor;
+    }
+
+    /**
+     * Actor 에 대한 락을 획득 <br>
+     * 갱신유실을 막기 위해 커맨드 처리 시작시 설정한다.
+     */
+    protected void getActorLock() {
+        List<Long> enemyActorIds = battleContext.getMember().getRoom().getMembers().stream()
+                .flatMap(member -> member.getActors().stream().filter(Actor::isEnemy).map(Actor::getId))
+                .sorted() // 락 순서 일관되게 정렬
+                .toList();
+        actorRepository.lockActors(enemyActorIds);
     }
 
 

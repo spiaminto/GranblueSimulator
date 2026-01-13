@@ -1,7 +1,9 @@
 package com.gbf.granblue_simulator.battle.logic.system.dto;
 
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
+import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import lombok.AccessLevel;
@@ -12,8 +14,9 @@ import lombok.Data;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class OmenResult {
     private OmenType type;
+    private MoveType standbyMoveType;
     private Integer remainValue;
-    private String cancelCond;
+    private OmenCancelCond cancelCond;
     private String name;
     private String info;
     private String motion;
@@ -23,8 +26,9 @@ public class OmenResult {
         Omen omen = standby.getOmen();
         return new OmenResult(
                 omen.getOmenType(),
+                standby.getType(),
                 enemy.getOmenValue(),
-                omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()).getInfo(),
+                omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex()),
                 omen.getName(),
                 omen.getInfo(),
                 standby.getMotionType().getMotion()

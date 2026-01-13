@@ -2,6 +2,8 @@ package com.gbf.granblue_simulator.battle.logic.actor.character;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
@@ -46,24 +48,21 @@ public class IndaraLogic extends CharacterLogic {
         List<BaseStatusEffect> selectedBaseStatusEffects = List.of(getBaseEffectByNameFromMove(selfMove(MoveType.CHARGE_ATTACK_DEFAULT), "사문"));
         DefaultActorLogicResult defaultResult = defaultChargeAttack(null, selectedBaseStatusEffects);
 
-        // 사문 레벨이 5인경우 삭제후 불휴활기
+        // 사문 레벨이 5인경우 삭제후 불휴활기 (원작과 다르게 4->5 로 가는 사문에서 바로 불휴활기)
         getEffectByName(self, "사문")
                 .filter(statusEffect -> statusEffect.getLevel() >= 5)
                 .ifPresent(statusEffect -> {
                     // defaultEffect의 각 상태효과 조작
-                    List<ResultStatusEffectDto> addedStatusEffectsSelfInDefaultResult = defaultResult.getSetStatusResult().getAddedStatusesList().get(self.getCurrentOrder());
-                    List<ResultStatusEffectDto> removedStatusEffectsSelfInDefaultResult = defaultResult.getSetStatusResult().getRemovedStatuesList().get(self.getCurrentOrder());
-
-                    // 불휴활기 부여
-                    ActorLogicResult firstSupportAbilityResult = firstSupportAbility();
-                    List<ResultStatusEffectDto> firstSupportAbilityAddedStatusEffectsSelf = firstSupportAbilityResult.getAddedStatusEffectsList().get(self.getCurrentOrder()); // 불휴활기 포함됨
-                    addedStatusEffectsSelfInDefaultResult.addAll(firstSupportAbilityAddedStatusEffectsSelf);
-
-                    // 5레벨 사문은 [추가된] -> [제거된] 으로 변경
+                    SetStatusEffectResult.Result statusEffectsSelfInDefaultResult = defaultResult.getSetStatusEffectResult().getResults().get(self.getId());
+                    // 5레벨 사문 효과 [추가된] -> [제거된] 으로 변경
                     ResultStatusEffectDto samoonStatusEffectDto = ResultStatusEffectDto.of(statusEffect);
-                    addedStatusEffectsSelfInDefaultResult.remove(samoonStatusEffectDto);
-                    removedStatusEffectsSelfInDefaultResult.add(samoonStatusEffectDto);
+                    statusEffectsSelfInDefaultResult.getAddedStatusEffects().remove(samoonStatusEffectDto);
+                    statusEffectsSelfInDefaultResult.getRemovedStatusEffects().add(samoonStatusEffectDto);
                     setStatusLogic.removeStatusEffect(self, statusEffect);
+                    // 불휴활기 부여
+                    firstSupportAbility();
+                    List<ResultStatusEffectDto> kakkiEffectDtos = getEffectsByName(self, "불휴활기").stream().map(ResultStatusEffectDto::of).toList();
+                    statusEffectsSelfInDefaultResult.getAddedStatusEffects().addAll(kakkiEffectDtos);
                 });
 
         // 자신이 불휴활기 상태인 경우 1, 2 어빌리티 쿨타임 초기화
@@ -142,13 +141,11 @@ public class IndaraLogic extends CharacterLogic {
     protected ActorLogicResult thirdAbility() {
         Move ability = selfMove(MoveType.THIRD_ABILITY);
         DefaultActorLogicResult defaultResult = defaultAbility(ability);
-        getEffectByName(self(), "불휴활기")
-                .ifPresent(statusEffect -> {
-                    setStatusLogic.shortenStatusEffectDuration(statusEffect, 2);
-                    // 어빌리티 사용으로 인해 0이 된경우 수면 (표시하진 않음 어차피 어빌봉인이라 갱신되면 앎)
-                    if (statusEffect.getDuration() == 0)
-                        secondSupportAbility();
-                });
+        List<StatusEffect> kakkiEffects = getEffectsByName(self(), "불휴활기"); // 여러개임
+        if (!kakkiEffects.isEmpty()) {
+            setStatusLogic.shortenStatusEffectsDuration(kakkiEffects, 2); // 2턴 감소
+            if (kakkiEffects.getFirst().getDuration() == 0) secondAbility(); // 감소로 인해 0턴이 된 경우 수면
+        }
         return resultMapper.fromDefaultResult(defaultResult);
     }
 
@@ -177,7 +174,7 @@ public class IndaraLogic extends CharacterLogic {
         return getEffectByName(battleContext.getEnemy(), "흉역")
                 .filter(battleStatus -> battleStatus.getLevel() >= 10)
                 .map(statusEffect -> defaultAbility(ability))
-                .filter(defaultResult -> !defaultResult.getSetStatusResult().getRemovedStatuesList().getFirst().isEmpty())
+                .filter(defaultResult -> !defaultResult.getSetStatusEffectResult().getResults().get(battleContext.getEnemy().getId()).getRemovedStatusEffects().isEmpty())
                 .map(resultMapper::fromDefaultResult)
                 .orElseGet(resultMapper::emptyResult);
     }

@@ -62,7 +62,7 @@
           <p class="card-text">진행 턴 : <span th:text="${myInfo.totalTurns}">22</span>턴</p>
           <p class="card-text">진행 시간: <span th:text="${myInfo.totalTime}">22:31</span></p>
           <p class="card-text">적 체력: <span th:text="${myInfo.enemyHp}">12억</span></p>
-          <p class="card-text">가한 데미지: <span th:text="${myInfo.totalDamage}">1억 2345만 1234</span></p>
+          <p class="card-text">가한 데미지: <span th:text="${myInfo.formattedTotalDamage}">1억 2345만 1234</span></p>
           <p class="card-text">가한 데미지 비율: <span th:text="${myInfo.totalDamageRate}">55</span>%</p>
           <p class="card-text">획득 공헌도: <span th:text="${myInfo.totalHonor}">123만 3456</span></p>
         </div>
@@ -75,7 +75,7 @@
         <div class="card-body" th:each="memberInfo : ${memberInfos}">
           <h5 class="card-title">아이디: <span th:text="${memberInfo.username}">테스트123</span></h5>
           <p>공헌도 순위: <span th:text="${memberInfoStat.count}"></span>등</p>
-          <p class="card-text">가한 데미지: <span th:text="${memberInfo.totalDamage}">1억 2345만 1234</span></p>
+          <p class="card-text">가한 데미지: <span th:text="${memberInfo.formattedTotalDamage}">1억 2345만 1234</span></p>
           <p class="card-text">가한 데미지 비율: <span th:text="${memberInfo.totalDamageRate}">55</span>%</p>
           <p class="card-text">획득 공헌도: <span th:text="${memberInfo.totalHonor}">123만 3456</span></p>
         </div>

@@ -4,10 +4,12 @@ import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
 import com.gbf.granblue_simulator.battle.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.enemy.EnemyLogic;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.TurnEndStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.system.SummonLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
@@ -23,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -40,9 +43,9 @@ public class BattleLogic {
 
     private final BattleContext battleContext;
     private final SummonLogic summonLogic;
+    private final TurnEndStatusLogic turnEndStatusLogic;
 
     private final MoveRepository moveRepository;
-    private final TurnEndStatusLogic turnEndStatusLogic;
     private final BattleLogService battleLogService;
 
     /**
@@ -70,8 +73,12 @@ public class BattleLogic {
         List<ActorLogicResult> results = new ArrayList<>();
 
         for (Actor mainCharacter : partyMembers) {
-            int multiStrikeCount = (int) StatusUtil.getEffectIsMaxValue(mainCharacter, StatusModifierType.MULTI_STRIKE);
-            int totalStrikeCount = multiStrikeCount == 0 ? 1 : multiStrikeCount;
+            // 공격행동 횟수 결정
+            int multiStrikeCount = mainCharacter.getStatus().getStatusDetails().getCalcedStrikeCount();
+            int totalStrikeCount = multiStrikeCount == 0 || mainCharacter.isGuardOn() ? 1 : multiStrikeCount; // 공격횟수버프 0 이거나 가드시 1
+            mainCharacter.getStatus().getStatusDetails().initEndStrikeCount(totalStrikeCount);
+            // 자신의 공격행동 시작후 붙은 공격행동횟수 버프는 현재 공격행동에 영향을 끼치지 않음 (ex 허사 다이버 주인공 오의시 재행동 부여 등)
+
             int strikeCount = 0; // 공격행동 카운트
             boolean isNextMoveChargeAttack = false;
 
@@ -101,8 +108,11 @@ public class BattleLogic {
         List<ActorLogicResult> results = new ArrayList<>();
         Actor enemy = battleContext.getEnemy();
         
-        int multiStrikeCount = (int) StatusUtil.getEffectIsMaxValue(enemy, StatusModifierType.MULTI_STRIKE);
+        // 공격행동 횟수 결정
+        int multiStrikeCount = enemy.getStatus().getStatusDetails().getCalcedStrikeCount();
         int totalStrikeCount = multiStrikeCount == 0 ? 1 : multiStrikeCount;
+        enemy.getStatus().getStatusDetails().initEndStrikeCount(totalStrikeCount);
+
         int strikeCount = 0; // 공격행동 카운트
 
         while (strikeCount < totalStrikeCount) {
@@ -135,6 +145,8 @@ public class BattleLogic {
         // 어빌리티 사용
         ActorLogicResult abilityResult = callCharacterLogic((logic) -> logic.processAbility(ability.getType()), mainCharacter);
         List<ActorLogicResult> results = new ArrayList<>();
+        // 커맨드 필드 초기화
+        mainCharacter.updateCommandType(null);
 
         // 반응
         results.addAll(postProcessToMove(abilityResult));
@@ -295,8 +307,22 @@ public class BattleLogic {
         List<Actor> partyMembers = battleContext.getFrontCharacters();
         Actor enemy = battleContext.getEnemy();
         if (enemy.isAlreadyDead()) return new ArrayList<>(); // 적이 이미 사망했을경우 턴종처리 없음
+        LocalDateTime turnEndProcessStartTime = LocalDateTime.now(); // 턴종처리 시작시간 : 턴종시 발생한 상태효과는 턴종 상태효과 진행시 duration 을 차감하지 않음
 
         List<ActorLogicResult> turnEndResults = new ArrayList<>();
+
+        // 턴종 스테이터스 효과 처리
+        List<ActorLogicResult> turnEndStatusResults = turnEndStatusLogic.processTurnEnd(enemy, partyMembers);
+        // 턴종 스테이터스 효과 반응 처리
+        turnEndStatusResults.forEach(turnEndResult -> turnEndResults.addAll(postProcessToMove(turnEndResult)));
+
+        // 사망 여부 처리, CHECK 턴종 스테이터스가 턴종힐 -> 턴종데미지 순서로 처리되므로, 사망처리 순서는 여기로 ok
+        List<ActorLogicResult> deadResults = partyMembers.stream()
+                .filter(partyMember -> partyMember.isNowDead() || enemy.isNowDead())
+                .map(partyMember -> this.processDead(partyMember, enemy)).filter(Objects::nonNull).toList();
+        battleLogService.saveBattleLogAll(deadResults);
+        turnEndResults.addAll(deadResults);
+
         // 아군 턴종 처리
         partyMembers.forEach(partyMember -> {
             partyMember.changeGuard(false); // 가드 off
@@ -313,27 +339,23 @@ public class BattleLogic {
         // 적 턴종료 반응 처리
         enemyTurnEndResults.forEach(enemyTurnEndResult -> turnEndResults.addAll(postProcessToMove(enemyTurnEndResult)));
 
-        // 턴종 스테이터스 효과 처리
-        List<ActorLogicResult> turnEndStatusResults = turnEndStatusLogic.processTurnEnd(enemy, partyMembers);
-        battleLogService.saveBattleLogAll(turnEndStatusResults);
-        turnEndResults.addAll(turnEndStatusResults);
-
-        // 사망 여부 처리, CHECK 턴종 스테이터스가 턴종힐 -> 턴종데미지 순서로 처리되므로, 사망처리 순서는 여기로 ok
-        List<ActorLogicResult> deadResults = partyMembers.stream()
-                .filter(partyMember -> partyMember.isNowDead() || enemy.isNowDead())
-                .map(partyMember -> this.processDead(partyMember, enemy)).filter(Objects::nonNull).toList();
-        battleLogService.saveBattleLogAll(deadResults);
-        turnEndResults.addAll(deadResults);
-
-        // 전조 발동
-        List<ActorLogicResult> activateOmenResults = callEnemyLogic(EnemyLogic::activateOmen, enemy);
-        battleLogService.saveBattleLogAll(activateOmenResults);
-        turnEndResults.addAll(activateOmenResults);
+        //전조 발동
+        Enemy concreteEnemy = (Enemy) enemy;
+        boolean isEnemyOmenSuspended = concreteEnemy.getCurrentStandbyType() != null; // 남아있는 전조가 있다 = 브레이크 되거나, 특수기를 사용해서 해제하지 못했다 => 일반적으로 행동불가로 인해 특수기 사용이 막혔다 => 전조유지
+        if (!isEnemyOmenSuspended) {
+            List<ActorLogicResult> activateOmenResults = callEnemyLogic(EnemyLogic::activateOmen, enemy);
+            battleLogService.saveBattleLogAll(activateOmenResults);
+            turnEndResults.addAll(activateOmenResults);
+        }
 
         // 턴종 후 스테이터스, 상태 진행 처리
-        List<ActorLogicResult> turnEndAfterStatusResults = turnEndStatusLogic.processTurnEndAfter(enemy, partyMembers);
-        battleLogService.saveBattleLogAll(turnEndAfterStatusResults);
-        turnEndResults.addAll(turnEndAfterStatusResults);
+        partyMembers.forEach(Actor::progressAbilityCoolDown); // 어빌리티 쿨다운 진행
+        battleContext.getLeaderCharacter().progressSummonCoolDown(); // 소환석 쿨다운 진행
+        partyMembers.forEach(Actor::resetAbilityUseCount); // 어빌리티 사용횟수 초기화
+        partyMembers.forEach(Actor::resetStrikeCount); // 공격 행동 횟수 초기화
+        ActorLogicResult turnFinishResult = turnEndStatusLogic.progressStatusEffect(turnEndProcessStartTime); // 상태효과 진행처리
+        battleLogService.saveBattleLog(turnFinishResult);
+        turnEndResults.add(turnFinishResult);
 
         return turnEndResults;
     }
@@ -351,6 +373,7 @@ public class BattleLogic {
         Queue<ActorLogicResult> reactionQueue = new ArrayDeque<>();
 
         allResults.add(firstBaseResult);
+        battleLogService.saveBattleLog(firstBaseResult);
         reactionQueue.add(firstBaseResult);
 
         int depth = 0; // 디버깅을 위한 depth 추적, 아래의 for 루프도 depth 추적을 위해 사용
@@ -385,7 +408,6 @@ public class BattleLogic {
     }
 
     protected List<ActorLogicResult> processReactions(Actor beforeResultActor, ActorLogicResult baseResult) {
-        battleLogService.saveBattleLog(baseResult); // baseResult 는 결과 리스트에 이미 추가되어있으므로, 로그저장만
 
         List<ActorLogicResult> results = new ArrayList<>();
         Actor enemy = battleContext.getEnemy();

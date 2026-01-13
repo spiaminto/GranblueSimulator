@@ -1,4 +1,7 @@
-class AudioPlayer {
+/**
+ * 미사용
+ */
+class AudioPlayer { 
     constructor() {
         this.audioContext = null;
         this.buffers = [];
@@ -115,53 +118,86 @@ class AudioPlayer {
      */
     playAdditionalSound(cjsName = null, motion = null, moveType = null) {
         console.debug('[playAdditionalSound] actorName = ', cjsName, ' moveType = ', moveType, ' motion = ', motion);
-        let soundConstant = Sounds[cjsName];
-        if (!soundConstant) return;
+        if (!Sounds[cjsName]) return;
+        let additionalSound = Sounds[cjsName].additional;
+        if (!additionalSound) return;
 
-        let soundByMotion = soundConstant[motion]?.src;
-        let soundByMoveType = soundConstant[moveType?.name]?.src;
-        let soundByMoveTypeParent = soundConstant[moveType?.getParentType()?.name]?.src;
+        let soundByMotion = additionalSound[motion]?.src;
+        let soundByMoveType = additionalSound[moveType?.name]?.src;
+        let soundByMoveTypeParent = additionalSound[moveType?.getParentType()?.name]?.src;
 
         console.log('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
-        this.loadSounds([soundByMotion, soundByMoveType, soundByMoveTypeParent]).then(() => {
-            this.playAllSounds();
-        })
+        [soundByMotion, soundByMoveType, soundByMoveTypeParent].forEach(src => window.audio.play(src, {isLocal: true}));
+        // this.loadSounds([soundByMotion, soundByMoveType, soundByMoveTypeParent]).then(() => {
+        //     this.playAllSounds();
+        // })
     }
 }
 
 const enemySoundSrc = '/assets/audio/enemy'
 const globalSoundSrc = '/assets/audio/gl/'
+const uiSoundSrc = '/assets/audio/ui/'
+const bgmSrc= '/assets/audio/bgm/'
 const Sounds = { // key = mainCjs.name
-    enemy_4300903: {
-        break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-        break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-        standby_A: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
-        // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+    enemy_4300903: { // diaspora1
+        additional: { // key: motion
+            break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+            break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+            standby_A: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+            // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+        },
+        bgm: { // key: triggerHp or moveType.name
+            100: {src: bgmSrc + 'diaspora-0.mp3', index: 0, formOrder: 1},
+            90: {src: bgmSrc + 'diaspora-5.mp3', index: 1, formOrder: 1},
+            75: {src: bgmSrc + 'diaspora-6.mp3', index: 2, formOrder: 1},
+            'STANDBY_D': {src: bgmSrc + 'diaspora-7.mp3', index: 3, formOrder: 1},
+        }
+
     },
-    enemy_4300913: {
-        break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-        break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-        standby_A: {src: enemySoundSrc + '/diaspora2/standby-1.mp3'},
-        // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+    enemy_4300913: { // diaspora2
+        additional: {
+            break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+            break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
+            standby_A: {src: enemySoundSrc + '/diaspora2/standby-1.mp3'},
+            // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+        },
+        bgm: {
+            100: {src: bgmSrc + 'diaspora-8.mp3', index: 0, formOrder: 2},
+            'STANDBY_B': {src: bgmSrc + 'diaspora-9.mp3', index: 1, formOrder: 2},
+        }
+
     },
 
     global: {
-        GUARD_ON: {src: globalSoundSrc + 'guard-on.mp3'},
-        GUARD_OFF: {src: globalSoundSrc + 'guard-off.mp3'},
-
-        CHARGE_ATTACK_READY: {src: globalSoundSrc + 'charge-attack-ready.mp3',},
-
-        REQUEST_ATTACK: {src: globalSoundSrc + 'request-attack.mp3'},
-        CANCEL_ATTACK: {src: globalSoundSrc + 'cancel-attack.mp3'},
-
-        BEEP: {src: globalSoundSrc + 'beep.mp3',},
-        BUTTON_CLICK: {src: globalSoundSrc + 'button-click.mp3'},
-        BUTTON_CLOSE: {src: globalSoundSrc + 'button-close.mp3'},
+        GUARD_WAIT: {src: globalSoundSrc + 'guard-wait.mp3'},
 
         DEBUFF: {src: globalSoundSrc + 'debuff.mp3'},
 
         CHARACTER_DEAD: {src: globalSoundSrc + 'character-dead.mp3'},
     },
+
+    ui: {
+        GUARD_ON: {src: uiSoundSrc + 'guard-on.mp3'},
+        GUARD_OFF: {src: uiSoundSrc + 'guard-off.mp3'},
+
+        CHARGE_ATTACK_READY: {src: uiSoundSrc + 'charge-attack-ready.mp3',},
+
+        REQUEST_ATTACK: {src: uiSoundSrc + 'request-attack.mp3'},
+        CANCEL_ATTACK: {src: uiSoundSrc + 'cancel-attack.mp3'},
+
+        LOADING_READY: {src: uiSoundSrc + 'loading-ready.mp3'},
+
+        BEEP: {src: uiSoundSrc + 'beep.mp3',},
+
+        BUTTON_CLICK: {src: uiSoundSrc + 'button-click.mp3'},
+        BUTTON_CLOSE: {src: uiSoundSrc + 'button-close.mp3'},
+
+        TURN_INDICATOR: {src: uiSoundSrc + 'turn-indicator.mp3'},
+    },
+
+    bgm: { // key: actorId
+        enemy_4300903: {}
+    }
 
 }
 Object.freeze(Sounds);

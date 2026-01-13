@@ -116,19 +116,12 @@ public enum MoveType {
         this.className = className;
     }
 
-
     // STANDBY 타입으로 가져오기
-    public MoveType getDamagedType() {
-        return getMoveType(DAMAGED_A, DAMAGED_B, DAMAGED_C, DAMAGED_D, DAMAGED_E, DAMAGED_F, DAMAGED_G);
-    }
     public MoveType getChargeAttackType() {
         return getMoveType(CHARGE_ATTACK_A, CHARGE_ATTACK_B, CHARGE_ATTACK_C, CHARGE_ATTACK_D, CHARGE_ATTACK_E, CHARGE_ATTACK_F, CHARGE_ATTACK_G);
     }
     public MoveType getBreakType() {
         return getMoveType(BREAK_A, BREAK_B, BREAK_C, BREAK_D, BREAK_E, BREAK_F, BREAK_G);
-    }
-    public MoveType getIdleType() {
-        return getMoveType(IDLE_A, IDLE_B, IDLE_C, IDLE_D, IDLE_E, IDLE_F, IDLE_G);
     }
     private MoveType getMoveType(MoveType moveType, MoveType moveType2, MoveType moveType3, MoveType moveType4, MoveType moveType5, MoveType moveType6, MoveType moveType7) {
         return switch (this) {
@@ -139,19 +132,6 @@ public enum MoveType {
             case STANDBY_E -> moveType5;
             case STANDBY_F -> moveType6;
             case STANDBY_G -> moveType7;
-            default -> NONE;
-        };
-    }
-
-    public MoveType getStandbyByIdle() {
-        return switch (this) {
-            case IDLE_A -> STANDBY_A;
-            case IDLE_B -> STANDBY_B;
-            case IDLE_C -> STANDBY_C;
-            case IDLE_D -> STANDBY_D;
-            case IDLE_E -> STANDBY_E;
-            case IDLE_F -> STANDBY_F;
-            case IDLE_G -> STANDBY_G;
             default -> NONE;
         };
     }

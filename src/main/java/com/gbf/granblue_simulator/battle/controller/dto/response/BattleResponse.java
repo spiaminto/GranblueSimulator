@@ -27,6 +27,8 @@ public class BattleResponse {
     private int motionCustomDuration;
     private Boolean isAllTarget;
 
+    private String moveCjsName; // 테스트용
+
     // damageResult
     private int totalHitCount;
     @Builder.Default
@@ -46,6 +48,8 @@ public class BattleResponse {
     private List<List<StatusDto>> addedBattleStatusesList = new ArrayList<>(); // 발생한 스테이터스
     @Builder.Default
     private List<List<StatusDto>> removedBattleStatusesList = new ArrayList<>(); // 삭제된 스테이터스
+    @Builder.Default
+    private List<List<StatusDto>> levelDownedBattleStatusesList = new ArrayList<>(); // 레벨 감소한 스테이터스
     @Builder.Default
     private List<Integer> heals = new ArrayList<>(); // 강압시 0 회복하므로, 0 / null 구분을 위해 Integer
     @Builder.Default

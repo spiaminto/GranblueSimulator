@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.actor.dto;
 
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusDurationType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
@@ -7,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Builder @Data
 public class ResultStatusEffectDto {
@@ -50,4 +53,5 @@ public class ResultStatusEffectDto {
                 .updatedAt(statusEffect.getUpdatedAt())
                 .build();
     }
+
 }

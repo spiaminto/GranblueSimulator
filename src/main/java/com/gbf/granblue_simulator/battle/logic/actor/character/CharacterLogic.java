@@ -1,19 +1,20 @@
 package com.gbf.granblue_simulator.battle.logic.actor.character;
 
+import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.List;
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByModifierType;
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.*;
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.STRIKE_SEALED;
+import static com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType.ALL_PARTY_MEMBERS;
 import static com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType.*;
 
 /**
@@ -67,6 +69,7 @@ public abstract class CharacterLogic {
     protected Actor self() {
         return battleContext.getMainActor();
     }
+
     protected Move selfMove(MoveType moveType) {
         return this.self().getMove(moveType);
     }
@@ -81,21 +84,20 @@ public abstract class CharacterLogic {
         Actor mainActor = battleContext.getMainActor();
         // 가드시 반환
         if (mainActor.isGuardOn()) return defaultGuard();
-        // 공격행동 봉인시 반환
-        ActorLogicResult sealedStrikeResult = getEffectByModifierType(mainActor, StatusModifierType.STRIKE_SEALED)
-                .map(battleStatus -> resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, null))
-                .orElseGet(() -> null);
-        if (sealedStrikeResult != null) return sealedStrikeResult;
 
-        mainActor.increaseStrikeCount();
+        // 공격행동 봉인 여부 체크 및 반환
+        double calcedStrikeSealed = mainActor.getStatus().getStatusDetails().getCalcedStrikeSealed();
+        boolean isStrikeSealed = Math.random() < calcedStrikeSealed;
+        if (isStrikeSealed) return resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, null);
 
         // 공격행동 결정 및 수행
         boolean readyChargeAttack = mainActor.getChargeGauge() >= mainActor.getBaseActor().getMaxChargeGauge();
-        boolean chargeAttackSealed = getEffectByModifierType(mainActor, CHARGE_ATTACK_SEALED).isPresent();
+        boolean chargeAttackSealed = mainActor.getStatus().getStatusDetails().getCalcedChargeAttackSealed();
         boolean isChargeAttackOn = mainActor.getMember().isChargeAttackOn(); // 오의 발동 on 여부
-        return isChargeAttackOn && readyChargeAttack && !chargeAttackSealed
-                ? chargeAttack()
-                : attack();
+        ActorLogicResult strikeResult = isChargeAttackOn && readyChargeAttack && !chargeAttackSealed ? chargeAttack() : attack();
+
+        mainActor.increaseExecutedStrikeCount();
+        return strikeResult;
     }
 
     /**
@@ -182,7 +184,7 @@ public abstract class CharacterLogic {
         // 데미지 계산
         DamageLogicResult damageLogicResult = damageLogic.processPartyDamage(chargeAttack.getType(), chargeAttack.getElementType(), damageRate, chargeAttack.getHitCount());
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(baseStatusEffects);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(baseStatusEffects);
         // 오의게이지
         chargeGaugeLogic.afterAttack(chargeAttack.getType());
         // 오의 재발동
@@ -192,7 +194,7 @@ public abstract class CharacterLogic {
                     return true;
                 }).orElseGet(() -> false);
 
-        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).executeChargeAttack(isMultiChargeAttack).build();
+        return DefaultActorLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusEffectResult(setStatusEffectResult).executeChargeAttack(isMultiChargeAttack).build();
     }
 
     /**
@@ -243,16 +245,50 @@ public abstract class CharacterLogic {
         // 스테이터스 변경 확인
         List<BaseStatusEffect> baseStatusEffects = selectedBaseStatusEffects != null ? selectedBaseStatusEffects : ability.getBaseStatusEffects();
         // 데미지 계산
+        MoveType abilityType = ability.getType();
         DamageLogicResult damageLogicResult = hitCount > 0 ?
-                damageLogic.processPartyDamage(ability.getType(), ability.getElementType(), damageRate, hitCount) : null;
+                damageLogic.processPartyDamage(abilityType, ability.getElementType(), damageRate, hitCount) : null;
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(baseStatusEffects);
-        // 쿨다운, 사용횟수 설정
-        if (ability.getType().getParentType() == MoveType.ABILITY) {
-            self().updateAbilityCooldowns(ability.getCoolDown(), ability.getType());
-            self().increaseAbilityUseCount(ability.getType());
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(baseStatusEffects);
+        // 쿨다운, 사용횟수 설정 (커맨드 수행시에만 설정)
+        if (abilityType.getParentType() == MoveType.ABILITY && self().getCommandType() == ability.getType()) {
+            self().updateAbilityCooldowns(ability.getCoolDown(), abilityType);
+            self().increaseAbilityUseCount(abilityType);
         }
-        return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+
+        // 참전자 상태효과 확인
+        if (self().getBaseActor().isLeaderCharacter()) { // 참전자 버프는 주인공만 제한적으로 사용
+            List<BaseStatusEffect> forAllBaseStatusEffects = baseStatusEffects.stream()
+                    .filter(baseStatusEffect -> baseStatusEffect.getTargetType() == ALL_PARTY_MEMBERS)
+                    .toList(); // 참전자버프 + 일반버프 섞여있는경우도 있으므로 분리해서 등록
+            if (!forAllBaseStatusEffects.isEmpty())
+                registerForAllMove(ability);
+        }
+
+        return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusEffectResult(setStatusEffectResult).build();
+    }
+
+    /**
+     * 참전자 효과 등록 <br>
+     *
+     * @param move 참전자 효과가 들어있는 move
+     */
+    public void registerForAllMove(Move move) {
+        Member refMember = self().getMember();
+        Room room = refMember.getRoom();
+        List<Member> targetMembers = room.getMembers().stream()
+                .filter(member -> !refMember.getId().equals(member.getId()))
+                .toList();
+        if (targetMembers.isEmpty()) return; // 동기화 대상 없음
+
+        targetMembers.forEach(member -> {
+            member.getPendingForAllMoves().add(Member.PendingForAllMove.builder()
+                    .moveId(move.getId())
+                    .sourceMemberId(member.getId())
+                    .sourceUsername(member.getUser().getUsername())
+                    .build());
+            // move 단위로 저장해놓고, 플레이어 각각 필요한경우 사용 및 초기화
+        });
     }
 
     /**
@@ -265,9 +301,9 @@ public abstract class CharacterLogic {
      */
     protected ActorLogicResult defaultFatalChain(Move fatalChain) {
         DamageLogicResult damageLogicResult = damageLogic.processPartyDamage(fatalChain);
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(fatalChain);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(fatalChain);
         chargeGaugeLogic.setFatalChainGauge(0); // 페이탈 체인 게이지 초기화
-        return resultMapper.toResult(fatalChain, damageLogicResult, setStatusResult);
+        return resultMapper.toResult(fatalChain, damageLogicResult, setStatusEffectResult);
     }
 
     /**

@@ -1,4 +1,4 @@
-async function processResponseMoves(responses, type = '') {
+async function processResponseMoves(responses, requestType = '') {
     // 파싱
     let moveResponses = parseMoveResponseList(responses);
     console.log('===[processResponseMoves]================================================================== \n moveResponses = \n', moveResponses);
@@ -14,38 +14,50 @@ async function processResponseMoves(responses, type = '') {
     // 멤버 표시 갱신
     requestMembersInfo();
 
-    let isTurnRequest = type === 'turn';
-    let isMoveRequest = type === 'move';
+    let isTurnRequest = requestType === 'turn';
+    let isMoveRequest = requestType === 'move';
     if (isTurnRequest) {
         // 파티 턴 시작 인디케이터 표시
         $('.turn-playing-indicator.party').fadeIn(100).delay(800).fadeOut(100);
+        await wait(500);
     }
 
     let enemyTurnIndicatorShowed = false;
     for (const response of moveResponses) {
         let actorOrder = response.actorOrder; // mainActorOrder, 0: enemy, 1~ character
-        // console.log('charOrder = ' + charOrder + ' response = ' + response);
+        let isEnemyResponse = actorOrder === 0;
+        console.log('charOrder = ' + response.actorOrder + '\n response = ', response);
 
-        if (actorOrder === 0 && !enemyTurnIndicatorShowed
-            && (response.moveType.getParentType() === MoveType.ATTACK // 적이 카운터 일경우, !== MoveType.ATTACK_COUNTER 추가?
-                || response.moveType.getParentType() === MoveType.CHARGE_ATTACK)) {
+        let parentType = response.moveType.getParentType();
+        if (isEnemyResponse && !enemyTurnIndicatorShowed
+            && (parentType === MoveType.ATTACK // 적이 카운터 일경우, !== MoveType.ATTACK_COUNTER 추가?
+                || parentType === MoveType.CHARGE_ATTACK)) {
             $('.turn-playing-indicator.enemy').fadeIn(100).delay(800).fadeOut(100); // 적 턴 시작 인디케이터 표시
+            await wait(500);
             enemyTurnIndicatorShowed = true;
         }
 
-        stage.processingResponse = response;
-        switch (response.moveType.getParentType()) {
+        stage.processing.response = response;
+        let nextResponse = moveResponses[moveResponses.indexOf(response) + 1];
+        // 구조상 캐릭터 행동에 대한 반응으로 다음 결과인 Enemy.moveType STANDBY_X 를 통해 갱신된 전조정보가 전달되므로, 해당 정보로 갱신을 위해 설정
+        if (!isEnemyResponse && nextResponse && nextResponse.moveType.getParentType() === MoveType.STANDBY) {
+            response.omen = nextResponse.omen; // 수정하기 싫은데...
+        }
+
+        updateBgm(response);
+
+        switch (parentType) {
             case MoveType.SUPPORT_ABILITY:
             case MoveType.ABILITY:
                 window.gameStateManager.setState('indicator.moveName', response.moveName);
-                actorOrder !== 0 ? await processAbility(response) : await processEnemyAbility(response);
+                isEnemyResponse ? await processEnemyAbility(response) : await processAbility(response);
                 break;
             case MoveType.ATTACK:
-                actorOrder !== 0 ? await processAttack(response) : await processEnemyAttack(response);
+                isEnemyResponse ? await processEnemyAttack(response) : await processAttack(response);
                 break;
             case MoveType.CHARGE_ATTACK:
                 window.gameStateManager.setState('indicator.moveName', response.moveName);
-                actorOrder !== 0 ? await processChargeAttack(response) : await processEnemyChargeAttack(response);
+                isEnemyResponse ? await processEnemyChargeAttack(response) : await processChargeAttack(response)
                 break;
             case MoveType.STANDBY:
                 await processEnemyStandBy(response);
@@ -57,7 +69,9 @@ async function processResponseMoves(responses, type = '') {
                 response.moveType === MoveType.FORM_CHANGE_DEFAULT ? await processFormChange(response) : null; // FORM_CHANGE_ENTRY 는 무시
                 break;
             case MoveType.GUARD:
-                $(`#actorContainer > .actor-${response.actorOrder} .guard-status`).removeClass('guard-on').addClass('guard-on-processing'); // 가드 이펙트 연하게
+                // 가드 연하게 + se 재생
+                $(`#actorContainer > .actor-${response.actorOrder} .guard-status`).removeClass('guard-on').addClass('guard-on-processing');
+                if (nextResponse.moveType.getParentType() !== MoveType.GUARD) playSe(Sounds.global.GUARD_WAIT.src);
                 break;
             case MoveType.FATAL_CHAIN:
                 await processFatalChain(response);
@@ -86,43 +100,57 @@ async function processResponseMoves(responses, type = '') {
             default:
                 console.log('[processResponseMoves] invalid type]', response.moveType);
         }
+
+        // 후딜레이
+        let globalDelay = Constants.Delay.globalMoveDelay;
+        if ([MoveType.ATTACK, MoveType.STANDBY].includes(parentType)) globalDelay /= 2;
+        if ([MoveType.GUARD].includes(parentType)) globalDelay = 0;
+        await wait(globalDelay);
     }
 
-    // 커맨드 공통 후처리
-    $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 어빌리티 레일 첫번째 제거
-
-    // 커맨드별 추가 후처리
-    // console.log('[processResponseMoves] isMoveRequest = ', isMoveRequest, ' isTurnRequest = ', isTurnRequest, ' type = ', type);
-    if (isMoveRequest) {
-        // ...
-    } else if (isTurnRequest) {
-        // 가드 해제
-        $('#actorContainer .guard-status').removeClass('guard-on-processing');
-        window.gameStateManager.setState('guardStates', [null, false, false, false, false]);
-
-        // 공격 상태 및 플레이어 상태 정상화
-        if (!gameStateManager.getState('isQuestCleared') && !gameStateManager.getState('isQuestFailed')) {
-            window.gameStateManager.setState('isAttackClicked', false);
-            player.lockPlayer(false);
+    // 동기화 '요청' 후처리 (응답 동기화 x)
+    if (requestType === 'sync') {
+        let response = responses[0];
+        let hasEffect = response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0) || response.heals.find(heal => heal > 0); // 참전자 버프로 인한 효과 있음
+        if (hasEffect) {
+            stage.processing.response.hasEffect = true; // 참전자 효과 있을경우 어빌리티 레일 처리 늦추기 위해
         }
     }
 
-    // 정리
-    // 데미지 래퍼, 상태효과 래퍼 정리 (미리 캡쳐 후 삭제)
-    let $damageWrappers = $('#actorContainer .damage-wrapper');
-    let $statusEffectWrappers = $('#actorContainer .status-effect-wrapper');
-    setTimeout(() => {
-        // $damageWrappers.remove();
-        // $statusEffectWrappers.remove();
-    }, Constants.Delay.damageShowToNext);
+    // 커맨드실행 후처리
+    // console.log('[processResponseMoves] isMoveRequest = ', isMoveRequest, ' isTurnRequest = ', isTurnRequest, ' type = ', type);
+    let isCommandExecuted = isMoveRequest || isTurnRequest;
+    if (isCommandExecuted) { // 공통
+        $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 어빌리티 레일 첫번째 제거
+
+        // 데미지 래퍼, 상태효과 래퍼 정리 (미리 캡쳐 후 삭제)
+        let $damageWrappers = $('#actorContainer .damage-wrapper');
+        let $statusEffectWrappers = $('#actorContainer .status-effect-wrapper');
+        setTimeout(() => {
+            $damageWrappers.remove();
+            $statusEffectWrappers.remove();
+        }, Constants.Delay.damageShowToNext);
+
+        if (isTurnRequest) { // 턴 진행 커맨드 추가 후처리
+            // 가드 해제
+            $('#actorContainer .guard-status').removeClass('guard-on-processing');
+            gameStateManager.setState('guardStates', [null, false, false, false, false]);
+
+            // 공격 상태 및 플레이어 상태 정상화
+            if (!gameStateManager.getState('isQuestCleared') && !gameStateManager.getState('isQuestFailed')) {
+                gameStateManager.setState('isAttackClicked', false);
+                player.lockPlayer(false);
+            }
+
+            // 턴 갱신
+            playSe(Sounds.ui.TURN_INDICATOR.src);
+            setTimeout(() => gameStateManager.setState('currentTurn', gameStateManager.getState('currentTurn') + 1), 300);
+        }
+    }
     
     // 상태처리
-    let lastProcessedResponse = stage.processingResponse;
+    let lastProcessedResponse = stage.processing.response;
     gameStateManager.setState('enemyEstimatedAtk', lastProcessedResponse.enemyEstimatedAtk);
-
-    // 멤버표시 갱신
-    requestMembersInfo();
-
 }
 
 async function processSync(response) {
@@ -135,16 +163,35 @@ async function processSync(response) {
     if (response.unionSummonId !== null) // null 이 아닌경우에만 사용하므로 타이밍을 분리하지 않는한 이게 최선인듯
         gameStateManager.setState('unionSummonId', response.unionSummonId);
 
-    // 이펙트 처리 - 필요시 공통 이펙트 사용 ( 참전자 버프 있음 or 참전자 힐 있음 )
+    let hasAddedBuffStatusEffects = response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0);
+    let hasHeals = response.heals.find(heal => heal > 0);
     let effectDuration = 0;
-    if (response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0) || response.heals.find(heal => heal > 0)) {
-        await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'BUFF_FOR_ALL'}), true);
+    if (hasAddedBuffStatusEffects || hasHeals) { // 참전자 버프 있음 or 참전자 힐 있음
+        // 참전자 효과 인디케이터 렌더링
+        let usernameWithMovename = response.moveName; // SYNC 인 경우 'username_movename' 으로 반환됨
+        let sourceUsername = usernameWithMovename.split('_')[0];
+        let moveName = usernameWithMovename.split('_')[1];
+        let $forAllMoveIndicatorContainer = $('#battleCanvas .for-all-move-indicator-container');
+        let $forAllMoveIndicator = $(`
+          <div class="for-all-move-indicator">
+            <span class="username"><b>${sourceUsername}</b> 가</span>
+            <span class="moveName"><b>${moveName}</b> 사용!</span>
+          <div>
+        `);
+        $forAllMoveIndicatorContainer.append($forAllMoveIndicator);
+        $forAllMoveIndicator.addClass('show').one('animationend', () => {
+            $forAllMoveIndicator.remove();
+        });
+
+        // 이펙트 처리 - 필요시 공통 이펙트 사용
+        effectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'BUFF_FOR_ALL'}), true);
     }
+
     // 스테이터스 처리
     let totalEndTime = await processStatusEffect(response);
 
     console.log('[processSync] DONE totalTime', totalEndTime, ' effectDuration ', effectDuration);
-    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
+    return totalEndTime;
 }
 
 
@@ -172,7 +219,7 @@ async function processStrikeSealed(response) {
     let totalEndTime = await processStatusEffect(response);
 
     console.log('[processStrikeSealed] DONE totalTime', totalEndTime);
-    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
+    return totalEndTime;
 }
 
 async function processTurnEndProcess(response) {
@@ -181,7 +228,7 @@ async function processTurnEndProcess(response) {
     let processStatusDuration = await processStatusEffect(response, 0.5);
 
     console.log('[processTurnEndProcess] DONE type = ', response.moveType, ' processStatusDuration = ', processStatusDuration);
-    return new Promise(resolve => setTimeout(() => resolve(), Constants.Delay.globalMoveDelay));
+    return processStatusDuration;
 }
 
 /**
@@ -191,9 +238,9 @@ async function processTurnEndProcess(response) {
 function waitingProcess(toWaiting) {
     if (toWaiting) {
         $('.waiting-video-container').css('visibility', 'visible').find('.waiting-video').get(0).play();
-        $('#container').addClass('deActivated');
+        // $('#container').addClass('deActivated');
     } else {
         $('.waiting-video-container').css('visibility', 'hidden').find('.waiting-video').get(0).pause();
-        $('#container').removeClass('deActivated');
+        // $('#container').removeClass('deActivated');
     }
 }

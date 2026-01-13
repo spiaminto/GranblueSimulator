@@ -42,7 +42,7 @@ public class BattleLog {
 
     @Type(ListArrayType.class)
     @Column(name = "damages", columnDefinition = "integer[]")
-    private List<Integer> damages;
+    private List<Integer> damages; // 명중률을 통해 회피한경우 음수 (-1) 가능
 
     @Type(ListArrayType.class)
     @Column(name = "effect_damages", columnDefinition = "integer[]")

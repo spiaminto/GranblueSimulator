@@ -67,7 +67,7 @@ public class ThreadLocalLogTrace implements LogTrace {
                     .collect(Collectors.joining("\n"));
             log.error("[{}] {}{} ", traceId.getId(), addSpace(EX_PREFIX, traceId.getLevel()), status.getMessage());
             if (traceId.isFirstLevel()) {
-                log.error("[{}] \n exception = \n{}\n from = \n{}\n params = \n{}", status.getMessage(), e, stackTrace, sb);
+                log.error("[{}] \n EXCEPTION = \n{}\n MESSAGE = \n{}\n FROM = \n{}\n CAUSE = \n{}\n PARAMS = \n{}", status.getMessage(), e, e.getMessage(), stackTrace, e.getCause(), sb);
             }
         } else if (completeEnabled) {
             log.info("[{}] {}{}", traceId.getId(), addSpace(COMPLETE_PREFIX, traceId.getLevel()), status.getMessage());

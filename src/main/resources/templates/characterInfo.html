@@ -250,7 +250,7 @@
 
     <div class="basic-info">
       <div class="portrait-container">
-        <img src="/static/assets/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
+        <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
       </div>
       <div class="status-info">
         <div class="name">기초 스테이터스</div>
@@ -276,7 +276,7 @@
         <div class="status-container">
           <div class="status" th:each="status : ${characterInfo.chargeAttack.statuses}"
                th:data-status-type="${status.type}">
-            <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
                  th:src="${status.iconSrcs.size() > 0 ? status.iconSrcs.get(0) : ''}"/>
             <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
             <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>
@@ -292,7 +292,7 @@
       <div class="ability-info bordered" th:each="ability : ${characterInfo.abilities}">
         <div class="ability-info-body">
           <div class="icon">
-            <img src="/static/assets/img/ch/paladin/ability-1.png" th:src="${ability.asset.iconImageSrc}">
+            <img src="/static/moveVisuals/img/ch/paladin/ability-1.png" th:src="${ability.moveVisual.iconImageSrc}">
           </div>
           <div class="text">
             <div class="name" th:text="${ability.name}"> 어빌리티 이름</div>
@@ -310,7 +310,7 @@
         <div class="status-container">
           <div class="status" th:each="status : ${ability.statuses}"
                th:data-status-type="${status.type}">
-            <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
                  th:src="${status.iconSrcs.size() > 0 ? status.iconSrcs.get(0) : ''}"/>
             <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
             <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>
@@ -337,7 +337,7 @@
         <div class="status-container">
           <div class="status" th:each="status : ${ability.statuses}"
                th:data-status-type="${status.type}">
-            <img class="status-icon" src="/static/assets/img/ch/paladin/status-ability-support-1.png"
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
                  th:src="${status.iconSrcs.size() > 0 ? status.iconSrcs.get(0) : ''}"/>
             <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
             <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>

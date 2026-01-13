@@ -18,10 +18,6 @@ public class DamageLogicResult {
     private List<ElementType> elementTypes = new ArrayList<>();
     @Builder.Default
     private List<MoveDamageType> damageTypes = new ArrayList<>(); // 적은 타겟이 여러개라 여러개 써야함
-    private boolean isEnemyHpZero;
     @Builder.Default
     private Integer attackMultiHitCount = 1;
-
-    @Builder.Default
-    private List<Integer> targetOrders = new ArrayList<>(); // 턴종 데미지에서 임시사용
 }

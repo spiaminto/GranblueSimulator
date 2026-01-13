@@ -18,9 +18,10 @@ function requestMembersInfo() {
 }
 
 function requestSync(isInit = false) {
+    stopSync();
     let memberId = $('#memberInfo').data('member-id');
     console.log('[requestSync] memberId = ', memberId);
-    $.ajax({
+    return $.ajax({
         url: '/api/sync',
         type: 'POST',
         contentType: 'application/json',
@@ -29,16 +30,17 @@ function requestSync(isInit = false) {
         },
         data: JSON.stringify({
             memberId: memberId,
-        }),
-        success: function (response) {
-            // console.log(response);
-            if (isInit) initGameStatus(response);
-            else processResponseMoves(response);
-        },
-        error: function (error) {
-            console.log(error);
+        })
+    }).then(function (responses) {
+        if (!isInit) {
+            processResponseMoves(responses);
+            doSync();
         }
-    });
+        return responses;
+    }).catch(function (error) {
+        console.error(error)
+        let errorResponse = error.responseJSON;
+    })
 }
 
 function requestMove(characterId, moveId, moveType) {
@@ -53,6 +55,7 @@ function requestMove(characterId, moveId, moveType) {
     }
 
     console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' memberId = ', memberId, ' moveType = ', moveType, ' apiUrl = ', apiUrl);
+    waitingProcess(true);
     $.ajax({
         url: apiUrl,
         type: 'POST',
@@ -67,27 +70,28 @@ function requestMove(characterId, moveId, moveType) {
             // 옵션들
             doUnionSummon: stage.gGameStatus.doUnionSummon,
         }),
-        async: false,
+        // async: false,
         success: function (response) {
             // console.log(response);
             processResponseMoves(response, 'move');
         },
         error: function (error) {
             console.log(error);
-            let responseObj = error.responseJSON;
-            if (error.status === 400) {
-                alert(responseObj.message);
+            let errorObj = error.responseJSON;
+            if (!!errorObj.code) {
+                alert(errorObj.message);
 
-                // 실패한 무브 레일에서 제거 (자동으로 다음 무브 이어서 실행)
-                $('.ability-rail-wrapper .rail-item').eq(0).remove();
-                // 오버레이 정상화
-                gameStateManager.setState('abilityCoolDowns', gameStateManager.getState("abilityCoolDowns"), {force: true});
-
-                if (!responseObj.isConditionFailed) {
-                    // 발동 조건 검증 실패 외의 경우, 어빌리티 레일 전부 취소
-                    $('.ability-rail-wrapper .rail-item').remove();
+                let $abilityRailItems = $('.ability-rail-wrapper .rail-item');
+                if (errorObj.code === 'MOVE_VALIDATION_CONDITION_FAILED') {
+                    $abilityRailItems.eq(0).remove() // 발동 조건 검증 실패한 경우 해당 어빌리티만 취소, 실행은 됫으니 executed = true
+                } else {
+                    $abilityRailItems.removeClass('executed');
+                    $abilityRailItems.remove();
                 }
             }
+        },
+        complete: function () {
+            waitingProcess(false);
         }
     });
 }
@@ -96,6 +100,7 @@ function requestTurnProgress() {
     let memberId = $('#memberInfo').data('member-id');
     let roomId = $('#roomInfo').data('room-id');
 
+    waitingProcess(true);
     $.ajax({
         url: '/api/turn-progress',
         type: 'POST',
@@ -107,19 +112,26 @@ function requestTurnProgress() {
             memberId: memberId,
             roomId: roomId
         }),
-        async: false,
+        // async: false,
         success: function (response) {
             let responseResults = response;
             // console.log(responseResults);
-            processResponseMoves(responseResults, 'turn').then(function () {
-                // 턴 갱신
-                let $turnValue = $('.turn-indicator .turn-value');
-                let turnValue = $turnValue.text();
-                $turnValue.text(++turnValue);
-            })
+            processResponseMoves(responseResults, 'turn');
         },
         error: function (error) {
-            console.error('Error:', error);
+            console.log(error);
+            let errorObj = error.responseJSON;
+            if (!!errorObj.code) {
+                alert(errorObj.message);
+
+                // 어빌리티 레일 전부 취소
+                $('.ability-rail-wrapper .rail-item').remove();
+                // 공격버튼 취소
+                onAttackButtonClicked();
+            }
+        },
+        complete: function () {
+            waitingProcess(false);
         }
     });
 }
@@ -165,7 +177,7 @@ function requestGuard(charOrder, type) {
  */
 function requestToggleChargeAttack(chargeAttackActiveChecked) {
     console.log(`[requestToggleChargeAttack] chargeAttackActiveChecked = ${chargeAttackActiveChecked}`);
-    window.effectAudioPlayer.loadAndPlay(Sounds.BEEP.src);
+    playSe(Sounds.ui.BEEP.src);
 
     let roomId = $('#roomInfo').data('room-id');
     $.ajax({
@@ -186,7 +198,7 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
             // 대기모션 갱신
             player.getCharacters().forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, player.getCharacterWaitMotion(actor.actorIndex))));
             if (response.chargeAttackOn === true)
-                window.effectAudioPlayer.loadAndPlay(Sounds.CHARGE_ATTACK_READY.src);
+                playSe(Sounds.ui.CHARGE_ATTACK_READY.src);
         },
         error: function (error) {
             console.log(error);

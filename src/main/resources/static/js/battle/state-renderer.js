@@ -38,7 +38,7 @@ function renderHp(newVal, oldVal) {
 }
 
 function renderHpRate(newVal, oldVal) {
-    console.log('[renderHp] newVal = ', newVal, ' oldVal = ', oldVal);
+    console.log('[renderHpRate] newVal = ', newVal, ' oldVal = ', oldVal);
     let hpRates = newVal;
     hpRates.forEach((hpRate, actorIndex) => {
         if (hpRate === oldVal[actorIndex]) return;
@@ -125,27 +125,34 @@ function renderFatalChainGauge(newVal, oldVal) {
 function renderAbilityCoolDowns(newVal, oldVal) {
     console.log('[renderAbilityCoolDowns] newVal = ', newVal, ' oldVal = ', oldVal);
     newVal.forEach(function (abilityCooldowns, actorIndex) {
-        let $abilityIcons = window.abilityPanels[actorIndex].find('.ability-icon');
+        let $abilityPanels = $(`#abilitySlider .ability-panel.actor-${actorIndex}`); // slick-cloned 까지 전부 렌더링해야 스와이프할때 자연스러움
         abilityCooldowns.forEach(function (cooldown, index) {
-            let $abilityIcon = $abilityIcons.eq(index);
-            if (!$abilityIcon) return;
-            let $abilityCooldownText = $abilityIcon.find('.ability-cooldown-text');
-            let $abilityOverlay = $abilityIcon.find('.ability-overlay');
+            $abilityPanels.get().forEach(abilityPanel => {
+                let $abilityIcons = $(abilityPanel).find('.ability-icon');
+                let $abilityIcon = $abilityIcons.eq(index);
+                if (!$abilityIcon) return;
+                let $abilityCooldownText = $abilityIcon.find('.ability-cooldown-text');
+                let $abilityOverlay = $abilityIcon.find('.ability-overlay');
+                if ($abilityOverlay.hasClass('none-usable')) return; // 재사용 불가 or 봉인 시 쿨다운과 상관없이 사용불가
 
-            if (cooldown > 999) {
-                $abilityCooldownText.text('재사용 불가');
-                $abilityCooldownText.removeClass('invisible');
-                $abilityOverlay.addClass('none-usable');
-            } else if (cooldown > 0) {
-                $abilityCooldownText.text(cooldown + '턴');
-                $abilityCooldownText.removeClass('invisible');
-                $abilityOverlay.addClass('not-ready');
-            } else {
-                $abilityOverlay.removeClass('not-ready none-usable');
-                $abilityCooldownText.addClass('invisible');
-            }
+                if (cooldown > 999) {
+                    $abilityCooldownText.text('재사용 불가');
+                    $abilityCooldownText.removeClass('invisible');
+                    $abilityOverlay.addClass('none-usable');
+                } else if (cooldown > 0) {
+                    $abilityCooldownText.text(cooldown + '턴');
+                    $abilityCooldownText.removeClass('invisible');
+                    $abilityOverlay.addClass('not-ready');
+                } else {
+                    $abilityOverlay.removeClass('not-ready none-usable');
+                    $abilityCooldownText.addClass('invisible');
+                }
+            });
         })
     });
+    if ($('#abilityRail .rail-item').length === 0) {
+        $('.command-overlay').removeClass('on-rail'); // fallback
+    }
 }
 
 function renderAbilityUsableIndicator(newVal, oldVal) {
@@ -164,8 +171,9 @@ function renderAbilityUsableIndicator(newVal, oldVal) {
                 $abilityIndicator.addClass('none');
                 return; // 어빌리티 없음
             }
+            let abilitySealed = gameStateManager.getState(`abilitySealeds.${actorIndex}.${index}`);
             let abilityType = abilityInfo.additionalType.toLowerCase();
-            if (abilityCooldown <= 0) {
+            if (abilityCooldown <= 0 && !abilitySealed) {
                 $abilityIndicator.addClass(abilityType);
             } else {
                 $abilityIndicator.removeClass(abilityType);
@@ -177,15 +185,19 @@ function renderAbilityUsableIndicator(newVal, oldVal) {
 function renderAbilitySealeds(newVal, oldVal) {
     console.log('[renderAbilitySealeds] newVal = ', newVal, ' oldVal = ', oldVal);
     newVal.forEach(function (abilitySealeds, actorIndex) {
-        let $abilityOverlays = window.abilityPanels[actorIndex].find('.ability-overlay');
-        if ($abilityOverlays.length === 0) return;
-        abilitySealeds.forEach(function (abilityUsable, index) {
-            if (abilityUsable === true) {
-                $abilityOverlays.eq(index)?.addClass('none-usable');
-            } else {
-                $abilityOverlays.eq(index)?.removeClass('none-usable');
-            }
+        let $abilityPanels = $(`#abilitySlider .ability-panel.actor-${actorIndex}`); // slick-cloned 까지 전부 렌더링해야 스와이프할때 자연스러움
+        $abilityPanels.get().forEach(abilityPanel => {
+            let $abilityOverlays = $(abilityPanel).find('.ability-overlay');
+            if ($abilityOverlays.length === 0) return;
+            abilitySealeds.forEach(function (abilitySealed, index) {
+                if (abilitySealed === true) {
+                    $abilityOverlays.eq(index)?.addClass('none-usable');
+                } else {
+                    $abilityOverlays.eq(index)?.removeClass('none-usable');
+                }
+            })
         })
+
     })
 }
 
@@ -241,7 +253,6 @@ function renderCurrentStatusEffectsIcons(newVal, oldVal) {
     // 스테이터스 아이콘 갱신 (어빌리티 이펙트 직후 즉시 갱신)
     newVal.forEach(function (currentStatusEffects, actorIndex) {
         let $statusContainer = $('.status-container.actor-' + actorIndex);
-        $statusContainer.find('.status').remove(); // 스테이터스 비움
         let $fragment = $('<div>');
         currentStatusEffects.forEach(function (status, index) {
             let beforeStatus = currentStatusEffects[index - 1];
@@ -256,6 +267,7 @@ function renderCurrentStatusEffectsIcons(newVal, oldVal) {
                 </div>`)
             $fragment.append($statusInfo);
         })
+        $statusContainer.find('.status').remove(); // 스테이터스 비움
         $statusContainer.append(...$fragment.find('.status'));
     });
 }
@@ -280,6 +292,7 @@ function renderMoveResultHonorIndicator(newVal, oldVal) {
 function renderOmen(newVal, oldVal) {
     console.log('[renderOmen] newVal = ', newVal, ' oldVal = ', oldVal); // {OmenDto} stage.gGameStatus.omen
     let omen = newVal;
+    let omenValueChanged = oldVal && omen.remainValue !== oldVal.remainValue;
     let isImpossibleCancelOmenValue = omen.cancelCondition && !!omen.cancelCondition.includes('불가'); // 해제불가시 remainValue 렌더링 안함
     if (!omen.type) { // 전조 해제
         // 전조 컨테이너 deactivate
@@ -297,6 +310,11 @@ function renderOmen(newVal, oldVal) {
                   <span class="omen-info">${omen.info}</span>
                 </div>`
             ));
+        if (omenValueChanged) {
+            $('.omen-container-top .omen-value').css('color', 'white').animate({opacity: 1}, 300, function () {
+                $(this).css('color', 'black')
+            });
+        }
         $('.omen-container-bottom.enemy')
             .addClass('activated')
             .html($(
@@ -317,8 +335,10 @@ function renderGuards(newVal, oldVal) {
     guardStates.forEach(function (guardState, actorOrder) {
         if (guardState) {
             $(`#actorContainer > .actor-${actorOrder}`).find('.guard-status').addClass('guard-on');
+            $(`.advanced-command-container .guard-button.party-${actorOrder} .guard-img`).attr('src', '/assets/img/gl/ui-guard-on.png');
         } else {
             $(`#actorContainer > .actor-${actorOrder}`).find('.guard-status').removeClass('guard-on');
+            $(`.advanced-command-container .guard-button.party-${actorOrder} .guard-img`).attr('src', '/assets/img/gl/ui-guard-off.png');
         }
     });
 }
@@ -340,7 +360,6 @@ function renderAttackButton(newVal, oldVal) {
     } else {
         $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-attack.png');
     }
-
 }
 
 function renderMemberInfoContainer(newVal, oldVal) {
@@ -353,9 +372,6 @@ function renderMemberInfoContainer(newVal, oldVal) {
           <div class="member-info-wrapper">
             <div class="element-type ${memberInfo.leaderActorElementType.toLowerCase()}"></div>
             <div class="member-username">
-<!--              <ruby>${memberInfo.username}-->
-<!--                <rt>${memberInfo.leaderActorName}</rt>-->
-<!--              </ruby>-->
             ${memberInfo.username}
             </div>
             <div class="d-flex align-items-center justify-content-between">
@@ -368,4 +384,19 @@ function renderMemberInfoContainer(newVal, oldVal) {
         $memberInfoWrappers.push($memberInfoWrapper);
     })
     $('.member-info-container').append(...$memberInfoWrappers);
+}
+
+function renderTurnIndicator(newVal, oldVal) {
+    console.log('[renderTurnIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+    let currentTurn = newVal;
+    $('.turn-indicator .value').text(currentTurn); // topMenu + battleCanvas
+    $('#battleCanvas .turn-indicator-container').addClass('show').on('transitionend', function () {
+        setTimeout(() => $(this).removeClass('show'), 1500)
+    });
+}
+
+function renderRemainingTimeIndicator(newVal, oldVal) {
+    // console.log('[renderRemainingTimeIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+    let remainingTime = newVal;
+    $('.remaining-time-indicator .value').text(remainingTime);
 }

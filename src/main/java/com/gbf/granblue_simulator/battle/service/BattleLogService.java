@@ -34,17 +34,23 @@ public class BattleLogService {
 
 
     /**
-     * enemy 가 해당 방에서 모든 멤버로 부터 받은 데미지를 parentMoveType 을 key 로 해서 합산반환
+     * enemy 가 해당 방에서 받은 데미지를 parentMoveType 을 key 로 해서 합산반환
      * 디아스포라 서포어비에서 사용
      *
-     * @param enemy          enemy
      * @param parentMoveType
+     * @param isFromAllMember 참전자 전체 여부 (디아스포라 1 인경우 true)
+     *
      * @return
      */
-    public int getEnemyTakenDamageSumByMoveType(Actor enemy, MoveType parentMoveType) {
-        Long roomId = enemy.getMember().getRoom().getId();
+    public int getEnemyTakenDamageSumByMoveType(MoveType parentMoveType, boolean isFromAllMember) {
+        Actor enemy = battleContext.getEnemy();
+        Member member = battleContext.getMember();
+        Long roomId = member.getRoom().getId();
+        Long userId = member.getUser().getId();
 
-        List<BattleLog> battleLogs = battleLogRepository.findAllByRoomIdAndEnemyActorBaseIdAndParentMoveType(roomId, enemy.getBaseActor().getId(), parentMoveType);
+        List<BattleLog> battleLogs = isFromAllMember
+                ? battleLogRepository.findAllByRoomIdAndEnemyActorBaseIdAndParentMoveType(roomId, enemy.getBaseActor().getId(), parentMoveType)
+                : battleLogRepository.findAllByRoomIdAndUserIdAndEnemyActorBaseIdAndParentMoveType(roomId, userId, enemy.getBaseActor().getId(), parentMoveType);
 
         int damageSum = battleLogs.stream()
                 .mapToInt(battleLog -> battleLog.getDamages().stream()
@@ -103,8 +109,9 @@ public class BattleLogService {
         Long saveEnemyId = mainActor.isEnemy() ? null : enemy.getBaseActor().getId(); // 적이 mainActor 일때는 null 저장해서 구분하기 쉽게
 
         List<Integer> damages = logicResult.getDamages();
-        List<Integer> effectDamages = logicResult.getEffectDamages()
-                .stream().map(damage -> damage == null ? 0 : damage).toList();
+        List<Integer> effectDamages = logicResult.getSnapshots().values().stream()
+                .map(snapshot -> snapshot.getEffectDamage() != null ? snapshot.getEffectDamage() : 0)
+                .toList();
 
         List<String> damageElementTypes = logicResult.getDamageElementTypes().stream()
                 .map(ElementType::name)

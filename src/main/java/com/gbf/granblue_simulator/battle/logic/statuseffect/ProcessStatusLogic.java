@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.battle.logic.statuseffect;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
@@ -32,10 +34,10 @@ public class ProcessStatusLogic {
 
     @Data
     @Builder
-    static class ProcessStatusLogicResult {
-        private List<StatusEffect> addedStatusEffects; // A(오의 게이지 증가, 페이탈 체인 게이지 증가) 도 가능
+    public static class ProcessStatusLogicResult {
+        private List<ResultStatusEffectDto> addedStatusEffects; // A(오의 게이지 증가, 페이탈 체인 게이지 증가) 도 가능
         @Builder.Default
-        private List<StatusEffect> removedStatusEffects = new ArrayList<>();
+        private List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>();
         private Integer healValue;
         private Integer damageValue;
     }
@@ -49,18 +51,20 @@ public class ProcessStatusLogic {
      * @param targetActor
      * @param effect
      * @param selectedModifierType
-     * @return
+     * @return ProcessStatusLogicResult, 처리할 효과가 없다면 null 반환
      */
     public ProcessStatusLogicResult process(Actor targetActor, BaseStatusEffect effect, StatusModifierType selectedModifierType) {
 
-        List<StatusEffect> addedStatusEffect = new ArrayList<>();
-        List<StatusEffect> removedStatusEffects = new ArrayList<>();
+        List<ResultStatusEffectDto> addedStatusEffect = new ArrayList<>();
+        List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>();
         Integer healValue = null;
         Integer damageValue = null;
 
+        // ACT_ 있는 modifier 만 처리
         List<StatusModifier> toProcessModifiers = effect.getStatusModifiers().values().stream()
                 .filter(modifier -> modifier.getType().needPostProcess())
                 .toList();
+        if (toProcessModifiers.isEmpty()) return null; // 없으면 바로 종료
 
         for (StatusModifier modifier : toProcessModifiers) {
             // 지정된 타입이 있는경우 해당 타입만 처리
@@ -68,33 +72,38 @@ public class ProcessStatusLogic {
 
             switch (modifier.getType()) {
                 case ACT_CHARGE_GAUGE_UP:
-                    addedStatusEffect.add(processChargeGaugeUpStatus(targetActor, modifier));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeUpStatus(targetActor, modifier)));
                     break;
                 case ACT_CHARGE_GAUGE_DOWN:
-                    addedStatusEffect.add(processChargeGaugeDownStatus(targetActor, modifier));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeDownStatus(targetActor, modifier)));
                     break;
                 case ACT_WEAPON_BURST:
-                    addedStatusEffect.add(processWeaponBurstStatus(targetActor, modifier));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processWeaponBurstStatus(targetActor, modifier)));
                     break;
                 case ACT_FATAL_CHAIN_GAUGE_UP:
-                    addedStatusEffect.add(processFatalGaugeUpStatus(targetActor, modifier));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeUpStatus(targetActor, modifier)));
                     break;
                 case ACT_FATAL_CHAIN_GAUGE_DOWN:
-                    addedStatusEffect.add(processFatalGaugeDownStatus(targetActor, modifier));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeDownStatus(targetActor, modifier)));
                     break;
                 case ACT_DISPEL:
-                    removedStatusEffects.addAll(processDispel(targetActor, modifier));
+                    removedStatusEffects.addAll(processDispel(targetActor, modifier).stream().map(ResultStatusEffectDto::of).toList());
                     break;
                 case ACT_CLEAR:
-                    removedStatusEffects.addAll(processClear(targetActor, modifier));
+                    removedStatusEffects.addAll(processClear(targetActor, modifier).stream().map(ResultStatusEffectDto::of).toList());
                     break;
                 case ACT_HEAL:
                     int heal = processHeal(targetActor, modifier);
-                    healValue = healValue == null ? heal : healValue + heal;
+                    if (heal >= 0) {
+                        healValue = Objects.requireNonNullElse(healValue, 0) + heal;
+                    } else {
+                        // 언데드등의 효과로 힐값이 음수가 되었을시, 슬립 데미지로 매핑
+                        damageValue = Objects.requireNonNullElse(damageValue, 0) + Math.abs(heal);
+                    }
                     break;
                 case ACT_DAMAGE, ACT_RATE_DAMAGE:
                     int damage = processStatusDamage(targetActor, modifier);
-                    damageValue = damageValue == null ? damage : damageValue + damage;
+                    damageValue = Objects.requireNonNullElse(damageValue, 0) + damage;
                     break;
                 default:
                     log.warn("[process] modifier.type = {} not supported", modifier.getType());
@@ -236,7 +245,7 @@ public class ProcessStatusLogic {
         int healInitValue = (int) healBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_HEAL).getValue();
         boolean hasUndeadEffect = getEffectByModifierType(target, StatusModifierType.UNDEAD).isPresent(); // 언데드 있을경우 회복상승 적용 x, 회복량을 음수로
         boolean isForAllHealEffect = healBaseStatusEffect.getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS; // 참전자 힐인경우, 언데드 무효
-        double healRate = isForAllHealEffect && hasUndeadEffect ? -1 : target.getStatus().getStatusDetails().getCalcedHealRate();
+        double healRate = hasUndeadEffect && !isForAllHealEffect ? -1 : target.getStatus().getStatusDetails().getCalcedHealRate();
         int resultHealValue = (int) (healInitValue * healRate);
         int healedHp = currentHp + resultHealValue;
         target.updateHp(healedHp);

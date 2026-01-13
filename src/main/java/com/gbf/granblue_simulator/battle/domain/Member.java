@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.battle.domain;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.user.User;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,13 +23,13 @@ public class Member {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id") @ToString.Exclude
     private User user; // 유저 id
 
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "room_id")
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "room_id") @ToString.Exclude
     private Room room;
 
-    @OneToMany(mappedBy = "member") @Builder.Default @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "member") @Builder.Default @EqualsAndHashCode.Exclude @ToString.Exclude
     private List<Actor> actors = new ArrayList<>();
 
     private Long partyId; // 입장시 참조 및 검증용으로만 사용. 실시간 참조 x
@@ -39,9 +40,9 @@ public class Member {
     private boolean chargeAttackOn; // 오의 발동 여부, default false
     private boolean chargeAttackSkip; // 오의 스킵 여부, default true
 
-    @Type(ListArrayType.class) @Builder.Default
-    @Column(name = "for_all_status_ids", columnDefinition = "bigint[]")
-    private List<Long> forAllStatusIds = new ArrayList<>(); // 대기중인 참전자 버프
+    @Type(JsonType.class) @Builder.Default
+    @Column(name= "pending_for_all_moves", columnDefinition = "jsonb")
+    private List<PendingForAllMove> pendingForAllMoves = new ArrayList<>(); // 대기중인 참전자 버프
 
     private Long fatalChainMoveId;
     private int fatalChainGauge;
@@ -75,14 +76,6 @@ public class Member {
         this.moveCooldown = moveCooldown;
     }
 
-    public void addForAllStatusId(Long statusId) {
-        this.forAllStatusIds.add(statusId);
-    }
-
-    public void clearForAllStatusIds() {
-        this.forAllStatusIds.clear();
-    }
-
     public void addPotionCount(int count) {
         this.potionCount += count;
     }
@@ -97,6 +90,7 @@ public class Member {
 
     public void updateFatalChainGauge(int gauge) {this.fatalChainGauge = gauge;}
 
+
     /**
      * 연관관계 매핑 제외, 사용하지 않도록 하기
      * @return
@@ -104,5 +98,17 @@ public class Member {
     public List<Actor> getActors() {
         return this.actors; // usage 확인용
     }
+
+    @Builder
+    @Getter @ToString @EqualsAndHashCode
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor(access = AccessLevel.PROTECTED)
+    public static class PendingForAllMove {
+        private Long moveId;
+        private Long sourceMemberId;
+        private String sourceUsername;
+    }
+
+
 
 }

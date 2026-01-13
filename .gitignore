@@ -1,7 +1,7 @@
 ##CUSTOM
 application-*.properties
 .Memo/**
-src/main/resources/static/assets/**
+src/main/resources/static/moveVisuals/**
 src/main/resources/static/gbf/**
 src/main/resources/static/js/slick/**
 src/main/resources/static/js/vendors/**

@@ -4,8 +4,7 @@ import com.gbf.granblue_simulator.metadata.controller.character.EnemyAssetInsert
 import com.gbf.granblue_simulator.metadata.controller.response.EnemyInsertResponse;
 import com.gbf.granblue_simulator.metadata.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
-import com.gbf.granblue_simulator.metadata.domain.asset.Asset;
-import com.gbf.granblue_simulator.metadata.domain.asset.AssetType;
+import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
@@ -37,7 +36,7 @@ public class EnemyInsertController {
     private final BaseStatusEffectRepository baseStatusEffectRepository;
     private final StatusModifierRepository statusModifierRepository;
     private final OmenCancelCondRepository omenCancelCondRepository;
-    private final AssetRepository assetRepository;
+    private final MoveVisualRepository moveVisualRepository;
 
     @PostMapping("/insert/enemy")
     public EnemyInsertResponse insertEnemy(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyInsertRequest request) {
@@ -47,7 +46,7 @@ public class EnemyInsertController {
                 .name(request.getName())
                 .nameEn(request.getNameEn())
                 .elementType(request.getElementType())
-                .hpTriggers(Arrays.stream(request.getHpTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
+//                .hpTriggers(Arrays.stream(request.getHpTriggers().split(",")).map(String::trim).map(Integer::parseInt).toList())
                 .build();
         baseEnemyRepository.save(baseEnemy);
 
@@ -229,7 +228,7 @@ public class EnemyInsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+//                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(chargeAttackFinal)
                     .build();
             log.info("statusEntity = {}", baseStatusEffectEntity);
@@ -287,7 +286,7 @@ public class EnemyInsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
+//                    .iconSrcs(status.getIconSrcs().lines().map(String::trim).toList())
                     .move(abilityFinal)
                     .build();
             log.info("statusEntity = {}", baseStatusEffectEntity);
@@ -320,32 +319,34 @@ public class EnemyInsertController {
         String assetName = request.getAssetName();
         String cjsName = request.getCjsName();
 
-        AssetType assetType = request.getAssetType();
-        Long moveId = null;
-        if (assetType.isAbility()) {
-            Move move = baseEnemy.getMoves().get(MoveType.valueOf(assetType.name()));
-            if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + assetType);
-            moveId = move.getId();
-        }
+        EffectVisualType effectVisualType = request.getEffectVisualType();
+//        Long moveId = null;
+//        if (effectVisualType.isAbility()) {
+//            Move move = baseEnemy.getMoves().get(MoveType.valueOf(effectVisualType.name()));
+//            if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + effectVisualType);
+//            moveId = move.getId();
+//        }
 
-        String rootCjsName = request.getRootCjsName();
-        if (!StringUtils.hasText(rootCjsName)) { // rootCjsName 입력 안됬을때,
-            if (assetType == AssetType.ACTOR) throw new IllegalArgumentException("rootCjsName 이 입력되지 않음"); // ACTOR 아니면 오류
-        } else {
-            rootCjsName = cjsName; // ACTOR 면 자신의 cjsName 이 곧 rootCjsName
-        }
+//        String rootCjsName = request.getRootCjsName();
+//        if (!StringUtils.hasText(rootCjsName)) { // rootCjsName 입력 안됬을때,
+//            if (moveVisualType == MoveVisualType.ACTOR) throw new IllegalArgumentException("rootCjsName 이 입력되지 않음"); // ACTOR 아니면 오류
+//        } else {
+//            rootCjsName = cjsName; // ACTOR 면 자신의 cjsName 이 곧 rootCjsName
+//        }
+//
+//        MoveVisual moveVisual = MoveVisual.builder()
+//                .actorId(characterId)
+//                .type(moveVisualType)
+//                .moveId(moveId)
+//                .name(assetName)
+//                .cjsName(cjsName)
+//                .rootCjsName(rootCjsName)
+//                .build();
+//        moveVisualRepository.save(moveVisual);
 
-        Asset asset = Asset.builder()
-                .actorId(characterId)
-                .type(assetType)
-                .moveId(moveId)
-                .name(assetName)
-                .cjsName(cjsName)
-                .rootCjsName(rootCjsName)
-                .build();
-        assetRepository.save(asset);
+//        return ResponseEntity.ok(InsertResponse.ok(rootCjsName));
+        return null;
 
-        return ResponseEntity.ok(InsertResponse.ok(rootCjsName));
     }
 
 }

@@ -16,7 +16,7 @@ import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.metadata.repository.BaseActorRepository;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,6 @@ import java.util.stream.IntStream;
 
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.DEAD_DEFAULT;
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.STRIKE_SEALED;
-import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByModifierType;
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getMaxValueEffectByModifierType;
 
 /**
@@ -98,11 +97,11 @@ public abstract class EnemyLogic {
      */
     public ActorLogicResult processStrike() {
         Actor mainActor = battleContext.getMainActor();
-        // 공격행동 봉인시 즉시 반환
-        ActorLogicResult sealedStrikeResult = getEffectByModifierType(mainActor, StatusModifierType.STRIKE_SEALED)
-                .map(battleStatus -> resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null))
-                .orElseGet(() -> null);
-        if (sealedStrikeResult != null) return sealedStrikeResult;
+        // 공격행동 봉인 여부 체크 및 반환
+        double calcedStrikeSealed = mainActor.getStatus().getStatusDetails().getCalcedStrikeSealed();
+        boolean isStrikeSealed = Math.random() < calcedStrikeSealed;
+        if (isStrikeSealed) return resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null);
+
         // 공격행동 결정 및 수행
         Enemy mainEnemy = (Enemy) mainActor;
         MoveType currentStandbyType = mainEnemy.getCurrentStandbyType();
@@ -174,14 +173,17 @@ public abstract class EnemyLogic {
         // 스테이터스 타겟 설정 (중복제거)
         List<Actor> statusTargets = targets.stream().distinct().toList();
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(chargeAttack, statusTargets);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(chargeAttack, statusTargets);
         // 오의게이지
         chargeGaugeLogic.afterEnemyAttack(targets, damageLogicResult.getDamages(), chargeAttack.getType());
         // 스탠바이 초기화 CHECK 다른 로직에서 스탠바이 상태를 확인하므로 마지막에 변경할것
-        self().setCurrentStandbyType(null);
-        self().setNextIncantStandbyType(null);
+        self().updateCurrentStandbyType(null);
+        self().initPrevOmenValue();
         return DefaultActorLogicResult.builder()
-                .resultMove(chargeAttack).damageLogicResult(damageLogicResult).enemyAttackTargets(targets).setStatusResult(setStatusResult).build();
+                .resultMove(chargeAttack)
+                .damageLogicResult(damageLogicResult)
+                .enemyAttackTargets(targets)
+                .setStatusEffectResult(setStatusEffectResult).build();
     }
 
     /**
@@ -219,11 +221,11 @@ public abstract class EnemyLogic {
             statusTargets = targets.stream().distinct().toList();
         }
         // 스테이터스 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(ability, statusTargets);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(ability, statusTargets);
 
         // 적은 쿨타임 x
 
-        return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusResult(setStatusResult).build();
+        return DefaultActorLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusEffectResult(setStatusEffectResult).build();
     }
 
     /**
@@ -245,8 +247,7 @@ public abstract class EnemyLogic {
         int processedOmenValue = omenLogic.updateOmenValue(self(), otherResult);
         if (processedOmenValue == 0) {
             // 전조 해제, 중단 (브레이크)
-            self().setCurrentStandbyType(null);
-            self().setNextIncantStandbyType(null);
+            self().updateCurrentStandbyType(null);
             if (currentOmen.getOmenType() == OmenType.CHARGE_ATTACK) chargeGaugeLogic.setChargeGauge(self(), 0);
 
             resultMove = selfMove(currentStandbyType.getBreakType());
@@ -259,7 +260,7 @@ public abstract class EnemyLogic {
     public ActorLogicResult defaultDead(Actor enemy) {
         // 상태 갱신
         enemy.updateHp(Integer.MIN_VALUE);
-        self().setCurrentStandbyType(null); // 전조 해제
+        self().updateCurrentStandbyType(null); // 전조 해제
         
         // 컨텍스트, currentOrder 갱신 -> 하지않음, 어차피 강제종료
         

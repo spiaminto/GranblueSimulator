@@ -2,7 +2,8 @@ function createStateManager(initialState = {}) {
     const state = initialState;
 
     const subscribers = new Map(); // key: path, value: Set callback
-    initSubscribers();
+    initRenderSubscribers();
+    initOnSetSubscribers();
 
     /**
      * 상태 구독
@@ -74,8 +75,8 @@ function createStateManager(initialState = {}) {
         return keys.reduce((acc, key) => (acc ? acc[key] : undefined), state);
     }
 
-    // 초기 subscriber 전부 설정
-    function initSubscribers() {
+    // renderer
+    function initRenderSubscribers() {
         //battleCanvas
         // hp bar
         subscribe('hps', renderHp);
@@ -88,6 +89,8 @@ function createStateManager(initialState = {}) {
         // indicator
         subscribe('indicator.moveName', renderMoveNameIndicator);
         subscribe('indicator.moveResultHonor', renderMoveResultHonorIndicator);
+        subscribe('currentTurn', renderTurnIndicator);
+        subscribe('remainingTimeString', renderRemainingTimeIndicator);
         // attackButton
         subscribe('isQuestCleared', renderAttackButton);
         subscribe('isQuestFailed', renderAttackButton);
@@ -117,11 +120,30 @@ function createStateManager(initialState = {}) {
         subscribe("potion.counts", renderPotionCount);
     }
 
+    // onSet
+    function initOnSetSubscribers() {
+        subscribe('omen', onOmenSet);
+    }
+
     return {subscribe, setState, getState};
 }
 
+function onOmenSet(newVal, oldVal) {
+    console.log('[onOmenSet] newVal = ', newVal, ' oldVal = ', oldVal);
+    let omen = newVal;
+    if (omen.type) {
+        // 전조 모션 재생
+        window.player && player.play(Player.playRequest('actor-0', gameStateManager.getState('omen.motion')));
+    }
+}
 
-function initGameStatus(response) {
+function onBgmIndexSet(newVal, oldVal) {
+    console.log('[onBgmIndexSet] newVal = ', newVal, ' oldVal = ', oldVal);
+    let bgmIndex = newVal;
+}
+
+
+async function initGameStatus() {
 
     window.stage = {}
     stage.gGameStatus = {}
@@ -137,7 +159,8 @@ function initGameStatus(response) {
 
     // 프론트에서만 임시로 관리되는 상태
     stage.gGameStatus.doUnionSummon = true; // 합체소환 여부
-    stage.gGameStatus.enemyMainCjsName = window.enemyInitialMainCjsName; // 적 cjs (첫 로드, 폼체인지 시 갱신)
+    stage.gGameStatus.currentTurn = Number($('.top-menu-container .turn-indicator .value').text()); // 현재 턴
+    stage.gGameStatus.startTime = new Date($('#roomInfo').attr('data-room-created-at')); // createManager 후 초당 인터벌 갱신 하나달아줌
 
     // 기본 상태
     let $fatalChainGaugeWrapper = $('.advanced-command-container .fatal-chain-gauge-wrapper');
@@ -147,6 +170,7 @@ function initGameStatus(response) {
     _.range(0, 4).forEach(index => stage.gGameStatus.actorIds[$battlePortraits.eq(index).attr('data-actor-order')] = $battlePortraits.eq(index).attr('data-actor-id'));
     stage.gGameStatus.actorIds[0] = ($('.enemy-info-container').attr('data-initial-actor-id'));
     stage.gGameStatus.enemyActorName = $('.enemy-info-container').attr('data-initial-actor-name'); // 첫 로드, 폼체인지 시 갱신
+    stage.gGameStatus.enemyFormOrder = Number($('.enemy-info-container').attr('data-initial-form-order'));
 
     // 인디케이터
     stage.gGameStatus.indicator = {}
@@ -254,21 +278,39 @@ function initGameStatus(response) {
     stage.gGameStatus.potion.counts = potionCounts;
 
     // gameStateManager 생성 & response 사용 시작 ===============================================================
+    window.gameStateManager = createStateManager(stage.gGameStatus);
+    
+    // 시간 갱신용 인터벌
+    const battleDuration = 30; // (m), 30분 고정
+    window.startTimeIntervalId = window.setInterval(() => {
+        let startTime = gameStateManager.getState('startTime'); // Date
+        const elapsedMs = Date.now() - startTime; // (ms)
+        const remainingMs = (battleDuration * 60 * 1000) - elapsedMs; // (ms)
+        if (remainingMs <= 0) {
+            // 전투 종료 처리
+            return;
+        }
 
-    let moveResponses = parseMoveResponseList(response);
-    let syncResponse = moveResponses[0];
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
+        const minutePart = Math.floor(remainingSeconds / 60);
+        const secondPart = remainingSeconds % 60;
+        let formattedRemainingTime = `${minutePart.toString().padStart(2, '0')}:${secondPart.toString().padStart(2, '0')}`;
+        gameStateManager.setState('remainingTimeString', formattedRemainingTime);
+    }, 1000);
+
+    let responses = await requestSync(true);
+    let syncResponses = parseMoveResponseList(responses);
+    let syncResponse = syncResponses[0];
     console.log('[initGameStatus] syncResponse = ', syncResponse);
 
-    window.stage.processingResponse = {};
-    window.stage.processingResponse = moveResponses;
+    window.stage.processing = {};
+    window.stage.processing.response = syncResponse;
 
     // 게이지는 첨에 튀는거 방지하기 위해 미리
     stage.gGameStatus.hps = syncResponse.hps;
     stage.gGameStatus.hpRates = syncResponse.hpRates;
     stage.gGameStatus.chargeGagues = syncResponse.chargeGagues;
     stage.gGameStatus.fatalChainGauge = syncResponse.fatalChainGauge;
-
-    window.gameStateManager = createStateManager(stage.gGameStatus);
 
     // 즉시 재 렌더링 필요
     //전조
@@ -295,34 +337,16 @@ function initGameStatus(response) {
     gameStateManager.setState('fatalChainGauge', syncResponse.fatalChainGauge);
     gameStateManager.setState('currentStatusEffectsList', syncResponse.currentStatusEffectsList);
 
+    gameStateManager.setState('abilitySealeds', syncResponse.abilitySealeds); // 첫 로드는 쿨다운 보다 먼저해야 usableIndicator 에서 제대로 렌더링 가능
     gameStateManager.setState('abilityCoolDowns', syncResponse.abilityCoolDowns);
-    gameStateManager.setState('abilitySealeds', syncResponse.abilitySealeds);
     gameStateManager.setState('enemyEstimatedAtk', syncResponse.enemyEstimatedAtk);
     gameStateManager.setState('enemyTriggerHps', JSON.parse($('.enemy-info-container').attr('data-trigger-hps')));
     
     // 멤버정보 로드
     requestMembersInfo();
 
-    // 새로고침 후 적이 사망시
-    if (syncResponse.moveType === MoveType.DEAD_DEFAULT) {
-        // hp 음수로 오는거 0 으로 변환
-        let modedHps = [0, ...syncResponse.hps.slice(1)];
-        let modedHpRates = [0, ...syncResponse.hpRates.slice(1)];
-        gameStateManager.setState('hps', modedHps);
-        gameStateManager.setState('hpRates', modedHpRates);
-
-        // 적의 mainCjs 가 지정되야 처리가능
-        let intervalTimer = window.setInterval(() => {
-            if (player.actors.get('actor-0').mainCjs != null) {
-                clearInterval(intervalTimer);
-                setTimeout(() => processEnemyDead(response), 1500); // entry 끝나는거 고려
-            }
-        });
-    }
-    
-    // 새로고침 후 아군 전원 사망이었을시
-    if (gameStateManager.getState('hps').slice(1).every(hp => hp <= 0) && player.getCharacters().length === 0) {
-        gameStateManager.setState('isQuestFailed', true);
-        player.lockPlayer(true);
+    // 나머지 참전자 무브 잇는경우 처리 (아마 이펙트 겹칠것)
+    if (syncResponses.length > 1) {
+        processResponseMoves(syncResponses.slice(1));
     }
 }

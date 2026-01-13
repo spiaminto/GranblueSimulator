@@ -29,6 +29,7 @@ public class CharacterInfo {
     private List<StatusEffect> statuses;
 
     private List<Integer> abilityCoolDowns;
+    private List<Boolean> abilitySealeds;
 
 
 }

@@ -220,8 +220,38 @@ public class StatusDetails implements Cloneable {
 
     /* 난격 */
     private double attackMultiHitCount; // 난격 카운트
+
     public int getCalcedAttackMultiHitCount() {
         return (int) Math.max(attackMultiHitCount, 1); // 효과 없을시 1부터 시작
+    }
+
+    /* 공격행동 횟수 */
+    // modifier 을 분리해서 횟수별로 중복 부여 가능, 실제 적용은 가장 높은 값만
+    private double doubleStrike;
+    private double tripleStrike;
+    private double quadrupleStrike;
+    private double plusStrike;
+    public int getCalcedStrikeCount() { // 공격 행동 시작 후에 로직에서 sync 를 통해 수정되면 다음턴 공격행동 시작시 반영됨
+        double strikeCount =  quadrupleStrike > 0 ? quadrupleStrike
+                : tripleStrike > 0 ? tripleStrike
+                : doubleStrike > 0 ? doubleStrike
+                : 1;
+        if (plusStrike > 0) strikeCount += plusStrike;
+        return (int) Math.clamp(strikeCount, 0, 5); // 최대 5회로 고정해놓음 일단
+    }
+
+    /* 공격행동 봉인 */
+    private double strikeSealed;
+
+    public double getCalcedStrikeSealed() {
+        return Math.clamp(this.strikeSealed, 0, 1.0); // 합산, 하한 0, 상한 1.0 (행동 방해확률 100%)
+    }
+
+    /* 오의 봉인 */
+    private double chargeAttackSealed;
+
+    public boolean getCalcedChargeAttackSealed() {
+        return this.chargeAttackSealed > 0; // 있으면 1.0 고정
     }
 
     /* 어빌리티 봉인 */
@@ -237,6 +267,16 @@ public class StatusDetails implements Cloneable {
                 ? List.of(true, true, true, true)
                 : List.of(firstAbilitySealed > 0, secondAbilitySealed > 0, thirdAbilitySealed > 0, fourthAbilitySealed > 0);
     }
+
+    // 비 갱신, 기록용 init 후 수정금지 =============================================================================
+
+    /* 공격행동 시작시 설정되는 공격행동 총 횟수 */
+    @Getter
+    private Integer endStrikeCount;
+    public void initEndStrikeCount(int endStrikeCount) { this.endStrikeCount = endStrikeCount; }
+
+
+    // 초기화 =====================================================================================================
 
     public static StatusDetails init(Actor actor) {
         BaseActor baseActor = actor.getBaseActor();
@@ -322,7 +362,16 @@ public class StatusDetails implements Cloneable {
 
         this.attackMultiHitCount = getModifierValueMax(map, ATTACK_MULTI_HIT);
 
-        this.firstAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_FIRST);
+        this.doubleStrike = getModifierValueMax(map, DOUBLE_STRIKE);
+        this.tripleStrike = getModifierValueMax(map, TRIPLE_STRIKE);
+        this.quadrupleStrike = getModifierValueMax(map, QUADRUPLE_STRIKE);
+        this.plusStrike = getModifierValueMax(map, PLUS_STRIKE);
+
+        this.strikeSealed = getModifierValueSum(map, STRIKE_SEALED); // 공격행동 방해는 방해율 합산
+
+        this.chargeAttackSealed = getModifierValueMax(map, CHARGE_ATTACK_SEALED); // 오의 봉인은 반드시 오의 불가
+
+        this.firstAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_FIRST); // 어빌리티 봉인은 반드시 어빌리티 불가
         this.secondAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_SECOND);
         this.thirdAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_THIRD);
         this.fourthAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_FOURTH);

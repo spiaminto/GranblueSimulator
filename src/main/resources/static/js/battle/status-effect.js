@@ -9,37 +9,46 @@ async function processStatusEffect(response, delayScale = 1.0) {
     if (delayScale <= 0.0) throw new Error('[processStatusEffect] invalid delayScale, delayScale = ' + delayScale);
     let startTime = performance.now();
     // 쿨다운 갱신
-    window.gameStateManager.setState('abilityCoolDowns', response.abilityCoolDowns);
+    gameStateManager.setState('abilityCoolDowns', response.abilityCoolDowns, {force: true}); // 쿨다운이 0 -> 0 으로 변경되는경우 (어빌리티 N회 사용가능시) 오버레이 제거를 위해 강제 update
     // 소환석 쿨다운 갱신
-    window.gameStateManager.setState('summonCooldowns', response.summonCooldowns);
+    gameStateManager.setState('summonCooldowns', response.summonCooldowns);
     // 사용가능여부 갱신
-    window.gameStateManager.setState('abilitySealeds', response.abilitySealeds);
+    gameStateManager.setState('abilitySealeds', response.abilitySealeds);
 
     let healDelay = processHealEffect(response.heals);
     healDelay = healDelay * delayScale;
     await wait(healDelay);
 
     // 힐, 슬립데미지 사이에서 hp 갱신 (데미지 처리 있을경우, 미리 갱신되었음)
-    window.gameStateManager.setState('hps', response.hps);
-    window.gameStateManager.setState('hpRates', response.hpRates);
+    gameStateManager.setState('hps', response.hps);
+    gameStateManager.setState('hpRates', response.hpRates);
 
-    await processEffectDamageEffect(response.effectDamages); // 데미지 효과는 가속 X
+    await processEffectDamageEffect(response); // 데미지 효과는 가속 X
 
     let buffDelay = processBuffEffect(response.addedBuffStatusesList, response.removedBuffStatusesList, response.removedDebuffStatusesList);
     buffDelay = buffDelay * delayScale;
     await wait(buffDelay);
 
     // 오의 게이지 갱신
-    window.gameStateManager.setState('chargeGauges', response.chargeGauges);
-    window.gameStateManager.setState('enemyMaxChargeGauge', response.enemyMaxChargeGauge);
+    gameStateManager.setState('chargeGauges', response.chargeGauges);
+    gameStateManager.setState('enemyMaxChargeGauge', response.enemyMaxChargeGauge);
     // 페이탈 체인 게이지 갱신
-    window.gameStateManager.setState('fatalChainGauge', response.fatalChainGauge);
+    gameStateManager.setState('fatalChainGauge', response.fatalChainGauge);
     // 상태효과 갱신
-    window.gameStateManager.setState('currentStatusEffectsList', response.currentStatusEffectsList);
+    gameStateManager.setState('currentStatusEffectsList', response.currentStatusEffectsList);
 
     let debuffDelay = processDebuffEffect(response.addedDebuffStatusesList);
     debuffDelay = debuffDelay * delayScale;
     await wait(debuffDelay);
+
+    let levelDownEffectDelay = processLevelDownEffect(response.levelDownedBattleStatusesList);
+    levelDownEffectDelay = levelDownEffectDelay * delayScale;
+    await wait(levelDownEffectDelay);
+
+    // 전조 [상태효과] 갱신
+    if (response.omen.updateTiming === 'statusEffect') {
+        gameStateManager.setState('omen', response.omen);
+    }
 
     let endTime = performance.now();
     let totalDuration = Math.floor(endTime - startTime);
@@ -89,7 +98,10 @@ function processHealEffect(healArray) {
 }
 
 
-async function processEffectDamageEffect(effectDamages) {
+async function processEffectDamageEffect(response) {
+    let effectDamages = response.effectDamages;
+    if (effectDamages.length <= 0) return 0;
+
     let partyEffectDamageDelay = 0;
     let enemyEffectDamageDuration = 0;
 
@@ -127,7 +139,7 @@ async function processEffectDamageEffect(effectDamages) {
                 // 데미지 표시
                 $damageElements.$damage.addClass('enemy-turn-damage-show'); // 본 데미지 표시
                 // 소리재생
-                window.effectAudioPlayer.loadAndPlay(Sounds.DEBUFF.src);
+                playSe(Sounds.global.DEBUFF.src);
                 // 아군 피격 재생
                 player.play(Player.playRequest('actor-' + targetOrder, Player.c_animations.DAMAGE));
             }, partyEffectDamageShowStartDelay)
@@ -135,22 +147,14 @@ async function processEffectDamageEffect(effectDamages) {
         // 데미지 제거
         setTimeout(() => $enemyDamageWrappers.values().forEach((wrapper) => $(wrapper).remove()), lastDamageShowStartDelay + Constants.Delay.damageShowDelete);
         // 대기
-        partyEffectDamageDelay = lastDamageShowStartDelay + Constants.Delay.damageShowToNext
-        return partyEffectDamageDelay;
+        partyEffectDamageDelay = lastDamageShowStartDelay + Constants.Delay.damageShowToNext;
     }
 
     // 적에 대한 슬립 데미지 (ability wrapper, ability damage 사용)
     let enemyEffectDamage = effectDamages[0];
     if (enemyEffectDamage > 0) {
-
-        let $targetActorContainer = $(`#actorContainer > .actor-0`);
-        let currentDamageWrapperIndex = $targetActorContainer.find('.damage-wrapper').length;
-        let $damageWrapper = $('<div>', {class: `damage-wrapper ability damage-wrapper-index-${currentDamageWrapperIndex}`});
-        let $damageElement = getDamageElement(0, 'NONE', 'ability', 'NORMAL', 0, enemyEffectDamage, []);
-        $damageWrapper.append($damageElement.$damage);
-        $targetActorContainer.append($damageWrapper);
-        window.effectAudioPlayer.loadAndPlay(Sounds.DEBUFF.src);
-        enemyEffectDamageDuration = await postProcessPartyDamage($damageWrapper, [0], 'party-turn-damage-show');
+        playSe(Sounds.global.DEBUFF.src);
+        enemyEffectDamageDuration = await postProcessPartyDamage(response, 'party-turn-damage-show');
         enemyEffectDamageDuration /= 2; // 가속
     }
 
@@ -176,8 +180,8 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
         addedBuffes = [...new Map(addedBuffes.map(statusDto => [statusDto.name, statusDto])).values()]; // name 기준 중복제거 (Map.key 중복시 덮어쓰기), 버프는 같은 이름으로 여러개 들어오는 경우가 있음
         let removedBuffes = removedBuffStatusesList[actorIndex] || [];
         removedBuffes = [...new Map(removedBuffes.map(statusDto => [statusDto.name, statusDto])).values()];
-        let resultBuffes = [...removedDebuffs, ...addedBuffes, ...removedBuffes]; // 표시 순서 removedDebuff -> addedBuff -> removedBuff
 
+        let resultBuffes = [...removedBuffes, ...removedDebuffs, ...addedBuffes]; // 표시 순서 제거된 버프 -> 제거된 디버프 -> 새로걸리는 버프
         buffCounts[actorIndex] = resultBuffes.length;
         return resultBuffes;
     });
@@ -203,7 +207,7 @@ function processBuffEffect(addedBuffStatusesList, removedBuffStatusesList, remov
  * @return {number} 디버프 효과 발생으로 인한 딜레이
  */
 function processDebuffEffect(addedDebuffStatusesList) {
-    let debuffDelay = 0; // 디버프 없을댄 이전 딜레이 (이펙트 + 버프 딜레이) 만큼
+    let debuffDelay = 0;
     let partyDebuffCountSum = addedDebuffStatusesList.slice(1, addedDebuffStatusesList.length).reduce((acc, debuffStatuses) => acc + debuffStatuses.length, 0);
     let enemyDelay = partyDebuffCountSum > 0 ? 800 : 0; // 파티쪽에 표시할 디버프 있는경우 적은 800 늦춤
     // console.log('[processDebuffEffect] partyDebuffCountSum = ', partyDebuffCountSum);
@@ -218,6 +222,28 @@ function processDebuffEffect(addedDebuffStatusesList) {
 
     console.log('[processDebuffEffect] debuffDelay = ', debuffDelay);
     return debuffDelay;
+}
+
+/**
+ * 레벨 감소 이펙트 별도로 처리
+ * @param levelDownStatusEffectsList
+ * @return {number} 사용할 duration
+ */
+function processLevelDownEffect(levelDownStatusEffectsList) {
+    let levelDownEffectDuration = 0;
+    let partyLevelDownCountSum = levelDownStatusEffectsList.slice(1, levelDownStatusEffectsList.length).reduce((acc, levelDownStatusEffects) => acc + levelDownStatusEffects.length, 0);
+    let enemyDelay = partyLevelDownCountSum > 0 ? 800 : 0; // 파티쪽에 표시할 이펙트 있는경우 적은 800 늦춤
+
+    levelDownStatusEffectsList.forEach(function (statusEffects, actorIndex) { // [[적][아군][아군][아군][아군]]
+        if (statusEffects.length === 0) return;
+        let $statusWrappers = fillStatusEffect(statusEffects, actorIndex);
+        let additionalDelay = actorIndex === 0 ? enemyDelay : 0;
+        let lastFadeoutStartTime = showStatusEffect($statusWrappers, actorIndex, additionalDelay);
+        levelDownEffectDuration = Math.max(lastFadeoutStartTime, levelDownEffectDuration);
+    });
+
+    console.log('[processLevelDownEffect] levelDownEffectDuration = ', levelDownEffectDuration);
+    return levelDownEffectDuration;
 }
 
 /**
@@ -264,15 +290,14 @@ function fillStatusEffect(statusDtos, actorIndex) {
  * @param $statusEffectWrappers {[]} actorIndex 에 해당하는 actor 의 wrappers
  * @param actorIndex
  * @param additionalDelay 추가 딜레이. [아군상태효과 1개 이상 일때 적 상태효과 +800]
+ * @return 첫번째 상태효과가 fadeout 하는 시간 반환
  */
 function showStatusEffect($statusEffectWrappers, actorIndex, additionalDelay = 0) {
     if ($statusEffectWrappers.length === 0) return 0;
-    let iconShowDuration = 1000;
-    let lastFadeOutStartTime = 0;
-    let isEnemy = actorIndex === 0;
+    let iconShowDuration = 1000;0;
 
     // 요소 표시 타이머 지정
-    let lastShowStartDelay = 0;
+    let firstShowStartDelay = 0;
     $statusEffectWrappers.forEach(($statusEffectWrapper, wrapperIndex) => {
         if (!$statusEffectWrapper) return;
         let $statusEffects = $statusEffectWrapper.find('.status-effect');
@@ -280,7 +305,7 @@ function showStatusEffect($statusEffectWrappers, actorIndex, additionalDelay = 0
             let isRemovedEffect = statusEffect.classList.contains('status-removed');
             let showStartDelayPerIndex = isRemovedEffect ? 125 : 75; // 효과 1개당 선딜레이
             let showStartDelay = additionalDelay + (wrapperIndex * iconShowDuration) + (showStartDelayPerIndex * statusEffectIndex);
-            lastShowStartDelay = showStartDelay;
+            if (statusEffectIndex === 0) firstShowStartDelay = showStartDelay;
             let maxOpacity = isRemovedEffect ? 0.7 : 1.0;
 
             setTimeout(() => {
@@ -294,6 +319,6 @@ function showStatusEffect($statusEffectWrappers, actorIndex, additionalDelay = 0
             }, showStartDelay);
         });
     });
-    lastFadeOutStartTime = lastShowStartDelay + 800; // fadeTo maxOpacity + delay
-    return lastFadeOutStartTime;
+    let firstFadeOutStartTime = firstShowStartDelay + 850; // fadeTo maxOpacity + delay
+    return firstFadeOutStartTime;
 }

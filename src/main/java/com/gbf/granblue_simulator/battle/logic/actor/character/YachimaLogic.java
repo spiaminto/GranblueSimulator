@@ -10,7 +10,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.DefaultActorLogicResult
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,7 +74,10 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     public ActorLogicResult postProcessToEnemyMove(ActorLogicResult enemyMoveResult) {
         // 적에게 데미지를 받으면 서포어비 2 발동
-        return secondSupportAbility();
+        if (!enemyMoveResult.getDamages().isEmpty() && enemyMoveResult.getEnemyAttackTargets().contains(self())) {
+            return secondSupportAbility();
+        }
+        return resultMapper.emptyResult();
     }
 
     @Override
@@ -110,9 +113,9 @@ public class YachimaLogic extends CharacterLogic {
 
         defaultAbility(ability, List.of());// 빈 상태효과 전달, 상태효과는 직접적용
         // 타겟에 맞게 상태효과 직접 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(ability.getBaseStatusEffects(), applyEffectTarget);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(ability.getBaseStatusEffects(), applyEffectTarget);
 
-        return resultMapper.toResultWithExecuteAttack(ability, null, setStatusResult, applyEffectTarget);
+        return resultMapper.toResultWithExecuteAttack(ability, null, setStatusEffectResult, applyEffectTarget);
     }
 
     // 자신이 공격행동시 사포아비1 적용 (알파레벨 증가)

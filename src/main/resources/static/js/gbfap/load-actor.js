@@ -7,27 +7,32 @@ var cjsStage = null;
 
 function initAsset() {
     let actorAssets = window.assetInfos.map((assetInfo, index) =>
-        new Animation('actor-' + assetInfo.currentOrder, {
-            cjs: assetInfo.asset.mainCjs,
-            weapon: assetInfo.asset.weaponId,
-            attacks: assetInfo.asset.attackCjses,
-            abilities: assetInfo.asset.abilityCjses,
-            specials: assetInfo.asset.specialCjses,
-            additionalCjs: assetInfo.asset.additionalMainCjs,
-            additionalSpecials: assetInfo.asset.additionalSpecialCjses,
-            chargeAttackStartFrame: assetInfo.asset.chargeAttackStartFrame,
-            summons: assetInfo.asset.summonCjses,
-            isEnemy: assetInfo.isEnemy,
+        new Animation('actor-' + assetInfo.actorOrder, {
+            cjs: assetInfo.mainCjs,
+            weapon: assetInfo.weaponId,
+            attacks: assetInfo.attackCjses,
+            abilities: assetInfo.abilityCjses,
+            specials: assetInfo.specialCjses,
+            additionalCjs: assetInfo.additionalMainCjs,
+            additionalSpecials: assetInfo.additionalSpecialCjses,
+            chargeAttackStartFrame: assetInfo.chargeAttackStartFrame,
+            summons: assetInfo.summonCjses,
             isLeaderCharacter: assetInfo.isLeaderCharacter,
+            isEnemy: assetInfo.isEnemy,
             isChargeAttackSkip: assetInfo.isChargeAttackSkip,
-            currentOrder: assetInfo.currentOrder,
-            startMotion: assetInfo.startMotion,
+            currentOrder: assetInfo.actorOrder,
+            startMotion: Player.c_animations.WAIT, // 사실상 무쓸모
         })
     );
+    let firstCharacterAsset = actorAssets.find(asset => !asset.isEnemy);
+    let globalActorParam = !!firstCharacterAsset ? firstCharacterAsset : {
+        cjs: "kjb_me_1_01",
+        weapon: "",
+        isLeaderCharacter: false,
+    }
     actorAssets.push(
         new Animation("global", {
-            // cjs: "raid_mortal_skip", // animation to play
-            cjs: "npc_3040585000_01", // animation to play
+            cjs: globalActorParam.cjs, // animation to play
             specials: ["raid_mortal_skip"], // charge attacks
             abilities: {
                 BUFF: { // abilityType
@@ -63,15 +68,17 @@ function initAsset() {
                     isTargetedEnemy: false
                 },
             },
+            weapon: globalActorParam.weapon,
+            isLeaderCharacter: globalActorParam.isLeaderCharacter,
             currentOrder: 5,
-            summons: {},
+            summons: [],
             demoMotions: ["stbwait"], // animation playlist under the Demo action
             isEnemy: false
         }))
     console.log(`[loadActor] initAsset actorAssets = `, actorAssets);
 
     let enemyAsset = actorAssets.find(asset => asset.name === "actor-0");
-    window.enemyInitialMainCjsName = enemyAsset.cjs; // 임시로 저장
+    gameStateManager.setState('enemyMainCjsNames', [enemyAsset.cjs]);
     return actorAssets;
 }
 

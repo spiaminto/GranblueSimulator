@@ -24,19 +24,19 @@ public class LogTraceAspect {
     private boolean activated;
 
     // Pointcut 표현식 분리
-    @Pointcut("execution(* com.gbf.granblue_simulator.controller..*(..))")
+    @Pointcut("execution(* com.gbf.granblue_simulator..controller..*(..))")
     public void allController() {};
 
-    @Pointcut("!execution(* com.gbf.granblue_simulator.controller..awsHealthCheck(..))")
+    @Pointcut("!execution(* com.gbf.granblue_simulator..controller..awsHealthCheck(..))")
     public void ignoreHealthCheck() {};
 
-    @Pointcut("execution(* com.gbf.granblue_simulator.service..*(..))")
+    @Pointcut("execution(* com.gbf.granblue_simulator..service..*(..))")
     public void allService() {};
 
-    @Pointcut("execution(* com.gbf.granblue_simulator.repository..*(..))")
+    @Pointcut("execution(* com.gbf.granblue_simulator..repository..*(..))")
     public void allRepository() {};
 
-    @Pointcut("execution(* com.gbf.granblue_simulator.logic..*(..))")
+    @Pointcut("execution(* com.gbf.granblue_simulator..logic..*(..))")
     public void allLogic() {};
 
     @Around("(allService() || allLogic()) && ignoreHealthCheck()")

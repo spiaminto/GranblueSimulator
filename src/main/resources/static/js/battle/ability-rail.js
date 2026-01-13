@@ -6,7 +6,7 @@ function onAbilityIconClicked(event) {
     let $target = $(event.target);
     if ($target.is('.button-click')) return;
     $target.addClass('button-click').one('animationend', () => $target.removeClass('button-click'));
-    window.effectAudioPlayer.loadAndPlay(Sounds.global.BUTTON_CLICK.src);
+    playSe(Sounds.ui.BUTTON_CLICK.src);
 
     console.log('[onclickAbilityIcon] this = ', this);
     let abilityId = this.dataset.moveId;
@@ -28,24 +28,25 @@ function processMoveClick(moveInfo) {
     console.log('[processMoveClick] moveInfo = ', moveInfo);
     if (player.locked || stage.gGameStatus.isQuestCleared) return;
 
+    let noneUsableClasses = '.not-ready, .none-usable, .on-rail';
     if (moveInfo.type === 'ABILITY') {
         // 쿨타임 검증
         let $abilityOverlay = window.abilityPanels[moveInfo.actorIndex].find(`.ability-icon[data-move-id=${moveInfo.id}] .ability-overlay`);
-        let cooldown = stage.gGameStatus.abilityCoolDowns[moveInfo.actorIndex][moveInfo.order - 1];
-        if (cooldown > 0 || $abilityOverlay.is('.not-ready') || $abilityOverlay.is('.none-usable')) return;
+        let cooldown = gameStateManager.getState('abilityCoolDowns')[moveInfo.actorIndex][moveInfo.order - 1];
+        if (cooldown > 0 || $abilityOverlay.is(noneUsableClasses)) return;
 
-        // 클릭시 오버레이 설정 : Modal 에서 사용 클릭시에도 지정해야되서, icon onclick 대신 여기서 함
-        // gameStateManager.abilityCooldowns 로 상태변경시 renderer 에서 재랜더링함. (여기서는 상태 값 변경 X)
-        // 여기서 즉시 오버레이를 띄워야 레일위에서 처리 대기중에 재등록 방지가능
-        $abilityOverlay.addClass('not-ready');
+        // 레일 재등록 방지
+        $abilityOverlay.addClass('on-rail');
     }
 
     if (moveInfo.type === 'SUMMON') {
         // 쿨타임 검증
         let $summonOverlay = $(`#partyCommandContainer .summon-display-wrapper .summon-list-item[data-move-id=${moveInfo.id}] .summon-overlay`);
         let cooldown = gameStateManager.getState('summonCooldowns')[moveInfo.order - 1];
-        if (cooldown > 0 || $summonOverlay.is('.not-ready') || $summonOverlay.is('.none-usable')) return;
-        $summonOverlay.addClass('not-ready');
+        if (cooldown > 0 || $summonOverlay.is(noneUsableClasses)) return;
+        
+        // 레일 재등록 방지
+        $summonOverlay.addClass('on-rail');
         $('.summon-display-button').click();
     }
 
@@ -66,16 +67,19 @@ function onAttackButtonClicked() {
         return;
     }
 
-    if (player.locked) return;
-
     if (isAttackClicked) { // attack button 클릭되어있음 -> attack cancel
+        let $attackRailItem = $('#abilityRail .rail-item[data-rail-item-type="ATTACK"]');
+        if ($attackRailItem.length > 0) {
+            $attackRailItem.click(); // 레일에 있을경우, 레일에서 삭제트리거를 통해 현재 함수 재실행
+            return;
+        }
         player.lockPlayer(false); // 공격 취소시 락 해제
-        effectAudioPlayer.loadAndPlay(Sounds.global.CANCEL_ATTACK.src);
+        playSe(Sounds.ui.CANCEL_ATTACK.src);
         window.gameStateManager.setState('isAttackClicked', false);
-        $('#abilityRail .rail-item-attack').remove(); // 레일에서 삭제
     } else {
+        if (player.locked) return; // 이미 잠겨있을시 종료
         player.lockPlayer(true); // 플레이어 잠금
-        effectAudioPlayer.loadAndPlay(Sounds.global.REQUEST_ATTACK.src);
+        playSe(Sounds.ui.REQUEST_ATTACK.src);
         window.gameStateManager.setState('isAttackClicked', true);
         appendToAbilityRail(stage.gGameStatus.attack); // 레일에 등록
     }
@@ -102,6 +106,8 @@ function appendToAbilityRail(moveInfo) {
 function openAbilityInfoModal(moveInfo) {
     let isSummon = moveInfo.type === 'SUMMON';
     let imageSrc = isSummon ? moveInfo.portraitSrc : moveInfo.iconSrc;
+    let commandName = isSummon ? ': 소환석'
+        : moveInfo.type === 'ABILITY' ? ': 어빌리티' : '';
 
     let $unionSummonWrapper = $('');
     let unionSummonId = gameStateManager.getState('unionSummonId');
@@ -109,17 +115,15 @@ function openAbilityInfoModal(moveInfo) {
         let doUnionSummon = stage.gGameStatus.doUnionSummon;
 
         let unionSummonConst = Constants.summon[unionSummonId];
-        $unionSummonWrapper = $(`
-            <br>            
+        $unionSummonWrapper = $(`       
             <hr>
-            <br>
             <div class="ability-info-wrapper">
               <div class="ability-info-icon-wrapper">
                 <img class="ability-info-icon" src="${unionSummonConst.portraitSrc}">
               </div>
               <div class="ability-info-text-wrapper">
                 <div class="row">
-                  <h5 class="col-8">${unionSummonConst.name}</h5>
+                  <h5 class="col-7">${unionSummonConst.name}</h5>
                   <div class="col">
                     <div class="form-check form-switch do-union-summon-check-wrapper">
                       <input class="form-check-input" type="checkbox" role="switch" id="doUnionSummonCheck">
@@ -143,7 +147,7 @@ function openAbilityInfoModal(moveInfo) {
     let $modalContent = $(`
             <div class="modal-content">
               <div class="modal-header">
-                <h4 class="modal-title">커맨드 정보</h4>
+                <h4 class="modal-title">커맨드 정보 ${commandName}</h4>
               </div>
               <div class="modal-body">
                 <div class="ability-info-wrapper">
@@ -159,11 +163,11 @@ function openAbilityInfoModal(moveInfo) {
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-secondary me-4 close-ability-info-modal-button"
+                <button type="button" class="btn btn-sm btn-secondary me-1 close-ability-info-modal-button"
                         data-bs-dismiss="modal">
                   닫기
                 </button>
-                <button type="button" class="btn btn-primary use-ability-button">사용</button>
+                <button type="button" class="btn btn-sm btn-primary use-ability-button">사용</button>
               </div>
             </div>
         `)

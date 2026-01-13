@@ -178,8 +178,8 @@ public class StatusEffect {
      *
      * @return
      */
-    public boolean isForAll() {
-        return this.getBaseStatusEffect().getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS;
+    public boolean isForAllEnemies() {
+        return this.getBaseStatusEffect().getTargetType() == StatusEffectTargetType.ALL_ENEMIES;
     }
 
     public boolean isSameFromStatus(StatusEffect statusEffect) {

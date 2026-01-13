@@ -113,11 +113,11 @@
 // placeholder
           $('input, textarea').each(function (index, element) {
               if (element.name.includes('ideo')) {
-                  element.value = '/static/assets/video/baseEnemy/';
+                  element.value = '/static/moveVisuals/video/baseEnemy/';
               } else if (element.name.includes('image') || element.name.includes('icon') || element.name.includes('ortrait') || element.name.includes("Image")) { // mage 하면 damage 랑겹침
-                  element.value = '/static/assets/img/baseEnemy/'
+                  element.value = '/static/moveVisuals/img/baseEnemy/'
               } else if (element.name.includes('udio')) {
-                  element.value = '/static/assets/audio/baseEnemy/'
+                  element.value = '/static/moveVisuals/audio/baseEnemy/'
               }
           })
 // 스테이터스 체크
@@ -228,13 +228,13 @@
 
           //applyCjsName
           $('#applyCjsButton').on('click', function () {
-              let assetType = $('#enemyAssetForm select[name="assetType"]').val(); // ACTOR, SPECIAL, ...
+              let effectVisualType = $('#enemyAssetForm select[name="effectVisualType"]').val(); // ACTOR, SPECIAL, ...
               let isAll = $('#enemyAssetForm .is-all-check').prop('checked');
               let allPrefix = isAll ? 'all_' : '';
               let cjsId = $('#enemyAssetForm input[name="cjsId"]').val(); // 000019234
               let cjsName = '';
 
-              switch (assetType) {
+              switch (effectVisualType) {
                   case 'ACTOR':
                       cjsName = 'enemy_' + cjsId + '_02'; // enemy_4300903
                       break;
@@ -280,16 +280,16 @@
     <textarea rows="7" class="form-control mb-2" type="text" name="bgmSrcs" placeholder=""></textarea>
 
     <h3>dead</h3>
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="deadEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="deadSeAudioSrc" placeholder="">
 
     <h3>form-change</h3>
     <p>나중에 form-change-entry 의 경우 타입을 따로 수정해줘야됨. </p>
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="formChangeEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="formChangeSeAudioSrc" placeholder="">
 
     <button type="button" class="baseEnemy-submit-button btn btn-primary">적 저장</button>
@@ -310,21 +310,21 @@
     <input class="form-control mb-2" type="text" name="isAllTarget" placeholder="">
 
     <h3>single</h3>
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="singleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="singleAttackSeAudioSrc" placeholder="">
 
     <h3>double</h3>
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="doubleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="doubleAttackSeAudioSrc" placeholder="">
 
     <h3>triple</h3>
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="tripleAttackEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="tripleAttackSeAudioSrc" placeholder="">
 
     <button type="button" class="btn btn-primary attack-submit-button">어택 저장</button>
@@ -336,7 +336,7 @@
 <p class="fw-bold"> 아래에서 IDLE_DEFAULT 와 DAMAGED_DEFAULT 를 먼저 작성한뒤 스탠바이 작성 시작할 것 </p>
 <p class="fw-bold"> standby 부터는 standby - idle - damaged - break - chargeattack 까지 한꺼번에 전부 작성하도록 한다.</p>
 <p> 전조에 따른 에셋이 동일하더라도, STANDBY 타입으로 분류하기 때문에 STNADBY 타입에 맞춰 나머지 무브들까지 다 기입하도록 한다.</p>
-<p> 예를들어, STANDBY_A 작성을 시작했다면, idle, damaged,break,chargeattack 까지 동일한 A 타입으로 작성ㅎ여 저장한후 STANDBY_B 작성으로 넘어가도록 / idle, break 등의 asset 이 같은 STANDBY_A 와 STANDBY_D 가존재할 수 있음을 기억.</p>
+<p> 예를들어, STANDBY_A 작성을 시작했다면, idle, damaged,break,chargeattack 까지 동일한 A 타입으로 작성ㅎ여 저장한후 STANDBY_B 작성으로 넘어가도록 / idle, break 등의 moveVisual 이 같은 STANDBY_A 와 STANDBY_D 가존재할 수 있음을 기억.</p>
 
 <h2>STAND BY</h2>
 <div class="standby-input-wrapper">
@@ -363,9 +363,9 @@
     <div>omen.triggerHp HP 트리거용 HP 비율 {90, 80, 70, ...}, CT기도 1개 입력해야함. 영창기는 100 </div>
     <input class="form-control mb-2" type="text" name="omen.triggerHps" placeholder="">
 
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="standbyEffectVideoSrc" placeholder="">
-    <div>asset.seAudio.src</div>
+    <div>moveVisual.seAudio.src</div>
     <input class="form-control mb-2" type="text" name="standbySeAudioSrc" placeholder="">
 
     <button type="button" class="btn btn-primary standby-submit-button">스탠바이 저장</button>
@@ -383,7 +383,7 @@
 
     <div>type Move.type IDLE_DEFAULT, IDLE_A, B, ...</div>
     <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="idleEffectVideoSrc" placeholder="">
 
     <button type="button" class="btn btn-primary idle-submit-button">아이들 저장</button>
@@ -400,7 +400,7 @@
 
     <div>type Move.type DAMAGED_DEFAULT, DAMAGED_A,  ...</div>
     <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="damagedEffectVideoSrc" placeholder="">
 
     <button type="button" class="btn btn-primary damaged-submit-button">피격 저장</button>
@@ -418,9 +418,9 @@
 
     <div>type Move.type BREAK_A, B, ... (DEFAULT 없음) </div>
     <input class="form-control mb-2" type="text" name="type" placeholder="">
-    <div>asset.effectVideo.src</div>
+    <div>moveVisual.effectVideo.src</div>
     <input class="form-control mb-2" type="text" name="breakEffectVideoSrc" placeholder="">
-    <div>asset.audio.src</div>
+    <div>moveVisual.audio.src</div>
     <input class="form-control mb-2" type="text" name="breakSeAudioSrc" placeholder="">
 
     <button type="button" class="btn btn-primary break-submit-button">　브레이크 저장</button>
@@ -554,17 +554,17 @@
     <div>duration: 어빌리티 효과시간 (두개 이상일 경우 쉼표로 구분하여 작성, 로직용 아니고 표현용) </div>
     <input class="form-control mb-2" type="text" name="duration" placeholder="">
 
-    <div>iconSrc: asset.iconImageSrc 에서 사용 </div>
+    <div>iconSrc: moveVisual.iconImageSrc 에서 사용 </div>
     <input class="form-control mb-2" type="text" name="iconSrc" placeholder="">
 
-    <div>이펙트 비디오 asset.effectVideo</div>
+    <div>이펙트 비디오 moveVisual.effectVideo</div>
     <input class="form-control mb-2" type="text" name="effectVideoSrc" placeholder="">
-    <div>모션 비디오 asset.motionVideo</div>
+    <div>모션 비디오 moveVisual.motionVideo</div>
     <input class="form-control mb-2" type="text" name="motionVideoSrc" placeholder="">
 
-    <div>SE 오디오 asset.seAudioSrc</div>
+    <div>SE 오디오 moveVisual.seAudioSrc</div>
     <input class="form-control mb-2" type="text" name="seAudioSrc" placeholder="">
-    <div>Voice 오디오 asset.voiceAudioSrc</div>
+    <div>Voice 오디오 moveVisual.voiceAudioSrc</div>
     <input class="form-control mb-2" type="text" name="voiceAudioSrc" placeholder="">
 
     <h3>status1</h3>
@@ -656,7 +656,7 @@
 
 <h2>baseEnemy 에셋 </h2>
 <p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
-<form id="enemyAssetForm" target="/insert-baseEnemy-asset" method="POST">
+<form id="enemyAssetForm" target="/insert-baseEnemy-moveVisual" method="POST">
 
   <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
   <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="enemyAssetForm"
@@ -669,11 +669,11 @@
   <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
   <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
 
-  <div>asset name [디아스포라 1 / 디아스포라 1 평타 / 디아스포라 1 오의2 / 디아스포라 서포어비1 ]</div>
+  <div>moveVisual name [디아스포라 1 / 디아스포라 1 평타 / 디아스포라 1 오의2 / 디아스포라 서포어비1 ]</div>
   <input class="form-control mb-2" type="text" name="assetName" placeholder="">
 
-  <div> asset type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
-  <select class="form-select" size="5" name="assetType" required>
+  <div> moveVisual type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
+  <select class="form-select" size="5" name="effectVisualType" required>
     <option selected>Open this select menu</option>
     <option value="ACTOR">ACTOR</option>
     <option value="SPECIAL">SPECIAL</option>

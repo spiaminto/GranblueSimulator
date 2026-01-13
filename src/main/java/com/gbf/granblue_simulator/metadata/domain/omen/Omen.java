@@ -24,6 +24,7 @@ public class Omen {
 
     @Enumerated(EnumType.STRING)
     private OmenType omenType;
+    private boolean isTriggerPrimary; // INCANT_ATTACK 이 우선인경우 사용
     
     private String info; // 전조 설명
 

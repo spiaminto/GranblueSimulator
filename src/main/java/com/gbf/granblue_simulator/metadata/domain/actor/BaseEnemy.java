@@ -19,10 +19,6 @@ import java.util.List;
 @Inheritance(strategy = InheritanceType.JOINED)
 public class BaseEnemy extends BaseActor {
 
-    @Type(ListArrayType.class)
-    @Column(name = "hp_triggers", columnDefinition = "integer[]")
-    private List<Integer> hpTriggers = new ArrayList<>();
-
     private String rootNameEn; // 적의 경우 폼 구별을 위한 별도 필드, 일단 id 말고 이렇게 사용
     private Integer formOrder; // 폼, 1부터 시작
 

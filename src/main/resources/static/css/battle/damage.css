@@ -507,15 +507,15 @@
     }
 }
 
-@keyframes party-attack-damage-show { /* 50 + 200 + 200 + 600 + 150, 1200*/
+@keyframes party-attack-damage-show { /* 48 + 204 + 204 + 600 + 144, 1200*/
     0% {
         opacity: 1;
-        transform: translate3d(0,0,0) scale(1.2);
+        transform: translate3d(0,0,0) scale(1.0);
     }
-    /*4% {*/
-    /*    opacity: 1;*/
-    /*    transform: scale(1.4);*/
-    /*}*/
+    2% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
     21% {
         transform: scale(1.2);
     }
@@ -530,15 +530,11 @@
     }
 }
 
-@keyframes party-additional-damage-show { /* 50 + 200 + 200 + 600 + 150, 1200*/
+@keyframes party-additional-damage-show {
     0% {
         opacity: 1;
         transform: translate3d(0,0,0) scale(1.1);
     }
-    /*4% {*/
-    /*    opacity: 1;*/
-    /*    transform: scale(1.1);*/
-    /*}*/
     21% {
         transform: scale(1.1);
     }
@@ -556,12 +552,12 @@
 @keyframes party-charge-attack-damage-show { /* 50 + 200 + 200 + 600 + 150, 1200*/
     0% {
         opacity: 1;
-        transform: translate3d(0,0,0) scale(1.2);
+        transform: translate3d(0,0,0) scale(1.0);
     }
-    /*4% {*/
-    /*    opacity: 1;*/
-    /*    transform: scale(1.4);*/
-    /*}*/
+    4% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
     21% {
         transform: scale(1.2);
     }
@@ -576,12 +572,12 @@
     }
 }
 
-@keyframes party-ability-damage-show { /* 50 + 100 + 100 + 500 + 150 */
+@keyframes party-ability-damage-show { /* 실제길이: 27 + 126 + 99 + 495 + 153 */
     0% {
         opacity: 1;
         transform: translate3d(0,0,0) scale(1);
     }
-    5% {
+    3% {
         opacity: 1;
         transform: scale(1.2);
     }
@@ -603,15 +599,12 @@
     }
 }
 
-@keyframes party-multiple-ability-damage-show { /* 50 + 100 + 100 + 500 + 150 900*/
+@keyframes party-multiple-ability-damage-show { /* 실제길이: 153 + 99 + 495 + 153 */
     0% {
         opacity: 1;
         transform: translate3d(0,0,0) scale(1.1);
     }
-    5% {
-        opacity: 1;
-        transform: scale(1);
-    }
+    /* 확대 생략 */
     17% {
         opacity: 1;
         transform: scale(1);

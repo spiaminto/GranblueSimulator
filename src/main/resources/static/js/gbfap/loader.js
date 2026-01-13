@@ -4,6 +4,7 @@ window.lib = window.lib || {}; // javascript storage
 class Loader {
     constructor() {
         this.manifest_cache = {}; // manifest storage
+        this.toLoadScripts = new Map(); // prevent duplicated load request
     }
 
     reset() {
@@ -26,9 +27,18 @@ class Loader {
 
     loadManifests(actor, file_list) {
         let to_load = file_list.concat([]);
-        if (to_load.length == 0) throw new Error("No manifests to load");
-        var error_flag = false;
+        to_load = to_load.filter(file => !this.toLoadScripts.has(file));
+        to_load.forEach(file => this.toLoadScripts.set(file, {loaded : false}));
+        // console.log('[loadManifests] actor = ' + actor.id + 'to_load.length = ', to_load.length + '\n to_load = ', ...to_load);
 
+        // if (to_load.length == 0) throw new Error("No manifests to load");
+        if (to_load.length === 0) {
+            console.warn("No manifests to load");
+            this.loadSpriteSheets(actor, []);
+            return;
+        }
+
+        var error_flag = false;
         // CJS file : Each manifest has an equivalent animation in the cjs folder
         var cjs_deferred = new $.Deferred();
         var load_queue = new createjs.LoadQueue(false, Game.jsUri + "/", true);
@@ -38,14 +48,16 @@ class Loader {
         load_queue.on("complete", function () {
             cjs_deferred.resolve();
         });
+        let loader = this;
         load_queue.on("fileload", function (event) {
             if (event.item && event.item.id) {
                 var file_name = event.item.id.split("/").pop();
                 // store in window.lib
                 let index = 0;
-                window.lib[file_name].prototype.playFunc = function (callback) {
-                    createjs.Tween.get().wait(1).call(callback);
-                };
+                // CHECK 왜 있는지 모르겟음 없애도 정상동작
+                // window.lib[file_name].prototype.playFunc = function (callback) { createjs.Tween.get().wait(1).call(callback); };
+                // window.lib[file_name].prototype.playFunc = Loader.playFunc;
+                loader.toLoadScripts.get(file_name).loaded = true;
             }
         });
         load_queue.on("error", function (event) {
@@ -254,6 +266,10 @@ class Loader {
             }
             actor.initToPlayer();
         });
+    }
+
+    static playFunc(callback) {
+        createjs.Tween.get().wait(1).call(callback);
     }
 }
 

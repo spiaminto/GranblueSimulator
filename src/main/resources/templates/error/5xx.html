@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>에러</title>
+</head>
+<body>
+<h2> 서버 에러 </h2>
+<div>에러: <span th:text="${errorMessage}"></span></div>
+<button type="button" onclick="location.href='index.html'"
+        th:onclick="|location.href='@{/}'|">
+  홈으로 돌아가기
+</button>
+</body>
+</html>

@@ -182,13 +182,13 @@
 
           //applyCjsName
           $('#applyCjsButton').on('click', function () {
-              let assetType = $('#characterAssetInputForm select[name="assetType"]').val(); // ACTOR, SPECIAL, ...
+              let effectVisualType = $('#characterAssetInputForm select[name="effectVisualType"]').val(); // ACTOR, SPECIAL, ...
               let isAll = $('#characterAssetInputForm .is-all-check').prop('checked');
               let allPrefix = isAll ? 'all_' : '';
               let cjsId = $('#characterAssetInputForm input[name="cjsId"]').val(); // 000019234
               let cjsName = '';
 
-              switch (assetType) {
+              switch (effectVisualType) {
                   case 'ACTOR':
                       cjsName = 'npc_' + cjsId + '_02'; // npc_3040502000_02
                       break;
@@ -438,7 +438,7 @@
 
 
 <h2>baseCharacter 에셋 </h2>
-<form id="characterAssetInputForm" target="/insert-baseCharacter-asset" method="POST">
+<form id="characterAssetInputForm" target="/insert-baseCharacter-moveVisual" method="POST">
 
   <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
   <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="characterAssetInputForm"
@@ -451,11 +451,11 @@
   <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
   <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
 
-  <div>asset name [인다라 (기본) / 인다라 평타 / 인다라 오의 / 인다라 평타 2 / 인다라 어비1 / 인다라 서포어비1 ]</div>
+  <div>moveVisual name [인다라 (기본) / 인다라 평타 / 인다라 오의 / 인다라 평타 2 / 인다라 어비1 / 인다라 서포어비1 ]</div>
   <input class="form-control mb-2" type="text" name="assetName" placeholder="">
 
-  <div> asset type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
-  <select class="form-select" size="12" name="assetType" required>
+  <div> moveVisual type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
+  <select class="form-select" size="12" name="effectVisualType" required>
     <option selected>Open this select menu</option>
     <option value="ACTOR">ACTOR</option>
     <option value="SPECIAL">SPECIAL</option>
@@ -506,9 +506,9 @@
     <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
     <div>info 솬석 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
-    <div>iconSrc: asset.iconImageSrc 에서 사용, battle-portrait</div>
+    <div>iconSrc: moveVisual.iconImageSrc 에서 사용, battle-portrait</div>
     <input class="form-control mb-2" type="text" name="iconSrc" placeholder=""
-           value="/static/assets/img/summon/이름입력/battle-portrait.jpg">
+           value="/static/moveVisuals/img/summon/이름입력/battle-portrait.jpg">
     <div>elementType 속성</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
     <div>damageRate: 데미지 배율</div>

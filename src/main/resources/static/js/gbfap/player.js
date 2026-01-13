@@ -56,7 +56,7 @@ class Player {
         // background
         let bg = add_to(fragment, "div", {id: ["canvasBackground"]});
         this.m_background = add_to(bg, "img", {id: ["canvasBackgroundImage"]});
-        this.m_background.src = Constants.enemy[window.enemyInitialMainCjsName].backgroundImage;
+        this.m_background.src = Constants.enemy[gameStateManager.getState('enemyMainCjsNames')[0]].backgroundImage;
 
         this.m_html.appendChild(fragment);
     }
@@ -98,11 +98,9 @@ class Player {
         if (effectPlaying) {
             this.effectPlaying = true;
             this.effectPlayingActorIndex = actorIndex;
-            clearInterval(window.syncTimer); // 동기화 취소
         } else {
             this.effectPlaying = false;
             this.effectPlayingActorIndex = null;
-            window.syncTimer = doSync();
         }
     }
 
@@ -195,7 +193,7 @@ class Player {
             }
         }
         // 빈사 상태일시 DOWN
-        if (actor.hpRate <= 25) return Player.c_animations.DOWN; // 후순위
+        if (gameStateManager.getState('hpRates')[actorIndex] <= 25) return Player.c_animations.DOWN; // 후순위
 
         return Player.c_animations.STB_WAIT; // 기본
     }
@@ -255,7 +253,7 @@ class Player {
     }
 
     alterStageIndex(cjs, indexType = null) {
-        console.log('[alterStageIndex] cjs = ', cjs, ' indexType = ', indexType);
+        // console.log('[alterStageIndex] cjs = ', cjs, ' indexType = ', indexType);
         if (!indexType) return; // indexType 이 null 인경우 변경하지 않음
         let stageIndex = null;
 
@@ -270,7 +268,7 @@ class Player {
         }
 
         stageIndex = Math.min(stageIndex, this.m_stage.children.length - 1); // length 넘어가면 무효화되는거 방지
-        console.log('[alterStageIndex] stageIndex = ', stageIndex);
+        // console.log('[alterStageIndex] stageIndex = ', stageIndex);
         this.m_stage.setChildIndex(cjs, stageIndex);
     }
 
@@ -338,6 +336,208 @@ class Player {
 // constant associated with in-game motion names.
 // the list is non exhaustive.
     static c_animations = {
+
+        /**
+         * 화면 전체를 점유하는 이펙트와 같이재생되는지 여부
+         * @param motion
+         * @returns {boolean|boolean|*}
+         */
+        isEffecting(motion) {
+            return this.isSummoning(motion) || this.isAttack(motion) || this.isMortal(motion) || this.isAbilityMotion(motion) || this.isRaidAppear(motion)
+        },
+
+        isWaiting(motion) { // 대기모션
+            return [
+                Player.c_animations.WAIT,
+                Player.c_animations.WAIT_2,
+                Player.c_animations.WAIT_3,
+                Player.c_animations.TO_STB_WAIT,
+                Player.c_animations.STB_WAIT,
+                Player.c_animations.STB_WAIT_ADV,
+
+                Player.c_animations.ABILITY,
+
+                Player.c_animations.DOWN,
+
+                Player.c_animations.ENEMY_STANDBY_A,
+                Player.c_animations.ENEMY_STANDBY_B,
+                Player.c_animations.ENEMY_STANDBY_C,
+                Player.c_animations.ENEMY_STANDBY_D,
+            ].includes(motion);
+        },
+
+        isDamage(motion) {
+            return [
+                Player.c_animations.DAMAGE,
+                Player.c_animations.DAMAGE_1,
+                Player.c_animations.DAMAGE_2,
+                Player.c_animations.DAMAGE_3,
+                Player.c_animations.DAMAGE_4,
+                Player.c_animations.DAMAGE_5,
+                Player.c_animations.ENEMY_DAMAGE_STANDBY_A,
+                Player.c_animations.ENEMY_DAMAGE_STANDBY_B,
+                Player.c_animations.ENEMY_DAMAGE_STANDBY_C,
+                Player.c_animations.ENEMY_DAMAGE_STANDBY_D,
+            ].includes(motion);
+        },
+
+        isSummoning(motion) {
+            return [
+                Player.c_animations.SUMMON_ATTACK,
+                Player.c_animations.SUMMON_DAMAGE,
+            ].includes(motion);
+        },
+
+        isRaidAppear(motion) {
+            return [
+                Player.c_animations.RAID_APPEAR_0,
+                Player.c_animations.RAID_APPEAR_1,
+                Player.c_animations.RAID_APPEAR_2,
+                Player.c_animations.RAID_APPEAR_3,
+                Player.c_animations.RAID_APPEAR_4,
+                Player.c_animations.RAID_APPEAR_5,
+                Player.c_animations.RAID_APPEAR_6,
+                Player.c_animations.RAID_APPEAR_7,
+                Player.c_animations.RAID_APPEAR_8,
+                Player.c_animations.RAID_APPEAR_9
+            ].includes(motion);
+        },
+
+        isMortal(motion) { // Charge attacks / specials
+            return [
+                'additional_mortal_A',
+                'additional_mortal_B',
+                'additional_mortal_C',
+                'additional_mortal_D',
+                Player.c_animations.MORTAL,
+                Player.c_animations.MORTAL_A,
+                Player.c_animations.MORTAL_A_1,
+                Player.c_animations.MORTAL_A_2,
+                Player.c_animations.MORTAL_B,
+                Player.c_animations.MORTAL_B_1,
+                Player.c_animations.MORTAL_B_2,
+                Player.c_animations.MORTAL_C,
+                Player.c_animations.MORTAL_C_1,
+                Player.c_animations.MORTAL_C_2,
+                Player.c_animations.MORTAL_D,
+                Player.c_animations.MORTAL_D_1,
+                Player.c_animations.MORTAL_D_2,
+                Player.c_animations.MORTAL_E,
+                Player.c_animations.MORTAL_E_1,
+                Player.c_animations.MORTAL_E_2,
+                Player.c_animations.MORTAL_F,
+                Player.c_animations.MORTAL_F_1,
+                Player.c_animations.MORTAL_F_2,
+                Player.c_animations.MORTAL_G,
+                Player.c_animations.MORTAL_G_1,
+                Player.c_animations.MORTAL_G_2,
+                Player.c_animations.MORTAL_H,
+                Player.c_animations.MORTAL_H_1,
+                Player.c_animations.MORTAL_H_2,
+                Player.c_animations.MORTAL_I,
+                Player.c_animations.MORTAL_I_1,
+                Player.c_animations.MORTAL_I_2,
+                Player.c_animations.MORTAL_J,
+                Player.c_animations.MORTAL_J_1,
+                Player.c_animations.MORTAL_J_2,
+                Player.c_animations.MORTAL_K,
+                Player.c_animations.MORTAL_K_1,
+                Player.c_animations.MORTAL_K_2
+            ].includes(motion);
+        },
+
+        isStandby(motion) {
+            return [
+                Player.c_animations.ENEMY_STANDBY_A,
+                Player.c_animations.ENEMY_STANDBY_B,
+                Player.c_animations.ENEMY_STANDBY_C,
+                Player.c_animations.ENEMY_STANDBY_D,
+            ].includes(motion);
+        },
+
+        isAttack(motion) { // auto attack animation
+            switch (motion) {
+                case Player.c_animations.ATTACK_MOTION_ONLY:
+                case Player.c_animations.ATTACK:
+                case Player.c_animations.ATTACK_SHORT:
+                case Player.c_animations.ATTACK_SHORT_ADV:
+                case Player.c_animations.ATTACK_DOUBLE:
+                case Player.c_animations.ATTACK_TRIPLE:
+                case Player.c_animations.ATTACK_QUADRUPLE:
+                case Player.c_animations.SPECIAL_ATTACK:
+                case Player.c_animations.ENEMY_ATTACK:
+                    return true;
+                default:
+                    return false;
+            }
+        },
+
+        // isFormChange(motion) { // form change
+        //     switch (motion) {
+        //         case Player.c_animations.CHANGE:
+        //         case Player.c_animations.CHANGE_FROM:
+        //         case Player.c_animations.CHANGE_FROM_2:
+        //             return true;
+        //         default:
+        //             return false;
+        //     }
+        // },
+
+        isAbilityMotion(motion) { // skill / ability use + WIN, TO_STB_WAIT 도 ability 모션으로 사용
+            switch (motion) {
+                case Player.c_animations.TO_STB_WAIT:
+
+                case Player.c_animations.ABILITY_EFFECT_ONLY: // 어빌리티, 모션 X
+                case Player.c_animations.ABILITY_MOTION_DAMAGE:
+                case Player.c_animations.ABILITY_MOTION_WIN:
+                case Player.c_animations.ABILITY_MOTION_TO_STB_WAIT:
+
+                case Player.c_animations.ABILITY_MOTION:
+                case Player.c_animations.ABILITY_MOTION_2:
+                case Player.c_animations.ABILITY_MOTION_3:
+                case Player.c_animations.ABILITY_MOTION_4:
+                case Player.c_animations.VS_MOTION_1:
+                case Player.c_animations.VS_MOTION_2:
+                case Player.c_animations.VS_MOTION_3:
+                case Player.c_animations.VS_MOTION_4:
+                case Player.c_animations.VS_MOTION_5:
+                case Player.c_animations.VS_MOTION_6:
+                    return true;
+                default:
+                    return false;
+            }
+        },
+
+        // 어빌리티 처리에서 다른 모션을을 사용하기 위한 메서드
+        getCleanAbilityMotion(motion, isEnemy = false) {
+            switch (motion) {
+                case Player.c_animations.ABILITY_MOTION_DAMAGE:
+                    return isEnemy ? player.getEnemyDamageMotion() : Player.c_animations.DAMAGE;
+                case Player.c_animations.ABILITY_MOTION_WIN:
+                    return Player.c_animations.WIN;
+                case Player.c_animations.ABILITY_MOTION_TO_STB_WAIT:
+                    return Player.c_animations.TO_STB_WAIT;
+                default:
+                    return motion;
+            }
+        },
+
+        getDamagedMotion(standbyMotion) {
+            // return Player.c_animations.DAMAGE;
+            switch (standbyMotion) {
+                case Player.c_animations.ENEMY_STANDBY_A :
+                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_A;
+                case Player.c_animations.ENEMY_STANDBY_B :
+                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_B;
+                case Player.c_animations.ENEMY_STANDBY_C :
+                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_C;
+                case Player.c_animations.ENEMY_STANDBY_D :
+                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_D;
+                default:
+                    return Player.c_animations.DAMAGE;
+            }
+        },
+
         // special ones added for the player innerworkings
         // for summon
         SUMMON_ATTACK: "summon_atk",
@@ -448,6 +648,7 @@ class Player {
         ABILITY_MOTION_DAMAGE: "ab_motion_damage",
         // 어빌리티로 처리되는 win 모션
         ABILITY_MOTION_WIN: 'ab_motion_win',
+        ABILITY_MOTION_TO_STB_WAIT: 'ab_motion_setup',
 
         // UI 로 처리되는 모션 (playingOption 에서 abilityType 으로 구분하므로 일단 이렇게 해놧음)
         ABILITY_UI: 'ab_motion_ui',
@@ -564,194 +765,6 @@ class Player {
         MY_PAGE: "mypage",
 
         NONE: "none",
-
-        /**
-         * 화면 전체를 점유하는 이펙트와 같이재생되는지 여부
-         * @param motion
-         * @returns {boolean|boolean|*}
-         */
-        isEffecting(motion) {
-            return this.isSummoning(motion) || this.isAttack(motion) || this.isMortal(motion) || this.isAbilityMotion(motion) || this.isRaidAppear(motion)
-        },
-
-        isWaiting(motion) { // 대기모션
-            return [
-                Player.c_animations.WAIT,
-                Player.c_animations.WAIT_2,
-                Player.c_animations.WAIT_3,
-                Player.c_animations.TO_STB_WAIT,
-                Player.c_animations.STB_WAIT,
-                Player.c_animations.STB_WAIT_ADV,
-
-                Player.c_animations.ABILITY,
-
-                Player.c_animations.DOWN,
-
-                Player.c_animations.ENEMY_STANDBY_A,
-                Player.c_animations.ENEMY_STANDBY_B,
-                Player.c_animations.ENEMY_STANDBY_C,
-                Player.c_animations.ENEMY_STANDBY_D,
-            ].includes(motion);
-        },
-
-        isDamage(motion) {
-            return [
-                Player.c_animations.DAMAGE,
-                Player.c_animations.DAMAGE_1,
-                Player.c_animations.DAMAGE_2,
-                Player.c_animations.DAMAGE_3,
-                Player.c_animations.DAMAGE_4,
-                Player.c_animations.DAMAGE_5,
-                Player.c_animations.ENEMY_DAMAGE_STANDBY_A,
-                Player.c_animations.ENEMY_DAMAGE_STANDBY_B,
-                Player.c_animations.ENEMY_DAMAGE_STANDBY_C,
-                Player.c_animations.ENEMY_DAMAGE_STANDBY_D,
-            ].includes(motion);
-        },
-
-        isSummoning(motion) {
-            return [
-                Player.c_animations.SUMMON_ATTACK,
-                Player.c_animations.SUMMON_DAMAGE,
-            ].includes(motion);
-        },
-
-        isRaidAppear(motion) {
-            return [
-                Player.c_animations.RAID_APPEAR_0,
-                Player.c_animations.RAID_APPEAR_1,
-                Player.c_animations.RAID_APPEAR_2,
-                Player.c_animations.RAID_APPEAR_3,
-                Player.c_animations.RAID_APPEAR_4,
-                Player.c_animations.RAID_APPEAR_5,
-                Player.c_animations.RAID_APPEAR_6,
-                Player.c_animations.RAID_APPEAR_7,
-                Player.c_animations.RAID_APPEAR_8,
-                Player.c_animations.RAID_APPEAR_9
-            ].includes(motion);
-        },
-
-        isMortal(motion) { // Charge attacks / specials
-            return [
-                'additional_mortal_A',
-                'additional_mortal_B',
-                'additional_mortal_C',
-                'additional_mortal_D',
-                Player.c_animations.MORTAL,
-                Player.c_animations.MORTAL_A,
-                Player.c_animations.MORTAL_A_1,
-                Player.c_animations.MORTAL_A_2,
-                Player.c_animations.MORTAL_B,
-                Player.c_animations.MORTAL_B_1,
-                Player.c_animations.MORTAL_B_2,
-                Player.c_animations.MORTAL_C,
-                Player.c_animations.MORTAL_C_1,
-                Player.c_animations.MORTAL_C_2,
-                Player.c_animations.MORTAL_D,
-                Player.c_animations.MORTAL_D_1,
-                Player.c_animations.MORTAL_D_2,
-                Player.c_animations.MORTAL_E,
-                Player.c_animations.MORTAL_E_1,
-                Player.c_animations.MORTAL_E_2,
-                Player.c_animations.MORTAL_F,
-                Player.c_animations.MORTAL_F_1,
-                Player.c_animations.MORTAL_F_2,
-                Player.c_animations.MORTAL_G,
-                Player.c_animations.MORTAL_G_1,
-                Player.c_animations.MORTAL_G_2,
-                Player.c_animations.MORTAL_H,
-                Player.c_animations.MORTAL_H_1,
-                Player.c_animations.MORTAL_H_2,
-                Player.c_animations.MORTAL_I,
-                Player.c_animations.MORTAL_I_1,
-                Player.c_animations.MORTAL_I_2,
-                Player.c_animations.MORTAL_J,
-                Player.c_animations.MORTAL_J_1,
-                Player.c_animations.MORTAL_J_2,
-                Player.c_animations.MORTAL_K,
-                Player.c_animations.MORTAL_K_1,
-                Player.c_animations.MORTAL_K_2
-            ].includes(motion);
-        },
-
-        isAttack(motion) { // auto attack animation
-            switch (motion) {
-                case Player.c_animations.ATTACK_MOTION_ONLY:
-                case Player.c_animations.ATTACK:
-                case Player.c_animations.ATTACK_SHORT:
-                case Player.c_animations.ATTACK_SHORT_ADV:
-                case Player.c_animations.ATTACK_DOUBLE:
-                case Player.c_animations.ATTACK_TRIPLE:
-                case Player.c_animations.ATTACK_QUADRUPLE:
-                case Player.c_animations.SPECIAL_ATTACK:
-                case Player.c_animations.ENEMY_ATTACK:
-                    return true;
-                default:
-                    return false;
-            }
-        },
-
-        // isFormChange(motion) { // form change
-        //     switch (motion) {
-        //         case Player.c_animations.CHANGE:
-        //         case Player.c_animations.CHANGE_FROM:
-        //         case Player.c_animations.CHANGE_FROM_2:
-        //             return true;
-        //         default:
-        //             return false;
-        //     }
-        // },
-
-        isAbilityMotion(motion) { // skill / ability use + WIN, TO_STB_WAIT 도 ability 모션으로 사용
-            switch (motion) {
-                case Player.c_animations.TO_STB_WAIT:
-
-                case Player.c_animations.ABILITY_EFFECT_ONLY: // 어빌리티, 모션 X
-                case Player.c_animations.ABILITY_MOTION_DAMAGE:
-                case Player.c_animations.ABILITY_MOTION_WIN:
-
-                case Player.c_animations.ABILITY_MOTION:
-                case Player.c_animations.ABILITY_MOTION_2:
-                case Player.c_animations.ABILITY_MOTION_3:
-                case Player.c_animations.ABILITY_MOTION_4:
-                case Player.c_animations.VS_MOTION_1:
-                case Player.c_animations.VS_MOTION_2:
-                case Player.c_animations.VS_MOTION_3:
-                case Player.c_animations.VS_MOTION_4:
-                case Player.c_animations.VS_MOTION_5:
-                case Player.c_animations.VS_MOTION_6:
-                    return true;
-                default:
-                    return false;
-            }
-        },
-
-        // 어빌리티 처리에서 다른 모션을을 사용하기 위한 메서드 (일단 이렇게 해놓고 필요하면 나중에 요청타입 구분)
-        getCleanAbilityMotion(motion) {
-            switch (motion) {
-                case Player.c_animations.ABILITY_MOTION_DAMAGE:
-                    return Player.c_animations.DAMAGE;
-                case Player.c_animations.ABILITY_MOTION_WIN:
-                    return Player.c_animations.WIN;
-                default:
-                    return motion;
-            }
-        },
-
-        getDamagedMotion(standbyMotion) {
-            switch (standbyMotion) {
-                case Player.c_animations.ENEMY_STANDBY_A :
-                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_A;
-                case Player.c_animations.ENEMY_STANDBY_B :
-                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_B;
-                case Player.c_animations.ENEMY_STANDBY_C :
-                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_C;
-                case Player.c_animations.ENEMY_STANDBY_D :
-                    return Player.c_animations.ENEMY_DAMAGE_STANDBY_D;
-                default:
-                    return Player.c_animations.DAMAGE;
-            }
-        }
 
     };
 

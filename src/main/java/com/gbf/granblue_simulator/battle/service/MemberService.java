@@ -1,30 +1,31 @@
 package com.gbf.granblue_simulator.battle.service;
 
-import com.gbf.granblue_simulator.battle.repository.MemberRepository;
-import com.gbf.granblue_simulator.battle.repository.RoomRepository;
-import com.gbf.granblue_simulator.battle.repository.StatusRepository;
-import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.party.domain.Party;
-import com.gbf.granblue_simulator.battle.domain.Room;
-import com.gbf.granblue_simulator.user.User;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Character;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
-import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
-import com.gbf.granblue_simulator.party.repository.PartyRepository;
 import com.gbf.granblue_simulator.battle.repository.ActorRepository;
+import com.gbf.granblue_simulator.battle.repository.MemberRepository;
+import com.gbf.granblue_simulator.battle.repository.RoomRepository;
+import com.gbf.granblue_simulator.battle.repository.StatusRepository;
+import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
+import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import com.gbf.granblue_simulator.metadata.repository.BaseActorRepository;
 import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
+import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
+import com.gbf.granblue_simulator.party.domain.Party;
+import com.gbf.granblue_simulator.party.repository.PartyRepository;
+import com.gbf.granblue_simulator.user.User;
 import com.gbf.granblue_simulator.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,9 +35,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class MemberService {
 
     private final BattleContext battleContext;
@@ -57,10 +58,11 @@ public class MemberService {
         return member.isChargeAttackOn();
     }
 
+    @Transactional(timeout = 1)
     public Member enterRoom(Long roomId, Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("없는 유저"));
-        Room room = roomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("없는 방"));
-        if (room.getEnterUserCount() >= room.getMaxUserCount()) throw new IllegalArgumentException("방 최대 입장제한 초과");
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("없는 유저"));
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new IllegalStateException("없는 방"));
+        if (room.getEnterUserCount() >= room.getMaxUserCount()) throw new IllegalStateException("방 최대 입장제한 초과");
 
         Member member = Member.builder()
                 .user(user)
@@ -91,7 +93,7 @@ public class MemberService {
                 .map(actorMap::get)
                 .filter(Objects::nonNull)
                 .toList(); // in 쿼리 순서고정
-        baseActors.forEach(actor -> log.info("[createBattleActors] actor = {}", actor) );
+        baseActors.forEach(actor -> log.info("[createBattleActors] actor = {}", actor));
 
         BaseActor enemyBaseActor = baseActorRepository.findById(7L).get(); // CHECK 현재 디아스포라로 고정
 
@@ -107,6 +109,7 @@ public class MemberService {
                                     Collections.emptyList();
                             List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
                             List<Integer> summonCoolDowns = summons.stream().map(Move::getCoolDown).toList();
+                            ActorVisual actorVisual = actor.getDefaultVisual();
                             log.info("[createBattleActors] actor.name = {}, indexOf = {}", actor.getName(), baseActors.indexOf(actor));
                             return Character.builder()
                                     .name(actor.getName())
@@ -115,6 +118,7 @@ public class MemberService {
                                     .baseActor(actor)
                                     .summonMoveIds(summonMoveIds)
                                     .summonCoolDowns(summonCoolDowns)
+                                    .actorVisual(actorVisual)
                                     .build();
                         }
                 ).collect(Collectors.toList()); // toList 타입추론 불가
@@ -128,11 +132,12 @@ public class MemberService {
                 .member(member)
                 .currentOrder(0)
                 .baseActor(enemyBaseActor)
+                .actorVisual(enemyBaseActor.getDefaultVisual())
                 .build();
         enemy.init();
         actorRepository.save(enemy);
         member.getActors().add(enemy);
-        
+
         // 페이탈 체인 설정
         Actor leaderActor = partyMembers.stream()
                 .filter(actor -> actor.getBaseActor().isLeaderCharacter())

@@ -9,7 +9,6 @@ import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -58,7 +57,7 @@ public class OmenLogic {
         if (value < 0) throw new IllegalArgumentException("[updateOmenValue] value < 0, value = " + value);
         int omenValue = enemy.getOmenValue();
         // 값 갱신
-        enemy.setOmenValue(value);
+        enemy.updateOmenValue(value);
 
         log.info("[updateOmenValue][int value] beforeOmenValue = {} , processedOmenValue = {}", omenValue, enemy.getOmenValue());
         return enemy.getOmenValue();
@@ -89,13 +88,27 @@ public class OmenLogic {
      */
     protected Move determineStandbyMove(Enemy enemy) {
         // 우선순위대로 전조를 결정
-        // 1. 영창기 
-        if (enemy.getNextIncantStandbyType() != null)
-            return enemy.getMove(enemy.getNextIncantStandbyType());
-        // 2. HP 트리거 
+        MoveType nextIncantStandbyType = enemy.getNextIncantStandbyType();
+        
+        // 0. 다음 영창기 초기화
+        enemy.updateNextIncantStandbyType(null); 
+        // CHECK nextIncantStandbyType 은 HP 트리거 등이 발동하더라도 초기화 되어야 함. 만약 nextIncantStandbyType 의 발동 조건이 유지되는경우 어차피 다음턴에 다시 발동하므로 조건오염을 방지하기 위해 무조건 초기화
+        // CHECK 만약 조건 달성즉시 무조건 발동해야 한다면 영창기(우선) 으로 등록해서 사용
+        
+        // 1. 영창기 (우선)
+        if (nextIncantStandbyType != null && enemy.getMove(nextIncantStandbyType).getOmen().isTriggerPrimary())
+            return enemy.getMove(nextIncantStandbyType);
+
+        // 2. HP 트리거
         Omen hpTriggerOmen = this.getValidHpTrigger(enemy);
         if (hpTriggerOmen != null) return hpTriggerOmen.getMove();
-        // 3. 차지어택 
+
+        // 3. 영창기
+        if (nextIncantStandbyType != null) {
+            return enemy.getMove(nextIncantStandbyType);
+        }
+
+        // 4. 차지어택
         Omen chargeAttackOmen = this.getValidChargeAttack(enemy);
         if (chargeAttackOmen != null) return chargeAttackOmen.getMove();
 
@@ -114,16 +127,16 @@ public class OmenLogic {
         if (standby == null) return null;
         // 1. 전조 set
         Omen omen = standby.getOmen();
-        enemy.setCurrentStandbyType(standby.getType());
+        enemy.updateCurrentStandbyType(standby.getType());
         if (omen.getOmenType() == OmenType.HP_TRIGGER)
-            enemy.setLatestTriggeredHp(enemy.getHpRate()); // 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
+            enemy.updateLatestTriggeredHp(enemy.getHpRate()); // 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
         // 2. 전조 해제 조건 set
         List<OmenCancelCond> omenCancelConds = omen.getOmenCancelConds();
         OmenCancelCond omenCancelCond = omenCancelConds.get((int) (Math.random() * omenCancelConds.size()));
-        enemy.setOmenCancelCondIndex(omenCancelConds.indexOf(omenCancelCond));
+        enemy.updateOmenCancelCondIndex(omenCancelConds.indexOf(omenCancelCond));
         // 2.1 전조 해제조건에 해당하는 값 설정
         Integer initialValue = omenCancelCond.getInitValue();
-        enemy.setOmenValue(initialValue);
+        enemy.updateOmenValue(initialValue);
         return standby;
     }
 
@@ -188,20 +201,18 @@ public class OmenLogic {
         switch (cancelCond.getType()) {
             case HIT_COUNT -> {
                 Integer totalHitCount = otherResult.getTotalHitCount();
-                enemy.setOmenValue(Math.max(omenValue - totalHitCount, 0));
+                enemy.updateOmenValue(Math.max(omenValue - totalHitCount, 0));
             }
             case DAMAGE -> {
                 Integer damageSum = getDamageSum(otherResult.getDamages(), otherResult.getAdditionalDamages());
-                enemy.setOmenValue(Math.max(omenValue - damageSum, 0));
+                enemy.updateOmenValue(Math.max(omenValue - damageSum, 0));
             }
             case DEBUFF_COUNT -> {
-                int debuffCount = otherResult.getAddedStatusEffectsList().stream()
-                        .flatMap(battleStatuses -> battleStatuses.stream()
-                                .filter(battleStatus -> !battleStatus.getName().equals("MISS"))
-                                .map(ResultStatusEffectDto::getStatusEffectType))
-                        .filter(type -> type == StatusEffectType.DEBUFF)
-                        .toList().size();
-                enemy.setOmenValue(Math.max(omenValue - debuffCount, 0));
+                int debuffCount = (int) otherResult.getSnapshots().get(enemy.getId()).getAddedStatusEffects().stream()
+                        .filter(addedStatusEffect -> addedStatusEffect.getStatusEffectType() == StatusEffectType.DEBUFF)
+                        .filter(addedStatusEffect -> !(addedStatusEffect.getName().equals("MISS") || addedStatusEffect.getName().equals("NO EFFECT")))
+                        .count(); // int 로 변환해도 무리없음
+                enemy.updateOmenValue(Math.max(omenValue - debuffCount, 0));
             }
             case IMPOSSIBLE -> {
                 // 해제불가, 아무것도 하지 않음
@@ -218,9 +229,10 @@ public class OmenLogic {
      * @return
      */
     protected Integer getDamageSum(List<Integer> damages, List<List<Integer>> additionalDamages) {
-        int damageSum = damages.stream().mapToInt(Integer::intValue).sum();
+        int damageSum = damages.stream().filter(value -> value >= 0).mapToInt(Integer::intValue).sum();
         int additionalDamageSum = additionalDamages.stream()
                 .map(additionalDamage -> additionalDamage.stream()
+                        .filter(value -> value >= 0)
                         .mapToInt(Integer::intValue)
                         .sum())
                 .mapToInt(Integer::intValue)

@@ -115,13 +115,15 @@ public enum MotionType {
     WAIT_SPECIAL_5("pf_5"),
     MISS("miss"),
 
-    ABILITY_EFFECT_ONLY("ab_motion_effect_only"),
-    ABILITY_MOTION_WIN("ab_motion_win"),
     ABILITY_OLD("attack_noeffect"),
     ABILITY_1("ab_motion"), // ABILITY -> CA Charged
     ABILITY_2("ab_motion_2"),
     ABILITY_3("ab_motion_3"),
     ABILITY_4("ab_motion_4"),
+
+    ABILITY_EFFECT_ONLY("ab_motion_effect_only"),
+    ABILITY_MOTION_WIN("ab_motion_win"),
+    ABILITY_MOTION_TO_STB_WAIT("ab_motion_setup"),
 
     VS_MOTION_1("vs_motion_1"),
     VS_MOTION_2("vs_motion_2"),

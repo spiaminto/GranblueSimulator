@@ -8,6 +8,7 @@ import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,13 +20,14 @@ import org.hibernate.annotations.Type;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @EqualsAndHashCode(exclude = {"statusEffects", "status"})
-@ToString(exclude = {"member","statusEffects", "status"})
+@ToString
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn
 public abstract class Actor {
@@ -48,7 +50,7 @@ public abstract class Actor {
 
     private Integer substitute; // 감싸기 (우선순위, 1 2 존재)
 
-    private int strikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
+    private int executedStrikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
 
     @Type(ListArrayType.class)
     @Column(name = "ability_cooldowns", columnDefinition = "integer[]")
@@ -71,21 +73,41 @@ public abstract class Actor {
 
     @OneToMany(mappedBy = "actor")
     @Builder.Default
+    @ToString.Exclude
     private List<StatusEffect> statusEffects = new ArrayList<>();
 
     @OneToOne(mappedBy = "actor")
+    @ToString.Exclude
     private Status status;
 
     @ManyToOne
     @JoinColumn(name = "member_id")
+    @ToString.Exclude
     private Member member;
 
     @ManyToOne
     @JoinColumn(name = "base_actor_id")
+    @ToString.Exclude
     private BaseActor baseActor;
+
+    @OneToOne
+    @JoinColumn(name = "actor_visual_id")
+    @ToString.Exclude
+    private ActorVisual actorVisual;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Transient
+    private MoveType commandType; // 커맨드로 수행하는 어빌리티의 moveType
+
+    @ToString.Include(name = "statusEffects") // 출력될 이름 지정
+    public List<String> toStringStatusEffects() {
+        if (statusEffects == null) return null;
+        return statusEffects.stream()
+                .map(statusEffect -> statusEffect.getBaseStatusEffect().getName() + "(" + statusEffect.getDuration() + "턴)")
+                .collect(Collectors.toList());
+    }
 
     public void mapStatus(Status status) {
         this.status = status;
@@ -99,6 +121,10 @@ public abstract class Actor {
     public void updateBaseActor(BaseActor baseActor) {
         this.name = baseActor.getName();
         this.baseActor = baseActor;
+    }
+
+    public void updateActorVisual(ActorVisual actorVisual) {
+        this.actorVisual = actorVisual;
     }
 
 //    public String getdType() {
@@ -116,8 +142,8 @@ public abstract class Actor {
     public void init() {
         if (this.isEnemy()) {
             Enemy enemy = (Enemy) this;
-            enemy.setLatestTriggeredHp(100);
-            enemy.setCurrentForm(1);
+            enemy.updateLatestTriggeredHp(100);
+            enemy.updateCurrentForm(1);
         }
         this.elementType = this.getBaseActor().getElementType();
         this.abilityCooldowns = new ArrayList<>(List.of(0, 0, 0, 0));
@@ -216,12 +242,12 @@ public abstract class Actor {
      * 자신의 현재 공격행동 횟수를 증가 <br>
      * 가드, 턴친행 없이 일반공격 은 이 카운트 수정 x
      */
-    public void increaseStrikeCount() {
-        this.strikeCount++;
+    public void increaseExecutedStrikeCount() {
+        this.executedStrikeCount++;
     }
 
     public void resetStrikeCount() {
-        this.strikeCount = 0;
+        this.executedStrikeCount = 0;
     }
 
 
@@ -288,6 +314,7 @@ public abstract class Actor {
 
     /**
      * 전체 어빌리티 봉인 여부
+     *
      * @return
      */
     public List<Boolean> getAbilitySealeds() {
@@ -305,6 +332,7 @@ public abstract class Actor {
         return this.status.getStatusDetails().getCalcedAbilitySealedList().get(abilityIndex);
     }
 
+
     /**
      * 소환석 쿨타임 적용
      *
@@ -315,6 +343,22 @@ public abstract class Actor {
         for (int summonIndex : summonIndexes) {
             this.summonCoolDowns.set(summonIndex, coolDown);
         }
+    }
+
+    /**
+     * 소환석 쿨타임 진행
+     */
+    public void progressSummonCoolDown() {
+        this.summonCoolDowns.replaceAll(coolDown -> Math.max(0, coolDown - 1));
+    }
+
+    /**
+     * 커맨드로 수행하는 moveType 을 transient 로 설정 <br>
+     * 현재 어빌리티만 설정중
+     * @param moveType
+     */
+    public void updateCommandType(MoveType moveType) {
+        this.commandType = moveType;
     }
 
     /**

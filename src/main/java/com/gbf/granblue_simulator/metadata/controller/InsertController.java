@@ -1,18 +1,13 @@
 package com.gbf.granblue_simulator.metadata.controller;
 
-import com.gbf.granblue_simulator.metadata.controller.character.*;
 import com.gbf.granblue_simulator.metadata.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
-import com.gbf.granblue_simulator.metadata.domain.asset.Asset;
-import com.gbf.granblue_simulator.metadata.domain.asset.AssetType;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
-import com.gbf.granblue_simulator.metadata.repository.AssetRepository;
-import com.gbf.granblue_simulator.metadata.repository.BaseCharacterRepository;
-import com.gbf.granblue_simulator.metadata.repository.BaseStatusEffectRepository;
-import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
-import com.gbf.granblue_simulator.metadata.repository.StatusModifierRepository;
+import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
+import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
+import com.gbf.granblue_simulator.metadata.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +31,7 @@ public class InsertController {
     private final MoveRepository moveRepository;
     private final BaseStatusEffectRepository baseStatusEffectRepository;
     private final StatusModifierRepository statusModifierRepository;
-    private final AssetRepository assetRepository;
+    private final MoveVisualRepository moveVisualRepository;
 
     @PostMapping("/insert/character")
     public ResponseEntity<InsertResponse> insertCharacter(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.CharacterInsertRequest characterInsertRequest) {
@@ -46,7 +41,7 @@ public class InsertController {
         BaseCharacter baseCharacter = BaseCharacter.builder()
                 .name(characterInsertRequest.getName())
                 .nameEn(nameEn)
-                .battlePortraitSrc(getBattlePortraitSrc(nameEn))
+//                .battlePortraitSrc(getBattlePortraitSrc(nameEn))
                 .elementType(characterInsertRequest.getElementType())
                 .isLeaderCharacter(Boolean.parseBoolean(characterInsertRequest.getIsLeaderCharacter()))
                 .build();
@@ -147,7 +142,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(getStatusIconSrcs(baseCharacter.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT, statusOrder, status.getMaxLevel()))
+//                    .iconSrcs(getStatusIconSrcs(baseCharacter.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT, statusOrder, status.getMaxLevel()))
                     .move(chargeAttackFinal)
                     .build();
             log.info("statusEntity = {}", baseStatusEffectEntity);
@@ -209,7 +204,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(getStatusIconSrcs(nameEn, moveType, statusOrder, status.getMaxLevel()))
+//                    .iconSrcs(getStatusIconSrcs(nameEn, moveType, statusOrder, status.getMaxLevel()))
                     .move(abilityFinal)
                     .build();
             log.info("statusEntity = {}", baseStatusEffectEntity);
@@ -243,32 +238,32 @@ public class InsertController {
         String cjsName = request.getCjsName();
         int chargeAttackStartFrame = request.getChargeAttackStartFrame();
 
-        AssetType assetType = request.getAssetType();
-        Long moveId = null;
-        if (assetType.isAbility()) {
-            Move move = baseCharacter.getMoves().get(MoveType.valueOf(assetType.name()));
-            if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + assetType);
-            moveId = move.getId();
-        }
+//        EffectVisualType effectVisualType = request.getEffectVisualType();
+//        Long moveId = null;
+//        if (effectVisualType.isAbility()) {
+//            Move move = baseCharacter.getMoves().get(MoveType.valueOf(effectVisualType.name()));
+//            if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + effectVisualType);
+//            moveId = move.getId();
+//        }
 
         String rootCjsName = request.getRootCjsName();
-        if (!StringUtils.hasText(rootCjsName)) { // rootCjsName 입력 안됬을때,
-            if (assetType == AssetType.ACTOR)
-                throw new IllegalArgumentException("rootCjsName 이 입력되지 않음"); // ACTOR 아니면 오류
-        } else {
-            rootCjsName = cjsName; // ACTOR 면 자신의 cjsName 이 곧 rootCjsName
-        }
-
-        Asset asset = Asset.builder()
-                .actorId(characterId)
-                .type(assetType)
-                .moveId(moveId)
-                .name(assetName)
-                .cjsName(cjsName)
-                .rootCjsName(rootCjsName)
-                .chargeAttackStartFrame(chargeAttackStartFrame)
-                .build();
-        assetRepository.save(asset);
+//        if (!StringUtils.hasText(rootCjsName)) { // rootCjsName 입력 안됬을때,
+//            if (moveVisualType == MoveVisualType.ACTOR)
+//                throw new IllegalArgumentException("rootCjsName 이 입력되지 않음"); // ACTOR 아니면 오류
+//        } else {
+//            rootCjsName = cjsName; // ACTOR 면 자신의 cjsName 이 곧 rootCjsName
+//        }
+//
+//        MoveVisual moveVisual = MoveVisual.builder()
+//                .actorId(characterId)
+//                .type(moveVisualType)
+//                .moveId(moveId)
+//                .name(assetName)
+//                .cjsName(cjsName)
+//                .rootCjsName(rootCjsName)
+//                .chargeAttackStartFrame(chargeAttackStartFrame)
+//                .build();
+//        moveVisualRepository.save(moveVisual);
 
         return ResponseEntity.ok(InsertResponse.ok(rootCjsName));
     }
@@ -290,28 +285,28 @@ public class InsertController {
                 .damageRate(request.getDamageRate())
                 .coolDown(request.getCoolDown())
                 .hitCount(request.getHitCount())
-                .iconImageSrc(summonIconImageSrc)
+//                .iconImageSrc(summonIconImageSrc)
                 .baseActor(baseCharacter)
                 .build();
         summon = moveRepository.save(summon);
 
         String attackCjsName = request.getCjsName() + "_attack";
         String damageCjsName = request.getCjsName() + "_damage";
-        Asset attackAsset = Asset.builder()
-                .type(AssetType.SPECIAL)
-                .moveId(summon.getId())
-                .name(request.getName())
+        EffectVisual attackEffectVisual = EffectVisual.builder()
+                .type(EffectVisualType.SPECIAL)
+//                .moveId(summon.getId())
+//                .name(request.getName())
                 .cjsName(attackCjsName)
-                .rootCjsName(attackCjsName)
+//                .rootCjsName(attackCjsName)
                 .build();
-        Asset damageAsset = Asset.builder()
-                .type(AssetType.SPECIAL)
-                .moveId(summon.getId())
-                .name(request.getName())
+        EffectVisual damageEffectVisual = EffectVisual.builder()
+                .type(EffectVisualType.SPECIAL)
+//                .moveId(summon.getId())
+//                .name(request.getName())
                 .cjsName(damageCjsName)
-                .rootCjsName(attackCjsName) // root 는 attack 으로
+//                .rootCjsName(attackCjsName) // root 는 attack 으로
                 .build();
-        assetRepository.saveAll(List.of(attackAsset, damageAsset));
+        moveVisualRepository.saveAll(List.of(attackEffectVisual, damageEffectVisual));
 
         // 스테이터스
         final Move summonFinal = summon;
@@ -329,7 +324,7 @@ public class InsertController {
                     .duration(status.getDuration())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-                    .iconSrcs(getSummonStatusIconSrcs(nameEn, statusOrder, status.getMaxLevel()))
+//                    .iconSrcs(getSummonStatusIconSrcs(nameEn, statusOrder, status.getMaxLevel()))
                     .move(summonFinal)
                     .build();
             log.info("statusEntity = {}", baseStatusEffectEntity);

@@ -406,54 +406,52 @@
                 <div class="baseCharacter-info-wrapper">
                   <div class="baseCharacter-info" th:each="characterInfo : ${partyInfo.characterInfos}">
                     <div class="baseCharacter-portrait" th:data-baseCharacter-id="${characterInfo.id}">
-                      <img src="/static/assets/img/ch/yachima/battle-portrait.jpg"
-                           th:src="${characterInfo.portraitSrc}">
+                      <img src="/static/assets/img/gl/ch-empty.jpg" th:src="${characterInfo.portraitSrc}">
                     </div>
                     <div class="baseCharacter-name" th:text="${characterInfo.name}"> 캐릭이름</div>
                   </div>
 
 
-                  <div class="baseCharacter-info">
-                    <div class="baseCharacter-portrait">
-                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-                    </div>
-                  </div>
-                  <div class="baseCharacter-info">
-                    <div class="baseCharacter-portrait">
-                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-                    </div>
-                  </div>
-                  <div class="baseCharacter-info">
-                    <div class="baseCharacter-portrait">
-                      <img src="/static/assets/img/ch/paladin/battle-portrait.jpg">
-                    </div>
-                  </div>
+<!--                  <div class="baseCharacter-info">-->
+<!--                    <div class="baseCharacter-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                  <div class="baseCharacter-info">-->
+<!--                    <div class="baseCharacter-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                  <div class="baseCharacter-info">-->
+<!--                    <div class="baseCharacter-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
 
                 </div>
                 <div class="summon-info-wrapper" th:each="summonInfo : ${partyInfo.summonInfos}">
                   <div class="summon-info">
                     <div class="summon-portrait">
-                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg"
-                           th:src="${summonInfo.portraitSrc}">
+                      <img src="/static/assets/img/gl/ch-empty.jpg" th:src="${summonInfo.portraitSrc}">
                     </div>
                     <div class="baseCharacter-name" th:text="${summonInfo.name}"> 솬석이름</div>
                   </div>
 
-                  <div class="summon-info">
-                    <div class="summon-portrait">
-                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                    </div>
-                  </div>
-                  <div class="summon-info">
-                    <div class="summon-portrait">
-                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                    </div>
-                  </div>
-                  <div class="summon-info">
-                    <div class="summon-portrait">
-                      <img src="/static/assets/img/summon/zeus/battle-portrait.jpg">
-                    </div>
-                  </div>
+<!--                  <div class="summon-info">-->
+<!--                    <div class="summon-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                  <div class="summon-info">-->
+<!--                    <div class="summon-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                  <div class="summon-info">-->
+<!--                    <div class="summon-portrait">-->
+<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
+<!--                    </div>-->
+<!--                  </div>-->
 
                 </div>
               </div>

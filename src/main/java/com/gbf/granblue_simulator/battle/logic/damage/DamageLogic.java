@@ -116,15 +116,12 @@ public class DamageLogic {
         }
         targetActor.updateHp(Math.max(enemyHp, 0));
 
-        boolean isEnemyHpZero = targetActor.getHp() == 0;
-
         return DamageLogicResult.builder()
                 .damages(damages)
                 .additionalDamages(additionalDamagesList)
                 .attackMultiHitCount(getDamageResult.getAttackMultiHitCount())
                 .elementTypes(getDamageResult.getElementTypes())
                 .damageTypes(List.of(getDamageResult.getDamageType()))
-                .isEnemyHpZero(isEnemyHpZero)
                 .build();
     }
 
@@ -143,9 +140,12 @@ public class DamageLogic {
      */
     public DamageLogicResult processEnemyDamage(List<Actor> targetActors, Move move, Double modifiedDamageRate) {
         Actor mainActor = battleContext.getEnemy();
-        log.info("[processEnemy] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
+        log.info("[processEnemyDamage] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
 
-        if (targetActors.isEmpty()) throw new DamageValidationException("적 데미지 타겟이 없음. move = " + move.getName());
+        if (targetActors.isEmpty()) {
+            log.warn("[processEnemyDamage] targetActors is empty, move = " + move.getName());
+            return DamageLogicResult.builder().build();
+        }
 
         ElementType elementType = move.getElementType();
         double damageRate = modifiedDamageRate == null ? move.getDamageRate() : modifiedDamageRate;
@@ -215,126 +215,5 @@ public class DamageLogic {
                 .build();
     }
 
-
-    /**
-     * Move 의 데미지 계산, 가변 damageRate 또는 hitCount 일때 사용
-     *
-     * @param targetActor
-     * @param moveType
-     * @param elementType
-     * @param damageRate
-     * @param hitCount
-     * @return
-     */
-    public DamageLogicResult processPartyDamageLegacy(Actor targetActor, MoveType moveType, ElementType elementType, double damageRate, int hitCount, int damageConstant) {
-        Actor mainActor = battleContext.getMainActor();
-        log.info("[processPartyDamage] start calc party damage mainActorName = {}, targetName = {} \n moveType = {}, move={} ", mainActor.getName(), targetActor.getName(), moveType, mainActor.getMove(moveType));
-
-        moveType = moveType.getParentType();
-        if (moveType == MoveType.SUMMON || moveType == MoveType.FATAL_CHAIN || moveType == MoveType.SUPPORT_ABILITY)
-            moveType = MoveType.ABILITY;
-
-        if (targetActor.isAlreadyDead())
-            throw new DamageValidationException("타겟이 이미 사망함, target = " + targetActor.getName());
-
-        GetDamageResult getDamageResult = damageCalcLogic.getPartyDamage(mainActor, targetActor, moveType, elementType, damageRate, hitCount);
-        List<Integer> damages = getDamageResult.getDamages();
-        List<List<Integer>> additionalDamagesList = getDamageResult.getAdditionalDamages();
-        List<ElementType> damageElementTypes = getDamageResult.getElementTypes();
-        Integer enemyHp = targetActor.getHp();
-        for (Integer damage : damages) {
-            enemyHp = damage > 0 ? enemyHp - damage : enemyHp;
-        }
-        for (List<Integer> additionalDamages : additionalDamagesList) {
-            for (Integer additionalDamage : additionalDamages) {
-                enemyHp = additionalDamage > 0 ? enemyHp - additionalDamage : enemyHp;
-            }
-        }
-        targetActor.updateHp(Math.max(enemyHp, 0));
-        boolean isEnemyHpZero = targetActor.getHp() == 0;
-
-        return DamageLogicResult.builder()
-                .damages(damages)
-                .additionalDamages(additionalDamagesList)
-                .attackMultiHitCount(getDamageResult.getAttackMultiHitCount())
-                .elementTypes(damageElementTypes)
-                .damageTypes(List.of(getDamageResult.getDamageType()))
-                .isEnemyHpZero(isEnemyHpZero)
-                .build();
-    }
-
-
-    /**
-     * 적의 행동에 따른 데미지를 계산후 타겟 hp 에 반영 <br>
-     * 적의 경우 아군과 달리 타겟을 설정한 뒤 모든 타겟에게 데미지가 발생하므로 별도 처리 <br>
-     * 적의 공격은 배율변화 또는 히트수 변화 없음 <br>
-     *
-     * @param targetActors 일반적으로 partyMembers 또는 그의 중복을 포함하여 구성된 targets
-     * @param move
-     * @return DamageLogicResult: List<BattleActor> targetActors 와 동일순서, 1대1 대응하는 데미지결과
-     */
-    public DamageLogicResult processEnemyDamageLegacy(List<Actor> targetActors, Move move, Double modifiedDamageRate) {
-        log.info("[processEnemy] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
-
-        Actor mainActor = battleContext.getEnemy();
-
-        MoveType moveType = move.getType().getParentType();
-        if (moveType == MoveType.SUMMON || moveType == MoveType.FATAL_CHAIN || moveType == MoveType.SUPPORT_ABILITY)
-            moveType = MoveType.ABILITY;
-
-        ElementType elementType = move.getElementType();
-        double damageRate = modifiedDamageRate == null ? move.getDamageRate() : modifiedDamageRate;
-        int damageConstant = move.getDamageConstant();
-
-        List<Integer> resultDamages = new ArrayList<>();
-        List<List<Integer>> resultAdditionalDamages = new ArrayList<>();
-        List<ElementType> damageElementTypes = new ArrayList<>();
-        List<MoveDamageType> damageTypes = new ArrayList<>();
-        int attackMultiHitCount = 1;
-        int index = 0;
-        do {
-            for (Actor targetActor : targetActors) {
-                GetDamageResult getDamageResult = damageCalcLogic.getEnemyDamage(mainActor, targetActor, moveType, elementType, damageRate);
-                attackMultiHitCount = getDamageResult.getAttackMultiHitCount();
-                if (getDamageResult.getDamages().size() > 1)
-                    throw new IllegalStateException("적의 공격 데미지가 1회 초과로 발생하였습니다. size = " + getDamageResult.getDamages().size());
-
-                Integer targetHp = targetActor.getHp();
-                Integer damage = getDamageResult.getDamages().getFirst();
-                List<Integer> additionalDamages = getDamageResult.getAdditionalDamages().isEmpty() ?
-                        Collections.emptyList() :
-                        getDamageResult.getAdditionalDamages().getFirst();
-                ElementType damageElementType = getDamageResult.getElementTypes().getFirst();
-                MoveDamageType damageType = getDamageResult.getDamageType();
-
-                targetHp = damage > 0 ? targetHp - damage : targetHp;
-                for (Integer additionalDamage : additionalDamages) {
-                    targetHp = damage > 0 ? targetHp - additionalDamage : targetHp;
-                }
-
-                // 불사 효과 처리
-//                StatusUtil.getEffectByModifierType(targetActor, StatusModifierType.IMMORTAL)
-//                        .map(statusEffect -> {
-//                            setST
-//                        })
-                targetActor.updateHp(Math.max(targetHp, 0));
-
-
-                resultDamages.add(damage);
-                resultAdditionalDamages.add(additionalDamages);
-                damageElementTypes.add(damageElementType);
-                damageTypes.add(damageType);
-            }
-            index++;
-        } while (move.isAllTarget() && move.getType().getParentType() == MoveType.ATTACK && move.getHitCount() > index); // 전체공격이고, 일반공격일때 공격횟수만큼 반복
-
-        return DamageLogicResult.builder()
-                .damages(resultDamages)
-                .additionalDamages(resultAdditionalDamages)
-                .attackMultiHitCount(attackMultiHitCount)
-                .elementTypes(damageElementTypes)
-                .damageTypes(damageTypes)
-                .build();
-    }
 
 }

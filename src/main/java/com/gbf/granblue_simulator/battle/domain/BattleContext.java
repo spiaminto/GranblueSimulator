@@ -82,7 +82,7 @@ public class BattleContext {
         }
 
         syncCurrentFieldActors();
-        this.print();
+//        this.print();
     }
 
     /**
@@ -120,7 +120,13 @@ public class BattleContext {
     }
 
     public void print() {
-        log.info("[print] \nbattleContext.print \n member = {} \n requestMainActor = {} \n mainActor = {} \n allActors = \n  {}", member, requestMainActor, mainActor, allActors.stream().map(Actor::toString).collect(Collectors.joining("\n  ")));
+        if (this.member == null) {
+            log.warn("[print] \nbattleContext.print \n member is null");
+        } else if (this.allActors == null) {
+            log.warn("[print] \nbattleContext.print \n member = {} \n allActors is null", member);
+        } else {
+            log.info("[print] \nbattleContext.print \n member = {} \n requestMainActor = {} \n mainActor = {} \n allActors = \n  {}", member, requestMainActor, mainActor, allActors.stream().map(Actor::toString).collect(Collectors.joining("\n  ")));
+        }
     }
 
     public int getCurrentTurn() {

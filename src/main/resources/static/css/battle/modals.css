@@ -1,15 +1,47 @@
 /* 공통 ============================================================================================================= */
-.modal-body hr {
+#modalContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-height: 600px;
+    z-index: -1; /* 로드 후 9999 로 변경됨 */
+}
+
+#modalContainer .modal,
+#modalContainer .modal-backdrop { position: absolute !important; }
+#modalContainer .modal {inset: 0}
+
+#modalContainer .modal-dialog {
+    width: 80%;
+    left: 10%;
     margin: 0;
+}
+
+.modal-body hr {
+    margin: 10px 0;
 }
 
 .modal-content {
     background-color: #150f0f;
-    opacity: 0.95;
+    opacity: 0.9;
     color: white;
 }
 
 .modal-header {
+    padding: 5px 10px;
+}
+
+.modal-header .modal-title {
+    font-size: 15px;
+}
+
+.modal-body {
+    padding: 10px 7px;
+}
+
+.modal-footer {
+    padding: 5px 5px;
 }
 
 /* 어빌리티 모달 ======================================================================================================== */
@@ -29,50 +61,67 @@
 }
 
 .ability-info-icon-wrapper {
-    width: 12%;
-    margin-right: 5%;
+    width: 13%;
+    margin-right: 4%;
 }
 
 .ability-info-text-wrapper {
-    width: 80%;
+    width: 82%;
+}
+
+.ability-info-text-wrapper h5 { /* 어빌리티 이름 */
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.ability-info-text-wrapper .row>*{
+    padding-right: 0;
+}
+
+.ability-info-text-wrapper .do-union-summon-check-wrapper {
+    font-size: 11px;
+}
+
+.ability-info-text-wrapper .ability-info-text {
+    font-size: 11px;
 }
 
 .ability-info-icon {
     width: 100%;
 }
 
-.ability-info-text {
-    width: 80%;
-}
-
 /* 스테이터스 모달 ===================================================================================================== */
 #statusInfoModal .modal-body {
-    padding: 0.5rem;
+    padding: 5px;
 }
 
 .status-info-wrapper {
     text-align: center;
 }
 
+.status-info-wrapper .estimated-atk-wrapper {
+    font-size: 11px;
+}
+
 .status-info-wrapper #enemyEstimatedAtkCollapse {
-    font-size: 0.8rem;
+    font-size: 10px;
+}
+
+.status-info-wrapper .actor-name {
+    font-size: 14px;
 }
 
 .status-info {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
-    
-    @media (min-width: 600px) {
-        font-size: 0.9rem;
-    }
+    padding: 4px 3px;
+    font-size: 9px;
+    line-height: 1.2;
 }
 
 .status-info .status-name {
-    font-size: 0.9rem;
-
-    @media (min-width: 600px) {
-        font-size: 1rem;
-    }
+    display: inline-block;
+    margin-bottom: 2px;
+    font-size: 10px;
+    line-height: 1.5;
 }
 
 .status-info.status-buff {
@@ -118,8 +167,8 @@
 }
 
 .status-info-icon-wrapper {
-    width: 7%;
-    margin-right: 3%;
+    width: 8%;
+    margin-right: 1%;
 }
 
 .status-info-icon {
@@ -153,7 +202,7 @@
     padding: 5px;
     width: 95px;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 12px;
     cursor: pointer;
 }
 
@@ -170,7 +219,7 @@
 }
 
 .potion-detail-container {
-    font-size: 1.1rem;
+    font-size: 12px;
     margin-top: 10px;
     text-align: center;
 }
@@ -186,5 +235,9 @@
     margin-top: 10px;
 }
 
+/* 메뉴 모달 ========================================================================================================== */
 
+#menuModal .modal-body {
+    font-size: 12px;
+}
 

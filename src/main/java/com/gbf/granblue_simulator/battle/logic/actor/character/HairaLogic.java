@@ -10,6 +10,7 @@ import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,7 @@ public class HairaLogic extends CharacterLogic {
 
     @Override
     protected ActorLogicResult attack() {
-        if (self().getStrikeCount() >= 2) {
+        if (self().getExecutedStrikeCount() >= 1) {
             //서포어비3 자신의 2회째 공격행동부터 서포어비 3 스테이터스 (어쌔신) 적용 - 해당 효과는 턴 종료시 자동삭제
             List<BaseStatusEffect> thirdSupportAbilityBaseStatusEffects = selfMove(MoveType.THIRD_SUPPORT_ABILITY).getBaseStatusEffects();
             setStatusLogic.setStatusEffect(thirdSupportAbilityBaseStatusEffects);
@@ -61,7 +62,7 @@ public class HairaLogic extends CharacterLogic {
             return battleContext.getFrontCharacters().stream()
                     .filter(partyMoveResult::isFromActor)
                     .findAny()
-                    .filter(actor -> actor.getStrikeCount() == 2)
+                    .filter(actor -> actor.getExecutedStrikeCount() >= 2 && actor.getExecutedStrikeCount() == actor.getStatus().getStatusDetails().getEndStrikeCount()) // 2회 이상공격시, 마지막 공격행동떄 설정
                     .map(actor -> secondSupportAbility())
                     .orElse(resultMapper.emptyResult());
         }
@@ -83,10 +84,11 @@ public class HairaLogic extends CharacterLogic {
         Move ability = selfMove(MoveType.FIRST_ABILITY);
         return getEffectByName(self(), "지보의 황성")
                 .map(statusEffect -> {
-                    int strikeCount = statusEffect.getLevel() >= 5 ? 4
-                            :statusEffect.getLevel() >= 3 ? 3 : 2; // 스택 1~2 2회, 3~4 3회, 5 4회
-                    List<BaseStatusEffect> selectedBaseStatusEffects = ability.getBaseStatusEffects().stream() // 재행동 && 재행동 값이 계산된 값이 아닌 스테이터스 제외
-                            .filter(status -> !(status.getStatusModifiers().containsKey(StatusModifierType.MULTI_STRIKE) && status.getStatusModifiers().get(StatusModifierType.MULTI_STRIKE).getValue() != strikeCount))
+                    StatusModifierType multiStrikeModifier = statusEffect.getLevel() >= 5 ? StatusModifierType.QUADRUPLE_STRIKE
+                            : statusEffect.getLevel() >= 3 ? StatusModifierType.TRIPLE_STRIKE
+                            : StatusModifierType.DOUBLE_STRIKE; // 스택 1~2 2회, 3~4 3회, 5 4회
+                    List<BaseStatusEffect> selectedBaseStatusEffects = ability.getBaseStatusEffects().stream() // !(버프 && 선택된 다회행동이 아닌경우)
+                            .filter(status -> !(status.getType() == StatusEffectType.BUFF && status.getStatusModifiers().get(multiStrikeModifier) == null))
                             .toList();
                     setStatusLogic.removeStatusEffect(self(), statusEffect); // 지보의 황성 삭제
                     return resultMapper.fromDefaultResult(defaultAbility(ability, selectedBaseStatusEffects));

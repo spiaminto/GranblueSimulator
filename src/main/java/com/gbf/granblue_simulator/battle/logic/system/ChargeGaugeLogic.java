@@ -69,12 +69,12 @@ public class ChargeGaugeLogic {
      */
     public void afterEnemyAttack(List<Actor> targets, List<Integer> damages, MoveType moveType) {
         Enemy enemy = (Enemy) battleContext.getEnemy();
-
-        if (moveType.getParentType() != MoveType.CHARGE_ATTACK) {
-            addChargeGauge(enemy, baseEnemyAttackGaugePoint); // 일반공격
-        } else if (enemy.getMove(enemy.getCurrentStandbyType()).getOmen().getOmenType() == OmenType.CHARGE_ATTACK) {
-            setChargeGauge(enemy, 0); // 특수기 + CT기
-        } // omenType 나머지의 경우 게이지 변화없음
+        
+        if (enemy.getMove(enemy.getCurrentStandbyType()).getOmen().getOmenType() == OmenType.CHARGE_ATTACK) {
+            setChargeGauge(enemy, 0); // 적의 CT 특수기 -> 0으로 초기화
+        } else {
+            addChargeGauge(enemy, baseEnemyAttackGaugePoint); // 적의 나머지 특수기, 일반공격 -> add
+        }
 
         // 적의 공격에 따른 아군의 오의게이지 변화
         for (int i = 0; i < targets.size(); i++) {

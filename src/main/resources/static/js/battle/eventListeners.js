@@ -1,5 +1,40 @@
 $(function () {
 
+    $('.modal').on('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget // 버튼 클릭으로 열렸으면 event.relatedTarget 로 트리거 요소 접근 가능
+        console.log('modal show event', trigger);
+        $('#modalContainer').css('z-index', '9999')
+        // backdrop 컨테이너 안으로 넣기
+        requestAnimationFrame(() => $('#modalContainer').append($('body > .modal-backdrop')));
+        // body에 붙는 기본 부작용(스크롤 잠금/패딩) 제거
+        $('body').removeClass('modal-open').css('padding-right', '');
+    });
+
+    $('.modal').on('shown.bs.modal', (event) => {
+        $('#modalContainer').append($('body > .modal-backdrop')); // 보험
+    })
+
+    $('.modal').on('hidden.bs.modal', (event) => {
+        const trigger = event.relatedTarget // 버튼 클릭으로 열렸으면 event.relatedTarget 로 트리거 요소 접근 가능
+        console.log('modal show event', trigger);
+        $('#modalContainer').css('z-index', '-1')
+    })
+
+    // 사운드 버튼
+    $('.sound-toggle-button').on('click', function () {
+        new Audio(Sounds.ui.BEEP.src).play(); // window.audio 객체 사용하지 않고 재생
+        let soundStatus = localStorage.getItem('soundStatus');
+        if (soundStatus === 'on') {
+            window.audio.updateDisabled(true);
+            localStorage.setItem('soundStatus', 'off');
+            $(this).removeClass('btn-outline-light').addClass('btn-outline-secondary');
+        } else if (soundStatus === 'off') {
+            window.audio.updateDisabled(false);
+            localStorage.setItem('soundStatus', 'on');
+            $(this).removeClass('btn-outline-secondary').addClass('btn-outline-light');
+        }
+    })
+
     // 오의 on off 리스너
     $('#chargeAttackActiveCheck').on('change', function (event) {
         if (player.locked) {
@@ -43,7 +78,7 @@ $(function () {
             .filter(actor => player.effectPlayingActorIndex !== actor.actorIndex)
             .forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, player.getCharacterWaitMotion(actor.actorIndex))));
         $(this).hide();
-        window.effectAudioPlayer.loadAndPlay(Sounds.global.BUTTON_CLOSE.src);
+        playSe(Sounds.ui.BUTTON_CLOSE.src);
     });
 
     // 어빌리티 슬라이더 좌 우 버튼 클릭 이동
@@ -73,7 +108,7 @@ $(function () {
             // 슬라이더 이동 없음 (첫 클릭 or 동일 클릭)
             player.play(Player.playRequest(`actor-${fromActorOrder}`, Player.c_animations.ABILITY));
             return;
-        } else  {
+        } else {
             // 슬라이더 이동 있음
             let toActorOrder = Number($abiltiyPanels.eq(nextSlideIndex).attr('data-actor-order'));
             console.log('toActorOrder', toActorOrder, 'fromActorOrder', fromActorOrder);
@@ -122,7 +157,8 @@ $(function () {
         let longPressTimer = null; // 길게누르기 자동실행 타이머
         let mouseUpTriggered = false; // 길게누르기 자동실행으로 mouseup 트리거 됫는지 확인하는 플래그
 
-        $(guardButton).on('mousedown touchstart', function () {
+        $(guardButton).on('mousedown touchstart', function (e) {
+            e.preventDefault();
             if (player.locked) return;
             // console.log('[.guardButton mouseDown, touchStart] pressStart = ', pressStart);
             const now = Date.now();
@@ -224,58 +260,111 @@ $(function () {
 
     // 어빌리티 레일 mutationObserver 등록
     const abilityRailMutationObserver = new MutationObserver((entries) => {
-        console.warn('abilityRailMutationObserver entries = ', entries);
-        let $abilityRail = $(entries[0].target); // #abilityRail
-        let $addedRailItem = $(entries[0].addedNodes);
-        let $removedRailItem = $(entries[0].removedNodes);
-        let isExecuted = false; // 처리 수행이 있었다면 true 로 반환
-
-        if ($abilityRail.children('.rail-item').length < 1) return false; // 남은 아이템 없음
-
-        let $latestRailItem = $abilityRail.children('.rail-item').first();
-        let railItemType = $latestRailItem.attr('data-rail-item-type');
-
-        if (($addedRailItem.hasClass('rail-item-1')) // 첫 아이템 추가
-            || $removedRailItem.hasClass('executed') // 아이템 실행이 완료된 후 삭제됨 -> 다음 아이템 실행
-        ) {
-            let actorId = $latestRailItem.attr('data-actor-id');
-            console.log('[#abilityRail.mutationObserver] railItemType = ', railItemType);
-            switch (railItemType) {
-                case 'ABILITY':
-                case 'FATAL_CHAIN':
-                case 'SUMMON':
-                    let moveId = $latestRailItem.attr('data-move-id');
-                    if (railItemType === 'FATAL_CHAIN') actorId = stage.gGameStatus.actorIds.slice(1).find(id => !!id); // 현재 프론트 캐릭터중 첫번째 캐릭터의 id 로 설정
-                    setTimeout(() => requestMove(actorId, moveId, railItemType), Constants.Delay.globalMoveDelay);
-                    isExecuted = true;
-                    break;
-
-                case 'ATTACK':
-                    $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 공격은 실행즉시 레일에서 삭제
-                    setTimeout(() => requestTurnProgress(), Constants.Delay.globalMoveDelay);
-                    isExecuted = true;
-                    break;
-
-                case 'POTION':
-                    let potionType = $latestRailItem.attr('data-additional-type');
-                    setTimeout(() => requestPotion(potionType, actorId), Constants.Delay.globalMoveDelay);
-                    isExecuted = true;
-                    break;
-
-                default:
-                    console.log('invalid railItemType ', railItemType);
-                    break;
-            }
-        } else { // 아이템이 실행 없이 삭제됨
-            isExecuted = false;
-            if (railItemType === 'ATTACK') {
-                onAttackButtonClicked();
-            }
+        if (!!stage.processing.response.hasEffect) { // 참전자 버프 효과중이면 살짝 딜레이
+            setTimeout(() => {
+                handleAbilityRailMutation(entries)
+            }, 1000);
+        } else {
+            handleAbilityRailMutation(entries);
         }
-
-        if (isExecuted) $latestRailItem.addClass('executed'); // 수행 여부 마킹 (remove 시, 다음 rail-item 자동 수행시 확인)
-        return isExecuted;
     })
     abilityRailMutationObserver.observe(document.querySelector('#abilityRail'), {childList: true});
 
-})
+    // 실제 처리
+    function handleAbilityRailMutation(entries) {
+        console.debug('[#abilityRail.mutationObserver] entries = ', entries);
+
+        let entry = entries[0];
+        let $abilityRail = $(entry.target);
+        let $addedRailItem = $(entry.addedNodes);
+        let $removedRailItem = $(entry.removedNodes);
+        let $latestRailItem = $abilityRail.children('.rail-item').first();
+
+        let isFirstItemAdded = $addedRailItem.hasClass('rail-item-1'); // 첫 아이템 추가
+        let isBeforeItemExecuted = $removedRailItem.hasClass('executed'); // 아이템 실행이 완료된 후 삭제됨 -> 다음(latest) 아이템 실행
+        let removedRailItemType = $removedRailItem.attr('data-rail-item-type');
+
+        let isExecuted = false;
+
+        if (isFirstItemAdded) { // 첫 아이템으로 추가됨
+            stopSync();
+            isExecuted = executeLatestItem($latestRailItem);
+            if (isExecuted) $latestRailItem.addClass('executed');
+            return isExecuted;
+        }
+
+        if ($removedRailItem.length > 0) { // 아이템이 삭제됨
+            if (isBeforeItemExecuted) { // 이전 아이템의 처리가 실행됨 ($latestRailItem 이 조건충족실패로 취소될 경우 이어서 실행을 위해 executed = true 상태로 제거됨)
+                restoreIconOverlay($removedRailItem.attr('data-move-id'), removedRailItemType); // 실행된 이전 아이템의 오버레이 해제
+
+                if ($latestRailItem.length > 0) { // 다음 아이템 있으면 이어서 실행
+                    stopSync();
+                    isExecuted = executeLatestItem($latestRailItem);
+                    if (isExecuted) $latestRailItem.addClass('executed');
+                } else {
+                    doSync();
+                    return false;
+                }
+            }
+            else { // 이전 아이템의 처리가 실행되지 않음 (사용자 클릭으로 취소 또는 에러로 인한 미실행 취소)
+                if (removedRailItemType === 'ATTACK') {
+                    onAttackButtonClicked();
+                } else if (removedRailItemType === 'ABILITY' || removedRailItemType === 'SUMMON') {
+                    entries.forEach(entry => { // 에러로 인한 미실행시 한꺼번에 레일 전체가 취소되는 경우 있음
+                        let $removedItem = $(entry.removedNodes);
+                        restoreIconOverlay($removedItem.attr('data-move-id'), $removedItem.attr('data-rail-item-type'));
+                    });
+                }
+            }
+        }
+
+        return isExecuted;
+    }
+
+    function restoreIconOverlay(moveId, railItemType) {
+        let $commandOverlay = // slick-cloned 때문에 여러개나옴
+            railItemType === 'ABILITY' ? $(`#commandContainer .ability-icon[data-move-id="${moveId}"] .command-overlay`)
+                : railItemType === 'SUMMON' ? $(`#commandContainer .summon-list-item[data-summon-id="${moveId}"] .command-overlay`)
+                    : null;
+        console.log('[restoreIconOverlay] removedId = ', moveId, ' $commandOverlay.class = ', $commandOverlay?.attr('class'));
+        if (!!$commandOverlay) $commandOverlay.removeClass('on-rail');
+        console.log('[restoreIconOverlay] after removeClass removedId = ', moveId, ' $commandOverlay.class = ', $commandOverlay?.attr('class'));
+    }
+
+    function executeLatestItem($latestRailItem) {
+        let actorId = $latestRailItem.attr('data-actor-id');
+        let latestRailItemType = $latestRailItem.attr('data-rail-item-type');
+        console.log('[#abilityRail.mutationObserver] railItemType = ', latestRailItemType);
+
+        let isExecuted = false;
+        switch (latestRailItemType) {
+            case 'ABILITY':
+            case 'FATAL_CHAIN':
+            case 'SUMMON':
+                let moveId = $latestRailItem.attr('data-move-id');
+                if (latestRailItemType === 'FATAL_CHAIN') actorId = stage.gGameStatus.actorIds.slice(1).find(id => !!id); // 현재 프론트 캐릭터중 첫번째 캐릭터의 id 로 설정
+                requestMove(actorId, moveId, latestRailItemType)
+                isExecuted = true;
+                break;
+
+            case 'ATTACK':
+                $latestRailItem.off('click'); // 취소 불가 처리
+                requestTurnProgress();
+                isExecuted = true;
+                break;
+
+            case 'POTION':
+                let potionType = $latestRailItem.attr('data-additional-type');
+                requestPotion(potionType, actorId)
+                isExecuted = true;
+                break;
+
+            default:
+                console.log('[handleAbilityRailMutation] invalid railItemType ', latestRailItemType);
+                break;
+        }
+
+        return isExecuted
+    }
+
+});

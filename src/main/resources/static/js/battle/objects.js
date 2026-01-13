@@ -10,7 +10,7 @@ class MoveResponse {
         this.moveType = MoveType.byName(data.moveType);
         this.moveName = data.moveName;
         this.motion = data.motion || 'none';
-        this.motionCustomDuration = (data.motionCustomDuration || 0) * createjs.Ticker.interval;
+        this.moveCjsName = data.moveCjsName;
 
         this.allTarget = data.isAllTarget ?? false;
 
@@ -32,6 +32,7 @@ class MoveResponse {
         this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s, true)));
         this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF' || status.type === 'BUFF_FOR_ALL'));
         this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF' || status.type === 'DEBUFF_FOR_ALL'));
+        this.levelDownedBattleStatusesList = (data.levelDownedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s))); // 얘는 버프, 디버프 구분없음
         this.heals = data.heals || [];
         this.effectDamages = data.effectDamages || [];
 
@@ -41,9 +42,6 @@ class MoveResponse {
         // snapshot
         this.hps = data.hps || [];
         this.hpRates = data.hpRates || [];
-        this.hpRates.forEach(function (hpRate, index) {
-            if (window.player) player.actors.get('actor-' + index)?.setHpRate(hpRate);
-        })
         this.chargeGauges = data.chargeGauges || [];
         this.fatalChainGauge = data.fatalChainGauge ?? 0;
         this.enemyMaxChargeGauge = data.enemyMaxChargeGauge ?? 0;
@@ -100,13 +98,15 @@ class StatusDto {
 }
 
 class OmenDto {
-    constructor({type, remainValue, cancelCondition, name, info, motion}) {
+    constructor({type, remainValue, cancelCondition, name, info, motion, updateTiming, standbyMoveType}) {
         this.type = OmenType.byName(type);
         this.remainValue = remainValue;
         this.cancelCondition = cancelCondition;
+        this.updateTiming = updateTiming;
         this.name = name;
         this.info = info;
         this.motion = motion;
+        this.standbyMoveType = MoveType.byName(standbyMoveType);
     }
 }
 
@@ -116,7 +116,7 @@ class MoveInfo {
                     type,
                     id,
                     name,
-                    order, // ability.order
+                    order, // ability.order, summon.order
                     actorId,
                     actorIndex,
                     info,
@@ -144,13 +144,29 @@ class MoveInfo {
 /* 상수 ================================================================================================================ */
 
 const Constants = {
+
     enemy: {
         // key: cjsName (stage.gGameStatus.enemyMainCjsName)
         "enemy_4300903" : { // diaspora1
             backgroundImage: '/static/assets/bg/dia-1.jpg',
+            customDuration: { // key: motion value: fps
+                'mortal_A' : 45, // 자괴인자
+                'mortal_B' : 37, // 경성방사
+                'mortal_C' : 40, // 긴급회복
+            } // motion mainCjs.motion 을 따라가서 그냥 고정
         },
         "enemy_4300913" : { // diaspora2
             backgroundImage: '/static/assets/bg/dia-2.jpg',
+            customDuration: {
+                'mortal_A' : 46, // 인자붕괴
+                'mortal_B' : 25, // 이성임계
+                'mortal_C' : 90, // 허수몽핵
+            }
+        },
+        "enemy_4300743" : { // diaspora2a
+            customDuration: {
+                'additional_mortal_B' :33, // 경성방사
+            }
         }
     },
 
@@ -170,10 +186,10 @@ const Constants = {
         damageShowDelete: 1200,
         // 800 데미지 표시 ~ 스테이터스 표시까지 딜레이 (일반적으로 첫 데미지 페이드아웃 시작)
         damageShowToNext: 800,
-        // 300 processXXMove 일반 딜레이
-        globalMoveDelay: 300,
-        // 150 processXXMove 중, 어빌리티 레일에서 기본적으로 딜레이가 걸리는경우 globalMoveDelay 대신 이쪽사용
-        railMoveDelay: 150,
+        // 미사용
+        statusShowToNext: 100,
+        // 200 processXXMove 일반 딜레이
+        globalMoveDelay: 200,
     },
 }
 Object.freeze(Constants);

@@ -65,7 +65,12 @@ public enum StatusModifierType {
 
     // 공격 행동관련
     MULTI_STRIKE, // 다회공격 [공격횟수]
-    STRIKE_SEALED, // 공격행동 불가 [1], < 장악, 수면 >
+    DOUBLE_STRIKE, // 재공격 [2]
+    TRIPLE_STRIKE, // 3회공격 [3]
+    QUADRUPLE_STRIKE, // 4회공격 [4]
+    PLUS_STRIKE, // 공격횟수 증가 [1]
+
+    STRIKE_SEALED, // 공격행동 불가 [행동방해율 0.0 ~ 1.0] , < 장악, 수면 >
     SUBJUGATED, // 장악 [1]
 
     // 크리티컬

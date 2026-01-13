@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,17 +32,17 @@ public class SummonLogic {
         if (summonIndex < 0) throw new MoveValidationException("[processSummon] 소환할 수 없는 대상 summonIndex = " + summonIndex + "summon = " + summonMove.getName());
 
         if (isUnionSummon) { // 합체소환 : 데미지 x, 쿨다운 x, 상태효과만 적용
-            SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(summonMove.getBaseStatusEffects());
-            return resultMapper.toUnionSummonResult(summonMove, null, setStatusResult);
+            SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(summonMove.getBaseStatusEffects());
+            return resultMapper.toUnionSummonResult(summonMove, null, setStatusEffectResult);
         }
 
         // 데미지
         DamageLogicResult damageLogicResult = damageLogic.processPartyDamage(summonMove);
         // 상태효과 적용
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(summonMove.getBaseStatusEffects());
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(summonMove.getBaseStatusEffects());
         // 쿨타임 적용
         leaderCharacter.updateSummonCoolDown(summonMove.getCoolDown(), summonIndex);
 
-        return resultMapper.toResult(summonMove, damageLogicResult, setStatusResult);
+        return resultMapper.toResult(summonMove, damageLogicResult, setStatusEffectResult);
     }
 }

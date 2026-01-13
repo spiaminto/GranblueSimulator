@@ -7,27 +7,24 @@ import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.DefaultActorLogicResult;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
+import com.gbf.granblue_simulator.metadata.repository.ActorVisualRepository;
 import com.gbf.granblue_simulator.metadata.repository.BaseActorRepository;
 import com.gbf.granblue_simulator.metadata.repository.BaseEnemyRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
@@ -36,10 +33,14 @@ import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 public class Diaspora1Logic extends EnemyLogic {
 
     private final BaseEnemyRepository baseEnemyRepository;
+    private final ActorVisualRepository actorVisualRepository;
 
-    public Diaspora1Logic(BattleContext battleContext, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, BaseActorRepository baseActorRepository, BaseEnemyRepository baseEnemyRepository) {
+    private final int ACTIVATE_VALUE = 700000;
+
+    public Diaspora1Logic(BattleContext battleContext, EnemyLogicResultMapper resultMapper, DamageLogic damageLogic, ChargeGaugeLogic chargeGaugeLogic, SetStatusLogic setStatusLogic, OmenLogic omenLogic, BattleLogService battleLogService, BaseActorRepository baseActorRepository, BaseEnemyRepository baseEnemyRepository, ActorVisualRepository actorVisualRepository) {
         super(battleContext, resultMapper, damageLogic, chargeGaugeLogic, setStatusLogic, omenLogic, battleLogService, baseActorRepository);
         this.baseEnemyRepository = baseEnemyRepository;
+        this.actorVisualRepository = actorVisualRepository;
     }
 
     @Override
@@ -54,18 +55,18 @@ public class Diaspora1Logic extends EnemyLogic {
         // 2. 자신의 활성레벨 갱신 (프론트 표시 없이 내부적으로 한번에 다 올림)
         // 알파
         StatusEffect modeAlphaStatusEffect = getEffectByName(self, "활성 『알파』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 알파 없음"));
-        int attackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(self, MoveType.ATTACK);
-        int levelFromAttackDamageSum = attackDamageSum / 1000000 + 1;
+        int attackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.ATTACK, true);
+        int levelFromAttackDamageSum = attackDamageSum / ACTIVATE_VALUE + 1;
         setStatusLogic.addStatusEffectsLevel(self, levelFromAttackDamageSum - 1, modeAlphaStatusEffect);
         // 베타
         StatusEffect modeBetaStatusEffect = getEffectByName(self, "활성 『베타』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 베타 없음"));
-        int abilityDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(self, MoveType.ABILITY);
-        int levelFromAbilityDamageSum = abilityDamageSum / 1000000 + 1;
+        int abilityDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.ABILITY, true);
+        int levelFromAbilityDamageSum = abilityDamageSum / ACTIVATE_VALUE + 1;
         setStatusLogic.addStatusEffectsLevel(self, levelFromAbilityDamageSum - 1, modeBetaStatusEffect);
         // 감마
         StatusEffect modeGammaStatusEffect = getEffectByName(self, "활성 『감마』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 모드 감마 없음"));
-        int chargeAttackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(self, MoveType.CHARGE_ATTACK);
-        int levelFromChargeAttackDamageSum = chargeAttackDamageSum / 1000000 + 1;
+        int chargeAttackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.CHARGE_ATTACK, true);
+        int levelFromChargeAttackDamageSum = chargeAttackDamageSum / ACTIVATE_VALUE + 1;
         setStatusLogic.addStatusEffectsLevel(self, levelFromChargeAttackDamageSum - 1, modeGammaStatusEffect);
 
         // 3. 갱신된 활성버프를 기반으로 서포어비 2 발동 (최대활성시, 타 활성레벨 삭제 후 긴급수복모드 이행)
@@ -132,7 +133,12 @@ public class Diaspora1Logic extends EnemyLogic {
             setStandbyBEveryFiveTurns();
 
         // 전조발생
-        omenLogic.triggerOmen(self()).ifPresent(standby -> results.add(resultMapper.toResultWithOmen(standby, OmenResult.from(self()))));
+        omenLogic.triggerOmen(self()).ifPresent(standby -> {
+            if (standby.getType() == MoveType.STANDBY_D && Objects.requireNonNullElse(self().getPrevOmenValue(), Integer.MAX_VALUE) < self().getOmenValue()) { // 긴급 수복모드, 전조값 이어가기
+                omenLogic.updateOmenValue(self(), self().getPrevOmenValue());
+            }
+            results.add(resultMapper.toResultWithOmen(standby, OmenResult.from(self())));
+        });
 
         return results;
     }
@@ -161,17 +167,17 @@ public class Diaspora1Logic extends EnemyLogic {
             return resultMapper.emptyResult(); // 긴급 수복 모드 전조 발생 등으로 이미 제거됨 || 이미 최고레벨
 
         // 현재까지 받은 데미지에 따른 타겟 레벨, 레벨 차
-        int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(self(), otherMoveParentType);
-        // TEST 값 3000000 (삼백만) -> 백만
-        int levelFromTakenDamage = takenDamageSum / 1000000 + 1; // 상태 효과가 레벨 1부터 시작하므로 +1
+        int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(otherMoveParentType, true);
+        // TEST 값 300만 -> 70만 (녹화용)
+        int levelFromTakenDamage = takenDamageSum / ACTIVATE_VALUE + 1; // 상태 효과가 레벨 1부터 시작하므로 +1
         int levelDiff = levelFromTakenDamage - matchedStatusEffect.getLevel();
         if (levelDiff <= 0) return resultMapper.emptyResult(); // 레벨상승 없음
 
         // 레벨 상승
         if (levelDiff > 1) // 차이가 1보다 크면, 초과분은 직접레벨업
             setStatusLogic.addStatusEffectsLevel(self(), levelDiff - 1, matchedStatusEffect);
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(List.of(matchedStatusEffect.getBaseStatusEffect()));
-        return resultMapper.toResult(selfMove(MoveType.FIRST_SUPPORT_ABILITY), setStatusResult);
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(List.of(matchedStatusEffect.getBaseStatusEffect()));
+        return resultMapper.toResult(selfMove(MoveType.FIRST_SUPPORT_ABILITY), setStatusEffectResult);
     }
 
     /**
@@ -185,13 +191,20 @@ public class Diaspora1Logic extends EnemyLogic {
         return activateStatuses.stream()
                 .filter(StatusEffect::isMaxLevel)
                 .max(Comparator.comparing(StatusEffect::getUpdatedAt))
-                .map(statusEffect -> {
+                .map(activatedEffect -> {
+                    // 전환활 활성효과를 제외한 제거목록 설정
+                    activateStatuses.remove(activatedEffect);
+                    // 고유버프 '인자 발생' 있을시 제거 목록에 추가 (중간 참여시 없음)
+                    getEffectByName(self(), "인자 발생").ifPresent(activateStatuses::add);
                     // 전환할 활성 남기고 제거
-                    activateStatuses.remove(statusEffect);
-                    SetStatusResult setStatusResult = setStatusLogic.subtractStatusEffectLevel(self(), 10, activateStatuses.toArray(StatusEffect[]::new));
+                    SetStatusEffectResult setStatusEffectResult = setStatusLogic.removeStatusEffectsWithResult(self(), activateStatuses);
+//                    SetStatusEffectResult setStatusEffectResult = setStatusLogic.subtractStatusEffectLevel(self(), 10, activateStatuses.toArray(StatusEffect[]::new));
+                    // 긴급 수복모드 부여
+                    SetStatusEffectResult secondSupportAbilityStatusResult = setStatusLogic.setStatusEffect(selfMove(MoveType.SECOND_SUPPORT_ABILITY));
+                    setStatusEffectResult.merge(secondSupportAbilityStatusResult);
                     // 긴급수복모드 발동
-                    self().setNextIncantStandbyType(MoveType.STANDBY_D);
-                    return resultMapper.toResult(selfMove(MoveType.SECOND_SUPPORT_ABILITY), setStatusResult);
+                    self().updateNextIncantStandbyType(MoveType.STANDBY_D);
+                    return resultMapper.toResult(selfMove(MoveType.SECOND_SUPPORT_ABILITY), setStatusEffectResult);
                 })
                 .orElseGet(resultMapper::emptyResult);
     }
@@ -210,21 +223,20 @@ public class Diaspora1Logic extends EnemyLogic {
         StatusEffect currentActivateStatus = getEffectByName(self, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
         String currentActivateStatusName = currentActivateStatus.getBaseStatusEffect().getName();
         String currentActivateStatusNameType = currentActivateStatusName.substring(currentActivateStatusName.indexOf("『"), currentActivateStatusName.indexOf("』")); // "활성『알파』" 에서 "『알파" 만 남김.
-        setStatusLogic.removeStatusEffect(self, currentActivateStatus);
+//        SetStatusEffectResult removeActivateResult = setStatusLogic.subtractStatusEffectLevel(self, 10, currentActivateStatus);
+        SetStatusEffectResult removeActivateResult = setStatusLogic.removeStatusEffectsWithResult(self, currentActivateStatus);
 
         // 활성 효과에 맞는 모드 적용
         BaseStatusEffect modeBaseStatusEffect = getBaseEffectByNameFromMove(ability, currentActivateStatusNameType);
-        SetStatusResult setStatusResult = setStatusLogic.setStatusEffect(List.of(modeBaseStatusEffect));
-        List<ResultStatusEffectDto> removedStatusEffectsInResult = setStatusResult.getRemovedStatuesList().get(self.getCurrentOrder());
-        removedStatusEffectsInResult.add(ResultStatusEffectDto.of(currentActivateStatus)); // 활성 지우는 효과 추가
+        SetStatusEffectResult setModeResult = setStatusLogic.setStatusEffect(List.of(modeBaseStatusEffect));
 
         // 2회차 전조부터 붙어있는 긴급 회복 시스템 효과 제거
-        getEffectByName(self, "긴급 회복 시스템").ifPresent(statusEffect -> {
-            setStatusLogic.removeStatusEffect(self, statusEffect);
-            removedStatusEffectsInResult.add(ResultStatusEffectDto.of(currentActivateStatus)); // 긴급 회복 시스템 지우는 효과 추가
-        });
+        SetStatusEffectResult removeEmergencyRecoveryResult = getEffectByName(self, "긴급 회복 시스템").map(statusEffect -> setStatusLogic.removeStatusEffectsWithResult(self, statusEffect)).orElse(null);
 
-        return resultMapper.toResult(ability, setStatusResult);
+        // 병합
+        removeActivateResult.merge(setModeResult, removeEmergencyRecoveryResult);
+
+        return resultMapper.toResult(ability, removeActivateResult);
     }
 
     /**
@@ -244,10 +256,10 @@ public class Diaspora1Logic extends EnemyLogic {
      */
     @Override
     protected ActorLogicResult fifthSupportAbility() {
-        SetStatusResult setStatusResult = getEffectByName(self(), "자괴인자")
+        SetStatusEffectResult setStatusEffectResult = getEffectByName(self(), "자괴인자")
                 .map(battleStatus -> setStatusLogic.subtractStatusEffectLevel(self(), 1, battleStatus))
                 .orElse(null);
-        return resultMapper.toResult(selfMove(MoveType.FIFTH_SUPPORT_ABILITY), null, null, setStatusResult);
+        return resultMapper.toResult(selfMove(MoveType.FIFTH_SUPPORT_ABILITY), null, null, setStatusEffectResult);
     }
 
     protected List<ActorLogicResult> formChange() {
@@ -259,13 +271,18 @@ public class Diaspora1Logic extends EnemyLogic {
         BaseEnemy currentBaseEnemy = (BaseEnemy) self().getBaseActor();
         String rootNameEn = currentBaseEnemy.getRootNameEn();
         List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(rootNameEn);
+
         BaseEnemy nextBaseEnemy = baseEnemies.stream().filter(baseEnemy -> baseEnemy.getFormOrder() == 2).findAny().orElseThrow(() -> new IllegalArgumentException("다음 폼 없음"));
         self().updateBaseActor(nextBaseEnemy);
-        self().setCurrentForm(nextBaseEnemy.getFormOrder());
+
+        ActorVisual nextActorVisual = nextBaseEnemy.getDefaultVisual();
+        self().updateActorVisual(nextActorVisual);
+
+        self().updateCurrentForm(nextBaseEnemy.getFormOrder());
         // 입장무브
         Move formChangeEntryMove = self().getMove(MoveType.FORM_CHANGE_ENTRY);
         // 폼체인지 후 2페이즈의 인자방출 영창기 등록
-        self().setNextIncantStandbyType(MoveType.STANDBY_D);
+        self().updateNextIncantStandbyType(MoveType.STANDBY_D);
 
         // 폼체인지 / 엔트리 / 모드전환 결과 반환
         List<ActorLogicResult> results = new ArrayList<>();
@@ -282,7 +299,7 @@ public class Diaspora1Logic extends EnemyLogic {
      */
     protected void setStandbyBEveryFiveTurns() {
         if (self().getNextIncantStandbyType() == null) // 긴급회복시스템 (STANDBY_D) 가 더 우선
-            self().setNextIncantStandbyType(MoveType.STANDBY_B);
+            self().updateNextIncantStandbyType(MoveType.STANDBY_B);
     }
 
 }

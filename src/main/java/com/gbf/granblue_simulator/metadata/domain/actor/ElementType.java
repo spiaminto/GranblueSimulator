@@ -18,6 +18,9 @@ public enum ElementType {
 //    WATER_EARTH, // 수토
 //    LIGHT_DARK, // 광암
     
+    SELECTABLE("선택가능"), // 속성 변환이 가능한 주인공 전용
+    ACTOR("자속성"), // Move.Actor 의 속성을 따라감. 속성변환이 가능한 주인공 어빌리티 전용
+
     NONE("무속성"), // 무속성
     RANDOM("랜덤속성") // 랜덤속성 -> 로직에서 변환해서사용
     ;

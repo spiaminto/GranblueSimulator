@@ -10,11 +10,14 @@ class Animation {
         this.additionalCjs = obj.additionalCjs ?? null;
         this.specials = obj.specials ?? []; // list of charge attack files
         this.additionalSpecials = obj.additionalSpecials ?? []
+
         this.summons = {};
         Object.entries(obj.summons).forEach(([key, value]) => {
             this.summons[key] = value;
         })
+
         this.attacks = obj.attacks ?? []; // list of auto attack ("phit") files
+
         this.abilities = this.getBaseAbilities();
         Object.entries(obj.abilities).forEach(([key, value]) => {
             this.abilities[key] = value;
@@ -47,14 +50,14 @@ class Animation {
                 cjs: 'raid_effect_debuff',
                 isTargetedEnemy: true
             },
-            [BASE_ABILITY.RAID_HEAL]: {
-                cjs: 'raid_effect_heal',
-                isTargetedEnemy: false
-            },
-            [BASE_ABILITY.RAID_ATK_UP_WATER]: {
-                cjs: "raid_effect_atk_up_02",
-                isTargetedEnemy: false
-            },
+            // [BASE_ABILITY.RAID_HEAL]: {
+            //     cjs: 'raid_effect_heal',
+            //     isTargetedEnemy: false
+            // },
+            // [BASE_ABILITY.RAID_ATK_UP_WATER]: {
+            //     cjs: "raid_effect_atk_up_02",
+            //     isTargetedEnemy: false
+            // },
             [BASE_ABILITY.AB_START]: {
                 cjs: 'ab_start',
                 isTargetedEnemy: false

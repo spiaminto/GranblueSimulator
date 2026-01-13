@@ -85,7 +85,7 @@ public class IndexController {
                                             PartyCharacterInfo.builder()
                                                     .id(actor.getId())
                                                     .name(actor.getName())
-                                                    .portraitSrc(actor.getBattlePortraitSrc())
+                                                    .portraitSrc(actor.getDefaultVisual().getPortraitImageSrc())
                                                     .chargeAttack(actor.getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
                                                     .abilities(actor.getMoves().values().stream().filter(move ->
                                                             move.getType().getParentType() == MoveType.ABILITY).toList())
@@ -102,7 +102,7 @@ public class IndexController {
                                                     .name(move.getName())
                                                     .info(move.getInfo())
                                                     .cooldown(move.getCoolDown())
-                                                    .portraitSrc(move.getIconImageSrc())
+                                                    .portraitSrc(move.getDefaultVisual().getPortraitImageSrc())
                                                     .build()
                                     ).toList()
                     )
@@ -165,15 +165,16 @@ public class IndexController {
         return "redirect:/room/" + roomId;
     }
 
-    @GetMapping("/insert")
-    public String insert() {
-        return "insert/character";
-    }
 
-    @GetMapping("/insert-enemy")
-    public String enemyInsert() {
-        return "insert/enemy";
-    }
+//    @GetMapping("/insert")
+//    public String insert() {
+//        return "insert/character";
+//    }
+//
+//    @GetMapping("/insert-enemy")
+//    public String enemyInsert() {
+//        return "insert/enemy";
+//    }
 
 
 }

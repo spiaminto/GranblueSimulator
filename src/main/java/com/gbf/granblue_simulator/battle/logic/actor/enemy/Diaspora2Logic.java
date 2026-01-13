@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.DefaultActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
@@ -112,7 +112,7 @@ public class Diaspora2Logic extends EnemyLogic {
         Actor self = self();
         return getEffectByName(self, "모드 『")
                 .flatMap(matchedStatusEffect ->
-                        getEffectByName(self, "임계 상태").map(onLimitStatusEffect -> {
+                        getEffectByName(self, "임계 상태 레벨").map(onLimitStatusEffect -> { // 확인하는 효과는 PASSIVE 로 안보임
                             // 모드에 따른 데미지 합 유형 확인
                             MoveType getDamageSumMoveType = switch (matchedStatusEffect.getBaseStatusEffect().getName()) {
                                 case "모드 『알파』" -> ATTACK;
@@ -121,9 +121,9 @@ public class Diaspora2Logic extends EnemyLogic {
                                 default -> throw new IllegalArgumentException("맞는 모드 상태효과가 없음");
                             };
 
-                            // 받은 데미지 누적값 확인 및 상승 레벨 계산
-                            int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(self, getDamageSumMoveType);
-                            int addLevel = takenDamageSum / 100000 + 1 - onLimitStatusEffect.getLevel(); // 모드레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
+                            // 받은 데미지 누적값 확인 및 상승 레벨 계산 (개인)
+                            int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(getDamageSumMoveType, false);
+                            int addLevel = takenDamageSum / 1000000 + 1 - onLimitStatusEffect.getLevel(); // 모드레벨 1부터 시작하므로 +1 TODO 나중에 수치 바꿀것
                             log.info("[firstSupportAbility] addLevel = {}, currentLevel = {}, takenDamageSum = {}", addLevel, onLimitStatusEffect.getLevel(), takenDamageSum);
                             if (addLevel <= 0) return resultMapper.emptyResult();
 
@@ -143,10 +143,10 @@ public class Diaspora2Logic extends EnemyLogic {
      */
     @Override
     protected ActorLogicResult secondSupportAbility() {
-        SetStatusResult setStatusResult = getEffectByName(self(), "임계 도달")
+        SetStatusEffectResult setStatusEffectResult = getEffectByName(self(), "임계 도달")
                 .map(battleStatus -> setStatusLogic.subtractStatusEffectLevel(self(), 1, battleStatus))
                 .orElse(null);
-        return resultMapper.toResult(selfMove(SECOND_SUPPORT_ABILITY), setStatusResult);
+        return resultMapper.toResult(selfMove(SECOND_SUPPORT_ABILITY), setStatusEffectResult);
     }
 
     // 기타 표시되지 않는 개인 로직 ======================================================================
@@ -156,7 +156,7 @@ public class Diaspora2Logic extends EnemyLogic {
      */
     protected void setStandbyCEveryFiveTurn() {
         if (self().getNextIncantStandbyType() == null) // STANDBY_D 가 더 우선
-            self().setNextIncantStandbyType(STANDBY_C);
+            self().updateNextIncantStandbyType(STANDBY_C);
     }
 
     /**

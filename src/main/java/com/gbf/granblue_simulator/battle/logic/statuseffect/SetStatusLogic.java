@@ -1,24 +1,18 @@
 package com.gbf.granblue_simulator.battle.logic.statuseffect;
 
-import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.battle.domain.Room;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
+import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
-import lombok.Builder;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
@@ -33,11 +27,10 @@ public class SetStatusLogic {
     private final BattleContext battleContext;
 
     /**
-     * 단순히 battleActor 에 status 를 붙여줌. <br>
-     * <b>사용 주의!, 동기화시에만 사용중</b>
+     * 단순히 battleActor 에 status 를 붙여줌. 효과 표시 없음 <br>
+     * <b>사용 주의!, 동기화시 적에게 동기화된 상태효과 붙일때 에만 사용중</b>
      */
     public void addSyncedStatusEffect(Actor targetActor, StatusEffect statusEffect) {
-        // 새로 추가되는 스테이터스
         StatusEffect addedStatusEffect = StatusEffect.builder()
                 .actor(targetActor)
                 .duration(statusEffect.getDuration())
@@ -55,7 +48,7 @@ public class SetStatusLogic {
      *
      * @param move
      */
-    public SetStatusResult setStatusEffect(Move move) {
+    public SetStatusEffectResult setStatusEffect(Move move) {
         List<BaseStatusEffect> baseStatusEffects = move.getBaseStatusEffects();
         if (move.getRandomStatusCount() > 0) {
             // 랜덤효과 N 개 부여
@@ -74,7 +67,7 @@ public class SetStatusLogic {
      * @param move
      * @param selectedTargets
      */
-    public SetStatusResult setStatusEffect(Move move, List<Actor> selectedTargets) {
+    public SetStatusEffectResult setStatusEffect(Move move, List<Actor> selectedTargets) {
         List<BaseStatusEffect> baseStatusEffects = move.getBaseStatusEffects();
         if (move.getRandomStatusCount() > 0) {
             // 랜덤효과 N 개 부여
@@ -89,7 +82,7 @@ public class SetStatusLogic {
      *
      * @param baseStatusEffects
      */
-    public SetStatusResult setStatusEffect(List<BaseStatusEffect> baseStatusEffects) {
+    public SetStatusEffectResult setStatusEffect(List<BaseStatusEffect> baseStatusEffects) {
         return this.applyStatusEffect(battleContext.getMainActor(), baseStatusEffects, null, null);
     }
 
@@ -100,7 +93,7 @@ public class SetStatusLogic {
      * @param baseStatusEffects
      * @param modifyingTargetType 대체 타겟 타입
      */
-    public SetStatusResult setStatusEffect(List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifyingTargetType) {
+    public SetStatusEffectResult setStatusEffect(List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifyingTargetType) {
         return this.applyStatusEffect(battleContext.getMainActor(), baseStatusEffects, modifyingTargetType, null);
     }
 
@@ -111,7 +104,7 @@ public class SetStatusLogic {
      * @param baseStatusEffects
      * @param modifyingTargetType 대체 타겟 타입
      */
-    public SetStatusResult setStatusEffect(Actor mainActor, List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifyingTargetType) {
+    public SetStatusEffectResult setStatusEffect(Actor mainActor, List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifyingTargetType) {
         return this.applyStatusEffect(mainActor, baseStatusEffects, modifyingTargetType, null);
     }
 
@@ -123,15 +116,12 @@ public class SetStatusLogic {
      * @param modifiedTargetType
      * @return SetStatusResult 스테이터스 처리 결과 DTO
      */
-    protected SetStatusResult applyStatusEffect(Actor mainActor, List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifiedTargetType, List<Actor> selectedTargets) {
-        Actor enemy = battleContext.getEnemy();
-        List<Actor> partyMembers = battleContext.getFrontCharacters();
-        List<List<ResultStatusEffectDto>> addedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<ResultStatusEffectDto>()).collect(Collectors.toList());
-        List<List<ResultStatusEffectDto>> removedBattleStatusesList = IntStream.range(0, 5).mapToObj(i -> new ArrayList<ResultStatusEffectDto>()).collect(Collectors.toList());
-        List<Integer> healValues = new ArrayList<>(Collections.nCopies(5, null));
-        List<Integer> damageValues = new ArrayList<>(Collections.nCopies(5, null));
+    protected SetStatusEffectResult applyStatusEffect(Actor mainActor, List<BaseStatusEffect> baseStatusEffects, StatusEffectTargetType modifiedTargetType, List<Actor> selectedTargets) {
+        log.info("[applyStatusEffect] mainActor = {}, baseStatusEffects = \n{}, \n modifiedTargetType = {}, selectedTargets = {}", mainActor.getName(), String.join("\n ", baseStatusEffects.stream().map(BaseStatusEffect::toString).toList()), modifiedTargetType, selectedTargets);
         // 처리 순서에 맞게 정렬
-        List<BaseStatusEffect> sortedBaseStatusEffects = baseStatusEffects.stream().sorted(Comparator.comparing(status -> status.getType().getProcessOrder())).toList();
+        List<BaseStatusEffect> sortedBaseStatusEffects = baseStatusEffects.stream().sorted(Comparator.comparing(BaseStatusEffect::getProcessOrder)).toList();
+
+        Map<Long, SetStatusEffectResult.Result> resultMap = new HashMap<>();
 
         sortedBaseStatusEffects.forEach(appliedBaseStatusEffect -> {
             // 1. 타겟 타입 변경 여부 처리
@@ -139,34 +129,35 @@ public class SetStatusLogic {
 
             // 2. 타겟 확인
             List<Actor> targetActors = this.getTargets(statusEffectTargetType, selectedTargets);
-            // 2.1 참전자 전체가 타겟인 경우 등록
-            if (statusEffectTargetType == StatusEffectTargetType.ALL_PARTY_MEMBERS) {
-                this.registerForAllStatus(mainActor, appliedBaseStatusEffect);
-            }
 
             // 3. 타겟 액터 순회
             targetActors.forEach(targetActor -> {
+                SetStatusEffectResult.Result actorResult = resultMap.get(targetActor.getId());
+                if (actorResult == null) {
+                    actorResult = SetStatusEffectResult.Result.builder().actorId(targetActor.getId()).build();
+                    resultMap.put(targetActor.getId(), actorResult);
+                }
 
                 // 3.1 즉시 효과가 적용되는 스테이터스 처리 (디스펠, 힐, 오의게이지 상승 등)
-                ImmediateProcessedStatusEffectResult immediateResult = processImmediateStatusEffect(targetActor, appliedBaseStatusEffect);
-                if (immediateResult != null) {
+                ProcessStatusLogic.ProcessStatusLogicResult processedResult = processImmediateStatusEffect(targetActor, appliedBaseStatusEffect);
+                if (processedResult != null) {
                     // 추가 / 갱신된 스테이터스 (DB 저장 x)
-                    if (immediateResult.getAddedStatusEffect() != null)
-                        addedBattleStatusesList.get(targetActor.getCurrentOrder()).addAll(immediateResult.getAddedStatusEffect().stream().map(ResultStatusEffectDto::of).toList());
+                    actorResult.getAddedStatusEffects().addAll(processedResult.getAddedStatusEffects());
                     // 지워진(디스펠, 클리어) 스테이터스
-                    removedBattleStatusesList.get(targetActor.getCurrentOrder()).addAll(immediateResult.getRemovedStatusEffects().stream().map(ResultStatusEffectDto::of).toList());
+                    actorResult.getRemovedStatusEffects().addAll(processedResult.getRemovedStatusEffects());
                     // 힐
-                    if (immediateResult.getHealValue() != null) {
-                        Integer currentHealValue = healValues.get(targetActor.getCurrentOrder());
-                        Integer resultHealValue = currentHealValue == null ? immediateResult.getHealValue() : currentHealValue + immediateResult.getHealValue();
-                        healValues.set(targetActor.getCurrentOrder(), resultHealValue);
+                    if (processedResult.getHealValue() != null) {
+                        Integer currentHealValue = actorResult.getHealValue();
+                        Integer resultHealValue = currentHealValue == null ? processedResult.getHealValue() : currentHealValue + processedResult.getHealValue();
+                        actorResult.setHealValue(resultHealValue);
                     }
                     // 데미지
-                    if (immediateResult.getDamageValue() != null) {
-                        Integer currentDamageValue = damageValues.get(targetActor.getCurrentOrder());
-                        Integer resultDamageValue = currentDamageValue == null ? immediateResult.getDamageValue() : currentDamageValue + immediateResult.getDamageValue();
-                        damageValues.set(targetActor.getCurrentOrder(), resultDamageValue);
+                    if (processedResult.getDamageValue() != null) {
+                        Integer currentDamageValue = actorResult.getDamageValue();
+                        Integer resultDamageValue = currentDamageValue == null ? processedResult.getDamageValue() : currentDamageValue + processedResult.getDamageValue();
+                        actorResult.setDamageValue(resultDamageValue);
                     }
+                    targetActor.getStatus().syncStatus();
                     return;
                 }
 
@@ -182,23 +173,16 @@ public class SetStatusLogic {
                 if (displayStatusEffect == null) {
                     displayStatusEffect = processApplyToActor(targetActor, appliedBaseStatusEffect);
                 }
+
+                log.info("[applyStatusEffect] displayStatusEffect = {}", displayStatusEffect);
+                targetActor.getStatus().syncStatus();
                 // 3.4 결과 리스트에 넣음
-                addedBattleStatusesList.get(targetActor.getCurrentOrder()).add(ResultStatusEffectDto.of(displayStatusEffect));
+                actorResult.getAddedStatusEffects().add(ResultStatusEffectDto.of(displayStatusEffect));
             });
         });
 
-        // 스텟 재계산
-        partyMembers.forEach(partyMember -> partyMember.getStatus().syncStatus());
-        enemy.getStatus().syncStatus();
-
-        // 로깅
-//        partyMemberAddedBattleStatus.forEach(addedStatuses -> log.info("partyMemberIndex = {}, addedStatuses = {}", partyMemberAddedBattleStatus.indexOf(addedStatuses), addedStatuses));
-
-        return SetStatusResult.builder()
-                .addedStatusesList(addedBattleStatusesList)
-                .removedStatuesList(removedBattleStatusesList)
-                .healValues(healValues)
-                .damageValues(damageValues)
+        return SetStatusEffectResult.builder()
+                .results(resultMap)
                 .build();
     }
 
@@ -247,31 +231,13 @@ public class SetStatusLogic {
      *
      * @param targetActor
      * @param appliedBaseStatusEffect
-     * @return ImmediateProcessedStatusEffectResult, 없을시 null 로 다음단계 진행
+     * @return ProcessStatusLogic.ProcessStatusLogicResult, 없을시 null 로 다음단계 진행
      */
-    protected ImmediateProcessedStatusEffectResult processImmediateStatusEffect(Actor targetActor, BaseStatusEffect appliedBaseStatusEffect) {
-        if (appliedBaseStatusEffect.getDuration() > 0) return null;
-        ProcessStatusLogic.ProcessStatusLogicResult processStatusLogicResult = processStatusLogic.process(targetActor, appliedBaseStatusEffect);
-        if (processStatusLogicResult == null) return null;
-        else {
-            return ImmediateProcessedStatusEffectResult.builder()
-                    .addedStatusEffect(processStatusLogicResult.getAddedStatusEffects())
-                    .removedStatusEffects(processStatusLogicResult.getRemovedStatusEffects())
-                    .healValue(processStatusLogicResult.getHealValue())
-                    .damageValue(processStatusLogicResult.getDamageValue())
-                    .build();
-        }
-    }
-
-    @Builder
-    @Data
-    static class ImmediateProcessedStatusEffectResult {
-        @Builder.Default
-        private List<StatusEffect> addedStatusEffect = new ArrayList<>();
-        @Builder.Default
-        private List<StatusEffect> removedStatusEffects = new ArrayList<>(); // dispeled, cleared
-        private Integer healValue;
-        private Integer damageValue;
+    protected ProcessStatusLogic.ProcessStatusLogicResult processImmediateStatusEffect(Actor targetActor, BaseStatusEffect appliedBaseStatusEffect) {
+        if (appliedBaseStatusEffect.getDuration() > 0) return null; // 이 조건에서 대부분 걸리므로 쪼개서 리턴
+        if (appliedBaseStatusEffect.getStatusModifiers().keySet().stream().noneMatch(StatusModifierType::needPostProcess))
+            return null;
+        return processStatusLogic.process(targetActor, appliedBaseStatusEffect); // nullable
     }
 
     /**
@@ -426,45 +392,52 @@ public class SetStatusLogic {
         for (StatusEffect statusEffect : statusEffects) {
             statusEffect.addLevel(level);
         }
+
         actor.getStatus().syncStatus(); // 갱신
     }
 
     /**
-     * battleActor 의 battleStatus 중 statusId 에 해당하는 스테이터스의 레벨을 level 만큼 감소
+     * Actor 의 StatusEffects 중 statusId 에 해당하는 StatusEffect의 레벨을 level 만큼 감소
      * 레벨 감소의 경우 사용자에게 감소정보를 노출해야하기 때문에 SetStatusResult 를 반환 <br>
      * 레벨 감소시 0 이하면 해당 효과 제거 <br>
-     * 제거 후 결과를 리턴해야되면, 레벨제가 아니더라도 removeStatusEffect 대신 사용해도 될듯.
      *
      * @param actor
-     * @param level        감소량 (목표 값이 아님)
+     * @param level         감소량 (목표 값이 아님)
      * @param statusEffects 레벨이 감소할 statusEffects
      * @return setStatusResult
      */
-    public SetStatusResult subtractStatusEffectLevel(Actor actor, int level, StatusEffect... statusEffects) {
+    public SetStatusEffectResult subtractStatusEffectLevel(Actor actor, int level, StatusEffect... statusEffects) {
         if (statusEffects == null) {
             log.warn("[subtractStatusEffectLevel] null StatusEffect, actor = {}", actor);
             return null;
         }
-        List<List<ResultStatusEffectDto>> addedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<ResultStatusEffectDto>()).collect(Collectors.toList());
-        List<List<ResultStatusEffectDto>> removedBattleStatuses = IntStream.range(0, 5).mapToObj(i -> new ArrayList<ResultStatusEffectDto>()).collect(Collectors.toList());
+        List<ResultStatusEffectDto> levelDownedStatusEffects = new ArrayList<>(); // 레벨이 내려감
+        List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>(); // 레벨이 내려가서 삭제됨
+        Map<Long, SetStatusEffectResult.Result> resultMap = new HashMap<>();
 
         for (StatusEffect statusEffect : statusEffects) {
             statusEffect.subtractLevel(level);
 
             if (statusEffect.getLevel() <= 0) {
-                statusEffectRepository.delete(statusEffect);
-                actor.getStatusEffects().remove(statusEffect);
-                removedBattleStatuses.get(actor.getCurrentOrder()).add(ResultStatusEffectDto.of(statusEffect)); // 삭제되면 이쪽
-            } else
-                addedBattleStatuses.get(actor.getCurrentOrder()).add(ResultStatusEffectDto.of(statusEffect)); // 레벨 내려가면 추가와 동일하게 표시
+                this.removeStatusEffect(actor, statusEffect);
+                removedStatusEffects.add(ResultStatusEffectDto.of(statusEffect));
+            } else {
+                levelDownedStatusEffects.add(ResultStatusEffectDto.of(statusEffect));
+            }
         }
+        SetStatusEffectResult.Result result = SetStatusEffectResult.Result.builder()
+                .actorId(actor.getId())
+                .levelDownedStatusEffects(levelDownedStatusEffects)
+                .removedStatusEffects(removedStatusEffects)
+                .build();
+        resultMap.put(actor.getId(), result);
 
         actor.getStatus().syncStatus();
 
-        return SetStatusResult.builder()
-                .addedStatusesList(addedBattleStatuses)
-                .removedStatuesList(removedBattleStatuses)
+        return SetStatusEffectResult.builder()
+                .results(resultMap)
                 .build();
+
     }
 
     /**
@@ -510,6 +483,7 @@ public class SetStatusLogic {
         if (statusEffect.getDuration() <= 0) {
             statusEffectRepository.delete(statusEffect);
             statusEffect.getActor().getStatusEffects().remove(statusEffect);
+            statusEffect.getActor().getStatus().syncStatus();
         }
         return statusEffect;
     }
@@ -525,6 +499,7 @@ public class SetStatusLogic {
     public List<StatusEffect> removeStatusEffects(Actor actor, List<StatusEffect> statusEffects) {
         actor.getStatusEffects().removeAll(statusEffects);
         statusEffectRepository.deleteAll(statusEffects);
+        actor.getStatus().syncStatus();
         return statusEffects;
     }
 
@@ -540,7 +515,49 @@ public class SetStatusLogic {
         if (statusEffect == null) return null;
         actor.getStatusEffects().remove(statusEffect);
         statusEffectRepository.delete(statusEffect);
+        actor.getStatus().syncStatus();
         return statusEffect;
+    }
+
+    /**
+     * 상태효과 삭제하고 사용자에게 노출하기 위한 결과까지 반환
+     *
+     * @param actor
+     * @param statusEffects
+     * @return setStatusEffectResult
+     */
+    public SetStatusEffectResult removeStatusEffectsWithResult(Actor actor, StatusEffect... statusEffects) {
+        return removeStatusEffectsWithResult(actor, Arrays.asList(statusEffects));
+    }
+
+    /**
+     * 상태효과 삭제하고 사용자에게 노출하기 위한 결과까지 반환
+     *
+     * @param actor
+     * @param statusEffects
+     * @return setStatusEffectResult
+     */
+    public SetStatusEffectResult removeStatusEffectsWithResult(Actor actor, List<StatusEffect> statusEffects) {
+        List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>(); // 삭제됨
+        Map<Long, SetStatusEffectResult.Result> resultMap = new HashMap<>();
+
+        for (StatusEffect statusEffect : statusEffects) {
+            actor.getStatusEffects().remove(statusEffect);
+            statusEffectRepository.delete(statusEffect);
+            removedStatusEffects.add(ResultStatusEffectDto.of(statusEffect));
+        }
+
+        SetStatusEffectResult.Result result = SetStatusEffectResult.Result.builder()
+                .actorId(actor.getId())
+                .removedStatusEffects(removedStatusEffects)
+                .build();
+        resultMap.put(actor.getId(), result);
+
+        actor.getStatus().syncStatus();
+
+        return SetStatusEffectResult.builder()
+                .results(resultMap)
+                .build();
     }
 
     /**
@@ -553,78 +570,7 @@ public class SetStatusLogic {
     public void removeExpiredTimeBasedStatusEffects(Actor enemy, List<Actor> partyMembers) {
         List<StatusEffect> expiredAllTargetEnemyStatusEffects = getEffectsByTargetType(enemy, StatusEffectTargetType.ALL_ENEMIES).stream()
                 .filter(StatusEffect::isExpired).toList();
-        removeStatusEffects(enemy, expiredAllTargetEnemyStatusEffects);
-    }
-
-    /**
-     * 배틀 스테이터스의 턴을 진행시킴. 남은시간이 감소하고 남은시간이 0턴인 배틀스테이터스는 삭제됨
-     * 캐릭터의 턴종효과 보다 나중에 발동해야함 (강화효과 연장 등 적용 후 발동해야 함)
-     *
-     * @param enemy
-     * @param partyMembers
-     */
-    public void progressStatusEffects(Actor enemy, List<Actor> partyMembers) {
-        List<Actor> allActors = new ArrayList<>();
-        allActors.add(enemy);
-        allActors.addAll(partyMembers);
-
-        // BattleStatus 남은시간 1턴 감소
-        allActors.stream()
-                .map(Actor::getStatusEffects)
-                .flatMap(Collection::stream)
-                .forEach(statusEffect -> {
-                    if (statusEffect.getBaseStatusEffect().getDurationType().isTurnBased())
-                        statusEffect.subtractDuration(1);
-                });
-
-        // 남은시간 0턴인 BattleStatus
-        List<List<StatusEffect>> expiredBattleStatusesList = allActors.stream()
-                .map(battleActor -> battleActor.getStatusEffects()
-                        .stream().filter(battleStatus -> battleStatus.getDuration() == 0).toList())
-                .toList();
-        expiredBattleStatusesList.forEach(list -> list.forEach(battleStatus -> log.info("[progressBattleStatus] listIndex = {} statusName = {}, expiredBattleStatus = {}", expiredBattleStatusesList.indexOf(list), battleStatus.getBaseStatusEffect().getName(), battleStatus)));
-
-        // 남은 시간 0턴인 BAttleStatus 삭제
-        expiredBattleStatusesList.forEach(battleStatuses ->
-
-        {
-            if (!battleStatuses.isEmpty()) {
-                battleStatuses.getFirst().getActor().getStatusEffects().removeAll(battleStatuses);
-                statusEffectRepository.deleteAll(battleStatuses);
-            }
-        });
-
-        // 스테이터스 갱신
-        allActors.forEach(actor -> actor.getStatus().syncStatus());
-    }
-
-    /**
-     * 참전자 효과 적용 <br>
-     * <b>StatusTargetType.ALL_PLAYERS</b> 만 적용됨 <br>
-     * 참전자전체 버프, 클리어올 에서 사용 상정
-     *
-     * @param mainActor        : 스테이터스 발생 액터
-     * @param baseStatusEffect : 적용할 스테이터스
-     */
-    public void registerForAllStatus(Actor mainActor, BaseStatusEffect baseStatusEffect) {
-        // StatusTargetType.All_Players 만을 적용대상으로 함
-        if (baseStatusEffect.getTargetType() != StatusEffectTargetType.ALL_PARTY_MEMBERS)
-            throw new IllegalArgumentException("참전자 버프, 참전자 클리어올 외에 다른 타입 " + baseStatusEffect.getType());
-
-        Member refMember = mainActor.getMember();
-        Room room = refMember.getRoom();
-        List<Member> targetMembers = room.getMembers().stream()
-                .filter(member -> !refMember.getId().equals(member.getId()))
-                .toList();
-        if (targetMembers.isEmpty()) return; // 동기화 대상 없음
-
-        // 결과 반환을 위한 처리 -> 이펙트 결과를 반환하고 싶기 때문에 처리를 반환시점으로 지연시킴
-        targetMembers.forEach(member -> {
-            member.addForAllStatusId(baseStatusEffect.getId());
-            // 저장해놓고, 플레이어 각각 필요한경우 사용 및 초기화
-            // 사용시 mainActor 를 해당 파티의 leader 로 설정해서 임시로 테스트하고, 문제없으면 그대로 사용하자
-
-        });
+        this.removeStatusEffects(enemy, expiredAllTargetEnemyStatusEffects);
     }
 
 

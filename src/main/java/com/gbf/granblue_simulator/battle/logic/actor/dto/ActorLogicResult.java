@@ -22,6 +22,8 @@ public class ActorLogicResult {
     // entity
     private Actor mainActor;
     private Move move;
+
+    // Member
     private Integer currentTurn;
 
     // DamageResult
@@ -34,16 +36,6 @@ public class ActorLogicResult {
     private List<ElementType> damageElementTypes = new ArrayList<>();
     @Builder.Default
     private List<List<Integer>> additionalDamages = new ArrayList<>();
-
-    // SetStatusResult [index: currentOrder]
-    @Builder.Default
-    private List<List<ResultStatusEffectDto>> addedStatusEffectsList = new ArrayList<>();
-    @Builder.Default
-    private List<List<ResultStatusEffectDto>> removedStatusEffectsList = new ArrayList<>();
-    @Builder.Default
-    private List<Integer> heals = new ArrayList<>();
-    @Builder.Default
-    private List<Integer> effectDamages = new ArrayList<>();
 
     // 전조
     private OmenResult omenResult;
@@ -81,6 +73,17 @@ public class ActorLogicResult {
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
     @Getter @ToString @EqualsAndHashCode
     public static class Snapshot {
+        // from SetStatusEffectResult
+        @Builder.Default
+        private List<ResultStatusEffectDto> addedStatusEffects = new ArrayList<>();
+        @Builder.Default
+        private List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>();
+        @Builder.Default
+        private List<ResultStatusEffectDto> levelDownedStatusEffects = new ArrayList<>();
+        private Integer heal;
+        private Integer effectDamage;
+
+        // from Actor
         private Long actorId;
         private Integer currentOrder;
         private Integer hp;

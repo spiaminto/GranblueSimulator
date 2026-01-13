@@ -3,7 +3,7 @@ package com.gbf.granblue_simulator.battle.controller;
 import com.gbf.granblue_simulator.battle.controller.dto.response.BattleResponse;
 import com.gbf.granblue_simulator.battle.controller.dto.response.OmenDto;
 import com.gbf.granblue_simulator.battle.controller.dto.response.StatusDto;
-import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
@@ -30,6 +30,7 @@ public class BattleResponseMapper {
     private final BattleContext battleContext;
 
     public List<BattleResponse> toBattleResponse(List<ActorLogicResult> results) {
+        results.forEach(result -> log.info("result = {}", result));
         boolean containsUnionSummon = results.stream().filter(result -> result.getMove().getType() == MoveType.SUMMON_DEFAULT)
                 .count() > 1;
         List<Integer> estimatedEnemyAtk = getEstimatedEnemyAtk();
@@ -37,20 +38,25 @@ public class BattleResponseMapper {
         return results.stream().map(result -> {
                     Actor mainActor = result.getMainActor();
                     Move move = result.getMove();
+                    String moveCjsName = move.getDefaultVisual() != null ? move.getDefaultVisual().getCjsName() : "";
 
                     OmenResult omenResult = result.getOmenResult();
-                    OmenDto omenDto = omenResult != null
-                            ? OmenDto.builder()
-                            .type(omenResult.getType())
-                            .remainValue(omenResult.getRemainValue())
-                            .cancelCondition(omenResult.getCancelCond())
-                            .name(omenResult.getName())
-                            .info(omenResult.getInfo())
-                            .motion(omenResult.getMotion())
-                            .build() : null;
+                    OmenDto omenDto = null;
+                    if (omenResult != null) {
+                        omenDto = OmenDto.builder()
+                                .type(omenResult.getType())
+                                .standbyMoveType(omenResult.getStandbyMoveType())
+                                .remainValue(omenResult.getRemainValue())
+                                .cancelCondition(omenResult.getCancelCond().getInfo())
+                                .updateTiming(omenResult.getCancelCond().getType().getUpdateTiming())
+                                .name(omenResult.getName())
+                                .info(omenResult.getInfo())
+                                .motion(omenResult.getMotion())
+                                .build();
+                    }
 
                     Map<Long, ActorLogicResult.Snapshot> snapshots = result.getSnapshots();
-                    Integer fatalChainGauge = battleContext.getMember().getFatalChainGauge();
+                    Integer fatalChainGauge = null;
                     int enemyMaxChargeGauge = 0;
                     int attackMultiHitCount = 0;
                     int mainActorOrder = -1;
@@ -60,17 +66,28 @@ public class BattleResponseMapper {
                     List<Integer> chargeGauges = new ArrayList<>(Collections.nCopies(5, null));
                     List<List<Integer>> abilityCoolDowns = Stream.generate(ArrayList<Integer>::new).limit(5).collect(Collectors.toList());
                     List<List<Boolean>> abilitySealeds = Stream.generate(ArrayList<Boolean>::new).limit(5).collect(Collectors.toList());
-                    List<List<StatusDto>> currentBattleStatusesList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusDto>> currentStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusDto>> addedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusDto>> removedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusDto>> levelDownedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<Integer> heals = new ArrayList<>(Collections.nCopies(5, null));
+                    List<Integer> effectDamages = new ArrayList<>(Collections.nCopies(5, null));
 
                     for (Map.Entry<Long, ActorLogicResult.Snapshot> entry : snapshots.entrySet()) {
                         ActorLogicResult.Snapshot snapshot = entry.getValue();
+                        fatalChainGauge = snapshot.getFatalChainGauge(); // 스냅샷 모두 동일값
                         Integer currentOrder = snapshot.getCurrentOrder();
-                        hps.set(currentOrder, snapshot.getHp());
-                        hpRates.set(currentOrder, snapshot.getHpRate());
+                        hps.set(currentOrder, snapshot.getHp() < 0 ? 0 : snapshot.getHp());
+                        hpRates.set(currentOrder, snapshot.getHpRate() < 0 ? 0 : snapshot.getHpRate());
                         chargeGauges.set(currentOrder, snapshot.getChargeGauge());
                         abilityCoolDowns.set(currentOrder, snapshot.getAbilityCooldowns());
                         abilitySealeds.set(currentOrder, snapshot.getAbilitySealeds());
-                        currentBattleStatusesList.set(currentOrder, snapshot.getCurrentStatusEffects().stream().map(StatusDto::of).toList());
+                        currentStatusEffectsList.set(currentOrder, snapshot.getCurrentStatusEffects().stream().map(StatusDto::of).toList());
+                        addedStatusEffectsList.set(currentOrder, snapshot.getAddedStatusEffects().stream().map(StatusDto::of).toList());
+                        removedStatusEffectsList.set(currentOrder, snapshot.getRemovedStatusEffects().stream().map(StatusDto::of).toList());
+                        levelDownedStatusEffectsList.set(currentOrder, snapshot.getLevelDownedStatusEffects().stream().map(StatusDto::of).toList());
+                        heals.set(currentOrder, snapshot.getHeal());
+                        effectDamages.set(currentOrder, snapshot.getEffectDamage());
 
                         if (result.getMainActor().getId().equals(snapshot.getActorId())) {
                             // mainActor 추가필드
@@ -83,6 +100,11 @@ public class BattleResponseMapper {
                             enemyMaxChargeGauge = snapshot.getMaxChargeGauge();
                         }
                     }
+                    
+                    // 의미없는 null 제거
+                    heals = heals.stream().allMatch(Objects::isNull) ? new ArrayList<>() : heals;
+                    effectDamages = effectDamages.stream().allMatch(Objects::isNull) ? new ArrayList<>() : effectDamages;
+
                     // 사망시 frontCharacter 에서 제거되어 snapshot 이 생성되지 않음
                     if (mainActorOrder == -1) mainActorOrder = mainActor.getCurrentOrder();
 
@@ -99,12 +121,12 @@ public class BattleResponseMapper {
                             .moveName(move.getName())
                             .moveType(move.getType())
                             .motion(move.getMotionType().getMotion())
-                            .motionCustomDuration(move.getMotionCustomDuration())
                             .isAllTarget(move.isAllTarget())
+                            .moveCjsName(moveCjsName)
 
                             // damageResult
-                            .damages(result.getDamages().stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList())
-                            .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage > 0 ? damage + "" : "MISS").toList()).toList())
+                            .damages(result.getDamages().stream().map(damage -> damage != -1 ? damage + "" : "MISS").toList()) // 회피시 -1, 데미지 감소시 0, 나머지 음수는 오류이나 표출
+                            .additionalDamages(result.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage.stream().map(damage -> damage != -1 ? damage + "" : "MISS").toList()).toList())
                             .elementTypes(result.getDamageElementTypes())
                             .damageTypes(result.getDamageTypes())
                             .totalHitCount(result.getTotalHitCount())
@@ -112,12 +134,6 @@ public class BattleResponseMapper {
                             .attackMultiHitCount(attackMultiHitCount)
 
                             .enemyAttackTargetIds(result.getEnemyAttackTargets().stream().map(Actor::getId).toList())
-
-                            // statusResult
-                            .addedBattleStatusesList(toStatusEffectDtosList(result.getAddedStatusEffectsList()))
-                            .removedBattleStatusesList(toStatusEffectDtosList(result.getRemovedStatusEffectsList()))
-                            .heals(result.getHeals())
-                            .effectDamages(result.getEffectDamages())
 
                             // omen
                             .omen(omenDto)
@@ -131,7 +147,13 @@ public class BattleResponseMapper {
                             .enemyMaxChargeGauge(enemyMaxChargeGauge)
                             .abilityCoolDowns(abilityCoolDowns)
                             .abilitySealeds(abilitySealeds)
-                            .currentBattleStatusesList(currentBattleStatusesList)
+                            .currentBattleStatusesList(currentStatusEffectsList)
+
+                            .addedBattleStatusesList(addedStatusEffectsList)
+                            .removedBattleStatusesList(removedStatusEffectsList)
+                            .levelDownedBattleStatusesList(levelDownedStatusEffectsList)
+                            .heals(heals)
+                            .effectDamages(effectDamages)
 
                             //honor
                             .resultHonor(result.getHonor())

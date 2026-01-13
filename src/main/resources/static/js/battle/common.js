@@ -76,8 +76,8 @@ function openStatusInfoWrapper($statusContainer) {
         let enemyEstimatedAtkString = enemyEstimatedAtk[0] ? enemyEstimatedAtk[0] + '~' + enemyEstimatedAtk[1] : '-'; // 없으면 undefined
         let $enemyStatusWrapper = $(`
             <div class="status-info-wrapper mb-2">
-              <h5 class="actor-name mb-2">${enemyActorName}</h5>
-              <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center mb-2">
+              <div class="actor-name"><b>${enemyActorName}</b></div>
+              <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center">
                 <div class="actor-estimated-atk">기준 공격력: <span class="value">${enemyEstimatedAtkString}</span></div>
                 <button class="btn btn-outline-warning ms-1 border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#estimatedAtkCollapse">
                   <i class="bi bi-question-circle"></i>
@@ -91,7 +91,7 @@ function openStatusInfoWrapper($statusContainer) {
         $modalBody.append($enemyStatusWrapper);
 
         // 전조 효과
-        let isOmenActivated = !! gameStateManager.getState('omen.type');
+        let isOmenActivated = !!gameStateManager.getState('omen.type');
         if (isOmenActivated) {
             let omenInfoText = $('.omen-container .omen-info').text().replace(/\\n/g, '<br><b>특수기 효과 : </b>'); // 전조효과 : ㅁㄴㅇㄹ (\n) 특수기효과 : ㅁㄴㅇㄹ
             let omenTypeClassName = $('.omen-container .omen-text').attr('class').split(' ')[1];
@@ -100,12 +100,11 @@ function openStatusInfoWrapper($statusContainer) {
             <b>전조 효과 : </b>
             ${omenInfoText} 
           </div>
-          <hr>
         `);
             $modalBody.append($omenInfo);
         }
     }
-    
+
     // 상태효과
     let $statusEffectWrapper = $(`<div class="status-effect-info-wrapper"></div>`);
     $statusContainer.find('.status').each(function (index, status) {
@@ -131,7 +130,6 @@ function openStatusInfoWrapper($statusContainer) {
                 ${statusInfoText}
               </div>
             </div>
-            <hr>
         `)
         $statusEffectWrapper.append($statusInfo);
     })
@@ -139,12 +137,62 @@ function openStatusInfoWrapper($statusContainer) {
     $('.status-modal-button').click();
 }
 
+function playSe(src) {
+    window.audio.play(src, {isLocal: true});
+}
+
+/**
+ * 추가 사운드를 재생
+ */
+function playAdditionalSe(cjsName = null, motion = null, moveType = null) {
+    console.debug('[playAdditionalSound] actorName = ', cjsName, ' moveType = ', moveType, ' motion = ', motion);
+    if (!Sounds[cjsName]) return;
+    let additionalSound = Sounds[cjsName].additional;
+    if (!additionalSound) return;
+
+    let soundByMotion = additionalSound[motion]?.src;
+    let soundByMoveType = additionalSound[moveType?.name]?.src;
+    let soundByMoveTypeParent = additionalSound[moveType?.getParentType()?.name]?.src;
+
+    console.log('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
+    [soundByMotion, soundByMoveType, soundByMoveTypeParent].forEach(src => window.audio.play(src, {isLocal: true}));
+}
+
+function updateBgm(response, {stopBgm= false} = {}) {
+    if (stopBgm === true) window.audio.removeBgm(window.audio.bgmSrc);
+    let enemyCjses = gameStateManager.getState('enemyMainCjsNames');
+    let currentEnemyCjs = enemyCjses[0];
+    // moveType
+    let responseMoveType = response.moveType;
+    let standbyMoveType = gameStateManager.getState('omen.standbyMoveType');
+    let bgmMoveType = responseMoveType === MoveType.SYNC && !!standbyMoveType ? standbyMoveType : responseMoveType; // 전조중 SYNC 에 한해, 갱신된 omen 참조
+    let moveTypeBgm = Sounds[currentEnemyCjs].bgm[bgmMoveType.name];
+    // hp
+    let hpKey = Object.keys(Sounds[currentEnemyCjs].bgm).map(Number).sort((a, b) => a - b).find(k => k >= response.hpRates[0]);
+    let hpBgm = Sounds[currentEnemyCjs].bgm[hpKey];
+
+    let bgm = moveTypeBgm || hpBgm;
+    // console.log('[updateBgm] bgm = ', bgm);
+    let currentBgm = gameStateManager.getState('bgm') || 0;
+    if (bgm.formOrder !== currentBgm.formOrder || bgm.index > currentBgm.index) { // 폼 체인지 or index 큰쪽
+        gameStateManager.setState('bgm', bgm);
+        window.audio.playBgm(bgm.src);
+    }
+}
+
 /**
  *  sync 인터벌
  * @return {number} timerId
  */
 function doSync() {
-    // return window.setInterval(function () {
-    //     requestSync();
-    // }, 5000);
+    if (!window.syncTimerId) { // 없을때만 등록
+        requestSync();
+        window.syncTimerId = window.setInterval(requestSync, 5000);
+    }
+}
+
+function stopSync() {
+    console.log('[stopSync] timerId = ', window.syncTimerId);
+    window.clearInterval(window.syncTimerId);
+    window.syncTimerId = null;
 }

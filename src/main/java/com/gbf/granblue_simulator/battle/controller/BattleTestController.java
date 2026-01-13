@@ -43,8 +43,8 @@ public class BattleTestController {
     @Transactional
     public String battlePage(Model model) {
 
-        Member findMember = memberRepository.findByRoomIdAndUserId(167L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
-        model.addAttribute("member", findMember);
+        Long roomId = 176L;
+        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         battleContext.init(findMember, null);
 
         // model 에 정보추가
@@ -68,6 +68,7 @@ public class BattleTestController {
 
         battleContext.init(findMember, null);
         battleContext.getFrontCharacters().forEach(partyMember -> partyMember.updateAbilityCooldowns(0, MoveType.FIRST_ABILITY, MoveType.SECOND_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY));
+        battleContext.getFrontCharacters().forEach(Actor::resetAbilityUseCount);
         Actor leaderCharacter = battleContext.getLeaderCharacter();
         int[] summonIndexes = leaderCharacter.getSummonMoveIds().stream()
                 .mapToInt(summonId -> leaderCharacter.getSummonMoveIds().indexOf(summonId))
@@ -75,8 +76,8 @@ public class BattleTestController {
                 .toArray();
         leaderCharacter.updateSummonCoolDown(0, summonIndexes);
 
-        ActorLogicResult syncResult = battleCommandService.sync();
-        List<BattleResponse> syncResponse = responseMapper.toBattleResponse(List.of(syncResult));
+        List<ActorLogicResult> syncResults = battleCommandService.sync();
+        List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
 
         log.info("syncResponse: {}", syncResponse);
 

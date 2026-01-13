@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.metadata.domain.actor;
 
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -35,8 +36,10 @@ public abstract class BaseActor {
     @Accessors(fluent = true)
     private boolean isLeaderCharacter; // 주인공 여부, Character 로 분리?
 
-    private String battlePortraitSrc;
     private String weaponId;
+
+    @OneToOne @JoinColumn(name = "default_visual_id")
+    private ActorVisual defaultVisual;
 
     // base status
     private int atk;

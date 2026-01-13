@@ -1,34 +1,32 @@
 package com.gbf.granblue_simulator.battle.controller;
 
-import com.gbf.granblue_simulator.battle.controller.dto.response.*;
-import com.gbf.granblue_simulator.battle.repository.RoomRepository;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
-import com.gbf.granblue_simulator.metadata.repository.BaseEnemyRepository;
-import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
 import com.gbf.granblue_simulator.battle.controller.dto.info.*;
 import com.gbf.granblue_simulator.battle.controller.dto.request.*;
-import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.party.domain.Party;
-import com.gbf.granblue_simulator.battle.domain.Room;
-import com.gbf.granblue_simulator.metadata.domain.asset.Asset;
-import com.gbf.granblue_simulator.metadata.domain.move.MotionType;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
+import com.gbf.granblue_simulator.battle.controller.dto.response.*;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
-import com.gbf.granblue_simulator.metadata.repository.AssetRepository;
 import com.gbf.granblue_simulator.battle.repository.MemberRepository;
-import com.gbf.granblue_simulator.party.repository.PartyRepository;
-import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
+import com.gbf.granblue_simulator.battle.repository.RoomRepository;
 import com.gbf.granblue_simulator.battle.service.BattleCommandService;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import com.gbf.granblue_simulator.battle.service.MemberService;
+import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
+import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
+import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
+import com.gbf.granblue_simulator.metadata.repository.BaseEnemyRepository;
+import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
+import com.gbf.granblue_simulator.party.domain.Party;
+import com.gbf.granblue_simulator.party.repository.PartyRepository;
+import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -39,12 +37,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.gbf.granblue_simulator.battle.controller.BattleInfoMapper.*;
 
@@ -58,7 +56,6 @@ public class BattleController {
 
     private final MemberService memberService;
     private final PartyRepository partyRepository;
-    private final AssetRepository assetRepository;
 
     private final BattleContext battleContext;
     private final BattleLogService battleLogService;
@@ -74,7 +71,6 @@ public class BattleController {
                           @AuthenticationPrincipal PrincipalDetails principal, Model model) {
 
         Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        model.addAttribute("member", findMember);
         battleContext.init(findMember, null);
 
         setInfoAttributes(model, findMember);
@@ -92,9 +88,9 @@ public class BattleController {
     public String getRoomResult(@PathVariable Long roomId,
                                 @AuthenticationPrincipal PrincipalDetails principal, Model model) {
 
-//        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         // CHECK 나중에 수정
-        Member findMember = memberRepository.findByRoomIdAndUserId(167L, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+//        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
 
         model.addAttribute("member", findMember);
         Room room = findMember.getRoom();
@@ -103,7 +99,7 @@ public class BattleController {
         String formattedEndedAt = room.getEndedAt().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.KOREA));
         BattleResultInfo resultInfo = BattleResultInfo.builder()
                 .enemyName(enemy.getName())
-                .enemyPortraitSrc(enemy.getBaseActor().getBattlePortraitSrc())
+                .enemyPortraitSrc(enemy.getActorVisual().getPortraitImageSrc())
                 .endedAt(formattedEndedAt)
                 .enterUserCount(room.getEnterUserCount())
                 .build();
@@ -122,7 +118,8 @@ public class BattleController {
                                     .enemyHp(String.format("%,d", enemy.getMaxHp()))
                                     .totalTurns(member.getCurrentTurn())
                                     .totalTime(totalTime)
-                                    .totalDamage(String.format("%,d", totalDamage))
+                                    .totalDamage(totalDamage)
+                                    .formattedTotalDamage(String.format("%,d", totalDamage))
                                     .totalDamageRate((int) ((double) totalDamage / enemy.getMaxHp() * 100 * 100) / 100.0)
                                     .totalHonor(String.format("%,d", member.getHonor()))
                                     .build();
@@ -144,19 +141,14 @@ public class BattleController {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         battleContext.init(member, null);
         Actor enemy = battleContext.getEnemy();
+        Enemy enemyConcrete = (Enemy) enemy;
 
         Map<String, Object> result = new HashMap<>();
-        List<Asset> enemyAssets = assetRepository.findAllByActorId(enemy.getBaseActor().getId());
-        List<AssetInfo.Asset> assetInfoAsset = toAssetInfoAsset(0L, "", enemyAssets, new ArrayList<>(), null);
-        AssetInfo enemyAssetInfo = AssetInfo.builder()
-                .asset(assetInfoAsset.getFirst())
-                .startMotion(MotionType.WAIT)
-                .isChargeAttackSkip(false)
-                .isLeaderCharacter(false)
-                .isEnemy(true)
-                .build();
-        result.put("assetInfo", enemyAssetInfo);
+
+        List<AssetInfo> assetInfoAssets = toAssetInfo(List.of(enemy), new ArrayList<>(), null);
+        result.put("assetInfo", assetInfoAssets.getFirst());
         result.put("actorName", enemy.getName());
+        result.put("formOrder", enemyConcrete.getCurrentForm());
 
         return ResponseEntity.ok(result);
     }
@@ -199,10 +191,10 @@ public class BattleController {
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
         battleContext.init(findMember, null);
-        ActorLogicResult syncResult = battleCommandService.sync();
-        List<BattleResponse> syncResponse = responseMapper.toBattleResponse(List.of(syncResult));
+        List<ActorLogicResult> syncResults = battleCommandService.sync();
+        List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
 
-        log.info("syncResponse: {}", syncResponse);
+//        log.info("syncResponse: {}", syncResponse);
 
         return ResponseEntity.ok(syncResponse);
     }
@@ -372,12 +364,26 @@ public class BattleController {
 
         Party party = partyRepository.findById(member.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
 
+        // 멤버
+        MemberInfo memberInfo = MemberInfo.builder()
+                .id(member.getId())
+                .currentTurn(member.getCurrentTurn())
+                .isChargeAttackOn(member.isChargeAttackOn())
+                .build();
+        model.addAttribute("memberInfo", memberInfo);
+
+        // 방
+        Room room = member.getRoom();
+        LocalDateTime roomCreatedAt = room.getCreatedAt();
+        model.addAttribute("roomId", room.getId());
+        model.addAttribute("roomCreatedAt", roomCreatedAt);
+
         // 캐릭터 인포, leaderActorId
         Map<Integer, CharacterInfo> battleCharacterInfoMap = partyMembers.stream()
                 .map(BattleInfoMapper::toCharacterInfo)
                 .collect(Collectors.toMap(CharacterInfo::getOrder, Function.identity()));
         model.addAttribute("battleCharacterInfoMap", battleCharacterInfoMap);
-        Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getBaseActor().getId() : null;
+        Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getId() : null;
         model.addAttribute("leaderActorId", leaderActorId);
 
         // 적 인포
@@ -389,11 +395,19 @@ public class BattleController {
         BaseEnemy baseEnemy = (BaseEnemy) enemy.getBaseActor();
         String enemyRootNameEn = baseEnemy.getRootNameEn();
         List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(enemyRootNameEn);
-        List<Integer> triggerHps = baseEnemies.stream().map(BaseEnemy::getHpTriggers)
+        List<Integer> triggerHps = baseEnemies.stream()
+                .flatMap(base -> base.getMoves().values().stream()
+                        .filter(move -> move.getParentType() == MoveType.STANDBY))
+                .map(Move::getOmen)
+                .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER)
+                .map(Omen::getTriggerHps)
                 .flatMap(Collection::stream)
                 .toList();
-        model.addAttribute("triggerHps", triggerHps);
 
+//        List<Integer> triggerHps = baseEnemies.stream().map(BaseEnemy::getHpTriggers)
+//                .flatMap(Collection::stream)
+//                .toList();
+        model.addAttribute("triggerHps", triggerHps);
 
         // 소환석 인포
         List<Long> summonMoveIds = leaderCharacter.getSummonMoveIds();
@@ -403,49 +417,15 @@ public class BattleController {
 
         // 페이탈 체인 인포
         Long fatalChainMoveId = member.getFatalChainMoveId();
-        MoveInfo fatalChainInfo = moveRepository.findById(fatalChainMoveId).map(BattleInfoMapper::toFatalChainInfo).orElseGet(() -> MoveInfo.builder().build());
+        Move fatalChainMove = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
+        MoveInfo fatalChainInfo = toFatalChainInfo(fatalChainMove);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 
         // 페이탈 체인 게이지
         model.addAttribute("fatalChainGauge", member.getFatalChainGauge());
 
-        // 캐릭터 + 적 에셋
-        List<Long> assetIds = partyMembers.stream()
-                .map(partyMember -> party.getActorIds().indexOf(partyMember.getBaseActor().getId())) // 파티에서 현재 프론트 멤버의 id 기준 인덱스 구해서
-                .map(index -> party.getActorAssetIds().get(index))// 해당 인덱스에 대응하는 assetId 를 반환 CHECK actorIds 와 actorAssetIds 는 반드시 순서가 동일해야함
-                .toList();
-        List<Asset> actorAssets = assetRepository.findWithChildrenByAssetId(assetIds); // CHECK 여기서 IN절 조회로 순서섞임, 캐릭터의 무브별로 분리되어있으므로, AssetInfo 로 변환후 정렬
-        List<Asset> enemyAsset = assetRepository.findAllByActorId(enemyActor.getBaseActor().getId());
-        actorAssets.addAll(enemyAsset);
-        // 솬석, 페이탈체인 에셋
-        List<Asset> summonAssets = assetRepository.findAllByMoveIdIn(party.getSummonIds());
-        Asset fatalChainAsset = assetRepository.findByMoveId(member.getFatalChainMoveId()).getFirst();
-
-        // AssetInfo.Asset 으로 변환
-        List<AssetInfo.Asset> assetInfoAssets = toAssetInfoAsset(leaderCharacter.getBaseActor().getId(), leaderCharacter.getBaseActor().getWeaponId(), actorAssets, summonAssets, fatalChainAsset);
-        // BattleActor.currentOrder 을 매핑해주기 위한 맵
-        Map<Long, Integer> actorIdByCurrentOrderMap = currentFieldActors.stream().collect(Collectors.toMap(battleActor -> battleActor.getBaseActor().getId(), Actor::getCurrentOrder));
-
-        // 에셋 기타 상태
-        Move enemyStartMove = enemy.getCurrentStandbyType() != null ? enemy.getMove(enemy.getCurrentStandbyType()) : enemy.getMove(MoveType.IDLE_DEFAULT);
-        boolean isChargeAttackSkip = leaderCharacter.getMember().isChargeAttackSkip();
-
-        // AssetInfo 조합
-        List<AssetInfo> assetInfos = assetInfoAssets.stream().map(asset -> {
-                    boolean isEnemy = enemyActor.getBaseActor().getId().equals(asset.getActorId());
-                    boolean isMainCharacter = leaderCharacter.getBaseActor().getId().equals(asset.getActorId());
-                    MotionType startMotion = isEnemy ? enemyStartMove.getMotionType() : MotionType.STB_WAIT;
-                    int currentOrder = actorIdByCurrentOrderMap.get(asset.getActorId());
-                    return AssetInfo.builder()
-                            .currentOrder(currentOrder)
-                            .asset(asset)
-                            .isChargeAttackSkip(isChargeAttackSkip)
-                            .isEnemy(isEnemy)
-                            .isLeaderCharacter(isMainCharacter)
-                            .startMotion(startMotion)
-                            .build();
-                }
-        ).toList();
+        // 캐릭터 + 적 에셋 (소환석, 펭탈 체인 포함) AssetInfo.Asset 으로 변환
+        List<AssetInfo> assetInfos = toAssetInfo(currentFieldActors, summonMoves, fatalChainMove);
 
         assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
         model.addAttribute("assetInfos", assetInfos);

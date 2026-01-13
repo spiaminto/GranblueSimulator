@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.DefaultActorLogicResult
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusDto;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
 import com.gbf.granblue_simulator.metadata.domain.move.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
@@ -37,7 +37,7 @@ public class CharacterLogicResultMapper {
     }
 
     public ActorLogicResult fromDefaultResult(DefaultActorLogicResult defaultActorLogicResult) {
-        return map(defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusResult(), defaultActorLogicResult.isExecuteChargeAttack(), defaultActorLogicResult.getExecuteAttackTargetType(), false);
+        return map(defaultActorLogicResult.getResultMove(), defaultActorLogicResult.getDamageLogicResult(), defaultActorLogicResult.getSetStatusEffectResult(), defaultActorLogicResult.isExecuteChargeAttack(), defaultActorLogicResult.getExecuteAttackTargetType(), false);
     }
 
     /**
@@ -49,18 +49,19 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResult(Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult) {
+    public ActorLogicResult toResult(Move move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
         return map(move, damageLogicResult, statusResult, false, null, false);
     }
 
     /**
      * 합체소환 된 소환석 따로 매핑
+     *
      * @param move
      * @param damageLogicResult
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toUnionSummonResult(Move move, DamageLogicResult damageLogicResult, SetStatusResult statusResult) {
+    public ActorLogicResult toUnionSummonResult(Move move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
         return map(move, damageLogicResult, statusResult, true, null, true);
     }
 
@@ -74,14 +75,14 @@ public class CharacterLogicResultMapper {
      */
     public ActorLogicResult toResultWithExecuteAttack(Move move,
                                                       DamageLogicResult damageLogicResult,
-                                                      SetStatusResult statusResult,
+                                                      SetStatusEffectResult statusResult,
                                                       StatusEffectTargetType executeAttackTargetType) {
         return map(move, damageLogicResult, statusResult, false, executeAttackTargetType, false);
     }
 
     protected ActorLogicResult map(Move move,
                                    DamageLogicResult damageLogicResult,
-                                   SetStatusResult setStatusResult,
+                                   SetStatusEffectResult setStatusEffectResult,
                                    boolean executeChargeAttack,
                                    StatusEffectTargetType executeAttackTargetType,
                                    boolean isUnionSummon) {
@@ -101,11 +102,9 @@ public class CharacterLogicResultMapper {
                 .sum();
 
         // StatusResult
-        final SetStatusResult statusResult = setStatusResult != null ? setStatusResult : SetStatusResult.emptyResult();  // 빈 객체도 5칸 고정리스트 필요
-        List<Integer> healValues = new ArrayList<>(statusResult.getHealValues());
-        List<Integer> effectDamages = new ArrayList<>(statusResult.getDamageValues());
+        final SetStatusEffectResult statusResult = setStatusEffectResult != null ? setStatusEffectResult : SetStatusEffectResult.emptyResult();  // 빈 객체도 5칸 고정리스트 필요
 
-        // 전조 : CHECK 첫 페이지 로드 SYNC 할때만 확인하는데 뺄 방법 고민중
+        // 전조
         Enemy enemyConcrete = (Enemy) enemy;
         MoveType currentStandbyType = enemyConcrete.getCurrentStandbyType();
         OmenResult omenResult = currentStandbyType != null ? OmenResult.from(enemyConcrete) : null;
@@ -116,25 +115,34 @@ public class CharacterLogicResultMapper {
         Map<Long, ActorLogicResult.Snapshot> snapShots = allActors.stream()
                 .collect(Collectors.toMap(
                                 Actor::getId,
-                                actor -> ActorLogicResult.Snapshot.builder()
-                                        .actorId(actor.getId())
-                                        .currentOrder(actor.getCurrentOrder())
-                                        .hp(actor.getHp())
-                                        .hpRate(actor.getHpRate())
-                                        .chargeGauge(actor.getChargeGauge())
-                                        .maxChargeGauge(actor.getMaxChargeGauge())
-                                        .fatalChainGauge(fatalChainGauge)
-                                        .currentStatusEffects(actor.getStatusEffects().stream()
-                                                .map(ResultStatusEffectDto::of)
-                                                .sorted(Comparator.comparing(ResultStatusEffectDto::getDisplayPriority).reversed().thenComparing(ResultStatusEffectDto::getCreatedAt))
-                                                .toList())
-                                        .abilityCooldowns(actor.getAbilityCooldowns())
-                                        .abilityUseCounts(actor.getAbilityUseCounts())
-                                        .abilitySealeds(actor.getAbilitySealeds())
-                                        .status(ResultStatusDto.of(actor.getStatus()))
-                                        .statusDetails(actor.getStatus().getStatusDetails().clone())
-                                        .damageStatusDetails(actor.getStatus().getDamageStatusDetails().clone())
-                                        .build()
+                                actor -> {
+                                    SetStatusEffectResult.Result actorResult = statusResult.getResults().getOrDefault(actor.getId(), SetStatusEffectResult.Result.emptyResult());
+                                    return ActorLogicResult.Snapshot.builder()
+                                            .addedStatusEffects(actorResult.getAddedStatusEffects())
+                                            .removedStatusEffects(actorResult.getRemovedStatusEffects())
+                                            .levelDownedStatusEffects(actorResult.getLevelDownedStatusEffects())
+                                            .heal(actorResult.getHealValue())
+                                            .effectDamage(actorResult.getDamageValue())
+
+                                            .actorId(actor.getId())
+                                            .currentOrder(actor.getCurrentOrder())
+                                            .hp(actor.getHp())
+                                            .hpRate(actor.getHpRate())
+                                            .chargeGauge(actor.getChargeGauge())
+                                            .maxChargeGauge(actor.getMaxChargeGauge())
+                                            .fatalChainGauge(fatalChainGauge)
+                                            .currentStatusEffects(actor.getStatusEffects().stream()
+                                                    .map(ResultStatusEffectDto::of)
+                                                    .sorted(Comparator.comparing(ResultStatusEffectDto::getDisplayPriority).reversed().thenComparing(ResultStatusEffectDto::getCreatedAt))
+                                                    .toList())
+                                            .abilityCooldowns(new ArrayList<>(actor.getAbilityCooldowns()))
+                                            .abilityUseCounts(new ArrayList<>(actor.getAbilityUseCounts()))
+                                            .abilitySealeds(new ArrayList<>(actor.getAbilitySealeds()))
+                                            .status(ResultStatusDto.of(actor.getStatus()))
+                                            .statusDetails(actor.getStatus().getStatusDetails().clone())
+                                            .damageStatusDetails(actor.getStatus().getDamageStatusDetails().clone())
+                                            .build();
+                                }
                         )
                 );
 
@@ -145,23 +153,16 @@ public class CharacterLogicResultMapper {
 
                 .mainActor(mainActor)
                 .move(move)
-                // motionSkipDuration
                 .currentTurn(battleContext.getCurrentTurn())
 
                 .summonCooldowns(summonCooldowns)
 
-                // from setStatusResult
-                .addedStatusEffectsList(statusResult.getAddedStatusesList())
-                .removedStatusEffectsList(statusResult.getRemovedStatuesList())
-                .heals(healValues)
-                .effectDamages(effectDamages)
-
                 // from damageResult
                 .totalHitCount(totalHitCount)
                 .damages(damageLogicResult.getDamages())
-                .damageElementTypes(damageLogicResult.getElementTypes())
                 .damageTypes(damageLogicResult.getDamageTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
+                .damageElementTypes(damageLogicResult.getElementTypes())
 
                 // 전조
                 .omenResult(omenResult)
@@ -174,8 +175,6 @@ public class CharacterLogicResultMapper {
                 .snapshots(snapShots)
 
                 .build();
-
-
     }
 
 

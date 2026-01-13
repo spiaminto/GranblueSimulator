@@ -5,7 +5,7 @@ import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTarge
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import lombok.Builder;
 import lombok.Data;
 
@@ -16,7 +16,7 @@ import java.util.List;
 public class DefaultActorLogicResult {
     private final Move resultMove;
     private final DamageLogicResult damageLogicResult;
-    private final SetStatusResult setStatusResult;
+    private final SetStatusEffectResult setStatusEffectResult;
 
     private final List<Actor> enemyAttackTargets;
     private final OmenResult resultOmen; // 브레이크 할경우 Move 가 break 가 되서 이전 전조정보를 가져올수 없음

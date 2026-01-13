@@ -7,6 +7,7 @@ import lombok.*;
 import org.hibernate.annotations.Type;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 @Entity
 @Builder
@@ -50,13 +51,33 @@ public class BaseStatusEffect {
     @OneToMany(mappedBy = "baseStatusEffect") @MapKey(name = "type") @Builder.Default @EqualsAndHashCode.Exclude @ToString.Exclude
     Map<StatusModifierType, StatusModifier> statusModifiers = new LinkedHashMap<>();
 
-    @Type(ListArrayType.class)
-    @Column(name = "iconSrcs", columnDefinition = "text[]") @Builder.Default
-    private List<String> iconSrcs = new ArrayList<>();
+    private String gid; // 리소스 참조용 gbf id
 
     public void setMove(Move move) {
         this.move = move;
         move.getBaseStatusEffects().add(this);
+    }
+
+    /**
+     * gid 를 이용하여 실제 아이콘 src 반환
+     * @return
+     */
+    public List<String> getIconSrcs() {
+        if (this.gid == null) return new ArrayList<>();
+        String prefix = "/static/gbf/img/status/";
+        String baseName = prefix + this.gid;
+        String ext = ".png";
+
+        List<String> iconSrcs = new ArrayList<>();
+        if (this.maxLevel > 0)  {
+            iconSrcs = IntStream.range(0, this.maxLevel)
+                    .mapToObj(index -> prefix + this.gid + "_" + (index + 1) + ext)
+                    .toList();
+        } else {
+            iconSrcs.add(baseName + ext);
+        }
+
+        return iconSrcs;
     }
 
     /**
@@ -70,6 +91,26 @@ public class BaseStatusEffect {
 
     public StatusModifier getModifier(StatusModifierType type) {
         return this.statusModifiers.get(type);
+    }
+
+    public int getProcessOrder() {
+        if (this.statusModifiers.size() == 1) { // 기본 상태효과
+            // dispel 과 clear 를 최우선
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_DISPEL)) return 10;
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_CLEAR)) return 11;
+            // 게이지 버프/디버프는 일반버프/디버프 다음
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_CHARGE_GAUGE_UP)) return 60;
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_CHARGE_GAUGE_DOWN)) return 110;
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_UP)) return 61;
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_DOWN)) return 111;
+        }
+        
+        // 기준
+        if (this.type == StatusEffectType.PASSIVE) return 5;
+        if (this.type == StatusEffectType.BUFF) return 50;
+        if (this.type == StatusEffectType.DEBUFF) return 100;
+
+        throw new IllegalArgumentException("[getProcessOrder] is not a valid StatusEffectType, this = " + this);
     }
 
 }

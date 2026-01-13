@@ -62,10 +62,10 @@ public class DamageCalcLogic {
         double damage = atkToDamage(mainActorStatus.getAtk(), damageRate);
         DamageDto damageDto = DamageDto.builder()
                 .damage(damage)
-                .damageType(MoveDamageType.NORMAL)
+                .moveDamageType(MoveDamageType.NORMAL)
                 .build();
         damageDto = applyElementTypeAdjustment(moveElementType, target.getElementType(), damageDto);
-        if (damageDto.getDamageType() != MoveDamageType.DISADVANTAGED) // 약상성이 아닐시 크리티컬 가능
+        if (damageDto.getMoveDamageType() != MoveDamageType.DISADVANTAGED) // 약상성이 아닐시 크리티컬 가능
             damageDto = applyCriticalRate(mainActorStatus.getCriticalRate(), mainActorStatus.getCriticalDamageRate(), damageDto);
         damageDto = applyDef(target, damageDto);
         damageDto = applyDamageCap(processMoveType, mainActorDamageStatus, damageRate, damageDto);
@@ -93,7 +93,7 @@ public class DamageCalcLogic {
                 .additionalDamages(damageDto.getResultAdditionalDamages())
                 .attackMultiHitCount(attackMultiHitCount)
                 .elementTypes(List.of(moveElementType))
-                .damageType(damageDto.getDamageType())
+                .damageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -117,10 +117,10 @@ public class DamageCalcLogic {
         double damage = atkToDamage(mainActorStatus.getAtk(), damageRate);
         DamageDto damageDto = DamageDto.builder()
                 .damage(damage)
-                .damageType(MoveDamageType.NORMAL)
+                .moveDamageType(MoveDamageType.NORMAL)
                 .build();
         damageDto = applyElementTypeAdjustment(moveElementType, target.getElementType(), damageDto);
-        if (damageDto.getDamageType() != MoveDamageType.DISADVANTAGED) // 약상성이 아닐시 크리티컬 가능
+        if (damageDto.getMoveDamageType() != MoveDamageType.DISADVANTAGED) // 약상성이 아닐시 크리티컬 가능
             damageDto = applyCriticalRate(mainActorStatus.getCriticalRate(), mainActorStatus.getCriticalDamageRate(), damageDto);
         damageDto = applyDef(target, damageDto);
         damageDto = applyDamageCap(processMoveType, mainActorDamageStatus, damageRate, damageDto);
@@ -142,7 +142,7 @@ public class DamageCalcLogic {
                 .damages(damageDto.getResultDamages())
                 .additionalDamages(damageDto.getResultAdditionalDamages())
                 .elementTypes(List.of(moveElementType))
-                .damageType(damageDto.getDamageType())
+                .damageType(damageDto.getMoveDamageType())
                 .attackMultiHitCount(attackMultiHitCount)
                 .build();
     }
@@ -166,11 +166,11 @@ public class DamageCalcLogic {
         double damage = damageDto.getDamage();
         boolean isCritical = Math.random() < criticalRate;
         double resultDamage = damage * (isCritical ? 1 + criticalDamageRate : 1);
-        MoveDamageType damageType = isCritical ? MoveDamageType.CRITICAL : damageDto.getDamageType();
+        MoveDamageType damageType = isCritical ? MoveDamageType.CRITICAL : damageDto.getMoveDamageType();
         log.info("[applyCritical] damage = {}, resultDamage = {},  criticalRate = {} isCritical = {}, criticalDamageRAte = {}", damage, resultDamage, criticalRate, isCritical, criticalDamageRate);
         return DamageDto.builder()
                 .damage(resultDamage)
-                .damageType(damageType)
+                .moveDamageType(damageType)
                 .build();
     }
 
@@ -180,7 +180,7 @@ public class DamageCalcLogic {
     protected DamageDto applyElementTypeAdjustment(ElementType moveElementType, ElementType targetElementType, DamageDto damageDto) {
         double resultDamage = 0;
         double damage = damageDto.getDamage();
-        MoveDamageType damageType = damageDto.getDamageType();
+        MoveDamageType damageType = damageDto.getMoveDamageType();
         if (moveElementType.isAdvantageTo(targetElementType)) {
             resultDamage = damage * 1.5;
             damageType = MoveDamageType.ADVANTAGED;
@@ -193,7 +193,7 @@ public class DamageCalcLogic {
         log.info("[applyElementTypeAdjustment] damage = {}, resultDamage = {}, moveElementType = {}, targetElementType = {}", damage, resultDamage, moveElementType, targetElementType);
         return DamageDto.builder()
                 .damage(resultDamage)
-                .damageType(damageType)
+                .moveDamageType(damageType)
                 .build();
     }
 
@@ -212,7 +212,7 @@ public class DamageCalcLogic {
         log.info("[applyDef] damage = {}, resultDamage = {}, targetDef = {}, isGuardOn = {}", damage, resultDamage, targetDef, target.isGuardOn());
         return DamageDto.builder()
                 .damage(resultDamage)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -258,7 +258,7 @@ public class DamageCalcLogic {
         log.info("[applyDamageCap] damage = {}, resultDamage = {}, damageCapRate = {}, moveDamageCapRate = {}", damage, resultDamage, damageCapUpRate, moveDamageCapUpRate);
         return DamageDto.builder()
                 .damage(resultDamage)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -274,7 +274,7 @@ public class DamageCalcLogic {
         log.info("[applyAttackMultiHit] damage = {}, resultDamage = {}, attackMultiHitCount = {}", damage, resultDamage, attackMultiHitCount);
         return DamageDto.builder()
                 .damage(resultDamage)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -295,7 +295,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(damage)
                 .additionalDamages(additionalDamages)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -311,7 +311,8 @@ public class DamageCalcLogic {
         int moveSupplementalDamage = damageStatus.getMoveSupplementalDamage(moveType);
         int takenSupplementalDamageUpPoint = targetDamageStatus.getTakenSupplementalDamageUpPoint();
         int takenSupplementalDamageDownPoint = targetDamageStatus.getTakenSupplementalDamageDownPoint();
-        double totalSupplementalDamage = supplementalDamage + moveSupplementalDamage + takenSupplementalDamageUpPoint - takenSupplementalDamageDownPoint;
+        double totalSupplementalDamage = supplementalDamage + moveSupplementalDamage
+                + takenSupplementalDamageUpPoint - takenSupplementalDamageDownPoint;
 
         // 2. 공격 데미지 상승 및 피격 데미지 상승, 감소 확인
         double amplifyDamageUpRate = damageStatus.getAmplifyDamageRate();
@@ -346,7 +347,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(resultDamage)
                 .additionalDamages(additionalDamages)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -367,7 +368,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(resultDamage)
                 .additionalDamages(resultAdditionalDamages)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -387,7 +388,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(resultDamage)
                 .additionalDamages(resultAdditionalDamages)
-                .damageType(damageType)
+                .moveDamageType(damageType)
                 .build();
     }
 
@@ -402,7 +403,7 @@ public class DamageCalcLogic {
         double takenDamageCutRate = targetStatus.getTakenDamageCutRate();
         if (takenDamageCutRate <= 0) return damageDto;
 
-        MoveDamageType damageType = damageDto.getDamageType() == MoveDamageType.BLOCK ? MoveDamageType.BLOCK_CUT : MoveDamageType.CUT;
+        MoveDamageType damageType = damageDto.getMoveDamageType() == MoveDamageType.BLOCK ? MoveDamageType.BLOCK_CUT : MoveDamageType.CUT;
         final double damageCutRate = Math.min(takenDamageCutRate, 1.0); // 상한 100% 하한 X
         double resultDamage = damageDto.getDamage() * (1 - damageCutRate);
         List<Double> resultAdditionalDamages = damageDto.getAdditionalDamages().stream().map(additionalDamage -> additionalDamage * (1 - damageCutRate)).toList();
@@ -411,7 +412,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(resultDamage)
                 .additionalDamages(resultAdditionalDamages)
-                .damageType(damageType)
+                .moveDamageType(damageType)
                 .build();
     }
 
@@ -461,7 +462,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .damage(resultDamage)
                 .additionalDamages(additionalDamages)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -492,6 +493,7 @@ public class DamageCalcLogic {
      */
     protected DamageDto applyHitCountAndRandom(DamageDto damageDto, int hitCount, int attackMultiHitCount, double accuracyRate) {
         double inputDamage = damageDto.getDamage();
+        List<List<String>> damageTypes = new ArrayList<>();
         List<Integer> damages = Collections.nCopies(hitCount * attackMultiHitCount, inputDamage)
                 .stream()
                 .map(damage ->
@@ -521,7 +523,7 @@ public class DamageCalcLogic {
         return DamageDto.builder()
                 .resultDamages(damages)
                 .resultAdditionalDamages(additionalDamagesList)
-                .damageType(damageDto.getDamageType())
+                .moveDamageType(damageDto.getMoveDamageType())
                 .build();
     }
 
@@ -544,10 +546,12 @@ public class DamageCalcLogic {
     @Builder
     @ToString
     protected static class DamageDto {
-        private MoveDamageType damageType;
+        private MoveDamageType moveDamageType;
         private double damage;
         @Builder.Default
         private List<Double> additionalDamages = new ArrayList<>();
+        @Builder.Default
+        private List<List<String>> damageType = new ArrayList<>(); // [ [damage], [additional 1-1, additional 1-2, ...] [additional 2-1, ...] ], 사용 안할때는 빈 배열로 유지
 
         private List<Integer> resultDamages;
         private List<List<Integer>> resultAdditionalDamages;
