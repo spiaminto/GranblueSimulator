@@ -1,0 +1,46 @@
+h1, h2, h3, h4, h5 {
+    font-weight: bold;
+}
+
+input[type="text"] {
+    margin-bottom: 0.5rem;
+}
+
+.input-group input[type="text"] {
+    margin-bottom: 0;
+}
+
+.for-copy {
+    display: none;
+}
+
+.input-container {
+    background-color: white;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.effect-cjs-input-wrapper {
+    background-color: #efefef;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.effect-cjs-input-wrapper.charge-attack {
+    margin-top: 1rem;
+}
+
+.status-input-wrapper {
+    background-color: #efefef;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+body {
+    background-color: #eeeeee;
+    padding: 1rem;
+}
+
+.submit-button {
+    margin-top: 1rem;
+}

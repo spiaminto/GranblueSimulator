@@ -3,7 +3,7 @@ package com.gbf.granblue_simulator.battle.logic;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.repository.ActorRepository;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
@@ -18,10 +18,6 @@ import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResul
 import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,11 +68,11 @@ public class SyncLogic {
 
         List<Member.PendingForAllMove> pendingForAllMoves = currentMember.getPendingForAllMoves();
         if (pendingForAllMoves.isEmpty()) {
-            results.add(characterLogicResultMapper.toResult(Move.getTransientMove(MoveType.SYNC), null, null));
+            results.add(characterLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.SYNC), null, null));
         } else {
             // 참전자 버프 포함하는 move 처리
             pendingForAllMoves.forEach(pendingForAllMove -> {
-                Move move = moveRepository.findById(pendingForAllMove.getMoveId()).orElseThrow(() -> new IllegalArgumentException("[processSync] 참전자 버프 move 없음 moveId = " + pendingForAllMove.getMoveId() + " not found"));
+                BaseMove move = moveRepository.findById(pendingForAllMove.getMoveId()).orElseThrow(() -> new IllegalArgumentException("[processSync] 참전자 버프 move 없음 moveId = " + pendingForAllMove.getMoveId() + " not found"));
                 List<BaseStatusEffect> forAllBaseEffects = move.getBaseStatusEffects().stream().filter(baseStatusEffect -> baseStatusEffect.getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS).toList();
                 SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(partyMembers.getFirst(), forAllBaseEffects, StatusEffectTargetType.PARTY_MEMBERS);
 
@@ -84,7 +80,7 @@ public class SyncLogic {
                 String sourceMoveName = move.getName();
                 String moveName = sourceUsername + "_" + sourceMoveName;
 
-                results.add(characterLogicResultMapper.toResult(Move.getTransientMove(MoveType.SYNC, moveName, move.getDefaultVisual()), null, setStatusEffectResult));
+                results.add(characterLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.SYNC, moveName, move.getDefaultVisual()), null, setStatusEffectResult));
             });
             pendingForAllMoves.clear();
         }

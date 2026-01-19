@@ -17,7 +17,7 @@ import com.gbf.granblue_simulator.battle.service.BattleCommandService;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import com.gbf.granblue_simulator.battle.service.MemberService;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
@@ -212,7 +212,7 @@ public class BattleController {
         Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
-        battleContext.init(findMember, characterId);
+        battleContext.init(findMember, characterId, moveId);
         List<ActorLogicResult> results = battleCommandService.ability(moveId);
 
         List<BattleResponse> responses = responseMapper.toBattleResponse(results);
@@ -398,7 +398,7 @@ public class BattleController {
         List<Integer> triggerHps = baseEnemies.stream()
                 .flatMap(base -> base.getMoves().values().stream()
                         .filter(move -> move.getParentType() == MoveType.STANDBY))
-                .map(Move::getOmen)
+                .map(BaseMove::getOmen)
                 .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER)
                 .map(Omen::getTriggerHps)
                 .flatMap(Collection::stream)
@@ -411,13 +411,13 @@ public class BattleController {
 
         // 소환석 인포
         List<Long> summonMoveIds = leaderCharacter.getSummonMoveIds();
-        List<Move> summonMoves = moveRepository.findAllById(summonMoveIds);
+        List<BaseMove> summonMoves = moveRepository.findAllById(summonMoveIds);
         List<MoveInfo> summonInfos = summonMoves.stream().map(move -> toSummonInfo(move, leaderCharacter)).toList();
         model.addAttribute("summonInfos", summonInfos);
 
         // 페이탈 체인 인포
         Long fatalChainMoveId = member.getFatalChainMoveId();
-        Move fatalChainMove = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
+        BaseMove fatalChainMove = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
         MoveInfo fatalChainInfo = toFatalChainInfo(fatalChainMove);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 

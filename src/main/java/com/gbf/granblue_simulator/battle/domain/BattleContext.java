@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.battle.domain;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
@@ -40,6 +41,8 @@ public class BattleContext {
      */
     private List<Actor> currentFieldActors; // enemy and valid front
 
+    private Long commandAbilityId; // 요청 커맨드 어빌리티 id, 없으면 -1
+
     /**
      * mainCharacter (행동주체, 캐릭터) 설정 <br>
      * 모든 로직 구간에서 사용하는 상태를 직접 관리하므로, 최소한 변경구간을 통일 <br>
@@ -51,7 +54,11 @@ public class BattleContext {
     }
 
     public void init(Member member, Long mainCharacterId) {
+        init(member, mainCharacterId, null);
+    }
+    public void init(Member member, Long mainCharacterId, Long commandAbilityId) {
         this.member = member;
+        this.commandAbilityId = commandAbilityId != null ? commandAbilityId : -1L;
         this.allActors = member.getActors().stream()
                 .sorted(Comparator.comparing(Actor::getCurrentOrder))
                 .toList();

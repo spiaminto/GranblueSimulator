@@ -42,18 +42,18 @@ public class ProcessStatusLogic {
         private Integer damageValue;
     }
 
-    public ProcessStatusLogicResult process(Actor targetActor, BaseStatusEffect effect) {
+    public ProcessStatusLogicResult process(Actor targetActor, StatusEffect effect) {
         return process(targetActor, effect, null);
     }
 
     /**
      * 단일 modifier 에 따른 처리
      * @param targetActor
-     * @param effect
-     * @param selectedModifierType
+     * @param statusEffect
+     * @param selectedModifierType 처리할 modifierType 지정시 필요
      * @return ProcessStatusLogicResult, 처리할 효과가 없다면 null 반환
      */
-    public ProcessStatusLogicResult process(Actor targetActor, BaseStatusEffect effect, StatusModifierType selectedModifierType) {
+    public ProcessStatusLogicResult process(Actor targetActor, StatusEffect statusEffect, StatusModifierType selectedModifierType) {
 
         List<ResultStatusEffectDto> addedStatusEffect = new ArrayList<>();
         List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>();
@@ -61,7 +61,7 @@ public class ProcessStatusLogic {
         Integer damageValue = null;
 
         // ACT_ 있는 modifier 만 처리
-        List<StatusModifier> toProcessModifiers = effect.getStatusModifiers().values().stream()
+        List<StatusModifier> toProcessModifiers = statusEffect.getBaseStatusEffect().getStatusModifiers().values().stream()
                 .filter(modifier -> modifier.getType().needPostProcess())
                 .toList();
         if (toProcessModifiers.isEmpty()) return null; // 없으면 바로 종료
@@ -69,31 +69,32 @@ public class ProcessStatusLogic {
         for (StatusModifier modifier : toProcessModifiers) {
             // 지정된 타입이 있는경우 해당 타입만 처리
             if (selectedModifierType != null && selectedModifierType != modifier.getType()) continue;
+            // CHECK 턴종 처리시 별도의 순서로 처리가 필요해서 다중 modifier 를 가진 StatusEffect 의 중복처리 방지를 위해 작성했으나 유효성에 대해 생각해볼 필요 있음
 
             switch (modifier.getType()) {
                 case ACT_CHARGE_GAUGE_UP:
-                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeUpStatus(targetActor, modifier)));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeUpStatus(targetActor, statusEffect)));
                     break;
                 case ACT_CHARGE_GAUGE_DOWN:
-                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeDownStatus(targetActor, modifier)));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processChargeGaugeDownStatus(targetActor, statusEffect)));
                     break;
                 case ACT_WEAPON_BURST:
-                    addedStatusEffect.add(ResultStatusEffectDto.of(processWeaponBurstStatus(targetActor, modifier)));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processWeaponBurstStatus(targetActor, statusEffect)));
                     break;
                 case ACT_FATAL_CHAIN_GAUGE_UP:
-                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeUpStatus(targetActor, modifier)));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeUpStatus(targetActor, statusEffect)));
                     break;
                 case ACT_FATAL_CHAIN_GAUGE_DOWN:
-                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeDownStatus(targetActor, modifier)));
+                    addedStatusEffect.add(ResultStatusEffectDto.of(processFatalGaugeDownStatus(targetActor, statusEffect)));
                     break;
                 case ACT_DISPEL:
-                    removedStatusEffects.addAll(processDispel(targetActor, modifier).stream().map(ResultStatusEffectDto::of).toList());
+                    removedStatusEffects.addAll(processDispel(targetActor, statusEffect).stream().map(ResultStatusEffectDto::of).toList());
                     break;
                 case ACT_CLEAR:
-                    removedStatusEffects.addAll(processClear(targetActor, modifier).stream().map(ResultStatusEffectDto::of).toList());
+                    removedStatusEffects.addAll(processClear(targetActor, statusEffect).stream().map(ResultStatusEffectDto::of).toList());
                     break;
                 case ACT_HEAL:
-                    int heal = processHeal(targetActor, modifier);
+                    int heal = processHeal(targetActor, statusEffect );
                     if (heal >= 0) {
                         healValue = Objects.requireNonNullElse(healValue, 0) + heal;
                     } else {
@@ -102,7 +103,7 @@ public class ProcessStatusLogic {
                     }
                     break;
                 case ACT_DAMAGE, ACT_RATE_DAMAGE:
-                    int damage = processStatusDamage(targetActor, modifier);
+                    int damage = processStatusDamage(targetActor, statusEffect);
                     damageValue = Objects.requireNonNullElse(damageValue, 0) + damage;
                     break;
                 default:
@@ -124,11 +125,11 @@ public class ProcessStatusLogic {
      * 페이탈 체인 게이지 업 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param fatalGaugeUpModifier
+     * @param statusEffect
      * @return
      */
-    protected StatusEffect processFatalGaugeUpStatus(Actor targetActor, StatusModifier fatalGaugeUpModifier) {
-        chargeGaugeLogic.processFatalChainGaugeFromStatus(targetActor, fatalGaugeUpModifier.getBaseStatusEffect());
+    protected StatusEffect processFatalGaugeUpStatus(Actor targetActor, StatusEffect statusEffect) {
+        chargeGaugeLogic.processFatalChainGaugeUpFromStatus(targetActor, statusEffect);
 
         return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "페이탈 체인 상승", targetActor);
     }
@@ -137,11 +138,11 @@ public class ProcessStatusLogic {
      * 페이탈 체인 게이지 감소 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param fatalGaugeUpModifier
+     * @param statusEffect
      * @return
      */
-    protected StatusEffect processFatalGaugeDownStatus(Actor targetActor, StatusModifier fatalGaugeUpModifier) {
-        chargeGaugeLogic.processFatalChainGaugeFromStatus(targetActor, fatalGaugeUpModifier.getBaseStatusEffect());
+    protected StatusEffect processFatalGaugeDownStatus(Actor targetActor, StatusEffect statusEffect) {
+        chargeGaugeLogic.processFatalChainGaugeDownFromStatus(targetActor, statusEffect);
 
         return StatusEffect.getTransientStatusEffect(StatusEffectType.DEBUFF, "페이탈 체인 감소", targetActor);
     }
@@ -150,11 +151,11 @@ public class ProcessStatusLogic {
      * 오의 게이지 업 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param chargeGaugeUpModifier
+     * @param chargeGaugeUpEffect
      * @return
      */
-    protected StatusEffect processChargeGaugeUpStatus(Actor targetActor, StatusModifier chargeGaugeUpModifier) {
-        chargeGaugeLogic.processChargeGaugeFromStatus(targetActor, chargeGaugeUpModifier.getBaseStatusEffect());
+    protected StatusEffect processChargeGaugeUpStatus(Actor targetActor, StatusEffect chargeGaugeUpEffect) {
+        chargeGaugeLogic.processChargeGaugeUpFromStatus(targetActor, chargeGaugeUpEffect);
 
         return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "오의 게이지 상승", targetActor);
     }
@@ -163,11 +164,11 @@ public class ProcessStatusLogic {
      * 오의 게이지 다운 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param chargeGaugeUpModifier
+     * @param chargeGaugeDownEffect
      * @return
      */
-    protected StatusEffect processChargeGaugeDownStatus(Actor targetActor, StatusModifier chargeGaugeUpModifier) {
-        chargeGaugeLogic.processChargeGaugeFromStatus(targetActor, chargeGaugeUpModifier.getBaseStatusEffect());
+    protected StatusEffect processChargeGaugeDownStatus(Actor targetActor, StatusEffect chargeGaugeDownEffect) {
+        chargeGaugeLogic.processChargeGaugeDownFromStatus(targetActor, chargeGaugeDownEffect);
 
         return StatusEffect.getTransientStatusEffect(StatusEffectType.DEBUFF, "오의 게이지 감소", targetActor);
     }
@@ -177,10 +178,10 @@ public class ProcessStatusLogic {
      * 웨폰버스트 스테이터스를 받아 표시용 BattleStatus 로 반환 (DB 저장 x)
      *
      * @param targetActor
-     * @param weaponBurstModifier
+     * @param weaponBurstEffect
      * @return
      */
-    protected StatusEffect processWeaponBurstStatus(Actor targetActor, StatusModifier weaponBurstModifier) {
+    protected StatusEffect processWeaponBurstStatus(Actor targetActor, StatusEffect weaponBurstEffect) {
         chargeGaugeLogic.setChargeGauge(targetActor, 100);
         return StatusEffect.getTransientStatusEffect(StatusEffectType.BUFF, "오의 사용 가능", targetActor);
     }
@@ -189,11 +190,10 @@ public class ProcessStatusLogic {
      * 디스펠 스테이터스를 받아 디스펠로 삭제된 배틀 스테이터스 (버프) 를 반환
      *
      * @param target
-     * @param dispelModifier
+     * @param dispelEffect
      * @return
      */
-    protected List<StatusEffect> processDispel(Actor target, StatusModifier dispelModifier) {
-        BaseStatusEffect dispelBaseStatusEffect = dispelModifier.getBaseStatusEffect();
+    protected List<StatusEffect> processDispel(Actor target, StatusEffect dispelEffect) {
         return getEffectByModifierType(target, StatusModifierType.ACT_DISPEL_GUARD)
                 .map(dispelGuardStatus -> {
                     // 디스펠 가드 성공
@@ -201,10 +201,11 @@ public class ProcessStatusLogic {
                     statusEffectRepository.delete(dispelGuardStatus);
                     return List.of(dispelGuardStatus);
                 }).orElseGet(() -> {
+                    int dispelValue = (int) dispelEffect.getModifierValue(StatusModifierType.ACT_DISPEL); // 적의 dispel 은 99정도로 들어옴
                     List<StatusEffect> dispelledStatusEffects = target.getStatusEffects().stream()
                             .filter(status -> status.getBaseStatusEffect().getType().isBuff() && status.getBaseStatusEffect().isRemovable())
                             .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
-                            .limit((int) dispelBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_DISPEL).getValue()) // 적의 dispel 은 99정도로 들어옴
+                            .limit(dispelValue)
                             .toList();
                     target.getStatusEffects().removeAll(dispelledStatusEffects);
                     statusEffectRepository.deleteAll(dispelledStatusEffects);
@@ -216,15 +217,15 @@ public class ProcessStatusLogic {
      * 클리어 스테이터스를 받아 삭제된 배틀 스테이터스 (디버프) 를 반환
      *
      * @param target
-     * @param clearModifier
+     * @param clearEffect
      * @return
      */
-    protected List<StatusEffect> processClear(Actor target, StatusModifier clearModifier) {
-        BaseStatusEffect clearBaseStatusEffect = clearModifier.getBaseStatusEffect();
+    protected List<StatusEffect> processClear(Actor target, StatusEffect clearEffect) {
+        int clearValue = (int) clearEffect.getModifierValue(StatusModifierType.ACT_CLEAR);
         List<StatusEffect> clearedStatusEffects = target.getStatusEffects().stream()
                 .filter(status -> status.getBaseStatusEffect().getType().isDebuff() && status.getBaseStatusEffect().isRemovable())
                 .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
-                .limit((int) clearBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_CLEAR).getValue())
+                .limit(clearValue)
                 .toList(); // 해제될 디버프 (클리어의 value 값 갯수만큼만 최근에 추가된 디버프부터 해제함)
         target.getStatusEffects().removeAll(clearedStatusEffects);
         statusEffectRepository.deleteAll(clearedStatusEffects);
@@ -236,15 +237,14 @@ public class ProcessStatusLogic {
      * HEAL, HEAL_FOR_ALL, BUFF.TURN_RECOVERY 에서 사용
      *
      * @param target
-     * @param healModifier
+     * @param healEffect
      * @return
      */
-    protected int processHeal(Actor target, StatusModifier healModifier) {
-        BaseStatusEffect healBaseStatusEffect = healModifier.getBaseStatusEffect();
+    protected int processHeal(Actor target, StatusEffect healEffect) {
         Integer currentHp = target.getHp();
-        int healInitValue = (int) healBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_HEAL).getValue();
+        double healInitValue = (int) healEffect.getModifierValue(StatusModifierType.ACT_HEAL);
         boolean hasUndeadEffect = getEffectByModifierType(target, StatusModifierType.UNDEAD).isPresent(); // 언데드 있을경우 회복상승 적용 x, 회복량을 음수로
-        boolean isForAllHealEffect = healBaseStatusEffect.getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS; // 참전자 힐인경우, 언데드 무효
+        boolean isForAllHealEffect = healEffect.getBaseStatusEffect().getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS; // 참전자 힐인경우, 언데드 무효
         double healRate = hasUndeadEffect && !isForAllHealEffect ? -1 : target.getStatus().getStatusDetails().getCalcedHealRate();
         int resultHealValue = (int) (healInitValue * healRate);
         int healedHp = currentHp + resultHealValue;
@@ -253,17 +253,19 @@ public class ProcessStatusLogic {
         return resultHealValue;
     }
 
-    protected int processStatusDamage(Actor target, StatusModifier damageModifier) {
-        BaseStatusEffect damageBaseStatusEffect = damageModifier.getBaseStatusEffect();
-        StatusModifier constantDamageEffect = damageBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_DAMAGE);
-        StatusModifier rateDamageEffect = damageBaseStatusEffect.getStatusModifiers().get(StatusModifierType.ACT_RATE_DAMAGE);
+    protected int processStatusDamage(Actor target, StatusEffect damageEffect) {
+        // CHECK 체력비례데미지와 고정 데미지가 모두 붙은 상태효과는 없음을 전제로함
+        boolean isConstantDamageEffect = damageEffect.hasModifier(StatusModifierType.ACT_DAMAGE);
+        double damageValue = isConstantDamageEffect
+                ? damageEffect.getModifierValue(StatusModifierType.ACT_DAMAGE)
+                : damageEffect.getModifierValue(StatusModifierType.ACT_RATE_DAMAGE);
 
         int currentHp = target.getHp();
-        int damage = constantDamageEffect != null
-                ? (int) constantDamageEffect.getValue() // 고정데미지
-                : (int) (target.getMaxHp() * rateDamageEffect.getValue()); // 비율은 최대체력 비율
+        int damage = isConstantDamageEffect
+                ? (int) damageValue
+                : (int) (target.getMaxHp() * damageValue);
 
-        Integer damagedHp = Math.max(currentHp - damage, 0); // 하한 0
+        int damagedHp = Math.max(currentHp - damage, 0); // 하한 0
         target.updateHp(damagedHp);
 //        log.info("[processStatusDamage] battleActor.name = {} currentHp = {}, healInitValue = {}, resultHealRate = {}, healedHp = {}", target.getName(), currentHp, healInitValue, resultHealRate, healedHp);
         return damage;

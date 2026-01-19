@@ -11,6 +11,8 @@ public enum EffectVisualType {
     SPECIAL,    // sp, nsp, summons
     ADDITIONAL_SPECIAL,
 
+    SUMMON,
+
     CHARGE_ATTACK, // nsp, esp
     ADDITIONAL_CHARGE_ATTACK, // esp
 

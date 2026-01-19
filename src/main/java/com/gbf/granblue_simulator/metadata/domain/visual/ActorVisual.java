@@ -22,23 +22,21 @@ public class ActorVisual {
 
     private String name; // 한글이름, actor.name 따라갈 예정
 
-    @OneToMany(mappedBy = "actorVisual")
-    @ToString.Exclude
-    private List<EffectVisual> effectVisuals = new ArrayList<>();
-
-    @Transient @ToString.Exclude
-    private List<EffectVisual> attackVisuals = new ArrayList<>();
-    @Transient @ToString.Exclude
-    private List<EffectVisual> chargeAttackVisuals = new ArrayList<>();
-    @Transient @ToString.Exclude
-    private List<EffectVisual> additionalChargeAttackVisuals = new ArrayList<>();
-
     private String cjsName; // mainCjs
     private String additionalCjsName; // additionalCjsName (주로 보스용)
 
     private String weaponId;
     private String gid; // 참조용 gbf id
 
+    @OneToMany(mappedBy = "actorVisual")
+    @ToString.Exclude
+    private List<EffectVisual> effectVisuals = new ArrayList<>();
+    @Transient @ToString.Exclude
+    private List<EffectVisual> attackVisuals = new ArrayList<>();
+    @Transient @ToString.Exclude
+    private List<EffectVisual> chargeAttackVisuals = new ArrayList<>();
+    @Transient @ToString.Exclude
+    private List<EffectVisual> additionalChargeAttackVisuals = new ArrayList<>();
     @PostLoad
     protected void initEffectVisuals() { // 맵 도 고려
         Map<EffectVisualType, List<EffectVisual>> map = effectVisuals.stream()

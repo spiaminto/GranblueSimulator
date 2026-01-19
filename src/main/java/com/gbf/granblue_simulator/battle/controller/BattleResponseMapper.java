@@ -3,9 +3,8 @@ package com.gbf.granblue_simulator.battle.controller;
 import com.gbf.granblue_simulator.battle.controller.dto.response.BattleResponse;
 import com.gbf.granblue_simulator.battle.controller.dto.response.OmenDto;
 import com.gbf.granblue_simulator.battle.controller.dto.response.StatusDto;
-import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
@@ -37,7 +36,7 @@ public class BattleResponseMapper {
 
         return results.stream().map(result -> {
                     Actor mainActor = result.getMainActor();
-                    Move move = result.getMove();
+                    BaseMove move = result.getMove();
                     String moveCjsName = move.getDefaultVisual() != null ? move.getDefaultVisual().getCjsName() : "";
 
                     OmenResult omenResult = result.getOmenResult();

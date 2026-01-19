@@ -9,7 +9,7 @@ import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,7 +25,7 @@ public class SummonLogic {
     private final BattleContext battleContext;
 
 
-    public ActorLogicResult processSummon(Move summonMove, boolean isUnionSummon) {
+    public ActorLogicResult processSummon(BaseMove summonMove, boolean isUnionSummon) {
         Actor leaderCharacter = battleContext.getLeaderCharacter();
         battleContext.setCurrentMainActor(leaderCharacter);
         int summonIndex = leaderCharacter.getSummonMoveIds().indexOf(summonMove.getId());

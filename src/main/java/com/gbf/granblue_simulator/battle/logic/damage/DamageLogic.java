@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.damage;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
@@ -28,7 +28,7 @@ public class DamageLogic {
     private final DamageCalcLogic damageCalcLogic;
     private final SetStatusLogic setStatusLogic;
 
-    public DamageLogicResult processPartyDamage(Move move) {
+    public DamageLogicResult processPartyDamage(BaseMove move) {
         return processPartyDamage(battleContext.getEnemy(), move);
     }
 
@@ -39,7 +39,7 @@ public class DamageLogic {
      * @param move
      * @return
      */
-    public DamageLogicResult processPartyDamage(Actor targetActor, Move move) {
+    public DamageLogicResult processPartyDamage(Actor targetActor, BaseMove move) {
         return processPartyDamage(targetActor, move.getType(), move.getElementType(), move.getDamageRate(), move.getHitCount(), move.getDamageConstant());
     }
 
@@ -125,7 +125,7 @@ public class DamageLogic {
                 .build();
     }
 
-    public DamageLogicResult processEnemyDamage(List<Actor> targetActors, Move move) {
+    public DamageLogicResult processEnemyDamage(List<Actor> targetActors, BaseMove move) {
         return processEnemyDamage(targetActors, move, null);
     }
 
@@ -138,7 +138,7 @@ public class DamageLogic {
      * @param move
      * @return DamageLogicResult: List<BattleActor> targetActors 와 동일순서, 1대1 대응하는 데미지결과
      */
-    public DamageLogicResult processEnemyDamage(List<Actor> targetActors, Move move, Double modifiedDamageRate) {
+    public DamageLogicResult processEnemyDamage(List<Actor> targetActors, BaseMove move, Double modifiedDamageRate) {
         Actor mainActor = battleContext.getEnemy();
         log.info("[processEnemyDamage] move = {} move.getDamageRate = {} modifiedDamageRate = {}", move, move.getDamageRate(), modifiedDamageRate);
 

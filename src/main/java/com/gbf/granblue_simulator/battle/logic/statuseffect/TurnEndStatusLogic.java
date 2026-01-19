@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.logic.actor.character.CharacterLogicResultMapper;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.enemy.EnemyLogicResultMapper;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusDurationType;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectsByModifierTypes;
+import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
 @Component
 @Slf4j
@@ -75,7 +75,7 @@ public class TurnEndStatusLogic {
         // 스테이터스 갱신
         allActors.forEach(actor -> actor.getStatus().syncStatus());
 
-        return enemyLogicResultMapper.toResult(Move.getTransientMove(MoveType.TURN_FINISH));
+        return enemyLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.TURN_FINISH));
     }
 
     /**
@@ -131,52 +131,62 @@ public class TurnEndStatusLogic {
      * @return
      */
     protected List<ActorLogicResult> process(List<Actor> targetActors, StatusModifierType modifierType, MoveType transientMoveType) {
-        List<SetStatusEffectResult> setStatusEffectResults = new ArrayList<>();
-        // modifier 를 가진 모든 스테이터스를 key, 해당 스테이터스가 부여된 actor 를 value 로
-        Map<BaseStatusEffect, List<Actor>> statusMap = getStatusMapByModifier(targetActors, modifierType);
-        // 스테이터스 1개마다 결과 전부 만듦
-        statusMap.forEach((status, targets) -> {
+        Map<BaseStatusEffect, SetStatusEffectResult> statusEffectResultMap = new HashMap<>();
+        Map<StatusEffect, Actor> statusTargetMap = getStatusMapByModifier(targetActors, modifierType); // modifierType 을 가진 모든 StatusEffect 를 key 로 하는 타겟맵 (StatusEffect 기준이므로 Actor 는 1:1 대응)
+        statusTargetMap.forEach((statusEffect, target) -> {
+            ProcessStatusLogic.ProcessStatusLogicResult processResult = processStatusLogic.process(target, statusEffect, modifierType);
+
+            // StatusEffect 마다 결과를 전부 만듦 (같은 효과라도 레벨 등이 달라 효과량이 다를수 있음)
             Map<Long, SetStatusEffectResult.Result> results = new HashMap<>();
-            targets.forEach(target -> {
-                ProcessStatusLogic.ProcessStatusLogicResult processResult = processStatusLogic.process(target, status, modifierType);
+            results.put(target.getId(), SetStatusEffectResult.Result.builder()
+                    .actorId(target.getId())
+                    .addedStatusEffects(processResult.getAddedStatusEffects())
+                    .removedStatusEffects(processResult.getRemovedStatusEffects())
+                    .healValue(processResult.getHealValue())
+                    .damageValue(processResult.getDamageValue())
+                    .build());
 
-                if (results.containsKey(target.getId())) throw new IllegalArgumentException("턴 종료 상태효과 적용시, 하나의 상태효과가 여러타겟에 적용");
-                results.put(target.getId(), SetStatusEffectResult.Result.builder()
-                        .actorId(target.getId())
-                        .addedStatusEffects(processResult.getAddedStatusEffects())
-                        .removedStatusEffects(processResult.getRemovedStatusEffects())
-                        .healValue(processResult.getHealValue())
-                        .damageValue(processResult.getDamageValue())
-                        .build());
-            });
-
-            setStatusEffectResults.add(SetStatusEffectResult.builder().results(results).build());
+            // StatusEffect.BaseStatusEffect 가 같은것 끼리 merge
+            statusEffectResultMap.merge(
+                    statusEffect.getBaseStatusEffect(),
+                    SetStatusEffectResult.builder().results(results).build()
+                    , (existing, current) -> {
+                        existing.merge(current);
+                        return existing;
+                    });
         });
 
-        Move move = Move.getTransientMove(transientMoveType);
-        List<ActorLogicResult> logicResults = setStatusEffectResults.stream()
+        BaseMove move = BaseMove.getTransientMove(transientMoveType);
+        List<ActorLogicResult> logicResults = statusEffectResultMap.values().stream()
                 .map(setStatusResult -> characterLogicResultMapper.toResult(move, null, setStatusResult))
                 .toList();
-        return logicResults;
+        return logicResults; // 같은 modifierType 계열에서는 정렬하지 않음
     }
 
 
     /**
-     * 파라미터로 받은 modifier 를 포함하는 StatusEffect 를 가진 Actor를 BaseStatusEffect 를 key 로 하여 반환
-     * 스테이터스와 부여된 Actor 쌍으로 처리를 위해 사용
+     * 파라미터로 받은 modifier 를 포함하는 StatusEffect 를 가진 Actor를 StatusEffect 를 key 로 하여 반환<br>
+     * 스테이터스와 부여된 Actor 쌍으로 처리를 위해 사용 (StatusEffect 역시 엔티티이므로 Actor 와 1:1 대응)
      *
      * @param targets
-     * @param modifierTypes
-     * @return
+     * @param modifierType
+     * @return StatusEffect 를 key 로하는 맵. StatusEffect.BaseStatusEffect 가 같아도 별도로 취급되어 반환됨
      */
-    protected Map<BaseStatusEffect, List<Actor>> getStatusMapByModifier(List<Actor> targets, StatusModifierType... modifierTypes) {
-        return targets.stream()
-                .flatMap(target -> getEffectsByModifierTypes(target, modifierTypes)
-                        .stream()
-                        .map(battleStatus -> Map.entry(battleStatus.getBaseStatusEffect(), target)))
-                .collect(Collectors.groupingBy(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    protected Map<StatusEffect, Actor> getStatusMapByModifier(List<Actor> targets, StatusModifierType modifierType) {
+        Map<StatusEffect, Actor> resultMap = new HashMap<>();
+
+        for (Actor target : targets) {
+            List<StatusEffect> effects = getEffectsByModifierType(target, modifierType);
+            if (effects.isEmpty()) continue;
+            for (StatusEffect effect : effects) {
+                resultMap.put(effect, target);
+            }
+        }
+
+        resultMap.forEach((key, value) -> {
+            log.info("[getStatusMapByModifier] key = {}, value = {}", key.getBaseStatusEffect().getName(), value.getName());
+        });
+        return resultMap;
     }
 
 

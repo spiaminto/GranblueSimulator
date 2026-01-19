@@ -12,7 +12,7 @@ import com.gbf.granblue_simulator.battle.repository.MemberRepository;
 import com.gbf.granblue_simulator.battle.repository.RoomRepository;
 import com.gbf.granblue_simulator.battle.repository.StatusRepository;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import com.gbf.granblue_simulator.metadata.repository.BaseActorRepository;
@@ -104,11 +104,11 @@ public class MemberService {
                                     moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, actor.getElementType()).getFirst().getId() :
                                     null;
                             member.updateFatalChainMoveId(fatalChainMoveId);
-                            List<Move> summons = actor.isLeaderCharacter() ?
+                            List<BaseMove> summons = actor.isLeaderCharacter() ?
                                     moveRepository.findAllById(party.getSummonIds()) :
                                     Collections.emptyList();
-                            List<Long> summonMoveIds = summons.stream().map(Move::getId).toList();
-                            List<Integer> summonCoolDowns = summons.stream().map(Move::getCoolDown).toList();
+                            List<Long> summonMoveIds = summons.stream().map(BaseMove::getId).toList();
+                            List<Integer> summonCoolDowns = summons.stream().map(BaseMove::getCoolDown).toList();
                             ActorVisual actorVisual = actor.getDefaultVisual();
                             log.info("[createBattleActors] actor.name = {}, indexOf = {}", actor.getName(), baseActors.indexOf(actor));
                             return Character.builder()
@@ -143,8 +143,8 @@ public class MemberService {
                 .filter(actor -> actor.getBaseActor().isLeaderCharacter())
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("[createBAttleActors] leader 없음, memberId = " + member.getId()));
-        List<Move> fatalChainMoves = moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, leaderActor.getElementType());
-        Move fatalChainMove = fatalChainMoves.getFirst();
+        List<BaseMove> fatalChainMoves = moveRepository.findByTypeAndElementType(MoveType.FATAL_CHAIN_DEFAULT, leaderActor.getElementType());
+        BaseMove fatalChainMove = fatalChainMoves.getFirst();
         member.updateFatalChainMoveId(fatalChainMove.getId());
 
         Status enemyStatus = Status.builder().build();

@@ -10,7 +10,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class CharacterLogicResultMapper {
      * @return
      */
     public ActorLogicResult emptyResult() {
-        return ActorLogicResult.builder().move(Move.getTransientMove(MoveType.NONE)).build();
+        return ActorLogicResult.builder().move(BaseMove.getTransientMove(MoveType.NONE)).build();
     }
 
     public ActorLogicResult fromDefaultResult(DefaultActorLogicResult defaultActorLogicResult) {
@@ -49,7 +49,7 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResult(Move move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
+    public ActorLogicResult toResult(BaseMove move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
         return map(move, damageLogicResult, statusResult, false, null, false);
     }
 
@@ -61,7 +61,7 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toUnionSummonResult(Move move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
+    public ActorLogicResult toUnionSummonResult(BaseMove move, DamageLogicResult damageLogicResult, SetStatusEffectResult statusResult) {
         return map(move, damageLogicResult, statusResult, true, null, true);
     }
 
@@ -73,14 +73,14 @@ public class CharacterLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResultWithExecuteAttack(Move move,
+    public ActorLogicResult toResultWithExecuteAttack(BaseMove move,
                                                       DamageLogicResult damageLogicResult,
                                                       SetStatusEffectResult statusResult,
                                                       StatusEffectTargetType executeAttackTargetType) {
         return map(move, damageLogicResult, statusResult, false, executeAttackTargetType, false);
     }
 
-    protected ActorLogicResult map(Move move,
+    protected ActorLogicResult map(BaseMove move,
                                    DamageLogicResult damageLogicResult,
                                    SetStatusEffectResult setStatusEffectResult,
                                    boolean executeChargeAttack,

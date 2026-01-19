@@ -1,8 +1,7 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifier;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import lombok.*;
@@ -45,31 +44,43 @@ public class StatusDetails implements Cloneable {
     // 공인 - 일반항
     private double atkUpRate;
     private double atkDownRate;
-
     protected double getCalcedAtkRate() {
         return Math.max(atkUpRate - atkDownRate, -0.99); // 공격력 상승 상한 X, 공격력 감소 상한 -99%
     }
 
-    public int getCalcedAtk(double hpRate) {
-        double resultAtk = baseAtk
-                * (1 + this.getCalcedAtkRate())
-                * (1 + this.getWeaponAtkUpRate())
-                * (1 + this.getCalcedStrengthRate(hpRate))
-                * (1 + this.getCalcedJammedRate(hpRate))
-                * (1 + this.getUniqueUpRate());
-        return (int) resultAtk;
+    // 공인 - 속성항
+    private double atkFireUpRate;
+    private double atkFireDownRate;
+    private double atkWaterUpRate;
+    private double atkWaterDownRate;
+    private double atkEarthUpRate;
+    private double atkEarthDownRate;
+    private double atkWindUpRate;
+    private double atkWindDownRate;
+    private double atkLightUpRate;
+    private double atkLightDownRate;
+    private double atkDarkUpRate;
+    private double atkDarkDownRate;
+    protected double getElementAtkRate(ElementType elementType) {
+        return switch (elementType) {
+            case FIRE -> Math.max(atkFireUpRate - atkFireDownRate, -0.99);
+            case WATER -> Math.max(atkWaterUpRate - atkWaterDownRate, -0.99);
+            case EARTH -> Math.max(atkEarthUpRate - atkEarthDownRate, -0.99);
+            case WIND -> Math.max(atkWindUpRate - atkWindDownRate, -0.99);
+            case LIGHT -> Math.max(atkLightUpRate - atkLightDownRate, -0.99);
+            case DARK -> Math.max(atkDarkUpRate - atkDarkDownRate, -0.99);
+            default -> 0;
+        };
     }
 
     // 공인 - 혼신항
     private double strengthRate;
-
     public double getCalcedStrengthRate(double hpRate) {
         return hpRate > 0.5 ? this.strengthRate * hpRate : this.strengthRate * 0.5; // 아군의 체력이 50% 미만이면 최소배율 (50%) 적용
     }
 
     // 공인 - 배수항
     private double jammedRate;
-
     public double getCalcedJammedRate(double hpRate) {
         return hpRate < 0.5 ? this.jammedRate * (1 - hpRate) : this.jammedRate * 0.5; // 아군의 체력이 50% 초과면 최소배율 (50%) 적용
     }
@@ -77,20 +88,50 @@ public class StatusDetails implements Cloneable {
     // 공인 - 별항
     private double uniqueUpRate;
 
+    public int getCalcedAtk(double hpRate, ElementType elementType) {
+        double resultAtk = baseAtk
+                * (1 + this.getCalcedAtkRate())
+                * (1 + this.getElementAtkRate(elementType))
+                * (1 + this.getWeaponAtkUpRate())
+                * (1 + this.getCalcedStrengthRate(hpRate))
+                * (1 + this.getCalcedJammedRate(hpRate))
+                * (1 + this.getUniqueUpRate());
+        return (int) resultAtk;
+    }
+
     /* 방어 */
     // 방어 - 일반항
     private double defUpRate;
     private double defDownRate;
-
-    protected double getCalcedDefRate() {
-        return Math.max(defUpRate - defDownRate, -0.5); // 방어령 상승 X, 하한 -50%
+    // 방어 - 속성항
+    private double fireDefDown;
+    private double waterDefDown;
+    private double earthDefDown;
+    private double windDefDown;
+    private double lightDefDown;
+    private double darkDefDown;
+    protected double getElementDefDown(ElementType elementType) {
+        return switch (elementType) {
+            case FIRE -> this.fireDefDown;
+            case WATER -> this.waterDefDown;
+            case EARTH -> this.earthDefDown;
+            case WIND -> this.windDefDown;
+            case LIGHT -> this.lightDefDown;
+            case DARK -> this.darkDefDown;
+            default -> 0; // 무속성 0 반환, 기본 Status.def 에서 PLAIN 으로 사용
+        };
+    }
+    protected double getCalcedDefRate(ElementType elementType) {
+        double basicDefRate = Math.max(defUpRate - defDownRate, -0.5); // 방어령 상승 X, 하한 -50%
+        double elementDefDown = getElementDefDown(elementType);
+        return basicDefRate - elementDefDown; // 속성깎은 추가로 들어감
     }
 
-    public double getCalcedDef() {
+    public double getCalcedDef(ElementType elementType) {
         double resultDef = baseDef
-                * (1 + this.getCalcedDefRate());
+                * (1 + this.getCalcedDefRate(elementType));
         resultDef = Math.ceil(resultDef * 10) / 10; // 소숫점 1째자리 까지만 허용
-        return resultDef;
+        return Math.max(resultDef, 1); // 최소값 1
     }
 
     /* 수호 */
@@ -315,7 +356,7 @@ public class StatusDetails implements Cloneable {
      * 스테이터스 변동 동기화
      */
     public void syncStatusDetails(Actor actor) {
-        Map<StatusModifierType, List<StatusModifier>> map = getModifierMap(actor);
+        Map<StatusModifierType, List<StatusEffect>> map = getModifierMap(actor);
         this.atkUpRate = getModifierValueSum(map, ATK_UP);
         this.atkDownRate = getModifierValueSum(map, ATK_DOWN);
         this.strengthRate = getModifierValueSum(map, STRENGTH);
@@ -324,6 +365,13 @@ public class StatusDetails implements Cloneable {
 
         this.defUpRate = getModifierValueSum(map, DEF_UP);
         this.defDownRate = getModifierValueSum(map, DEF_DOWN);
+
+        this.fireDefDown = getModifierValueMax(map, DEF_FIRE_DOWN);
+        this.waterDefDown = getModifierValueMax(map, DEF_WATER_DOWN);
+        this.earthDefDown = getModifierValueMax(map, DEF_EARTH_DOWN);
+        this.windDefDown = getModifierValueMax(map, DEF_WIND_DOWN);
+        this.lightDefDown = getModifierValueMax(map, DEF_LIGHT_DOWN);
+        this.darkDefDown = getModifierValueMax(map, DEF_DARK_DOWN);
 
         this.maxHpDownRate = getModifierValueSum(map, MAX_HP_DOWN);
 

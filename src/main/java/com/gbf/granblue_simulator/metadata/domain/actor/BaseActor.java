@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.metadata.domain.actor;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import jakarta.persistence.*;
@@ -25,7 +25,7 @@ public abstract class BaseActor {
     private String dtype;
 
     @OneToMany(mappedBy = "baseActor") @MapKey(name = "type") @ToString.Exclude @EqualsAndHashCode.Exclude
-    private Map<MoveType, Move> moves = new HashMap<>();
+    private Map<MoveType, BaseMove> moves = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
     private ElementType elementType; // 속성
@@ -65,7 +65,7 @@ public abstract class BaseActor {
     }
 
     // TODO insert 관련 추가 수정필요
-    public void initCharacterBaseStatus() {
+    public void initCharacterBaseStatus(boolean isLeaderCharacter) {
         this.atk = 10000;
         this.maxHp = 20000;
         this.def = 2.0;
@@ -79,6 +79,13 @@ public abstract class BaseActor {
         this.chargeGaugeIncreaseRate = 0.0;
         this.accuracyRate = 1.0;
         this.dodgeRate = 0;
+
+        if (isLeaderCharacter) { // 주인공 보정
+            this.atk = 15000;
+            this.maxHp = 25000;
+            this.doubleAttackRate = 0.5;
+            this.tripleAttackRate = 0.25;
+        }
     }
     
     public void initEnemyBaseStatus() {

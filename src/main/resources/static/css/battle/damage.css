@@ -52,7 +52,7 @@
     -webkit-text-fill-color: transparent;
 }
 
-.damage-wrapper .element-type-none {
+.damage-wrapper .element-type-plain {
     background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb);
     -webkit-text-stroke: 1px #55443e;
     -webkit-background-clip: text;

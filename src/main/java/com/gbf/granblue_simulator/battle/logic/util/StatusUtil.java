@@ -1,9 +1,8 @@
 package com.gbf.granblue_simulator.battle.logic.util;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifier;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
@@ -11,60 +10,29 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.mapping;
-import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public final class StatusUtil {
 
     /**
-     *  Effect: StatusEffect
-     *  BaseEffect: BaseStatusEffect
-     *  BasicEffect / BasicBaseEffect : 기본 상태효과
-     */
-
-
-    /**
-     * 특정 ModifierType 이 중복 적용되었을때 (주로 고유 상태효과의 별항효과들), Modifier.value 가 최대값인 StatusEffect 를 반환 <br>
-     * 난격 (ATTACK_MULTI_HIT), 재행동 (MULTI_STRIKE) 에서 사용중
-     *
-     * @param actor
-     * @param statusModifierType 합산할 modifier 타입
-     * @return 없으면 0
-     */
-    public static double getEffectIsMaxValue(Actor actor, StatusModifierType statusModifierType) {
-        List<StatusModifier> statusModifiers = getModifierMap(actor).getOrDefault(statusModifierType, Collections.emptyList());
-        return statusModifiers == null || statusModifiers.isEmpty() ?
-                0 :
-                statusModifiers.stream()
-                        .map(StatusModifier::getCalcValue)
-                        .mapToDouble(Double::doubleValue)
-                        .max().orElse(0);
-    }
-
-    /**
      * Actor.StatusEffects 를 각각의 StatusModifier 를 기준으로 Map<StatusModifierType, List<StatusEffect>> 로 변환 (플랫화) <br>
-     * 이때, Modifier 를 통한 계산을 원할히 하기 위해 Modifier.level 을 현재 StatusEffect 의 레벨로 설정
      *
      * @param actor
      * @return
      */
-    public static Map<StatusModifierType, List<StatusModifier>> getModifierMap(Actor actor) {
-        return actor.getStatusEffects().stream()
-                .map(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().values().stream()
-                        .map(statusModifier -> statusModifier.setCurrentLevel(statusEffect.getLevel())) // Modifier 에 계산된 레벨 설정
-                        .toList())
-                .flatMap(List::stream)
-                .collect(Collectors.groupingBy(
-                                StatusModifier::getType,
-                                mapping(Function.identity(), toList())
-                        )
-                );
+    public static Map<StatusModifierType, List<StatusEffect>> getModifierMap(Actor actor) {
+        Map<StatusModifierType, List<StatusEffect>> map = new EnumMap<>(StatusModifierType.class);
+
+        for (StatusEffect statusEffect : actor.getStatusEffects()) {
+            for (StatusModifierType type : statusEffect.getBaseStatusEffect().getStatusModifiers().keySet()) { // StatusModifierType 으로 순회
+                map.computeIfAbsent(type, key -> new ArrayList<>()).add(statusEffect); // StatusModifierType key 로 추가, 없으면 새로 생성해서 삽입
+            }
+        }
+
+        return map;
     }
 
     /**
@@ -101,7 +69,7 @@ public final class StatusUtil {
      * @return
      * @throws IllegalArgumentException 해당 이름의 상태효과 가 없음
      */
-    public static BaseStatusEffect getBaseEffectByNameFromMove(Move move, String name) {
+    public static BaseStatusEffect getBaseEffectByNameFromMove(BaseMove move, String name) {
         return move.getBaseStatusEffects().stream()
                 .filter(status -> status.getName().contains(name))
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("해당 이름의 상태효과 없음"));
@@ -115,7 +83,7 @@ public final class StatusUtil {
      * @param name
      * @return
      */
-    public static Optional<BaseStatusEffect> checkBaseEffectByNameFromMove(Move move, String name) {
+    public static Optional<BaseStatusEffect> checkBaseEffectByNameFromMove(BaseMove move, String name) {
         return move.getBaseStatusEffects().stream()
                 .filter(status -> status.getName().contains(name))
                 .findFirst();
@@ -156,43 +124,31 @@ public final class StatusUtil {
      */
     public static Optional<StatusEffect> getEffectByModifierType(Actor actor, StatusModifierType statusModifierType) {
         return actor.getStatusEffects().stream()
-                .filter(battleStatus -> battleStatus.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType))
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType))
                 .findFirst();
     }
 
     /**
-     * 해당 statusEffectType 중 하나라도 가진 StatusEffect 모두 반환
+     * 해당 statusEffectType 를 가진 StatusEffect 모두 반환
      * 턴종 스테이터스 처리시 사용
      *
      * @param actor
-     * @param statusModifierTypes
+     * @param statusModifierType
      * @return
      */
-    public static List<StatusEffect> getEffectsByModifierTypes(Actor actor, StatusModifierType... statusModifierTypes) {
-        return actor.getStatusEffects().stream()
-                .filter(battleStatus -> Arrays.stream(statusModifierTypes)
-                        .anyMatch(statusEffectType -> battleStatus.getBaseStatusEffect().getStatusModifiers().containsKey(statusEffectType))
-                )
-                .toList();
+    public static List<StatusEffect> getEffectsByModifierType(Actor actor, StatusModifierType statusModifierType) {
+        List<StatusEffect> result = new ArrayList<>();
+
+        for (StatusEffect statusEffect : actor.getStatusEffects()) {
+            if (statusEffect.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType)) {
+                result.add(statusEffect);
+            }
+        }
+
+        return result;
+
     }
 
-    /**
-     * 파라미터로 받은 StatusEffectType 를 포함하는 BattleStatus 를 가진 파티 멤버를 BattleStatus.Status 를 key 로 맵으로 변환하여 반환
-     * 같은 스테이터스별로 모아서 처리후 결과를 반환하기 위함.
-     *
-     * @param partyMembers
-     * @param effectTypes
-     * @return
-     */
-    public static Map<BaseStatusEffect, List<Actor>> getStatusMapByEffects(List<Actor> partyMembers, StatusModifierType... effectTypes) {
-        return partyMembers.stream()
-                .flatMap(partyMember -> getEffectsByModifierTypes(partyMember, effectTypes)
-                        .stream()
-                        .map(battleStatus -> Map.entry(battleStatus.getBaseStatusEffect(), partyMember)))
-                .collect(Collectors.groupingBy(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
-    }
 
     /**
      * 주어진 actor 의 StatusEffect 중 baseStatusEffectId 가 같은 것을 반환 (고유 상태 효과)
@@ -253,7 +209,7 @@ public final class StatusUtil {
                 .flatMap(List::stream)
                 .filter(battleStatus -> battleStatus.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType))
                 .max(Comparator
-                        .comparing((StatusEffect statusEffect) -> statusEffect.getBaseStatusEffect().getStatusModifiers().get(statusModifierType).getValue())
+                        .comparing((StatusEffect statusEffect) -> statusEffect.getBaseStatusEffect().getStatusModifiers().get(statusModifierType).getInitValue())
                         .thenComparing(StatusEffect::getCreatedAt))
                 ;
     }
@@ -288,17 +244,41 @@ public final class StatusUtil {
      * 주어진 항의 버프수치 합산을 구함
      *
      * @param statusModifierMap 항 맵
+     * @param type              합산할 Modifier 타입
      * @return 합산수치, 없으면 0
      */
-    public static double getModifierValueSum(Map<StatusModifierType, List<StatusModifier>> statusModifierMap, StatusModifierType type) {
-        List<StatusModifier> statusModifiers = statusModifierMap.get(type);
-        return statusModifiers == null || statusModifiers.isEmpty() ?
-                0 :
-                statusModifiers.stream()
-                        .map(StatusModifier::getCalcValue) // 레벨제 계산후 반환
-                        .mapToDouble(Double::doubleValue)
-//                        .peek(value -> log.info("getModifierValueSum: {}, {}", type, value))
-                        .sum();
+    public static double getModifierValueSum(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = statusModifierMap.get(type);
+        if (statusEffects == null || statusEffects.isEmpty()) return 0;
+
+        double sum = 0;
+        for (StatusEffect effect : statusEffects) {
+            sum += effect.getModifierValue(type); // 합산
+        }
+        return sum;
+    }
+
+    /**
+     * 주어진 항의 modifier 수치를 곱연산 (XX율 끼리의 곱연산)<br>
+     * 같은 항 내부에서 중복적용시 곱연산 하는 일부 효과를 위해 사용
+     * 속성 내성 에서 사용중
+     *
+     * @param statusModifierMap 항 맵
+     * @return 승산수치, 없으면 0
+     */
+    public static double getModifierValueMultiplied(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = statusModifierMap.get(type);
+        if (statusEffects == null || statusEffects.isEmpty()) return 0;
+
+        double productRate = 0;
+        for (StatusEffect effect : statusEffects) {
+            double val = effect.getModifierValue(type);
+            if (val < 0 || val > 1)
+                log.warn("[getModifierValueMultiplied] 승산을 위한 효과량에 주의필요 effectName = {}, value = {}", effect.getBaseStatusEffect().getName(), val);
+            productRate = (productRate + val) - (productRate * val);
+            // 0.5, 0.6 -> 0.8 / 1 * (1 - 0.5) * (1 - 0.6) = 0.2
+        }
+        return productRate;
     }
 
     /**
@@ -309,12 +289,18 @@ public final class StatusUtil {
      * @param statusModifierMap 항 맵
      * @return 최댓값, 없으면 0
      */
-    public static double getModifierValueMax(Map<StatusModifierType, List<StatusModifier>> statusModifierMap, StatusModifierType type) {
-        List<StatusModifier> statusModifiers = statusModifierMap.getOrDefault(type, Collections.emptyList());
-        return statusModifiers.stream()
-                .map(StatusModifier::getCalcValue) // 레벨제 계산후 반환
-                .mapToDouble(Double::doubleValue)
-                .max().orElse(0);
+    public static double getModifierValueMax(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = statusModifierMap.get(type);
+        if (statusEffects == null || statusEffects.isEmpty()) return 0;
+
+        double max = 0;
+        for (StatusEffect effect : statusEffects) {
+            double val = effect.getModifierValue(type);
+            if (val > max) {
+                max = val;
+            }
+        }
+        return max;
     }
 
     /**
@@ -323,17 +309,46 @@ public final class StatusUtil {
      * 피데미지 고정 (TAKEN_DAMAGE_FIX), 블록 효과 (TAKEN_DAMAGE_BLOCK) 에서 사용
      *
      * @param statusModifierMap 항 맵
-     * @return 최댓값, 없으면 -1
+     * @return 최솟값, 없으면 0
      */
-    public static double getModifierValueMin(Map<StatusModifierType, List<StatusModifier>> statusModifierMap, StatusModifierType type) {
-        List<StatusModifier> statusModifiers = statusModifierMap.get(type);
-        return statusModifiers == null || statusModifiers.isEmpty() ?
-                -1 :
-                statusModifiers.stream()
-                        .map(StatusModifier::getCalcValue) // 레벨제 계산후 반환
-                        .mapToDouble(Double::doubleValue)
-                        .min().orElse(-1);
+    public static double getModifierValueMin(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = statusModifierMap.get(type);
+        if (statusEffects == null || statusEffects.isEmpty()) return 0;
+
+        Double min = null; // null 로 초기화 후 사용, null 을 반환하진 않음.
+        for (StatusEffect effect : statusEffects) {
+            double val = effect.getModifierValue(type);
+            if (min == null || val < min) {
+                min = val;
+            }
+        }
+        return min;
     }
+
+    /**
+     * 주어진 항의 modifier 수치중 가장 마지막에 적용된 modifier 의 적용시간을 가져옴 <br>
+     * 피데미지 속성변환 에서 사용중
+     *
+     * @param statusModifierMap 항 맵
+     * @return 최솟값, 없으면 0
+     */
+    public static LocalDateTime getLatestModifierTime(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = new ArrayList<>(statusModifierMap.getOrDefault(type, Collections.emptyList()));
+        if (statusEffects.isEmpty()) return null;
+
+        statusEffects.sort(Comparator.comparing(StatusEffect::getCreatedAt).reversed());
+        LocalDateTime latestTime = statusEffects.getFirst().getCreatedAt();
+        return latestTime;
+    }
+
+
+
+
+    /**
+     *  Effect: StatusEffect
+     *  BaseEffect: BaseStatusEffect
+     *  BasicEffect / BasicBaseEffect : 기본 상태효과
+     */
 
 
 }

@@ -4,7 +4,7 @@ import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
@@ -97,7 +97,7 @@ public class IndaraLogic extends CharacterLogic {
 
     @Override // 데미지, 디버프 극독 7이상일때 데미지와 스테이터스 2회발동
     protected ActorLogicResult firstAbility() {
-        Move ability = selfMove(MoveType.FIRST_ABILITY);
+        BaseMove ability = selfMove(MoveType.FIRST_ABILITY);
         int hitCount = ability.getHitCount();
         List<BaseStatusEffect> selectedBaseStatusEffects = new ArrayList<>(ability.getBaseStatusEffects());
 
@@ -123,7 +123,7 @@ public class IndaraLogic extends CharacterLogic {
 
     @Override // 데미지, 오의게이지 10퍼 업 / 극독 7이상일때 히트수 두배
     protected ActorLogicResult secondAbility() {
-        Move ability = selfMove(MoveType.SECOND_ABILITY);
+        BaseMove ability = selfMove(MoveType.SECOND_ABILITY);
         int hitCount = getEffectByName(battleContext.getEnemy(), "극독")
                 .filter(battleStatus -> battleStatus.getLevel() >= 7)
                 .map(battleStatus -> ability.getHitCount() * 2) // 히트수 두배
@@ -139,7 +139,7 @@ public class IndaraLogic extends CharacterLogic {
 
     @Override // 아군버프, 폼버, 불휴활기 2턴감소
     protected ActorLogicResult thirdAbility() {
-        Move ability = selfMove(MoveType.THIRD_ABILITY);
+        BaseMove ability = selfMove(MoveType.THIRD_ABILITY);
         DefaultActorLogicResult defaultResult = defaultAbility(ability);
         List<StatusEffect> kakkiEffects = getEffectsByName(self(), "불휴활기"); // 여러개임
         if (!kakkiEffects.isEmpty()) {
@@ -170,7 +170,7 @@ public class IndaraLogic extends CharacterLogic {
 
     @Override // 적의 흉역 레벨이 10인 턴 종료시 디스펠효과
     protected ActorLogicResult fourthSupportAbility() {
-        Move ability = battleContext.getMainActor().getMove(MoveType.FOURTH_SUPPORT_ABILITY);
+        BaseMove ability = battleContext.getMainActor().getMove(MoveType.FOURTH_SUPPORT_ABILITY);
         return getEffectByName(battleContext.getEnemy(), "흉역")
                 .filter(battleStatus -> battleStatus.getLevel() >= 10)
                 .map(statusEffect -> defaultAbility(ability))

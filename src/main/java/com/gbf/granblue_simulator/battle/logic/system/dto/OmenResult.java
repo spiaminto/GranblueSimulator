@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.system.dto;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
@@ -22,7 +22,7 @@ public class OmenResult {
     private String motion;
 
     public static OmenResult from(Enemy enemy) {
-        Move standby = enemy.getMove(enemy.getCurrentStandbyType());
+        BaseMove standby = enemy.getMove(enemy.getCurrentStandbyType());
         Omen omen = standby.getOmen();
         return new OmenResult(
                 omen.getOmenType(),

@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
@@ -97,9 +97,6 @@ public abstract class Actor {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-
-    @Transient
-    private MoveType commandType; // 커맨드로 수행하는 어빌리티의 moveType
 
     @ToString.Include(name = "statusEffects") // 출력될 이름 지정
     public List<String> toStringStatusEffects() {
@@ -212,8 +209,8 @@ public abstract class Actor {
      * @param moveType
      * @return 없으면 MoveType.NONE 반환
      */
-    public Move getMove(MoveType moveType) {
-        return this.getBaseActor().getMoves().getOrDefault(moveType, Move.getTransientMove(MoveType.NONE));
+    public BaseMove getMove(MoveType moveType) {
+        return this.getBaseActor().getMoves().getOrDefault(moveType, BaseMove.getTransientMove(MoveType.NONE));
     }
 
     /**
@@ -350,15 +347,6 @@ public abstract class Actor {
      */
     public void progressSummonCoolDown() {
         this.summonCoolDowns.replaceAll(coolDown -> Math.max(0, coolDown - 1));
-    }
-
-    /**
-     * 커맨드로 수행하는 moveType 을 transient 로 설정 <br>
-     * 현재 어빌리티만 설정중
-     * @param moveType
-     */
-    public void updateCommandType(MoveType moveType) {
-        this.commandType = moveType;
     }
 
     /**

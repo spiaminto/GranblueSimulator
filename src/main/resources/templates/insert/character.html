@@ -6,116 +6,113 @@
   <title>캐릭터 삽입</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="/css/insert/insert.css">
   <script src="https://code.jquery.com/jquery.min.js"></script>
   <script src="/js/lib/form-to-json.js"></script>
   <style>
-      h2 {
-          font-weight: bold;
-          margin-top: 1.5rem;
-      }
-
-      h3 {
-          font-weight: bold;
-          margin-top: 1rem;
-      }
-
-      .form-control {
-          width: 95%;
-          margin-left: 1rem;
-      }
-
-      .form-check {
-          margin-left: 1rem;
-      }
-
-      .btn {
-          margin: 1rem 1.5rem;
-      }
-
-      .status-input-wrapper {
-          display: none;
-      }
-
-      .status-input-wrapper-origin {
-          display: none;
-      }
-
-      .attack-input-wrapper {
-          background-color: rgba(0, 255, 0, 0.1);
-      }
-
-      .charge-attack-input-wrapper {
-          background-color: rgba(0, 0, 255, 0.1);
-      }
-
-      .ability-input-wrapper {
-          background-color: rgba(255, 0, 0, 0.1);
-      }
-
 
   </style>
   <script>
+      window.insertStatus = {};
+      if (localStorage.getItem('insertStatus')) insertStatus = JSON.parse(localStorage.getItem('insertStatus'));
       $(function () {
-          // 상태 =================
-          let characterId = null;
-          // 상태 =================
 
-// 스테이터스 복사 및 추가
-          $('.charge-attack-input-wrapper .status-input-wrapper').each(function (index, element) {
-              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
-              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
-              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']')); // name = statues[0].type 의 '[0]' 을 '[index]' 로 수정
-              $(this).append($('.status-input-wrapper-origin').clone()
-                  .find('input, textarea').each(function (index, element) {
-                      $(element).attr('name', changedAttrs[index]);
-                  }).end().html())
-          })
-          $('.ability-input-wrapper .status-input-wrapper').each(function (index, element) {
-              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
-              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
-              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']'));
-              $(this).append($('.status-input-wrapper-origin').clone()
-                  .find('input, textarea').each(function (index, element) {
-                      $(element).attr('name', changedAttrs[index]);
-                  }).end().html())
-          })
-          $('.summon-input-wrapper .status-input-wrapper').each(function (index, element) {
-              let regex = /\[\d+\]/g; // [] 안의 숫자를 찾는 정규식
-              let attrs = $('.status-input-wrapper-origin input, .status-input-wrapper-origin textarea').get().map(element => element.name);
-              let changedAttrs = attrs.map(name => name.replace(regex, '[' + index + ']'));
-              $(this).append($('.status-input-wrapper-origin').clone()
-                  .find('input, textarea').each(function (index, element) {
-                      $(element).attr('name', changedAttrs[index]);
-                  }).end().html())
-          })
+          /**
+           * 상태효과 입력용 .status-input-wrapper 복사 후 name 속성이 array 기반인 요소의 name 속성 값 맞게 지정 및 추가
+           * @param $statusInputAddCheck
+           */
+          function copyStatusInputWrapper($statusInputAddCheck) {
+              let index = $statusInputAddCheck.closest('form').find('.status-input-add-check').index($statusInputAddCheck);
+              let $cloned = $('.status-input-wrapper.for-copy').clone();
+              $cloned.find('input, select, textarea').attr('name', function (i, name) {
+                  return name.replace(/\[\d+\]/g, `[${index}]`);  // "name = statues[0].type" 의 '[0]' 을 '[index]' 로 수정
+              });
+              $statusInputAddCheck.closest('.status-input-add-check-wrapper').after($cloned.removeClass('for-copy'));
+          }
 
-// 스테이터스 체크
-          $('.status-input-check').change(function () {
-              $(this).is(':checked') ? $(this).parent().next().show() : $(this).parent().next().find('input').val('').end().hide();
-          })
-// 통신
-          $('.baseCharacter-submit-button').on('click', function (e) {
-              let requestData = serializeJson($('#characterInputForm').get(0));
-              ajaxRequest("/insert/baseCharacter", requestData);
-          })
-          $('.charge-attack-submit-button').on('click', function (e) {
+          // 상태효과 '있음' 체크하면 복사해서추가
+          $('.status-input-add-check').change(function () {
+              $(this).is(':checked')
+                  ? copyStatusInputWrapper($(this))
+                  : $(this).closest('.status-input-add-check-wrapper').next().remove();
+          });
+
+          function copyStatusInputAddCheckWrapper($inputContainer, count = 5) {
+              let $statusInputContainer = $inputContainer.find('.status-input-container');
+              for (let i = 0; i < count; i++) {
+                  let $clonedAddCheckWrapper = $('.status-input-add-check-wrapper.for-copy').clone(true);
+                  $clonedAddCheckWrapper
+                      .attr('data-index', i)
+                      .removeClass('for-copy')
+                      .find('h5').text(`상태효과 ${i + 1}`);
+                  $statusInputContainer.append($clonedAddCheckWrapper);
+              }
+          }
+
+          copyStatusInputAddCheckWrapper($('.input-container.charge-attack'));
+          copyStatusInputAddCheckWrapper($('.input-container.ability'), 8);
+          copyStatusInputAddCheckWrapper($('.input-container.summon'));
+
+
+          /**
+           * effectCjs 입력용 wrapper 복사해서 추가
+           * @param type
+           */
+          function copyEffectCjsWrapper(type) {
+              if (!['attack', 'ability'].includes(type)) new Error('[copyEffectCjsWrapper] invalidType type = ' + type);
+              let $effectCjsInputWrapper = $(`.effect-cjs-input-wrapper.${type}`);
+              let count = $(`.cjs-count.${type}`).val();
+              if (count <= 0) return;
+              let currentCount = $effectCjsInputWrapper.find('.effect-cjs-wrapper').length;
+              for (let i = 0; i < count; i++) {
+                  if (currentCount > 0 && i < currentCount) continue;
+                  let $forCopy = $('.effect-cjs-wrapper.for-copy').clone();
+                  $forCopy.find('input[name="type"]').val(type.toUpperCase());
+                  $effectCjsInputWrapper.append($forCopy.removeClass('for-copy'));
+              }
+          }
+
+          $('#applyAbilityCjsCountButton').on('click', function () {
+              copyEffectCjsWrapper('ability');
+          });
+          $('#applyAttackCjsCountButton').on('click', function () {
+              copyEffectCjsWrapper('attack');
+          });
+
+          // onSubmit
+          $('form:not(#effectCjsInputForm)').on('submit', function (e) {
               e.preventDefault();
-              let requestData = serializeJson($('#chargeAttackForm').get(0));
-              ajaxRequest("/insert/charge-attack", requestData);
-          })
-          $('.ability-submit-button').click(function () {
-              let requestData = serializeJson($('#abilityForm').get(0));
-              ajaxRequest("/insert/ability", requestData);
-          })
-          $('.summon-submit-button').click(function () {
-              let requestData = serializeJson($('#summonForm').get(0));
-              ajaxRequest("/insert/summon", requestData);
-          })
+              let form = $(this).get(0);
+              let requestData = serializeJson(form);
+              if (requestData.statuses && requestData.statuses.length > 0)
+                  requestData.statuses = requestData.statuses.filter(status => status); // 희소배열 정상화
+              ajaxRequest(form.target, requestData);
+          });
+          $('#effectCjsInputForm').on('submit', function () { // 이펙트 폼 submit
+              e.preventDefault();
+              ajaxRequest('/insert/effect-visual', effectFormToData().filter(data => !!data));
+          });
 
-          // requestData 는 JSON string
+          function effectFormToData() {
+              let actorVisualId = $('#effectCjsInputForm [name="actorVisualId"]').val();
+              let requestData = [...$('#effectCjsInputForm .effect-cjs-wrapper').get()]
+                  .map(wrapper => {
+                      let $wrapper = $(wrapper);
+                      let cjsName = $wrapper.find('input[name="cjsName"]').val();
+                      if (!cjsName) return;
+                      return {
+                          actorVisualId,
+                          type: $wrapper.find('input[name="type"]').val(),
+                          cjsName: cjsName,
+                          isTargetedEnemy: $wrapper.find('input[name="isTargetedEnemy"]').is(':checked')
+                      };
+                  })
+              return requestData; // cjsName 없으면 null 로 포함됨
+          }
+
           function ajaxRequest(url, requestData) {
-              console.log(requestData);
-              requestData = JSON.stringify(requestData);
+              console.log('[ajaxRequest] requestData = ', requestData);
+              requestData = JSON.stringify(requestData); // requestData 는 JSON string
               $.ajax({
                   type: "POST",
                   url: url,
@@ -125,17 +122,20 @@
                   },
                   data: requestData,
                   success: function (data) {
-                      console.log(data)
-                      alert(data.message)
-                      if (data.actorId) $("input[name='characterId']").val(data.actorId);
-                      if (data.rootCjsName) $("input[name='rootCjsName']").val(data.rootCjsName);
+                      console.log('[ajaxRequest] response data = ', data);
+                      alert(data.message);
+                      if (data.actorId) insertStatus.actorId = data.actorId;
+                      if (data.actorCjsName) insertStatus.actorCjsName = data.actorCjsName;
+                      if (data.actorVisualId) insertStatus.actorVisualId = data.actorVisualId;
+
+                      // 편의를 위해 자동저장
+                      localStorage.setItem('insertStatus', JSON.stringify(insertStatus));
                   },
                   error: function (xhr) {
-                      console.log(xhr);
+                      console.error('[ajaxRequest] response xhr = ', xhr);
                   }
               })
           }
-
 
           // 폼 저장
           $('.form-save-button').on('click', function () {
@@ -143,16 +143,14 @@
               let $form = $('#' + formName);
               // input, textarea 값 저장
               let data = {};
-              $form.find('input, textarea').each(function () {
+              $form.find('input, select, textarea').each(function () {
                   let $input = $(this);
                   let name = $input.attr('name');
                   if (!name) return;
-                  data[name] = $input.attr('type') === 'checkbox' ? $input.prop('checked') : $input.val();
+                  data[name] = $input.is(':checkbox') ? $input.prop('checked') : $input.val();
               });
               // status-input-wrapper 체크박스 상태 별도로 저장 (show, hide용)
-              data.statusChecks = $form.find('.status-input-check').toArray().map(inputCheck =>
-                  $(inputCheck).prop('checked')
-              );
+              data.statusChecks = $form.find('.status-input-add-check').toArray().map(inputCheck => $(inputCheck).prop('checked'));
               localStorage.setItem(formName, JSON.stringify(data));
               alert('저장');
           });
@@ -165,63 +163,79 @@
               if (!data) {
                   return;
               }
-              // input, textarea 값 복원
-              $form.find('input, textarea').each(function () {
-                  let $input = $(this);
-                  let name = $input.attr('name');
-                  if (!name) return;
-                  $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
-              });
               // status 체크박스 show/hide 및 입력란 표시
-              $form.find('.status-input-check').each(function (idx) {
+              $form.find('.status-input-add-check').each(function (idx) {
                   let checked = data.statusChecks && data.statusChecks[idx];
-                  $(this).prop('checked', !!checked).trigger('change');
+                  if (!$(this).is(':checked') && checked === true)
+                      $(this).click();
               });
+              requestAnimationFrame(() => {
+                  // input, textarea 값 복원
+                  $form.find('input, select, textarea').each(function () {
+                      let $input = $(this);
+                      let name = $input.attr('name');
+                      if (!name) return;
+                      $input.attr('type') === 'checkbox' ? $input.prop('checked', !!data[name]) : $input.val(data[name]);
+                  });
+              });
+
               alert('복원');
           });
 
-          //applyCjsName
-          $('#applyCjsButton').on('click', function () {
-              let effectVisualType = $('#characterAssetInputForm select[name="effectVisualType"]').val(); // ACTOR, SPECIAL, ...
-              let isAll = $('#characterAssetInputForm .is-all-check').prop('checked');
-              let allPrefix = isAll ? 'all_' : '';
-              let cjsId = $('#characterAssetInputForm input[name="cjsId"]').val(); // 000019234
-              let cjsName = '';
-
-              switch (effectVisualType) {
-                  case 'ACTOR':
-                      cjsName = 'npc_' + cjsId + '_02'; // npc_3040502000_02
-                      break;
-                  case 'ATTACK':
-                      cjsName = 'phit_' + cjsId; // phit_3040502000, 필요한경우 _01, _02
-                      break;
-                  case 'SPECIAL':
-                      cjsName = 'nsp_' + cjsId + '_02_s2'; // nsp_3040502000_02_s2
-                      break;
-                  case 'FIRST_ABILITY' :
-                  case 'FIRST_SUPPORT_ABILITY':
-                      cjsName = 'ab_' + allPrefix + cjsId + '_01'; // ab_3040566000_01
-                      break;
-                  case 'SECOND_ABILITY':
-                  case 'SECOND_SUPPORT_ABILITY':
-                      cjsName = 'ab_' + allPrefix + cjsId + '_02'; // ab_all_3040566000_02
-                      break;
-                  case 'THIRD_ABILITY':
-                  case 'THIRD_SUPPORT_ABILITY':
-                      cjsName = 'ab_' + allPrefix + cjsId + '_03';
-                      break;
-                  case 'FOURTH_ABILITY':
-                  case 'FOURTH_SUPPORT_ABILITY':
-                      cjsName = 'ab_' + allPrefix + cjsId + '_04';
-                      break;
-                  default :
-                      console.error('not supported type');
-              }
-
-              $('#characterAssetInputForm input[name="cjsName"]').val(cjsName);
+          // 이펙트 폼 저장
+          $('#saveEffectCjsInputFormButton').on('click', function (e) {
+              localStorage.setItem('effectCjsInputForm', JSON.stringify(effectFormToData()));
           })
 
-          // ready
+          // 이펙트 폼 복원
+          $('#restoreEffectCjsInputFormButton').on('click', function (e) {
+              let inputData = JSON.parse(localStorage.getItem('effectCjsInputForm'));
+              let attackCjsCount = inputData.filter(data => data?.type === 'ATTACK').length;
+              $('#effectCjsInputForm').find('#attackCjsCountInput').val(attackCjsCount);
+              $('#applyAttackCjsCountButton').click();
+              let abilityCjsCount = inputData.filter(data => data?.type === 'ABILITY').length;
+              $('#effectCjsInputForm').find('#abilityCjsCountInput').val(abilityCjsCount);
+              $('#applyAbilityCjsCountButton').click();
+
+              requestAnimationFrame(function () {
+                  let $effectCjsWrappers = $('#effectCjsInputForm .effect-cjs-wrapper');
+                  inputData.forEach((data, index) => {
+                      if (!data) return;
+                      let $effectCjsWrapper = $effectCjsWrappers.eq(index);
+                      $effectCjsWrapper.find('input[name="type"]').val(data.type);
+                      $effectCjsWrapper.find('input[name="cjsName"]').val(data.cjsName);
+                      if (data.isTargetedEnemy === true)
+                          $effectCjsWrapper.find('input[name="isTargetedEnemy"]').attr('checked', true);
+                  })
+              });
+          })
+
+          // 최근 저장한 actorVisual.cjsName 으로 일반공격, 오의 cjsName 설정 및 기타 actorVisualId 설정
+          $('#applyLatestActorVisualButton').on('click', function () {
+              let actorCjsName = window.insertStatus.actorCjsName;
+              if (!actorCjsName) return;
+              let actorCjsId = actorCjsName.substring(actorCjsName.indexOf('_') + 1); // "npc_3040190000_03" -> "3040190000_03"
+              let chargeAttackCjsName = `nsp_${actorCjsId}_s2`;
+              $('.effect-cjs-input-wrapper.charge-attack .cjs-name').val(chargeAttackCjsName);
+              $('.effect-cjs-input-wrapper.attack .cjs-name').get().forEach((element, index) => {
+                  let value = index === 0 ? `phit_${actorCjsId}` : `phit_${actorCjsId}_${index + 1}`;
+                  $(element).val(value);
+              });
+              let abilityActorId = actorCjsId.substring(0, actorCjsId.indexOf('_')); // "3040190000_03" -> "3040190000"
+              $('.effect-cjs-input-wrapper.ability .cjs-name').get().forEach((element, index) => {
+                  $(element).val(`ab_all_${abilityActorId}_0${index + 1}`);
+              });
+              $('input[name="actorVisualId"]').val(window.insertStatus.actorVisualId);
+          });
+
+          // 최근 저장한 상태로 자동 필드채우기 (일반)
+          $('.apply-insert-status-button').on('click', function () {
+              let insertStatus = window.insertStatus;
+              $('input[name="actorVisualId"]').val(insertStatus.actorVisualId);
+              $('input[name="actorId"]').val(insertStatus.actorId);
+          })
+
+          $('.insert-status-input-wrapper').on('change', 'input', function () {})
       })
   </script>
 </head>
@@ -231,338 +245,282 @@
   <input type="hidden" id="csrfToken" name="_csrf" th:value="${_csrf.token}">
 </form>
 
-<h1>캐릭터 삽입</h1>
+<h1 class="mt-2">캐릭터 삽입</h1>
 
-<h2>baseCharacter</h2>
-<p>캐릭터 정보, idle, single-attack, double-attack, triple-attack, guard, damaged </p>
-<form id="characterInputForm" target="/input-baseCharacter" method="POST">
-  <div>baseCharacter.name</div>
-  <input class="form-control mb-2" type="text" name="name" placeholder="">
-  <div>baseCharacter.elementType FIRE, WATER, ...</div>
-  <input class="form-control mb-2" type="text" name="elementType" placeholder="">
-  <div>영문명 Actor.nameEn</div>
-  <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
-  <div>주인공 여부 Actor.isLeaderCharacter [true/false]</div>
-  <input class="form-control mb-2" type="text" name="isLeaderCharacter" placeholder="" value="false">
-  <button type="button" class="baseCharacter-submit-button btn btn-primary">캐릭터저장</button>
-</form>
+<div class="input-container actor-visual">
+  <h2>ActorVisual</h2>
+  <form id="actorVisualForm" target="/insert/actor-visual" method="POST">
 
-<hr>
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="actorVisualForm" value="저장">
+    <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="actorVisualForm" value="복원">
 
-<h2>charge attack</h2>
-<div class="charge-attack-input-wrapper">
-  <form id="chargeAttackForm">
+    <div> name: 스킨이름 [지타(팔라딘)] [하이라] [하이라(수영복)]</div>
+    <input class="form-control" type="text" name="name">
+
+    <div> cjsName: cjs 이름 [pld_sw_1_80] [npc_3040566000_02]</div>
+    <input class="form-control" type="text" name="cjsName">
+
+    <div> weaponId: 무기 id, 주인공만 작성 [1040027400]</div>
+    <input class="form-control" type="text" name="weaponId">
+
+    <div> gid: 포트레이트용 그랑블루 id [110480_sw_1_01] [3040502000_81]</div>
+    <input class="form-control" type="text" name="gid">
+
+    <input type="hidden" name="additionalCjsName">
+
+    <button type="submit" id="actorVisualSubmitButton" class="btn btn-primary submit-button mt-2">캐릭터 에셋 저장</button>
+  </form>
+</div>
+
+<div class="input-container effect-visual">
+  <h2>EffectVisual</h2>
+  <form id="effectCjsInputForm" target="/effect-visual">
+
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input id="saveEffectCjsInputFormButton" class="btn btn-outline-primary form-save-button m-2" type="button"
+           data-form="characterAssetInputForm"
+           value="저장">
+    <input id="restoreEffectCjsInputFormButton" class="btn btn-outline-success form-load-button m-2" type="button"
+           data-form="characterAssetInputForm"
+           value="복원">
+    <button id="applyLatestActorVisualButton" type="button" class="btn btn-outline-secondary">이전 actorVisual 적용</button>
+
+    <div>actorVisualId</div>
+    <input class="form-control" name="actorVisualId" type="number" required>
+
+    <div class="effect-cjs-input-wrapper charge-attack">
+      <h5> 오의 </h5>
+      <div class="effect-cjs-wrapper">
+        <label>타입: [CHARGE_ATTACK] 고정</label>
+        <input class="form-control" name="type" type="text" value="CHARGE_ATTACK" required readonly>
+        <label>cjsName: cjs 이름 [nsp_3040569000_02_s2]</label>
+        <input class="form-control cjs-name" type="text" name="cjsName">
+        <label>isTargetedEnemy: [false] 고정</label>
+        <input class="form-check" type="checkbox" name="isTargetedEnemy" readonly>
+      </div>
+    </div>
+
+    <div class="effect-cjs-input-wrapper attack">
+      <h5> 일반공격 </h5>
+      <div class="input-group">
+        <span class="input-group-text">일반공격 삽입갯수 지정</span>
+        <input id="attackCjsCountInput" type="text" class="form-control cjs-count attack" name="effectCjsCount">
+        <button id="applyAttackCjsCountButton" type="button"
+                class="btn btn-outline-secondary apply-effect-cjs-count-button">갯수 적용
+        </button>
+      </div>
+    </div>
+
+    <div class="effect-cjs-input-wrapper ability">
+      <h5> 어빌리티 </h5>
+      <div class="input-group">
+        <span class="input-group-text">어빌리티 삽입갯수 지정</span>
+        <input id="abilityCjsCountInput" type="text" class="form-control cjs-count ability" name="effectCjsCount">
+        <button id="applyAbilityCjsCountButton" type="button"
+                class="btn btn-outline-secondary apply-effect-cjs-count-button">갯수 적용
+        </button>
+      </div>
+    </div>
+
+    <!--가변 추가-->
+
+    <button type="submit" id="effectCjsSubmitButton" class="btn btn-primary mt-2">이펙트 저장</button>
+  </form>
+</div>
+
+<div class="effect-cjs-wrapper for-copy">
+  <div>타입: [ABILITY] 또는 [ATTACK] 고정</div>
+  <input class="form-control" name="type" type="text" value="" required readonly>
+  <div>cjsName: cjs 이름 [phit_3040569000_02] [ab_all_3040569000_03]</div>
+  <input class="form-control cjs-name" type="text" name="cjsName">
+  <div>isTargetedEnemy: 이펙트가 적 타겟으로 발생하는지 여부 [어빌리티에서, 적 타겟으로 발생할때만 체크]</div>
+  <input class="form-check" type="checkbox" name="isTargetedEnemy">
+</div>
+
+
+<div class="input-container character">
+  <h2>BaseCharacter</h2>
+  <form id="characterInputForm" target="/insert/character" method="POST">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
     <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="chargeAttackForm" value="저장">
     <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="chargeAttackForm" value="복원">
+    <button class="btn btn-outline-secondary apply-insert-status-button" type="button">입력 상태 적용</button>
 
-    <div>CharacterId</div>
-    <input class="form-control mb-2" type="text" name="characterId" placeholder="">
+    <div>name: 한글이름 [팔라딘]</div>
+    <input class="form-control mb-2" type="text" name="name" required>
+    <div>elementType: 속성 [FIRE],[WATER],[EARTH],[WIND],[LIGHT],[DARK]</div>
+    <input class="form-control mb-2" type="text" name="elementType" required>
+    <div>nameEn: 고유 영문명 [paladin] [yachima]</div>
+    <input class="form-control mb-2" type="text" name="nameEn" required>
+    <div>isLeaderCharacter: 주인공(지타) 여부 [지타면 true]</div>
+    <input class="form-control mb-2" type="text" name="isLeaderCharacter" placeholder="" value="false">
 
-    <div>name 오의 이름</div>
-    <input class="form-control mb-2" type="text" name="name" placeholder="">
-    <div>info 오의 설명 텍스트</div>
-    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <div>기본스킨 id (ActorVisual.id) </div>
+    <input class="form-control mb-2" type="number" name="actorVisualId" required>
 
-    <h3>status1</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
+    <button type="submit" class="btn btn-primary submit-button">캐릭터저장</button>
+  </form>
+</div>
 
-    <h3>status2</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
+<div class="input-container charge-attack">
+  <h2>Move.CHARGE_ATTACK</h2>
+  <form id="chargeAttackForm" target="/insert/charge-attack" method="POST">
+    <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
+    <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="chargeAttackForm" value="저장">
+    <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="chargeAttackForm" value="복원">
+    <button class="btn btn-outline-secondary apply-insert-status-button" type="button">입력 상태 적용</button>
 
-    <h3>status3</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
+    <div>BaseActor.id</div>
+    <input class="form-control mb-2" type="text" name="actorId" placeholder="">
 
-    <h3>status4</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
+    <div>type: Move.type [읽기전용]</div>
+    <input class="form-control mb-2" type="text" name="type" value="CHARGE_ATTACK_DEFAULT" readonly>
+    <div>name: 오의 이름</div>
+    <input class="form-control mb-2" type="text" name="name">
+    <div>info: 오의 설명 텍스트</div>
+    <input class="form-control mb-2" type="text" name="info">
+    <div>damageRate: 데미지 배율 [4.5] [12.5]</div>
+    <input class="form-control mb-2" type="number" name="damageRate" value="4.5">
 
-    <h3>status5</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
+    <div class="status-input-container">
+      <h4>상태효과 입력</h4>
     </div>
 
-    <button type="button" class="btn btn-primary charge-attack-submit-button">오의</button>
+    <button type="submit" class="btn btn-primary submit-button">오의 저장</button>
   </form>
 </div>
 
 <!-- 어빌리티 -->
 
 
-<h2> ability </h2>
+<div class="input-container ability">
+  <h2>Move.ABILITY</h2>
 
-<div class="ability-input-wrapper">
-
-  <form id="abilityForm">
+  <form id="abilityForm" target="/insert/ability" method="POST">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
     <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="abilityForm" value="저장">
     <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="abilityForm" value="복원">
+    <button class="btn btn-outline-secondary apply-insert-status-button" type="button">입력 상태 적용</button>
 
-    <div>캐릭터 id</div>
-    <input class="form-control mb-2" type="text" name="characterId" placeholder="">
+    <div>BaseActor.id</div>
+    <input class="form-control mb-2" type="text" name="actorId">
 
     <div>type: 어빌리티 Move.type (FIRST_ABILITY, FIRST_SUPPORT_ABILITY, ...)</div>
-    <input class="form-control mb-2" type="text" name="type" placeholder="">
+    <input class="form-control mb-2" type="text" name="type">
 
     <div>name: 어빌리티 이름</div>
-    <input class="form-control mb-2" type="text" name="name" placeholder="">
+    <input class="form-control mb-2" type="text" name="name">
     <div>info: 어빌리티 설명 텍스트</div>
-    <input class="form-control mb-2" type="text" name="info" placeholder="">
+    <input class="form-control mb-2" type="text" name="info">
     <div>damageRate: 데미지 배율</div>
-    <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
+    <input class="form-control mb-2" type="number" name="damageRate">
     <div>hitCount: 히트수</div>
-    <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
+    <input class="form-control mb-2" type="number" name="hitCount">
     <div>coolDown: 어빌리티 쿨타임</div>
-    <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
+    <input class="form-control mb-2" type="number" name="coolDown">
 
-    <div>hasSupportAbilityEffect 서포트 어빌리티가 이펙트를 가지는지 여부 (일반 어빌리티는 상관x)</div>
-    <input class="form-control mb-2" type="text" name="hasSupportAbilityEffect" placeholder="" value="false">
-    <div>hasMotion (모션 있는지 여부, 900p 짜리랑 서포트 어빌리티는 없음(false). DB저장 x)</div>
-    <input class="form-control mb-2" type="text" name="hasMotion" placeholder="" value="true">
-
-
-    <h3>status1</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
+    <div class="status-input-container">
+      <h4>상태효과 입력</h4>
     </div>
 
-    <h3>status2</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status3</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status4</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status5</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status6</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status7</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status8</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <button type="button" class="btn btn-primary ability-submit-button">어빌리티</button>
+    <button type="submit" class="btn btn-primary submit-button">어빌리티 저장</button>
   </form>
 </div>
 
-<!-- 스테이터스 추가 원본 -->
-<div class="status-input-wrapper-origin">
-  <div>type 타입 BUFF, DEBUFF, ...</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].type" placeholder="">
-  <div>effectText 이펙트 텍스트 (name 동일값)</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].effectText" placeholder="">
-  <div>maxLevel 최대레벨, 없으면 0</div>
-  <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" placeholder="" value="0">
-  <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ...</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].targetType" placeholder="">
-  <div>statusText 스테이터스 텍스트</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].statusText" placeholder="">
-  <div>duration 효과시간</div>
-  <input class="form-control mb-2" type="number" name="statuses[0].duration" placeholder="">
-  <div>removable 소거불가, 해제불가, 회복불가 여부, 소거불가이면 false 가능이면 true</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].removable" placeholder="" value="true">
-  <div>isResistible 필중여부, 필중이면 false 필중 아니면 true</div>
-  <input class="form-control mb-2" type="text" name="statuses[0].isResistible" placeholder="" value="true">
-
-
-  <div>statusEffect 의 type 과 value, {type, value \n 으로 작성}</div>
-  <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusModifiers" placeholder=""></textarea>
-
-</div>
-
-
-<h2>baseCharacter 에셋 </h2>
-<form id="characterAssetInputForm" target="/insert-baseCharacter-moveVisual" method="POST">
-
-  <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
-  <input class="btn btn-outline-primary form-save-button m-2" type="button" data-form="characterAssetInputForm"
-         value="저장">
-  <input class="btn btn-outline-success form-load-button m-2" type="button" data-form="characterAssetInputForm"
-         value="복원">
-
-  <div>baseCharacter id</div>
-  <input class="form-control mb-2" type="text" name="characterId" placeholder="">
-  <div> rootCjsName (임의설정 X, ACTOR 등록시 빈값으로 등록, 이후 응답이 자동으로 채워짐)</div>
-  <input class="form-control mb-2" type="text" name="rootCjsName" placeholder="">
-
-  <div>moveVisual name [인다라 (기본) / 인다라 평타 / 인다라 오의 / 인다라 평타 2 / 인다라 어비1 / 인다라 서포어비1 ]</div>
-  <input class="form-control mb-2" type="text" name="assetName" placeholder="">
-
-  <div> moveVisual type [ACTOR / SPECIAL / ATTACK / FIRST_ABILITY / FIRST_SUPPORT_ABILITY ]</div>
-  <select class="form-select" size="12" name="effectVisualType" required>
-    <option selected>Open this select menu</option>
-    <option value="ACTOR">ACTOR</option>
-    <option value="SPECIAL">SPECIAL</option>
-    <option value="ATTACK">ATTACK</option>
-    <option value="FIRST_ABILITY">A1</option>
-    <option value="SECOND_ABILITY">A2</option>
-    <option value="THIRD_ABILITY">A3</option>
-    <option value="FOURTH_ABILITY">A4</option>
-    <option value="FIRST_SUPPORT_ABILITY">SA1</option>
-    <option value="SECOND_SUPPORT_ABILITY">SA2</option>
-    <option value="THIRD_SUPPORT_ABILITY">SA3</option>
-    <option value="FOURTH_SUPPORT_ABILITY">SA4</option>
-  </select>
-
-  <div>cjs id (공통적용, submit x)</div>
-  <div> 평타는 구분되는경우 _01, _02 추가</div>
-  <div class="input-group mb-2">
-    <input type="text" class="form-control me-2" name="cjsId" placeholder="">
-    <div class="input-group-text me-2">
-      all
-      <input class="form-check-input mt-0 is-all-check" type="checkbox" value="">
-    </div>
-    <button class="btn btn-outline-secondary" type="button" id="applyCjsButton">id 적용</button>
-  </div>
-
-  <div> cjsName</div>
-  <input class="form-control mb-2" type="text" name="cjsName" placeholder="">
-
-  <div> chargeAttackStartFrame </div>
-  <input class="form-control mb-2" type="number" name="chargeAttackStartFrame" placeholder="" value="0">
-
-</form>
-
-
-<h2>summon 입력, ID = 6 고정</h2>
-<div class="summon-input-wrapper">
-  <form id="summonForm">
+<div class="input-container summon">
+  <h2>Move.SUMMON</h2>
+  <form id="summonForm" target="/insert/summon">
     <input type="reset" class="m-2 btn btn-outline-danger" value="비우기">
     <input class="btn btn-outline-primary m-2 form-save-button" type="button" data-form="summonForm" value="저장">
     <input class="btn btn-outline-success m-2 form-load-button" type="button" data-form="summonForm" value="복원">
 
-    <div>CharacterId</div>
-    <input class="form-control mb-2" type="text" name="characterId" placeholder="" value="6">
+    <div>BaseActor.id = 6</div>
+    <input class="form-control mb-2" type="text" name="actorId" placeholder="" value="6" readonly>
 
-    <div>name 솬석 이름</div>
+    <div>name: 솬석 이름</div>
     <input class="form-control mb-2" type="text" name="name" placeholder="">
-    <div>name 솬석 영어 이름 (src 경로용, DB 저장 x)</div>
-    <input class="form-control mb-2" type="text" name="nameEn" placeholder="">
-    <div>info 솬석 설명 텍스트</div>
+    <div>info: 솬석 설명 텍스트</div>
     <input class="form-control mb-2" type="text" name="info" placeholder="">
-    <div>iconSrc: moveVisual.iconImageSrc 에서 사용, battle-portrait</div>
-    <input class="form-control mb-2" type="text" name="iconSrc" placeholder=""
-           value="/static/moveVisuals/img/summon/이름입력/battle-portrait.jpg">
+
+    <div>cjsName: 소환석 cjs [summon_2040080000_02]</div>
+    <input class="form-control mb-2" type="text" name="iconSrc">
     <div>elementType 속성</div>
     <input class="form-control mb-2" type="text" name="elementType" placeholder="">
+
     <div>damageRate: 데미지 배율</div>
     <input class="form-control mb-2" type="number" name="damageRate" placeholder="">
     <div>hitCount: 히트수</div>
     <input class="form-control mb-2" type="number" name="hitCount" placeholder="">
     <div>coolDown: 솬석 쿨타임</div>
     <input class="form-control mb-2" type="number" name="coolDown" placeholder="">
-    <div>에셋 cjs name: _attack, _damage 를 제외한 전부 입력 ex) summon_2040080000_02_attack -> <b>summon_2040080000_02</b></div>
-    <input class="form-control mb-2" type="text" name="attackCjsName" placeholder=""
-           value="summon_">
 
-    <h3>status1</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
+    <div class="status-input-container">
+      <h4>상태효과 입력</h4>
     </div>
 
-    <h3>status2</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status3</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status4</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <h3>status5</h3>
-    <div class="form-check">
-      있음
-      <input class="form-check-input status-input-check" type="checkbox" value="">
-    </div>
-    <div class="status-input-wrapper">
-    </div>
-
-    <button type="button" class="btn btn-primary summon-submit-button">솬석</button>
+    <button type="submit" class="btn btn-primary submit-button">소환석 저장</button>
   </form>
+</div>
+
+<!-- 상태효과 추가 체크 원본 -->
+<div class="status-input-add-check-wrapper form-check for-copy">
+  <h5>상태효과 N</h5>
+  <label>있음<input class="form-check-input status-input-add-check" type="checkbox"></label>
+</div>
+
+<!-- 상태표과 input 원본 -->
+<div class="status-input-wrapper for-copy">
+  <div>type: 타입 [BUFF] [DEBUFF] [PASSIVE]</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].type">
+
+  <div>name, effectText: 이름 (이펙트 표시내용)</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].effectText">
+
+  <div>maxLevel: 최대레벨 없으면 [0]</div>
+  <input class="form-control mb-2" type="number" name="statuses[0].maxLevel" value="0">
+
+  <div>targetType 스테이터스 타겟 SELF, PARTY_MEMBERS, ENEMY, ...</div>
+  <select class="form-select" size="3" name="statuses[0].targetType" required>
+    <option value="SELF">자신</option>
+    <option value="PARTY_MEMBERS">아군 전체</option>
+    <option value="ENEMY">적</option>
+    <option value="SELF_AND_LEADER_CHARACTER">자신과 주인공</option>
+    <option value="SELF_AND_NEXT_CHARACTER">자신과 다음 캐릭터</option>
+    <option value="PARTY_MEMBERS_NOT_SELF">자신 제외 아군 전체</option>
+    <option value="LEADER_CHARACTER">주인공</option>
+    <option value="ALL_PARTY_MEMBERS">참전자 전체</option>
+    <option value="ALL_ENEMIES">적</option>
+  </select>
+
+  <div>statusText: 상세 내용</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].statusText">
+
+  <div>gid</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].gid" value="status_">
+
+  <div>duration: 효과시간</div>
+  <input class="form-control mb-2" type="number" name="statuses[0].duration" required>
+
+  <div>durationType: 효과시간 타입</div>
+  <select class="form-select" size="3" name="statuses[0].durationType" required>
+    <option value="TURN">턴제</option>
+    <option value="TURN_INFINITE">턴제 영속</option>
+    <option value="TIME">시간제</option>
+  </select>
+
+  <div>적용 순서: 없으면 0, 시작은 1부터 </div>
+  <input class="form-control mb-2" type="number" name="statuses[0].applyOrder" value="0" required>
+
+  <div>removable: [해제불가 = false]</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].removable" value="true">
+
+  <div>isResistible: [필중 = false]</div>
+  <input class="form-control mb-2" type="text" name="statuses[0].isResistible" value="true">
+
+  <div>statusModifiers: statusEffect 의 type 과 value, [type, value \n type, value \n ...]</div>
+  <textarea rows="3" class="form-control mb-2" type="text" name="statuses[0].statusModifiers" placeholder=""></textarea>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

@@ -19,7 +19,7 @@ import java.util.List;
 @Getter
 @EqualsAndHashCode
 @ToString
-public class Move {
+public class BaseMove {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -98,11 +98,12 @@ public class Move {
      * 타입만 설정된 무브를 생성 및 반환 <br>
      * 사용중: <br>
      * TURN_END_PROCESS, TURN_FINISH, TURN_END_HEAL, TURN_END_DAMAGE, TURN_END_CHARGE_GAUGE,
-     * STRIKE_SEALED, NONE
+     * STRIKE_SEALED, GUARD_DEFAULT,
+     * NONE
      *
      * @return
      */
-    public static Move getTransientMove(MoveType type) {
+    public static BaseMove getTransientMove(MoveType type) {
         return getTransientMove(type, null, null);
     }
 
@@ -115,10 +116,10 @@ public class Move {
      *
      * @return
      */
-    public static Move getTransientMove(MoveType type, String moveName, EffectVisual effectVisual) {
+    public static BaseMove getTransientMove(MoveType type, String moveName, EffectVisual effectVisual) {
         MotionType motionType = type == MoveType.STRIKE_SEALED ? MotionType.DAMAGE : MotionType.NONE; // 임시구현
         String name = moveName != null ? moveName : "";
-        return Move.builder()
+        return BaseMove.builder()
                 .name(name)
                 .defaultVisual(effectVisual)
                 .type(type)

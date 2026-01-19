@@ -1,10 +1,13 @@
 package com.gbf.granblue_simulator.metadata.controller;
 
+import com.gbf.granblue_simulator.metadata.controller.request.character.*;
 import com.gbf.granblue_simulator.metadata.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
+import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
 import com.gbf.granblue_simulator.metadata.repository.*;
@@ -17,9 +20,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.List;
-
-import static com.gbf.granblue_simulator.metadata.controller.InsertSrcMapper.*;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -31,187 +34,200 @@ public class InsertController {
     private final MoveRepository moveRepository;
     private final BaseStatusEffectRepository baseStatusEffectRepository;
     private final StatusModifierRepository statusModifierRepository;
-    private final MoveVisualRepository moveVisualRepository;
+    private final ActorVisualRepository actorVisualRepository;
+    private final EffectVisualRepository effectVisualRepository;
+
+    @PostMapping("/insert/actor-visual")
+    public ResponseEntity<Map<String, Object>> insertActorVisual(@RequestBody ActorVisualInsertRequest request) {
+        log.info("[insertActorVisual] request = {}", request);
+        String additionalCjsName = StringUtils.hasText(request.getAdditionalCjsName()) ? request.getAdditionalCjsName() : null;
+        String weaponId = StringUtils.hasText(request.getWeaponId()) ? request.getWeaponId() : null;
+        ActorVisual actorVisual = ActorVisual.builder()
+                .name(request.getName())
+                .cjsName(request.getCjsName())
+                .additionalCjsName(additionalCjsName)
+                .weaponId(weaponId)
+                .gid(request.getGid())
+                .build();
+        ActorVisual savedActorVisual = actorVisualRepository.save(actorVisual);
+        return ResponseEntity.ok(Map.of(
+                "message", "success",
+                "actorVisualId", savedActorVisual.getId(),
+                "actorCjsName", savedActorVisual.getCjsName()
+        ));
+    }
+
+    @PostMapping("/insert/effect-visual")
+    public ResponseEntity<Map<String, Object>> insertEffectVisuals(@RequestBody List<EffectVisualInsertRequest> requests) {
+        log.info("[insertEffectVisuals] requests: {}", requests);
+        List<EffectVisual> effectVisuals = new ArrayList<>();
+        for (EffectVisualInsertRequest request : requests) {
+            ActorVisual actorVisual = actorVisualRepository.findById(request.getActorVisualId()).orElseThrow(() -> new IllegalArgumentException("없는 actorVisualId, id = " + request.getActorVisualId()));
+            effectVisuals.add(EffectVisual.builder()
+                    .type(EffectVisualType.valueOf(request.getType()))
+                    .cjsName(request.getCjsName())
+                    .actorVisual(actorVisual)
+                    .chargeAttackStartFrame(request.getChargeAttackStartFrame())
+                    .isTargetedEnemy(Boolean.parseBoolean(request.getIsTargetedEnemy()))
+                    .build());
+        }
+        List<EffectVisual> savedEffectVisuals = effectVisualRepository.saveAll(effectVisuals);
+        return ResponseEntity.ok(Map.of(
+                "message", "success",
+                "effectVisualIds", savedEffectVisuals.stream().map(EffectVisual::getId).toList()
+        ));
+    }
 
     @PostMapping("/insert/character")
-    public ResponseEntity<InsertResponse> insertCharacter(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.CharacterInsertRequest characterInsertRequest) {
-        log.info("characterInsertRequest: {}", characterInsertRequest);
-        String nameEn = characterInsertRequest.getNameEn();
+    public ResponseEntity<InsertResponse> insertCharacter(@RequestBody CharacterInsertRequest request) {
+        log.info("[insertCharacter] request: {}", request);
+        boolean isLeaderCharacter = Boolean.parseBoolean(request.getIsLeaderCharacter());
+        Long actorVisualId = request.getActorVisualId();
+        ActorVisual actorVisual = actorVisualRepository.findById(actorVisualId).orElseThrow(() -> new IllegalArgumentException("actorVisual 없음, actorVisualId = " + actorVisualId));
 
         BaseCharacter baseCharacter = BaseCharacter.builder()
-                .name(characterInsertRequest.getName())
-                .nameEn(nameEn)
-//                .battlePortraitSrc(getBattlePortraitSrc(nameEn))
-                .elementType(characterInsertRequest.getElementType())
-                .isLeaderCharacter(Boolean.parseBoolean(characterInsertRequest.getIsLeaderCharacter()))
+                .name(request.getName())
+                .nameEn(request.getNameEn())
+                .elementType(request.getElementType())
+                .isLeaderCharacter(isLeaderCharacter)
+                .defaultVisual(actorVisual)
                 .build();
-        baseCharacter.initCharacterBaseStatus();
+        baseCharacter.initCharacterBaseStatus(isLeaderCharacter);
         baseCharacter = baseCharacterRepository.save(baseCharacter);
         log.info("savedChar = {}", baseCharacter);
 
-        // idle
-        Move idle = Move.builder()
-                .type(MoveType.IDLE_DEFAULT)
-                .name(null)
-                .info("idle")
-                .elementType(baseCharacter.getElementType())
-                .baseActor(baseCharacter)
-                .build();
-        idle = moveRepository.save(idle);
-
-        // guard
-        Move guard = Move.builder()
-                .type(MoveType.GUARD_DEFAULT)
-                .name(null)
-                .info("guard")
-                .elementType(baseCharacter.getElementType())
-                .damageRate(0.0)
-                .coolDown(0)
-                .baseActor(baseCharacter)
-                .build();
-        moveRepository.save(guard);
-
-        // single attack
-        Move singleAttack = Move.builder()
-                .type(MoveType.SINGLE_ATTACK)
-                .name(null)
-                .info("single attack")
-                .elementType(baseCharacter.getElementType())
-                .damageRate(1.0)
-                .hitCount(1)
-                .baseActor(baseCharacter)
-                .build();
-        singleAttack = moveRepository.save(singleAttack);
-
-        // double attack
-        Move doubleAttack = Move.builder()
-                .type(MoveType.DOUBLE_ATTACK)
-                .name(null)
-                .info("double attack")
-                .elementType(baseCharacter.getElementType())
-                .damageRate(1.0)
-                .hitCount(2)
-                .baseActor(baseCharacter)
-                .build();
-        doubleAttack = moveRepository.save(doubleAttack);
-
-        // triple attack
-        Move tripleAttack = Move.builder()
-                .type(MoveType.TRIPLE_ATTACK)
-                .name(null)
-                .info("triple attack")
-                .elementType(baseCharacter.getElementType())
-                .damageRate(1.0)
-                .hitCount(3)
-                .baseActor(baseCharacter)
-                .build();
-        tripleAttack = moveRepository.save(tripleAttack);
+        boolean isAttackAllTarget = Boolean.parseBoolean(request.getIsAttackAllTarget());
+        List<MoveType> attackTypes = List.of(MoveType.SINGLE_ATTACK, MoveType.DOUBLE_ATTACK, MoveType.TRIPLE_ATTACK);
+        List<String> infos = List.of("싱글어택", "더블어택", "트리플어택");
+        List<BaseMove> attackMoves = new ArrayList<>();
+        for (int i = 0; i < attackTypes.size(); i++) {
+            MoveType attackType = attackTypes.get(i);
+            String info = infos.get(i);
+            int count = i + 1;
+            attackMoves.add(BaseMove.builder()
+                    .type(attackType)
+                    .name("일반공격")
+                    .info(info)
+                    .elementType(baseCharacter.getElementType())
+                    .damageRate(1.0)
+                    .hitCount(count)
+                    .baseActor(baseCharacter)
+                    .isAllTarget(isAttackAllTarget)
+                    .build());
+        }
+        moveRepository.saveAll(attackMoves);
 
         return ResponseEntity.ok(InsertResponse.ok(baseCharacter.getId()));
     }
 
     @PostMapping("/insert/charge-attack")
-    public ResponseEntity<InsertResponse> insertChargeAttack(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.ChargeAttackRequest request) {
-        log.info("chargeAttackReuqest: {}", request);
+    public ResponseEntity<Map<String, Object>> insertChargeAttack(@RequestBody MoveInsertRequest request) {
+        log.info("[insertChargeAttack] request: {}", request);
 
-        BaseCharacter baseCharacter = baseCharacterRepository.findById(request.getCharacterId()).orElseThrow();
-        Move chargeAttack = Move.builder()
-                .name(request.getName())
-                .type(MoveType.CHARGE_ATTACK_DEFAULT)
-                .info(request.getInfo())
-                .elementType(baseCharacter.getElementType())
-                .damageRate(4.5) // 일단 극대 캐릭의 경우 따로 수정
-                .hitCount(1)
-                .baseActor(baseCharacter)
-                .build();
-        chargeAttack = moveRepository.save(chargeAttack);
+        request.setType("CHARGE_ATTACK_DEFAULT");
+        request.setHitCount(1);
+        request.setCoolDown(0);
 
-        // 스테이터스
-        final Move chargeAttackFinal = chargeAttack;
-        request.getStatuses().forEach(status -> {
-            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
-            int statusOrder = request.getStatuses().indexOf(status) + 1;
-            // 스테이터스
-            BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()
-                    .type(StatusEffectType.valueOf(status.getType()))
-                    .name(status.getEffectText())
-                    .targetType(StatusEffectTargetType.valueOf(status.getTargetType()))
-                    .maxLevel(status.getMaxLevel())
-                    .effectText(status.getEffectText())
-                    .statusText(status.getStatusText())
-                    .duration(status.getDuration())
-                    .removable(Boolean.parseBoolean(status.getRemovable()))
-                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
-//                    .iconSrcs(getStatusIconSrcs(baseCharacter.getNameEn(), MoveType.CHARGE_ATTACK_DEFAULT, statusOrder, status.getMaxLevel()))
-                    .move(chargeAttackFinal)
-                    .build();
-            log.info("statusEntity = {}", baseStatusEffectEntity);
-            baseStatusEffectRepository.save(baseStatusEffectEntity);
+        BaseMove savedMove = saveMove(request);
+        Long baseActorId = savedMove.getBaseActor().getId();
 
-            // 스테이터스 효과 ("type, value \n ...")
-            status.getStatusEffects().lines().forEach(statusEffect -> {
-                String[] splitStatusEffect = statusEffect.split(",");
-                StatusModifierType statusModifierType = StatusModifierType.valueOf(splitStatusEffect[0].trim());
-                double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
-                StatusModifier statusModifierEntity = StatusModifier.builder()
-                        .baseStatusEffect(baseStatusEffectEntity)
-                        .type(statusModifierType)
-                        .value(statusEffectValue)
-                        .build();
-                statusModifierRepository.save(statusModifierEntity);
-            });
-        });
-
-        return ResponseEntity.ok(InsertResponse.ok(baseCharacter.getId()));
+        return ResponseEntity.ok(Map.of(
+                "message", "success",
+                "actorId", baseActorId,
+                "moveId", savedMove.getId()
+        ));
     }
 
     @PostMapping("/insert/ability")
-    public ResponseEntity<InsertResponse> insertAbility(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.AbilityInsertRequest request) {
-        log.info("request: {}", request);
+    public ResponseEntity<Map<String, Object>> insertAbility(@RequestBody MoveInsertRequest request) {
+        log.info("[insertAbility] request: {}", request);
+
+        BaseMove savedMove = saveMove(request);
+        Long baseActorId = savedMove.getBaseActor().getId();
+
+        return ResponseEntity.ok(Map.of(
+                "message", "success",
+                "actorId", baseActorId,
+                "moveId", savedMove.getId()
+        ));
+    }
+
+    @PostMapping("/insert/summon")
+    public ResponseEntity<Map<String, Object>> insertSummon(@RequestBody MoveInsertRequest request) {
+        log.info("[insertSummon] summonRequest: {}", request);
+
         MoveType moveType = MoveType.valueOf(request.getType());
-        boolean hasMotion = Boolean.parseBoolean(request.getHasMotion());
-        boolean hasSupportAbilityEffect = Boolean.parseBoolean(request.getHasSupportAbilityEffect());
-        boolean hasEffect = moveType.getParentType() != MoveType.SUPPORT_ABILITY || hasSupportAbilityEffect; // 서포아비가 아니거나, 서포아비임에도 이펙트가 있는 경우는 이펙트 존재
+        if (moveType != MoveType.SUMMON_DEFAULT)
+            throw new IllegalArgumentException("[insertSummon] 소환석이 아님 type = " + moveType);
 
-        BaseCharacter baseCharacter = baseCharacterRepository.findById(request.getCharacterId()).orElseThrow();
-        String nameEn = baseCharacter.getNameEn();
+        BaseCharacter baseCharacter = baseCharacterRepository.findById(6L).get(); // 소환용 캐릭터 ID = 6 으로 고정됨
+        request.setActorId(baseCharacter.getId());
 
-        Move ability = Move.builder()
-                .type(moveType)
+        // visual 저장
+        String cjsName = request.getCjsName();
+        String attackCjsName = cjsName + "_attack";
+        String damageCjsName = cjsName + "_damage";
+        List<EffectVisual> effectVisuals = new ArrayList<>();
+        effectVisuals.add(EffectVisual.builder()
+                .type(EffectVisualType.valueOf(request.getType()))
+                .cjsName(attackCjsName)
+                .actorVisual(baseCharacter.getDefaultVisual())
+                .build());
+        effectVisuals.add(EffectVisual.builder()
+                .type(EffectVisualType.valueOf(request.getType()))
+                .cjsName(damageCjsName)
+                .actorVisual(baseCharacter.getDefaultVisual())
+                .build());
+        effectVisualRepository.saveAll(effectVisuals);
+
+        BaseMove savedMove = saveMove(request);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "success",
+                "moveId", savedMove.getId()
+        ));
+    }
+
+    protected BaseMove saveMove(MoveInsertRequest request) {
+        BaseCharacter baseCharacter = baseCharacterRepository.findById(request.getActorId()).orElseThrow();
+        ElementType elementType = StringUtils.hasText(request.getElementType()) ? ElementType.valueOf(request.getElementType()) : baseCharacter.getElementType();
+        BaseMove move = BaseMove.builder()
+                .type(MoveType.valueOf(request.getType()))
                 .name(request.getName())
                 .info(request.getInfo())
-                .elementType(baseCharacter.getElementType())
+                .elementType(elementType)
                 .damageRate(request.getDamageRate())
                 .hitCount(request.getHitCount())
                 .coolDown(request.getCoolDown())
                 .baseActor(baseCharacter)
                 .build();
-        ability = moveRepository.save(ability);
-        log.info("ability = {}", ability);
+        move = moveRepository.save(move);
 
-        // Status 저장
-        final Move abilityFinal = ability;
+        // 스테이터스
+        final BaseMove moveFinal = move;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
-            int statusOrder = request.getStatuses().indexOf(status) + 1;
+            // 스테이터스
             BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()
                     .type(StatusEffectType.valueOf(status.getType()))
                     .name(status.getEffectText())
                     .targetType(StatusEffectTargetType.valueOf(status.getTargetType()))
-                    .maxLevel(status.getMaxLevel())
+                    .duration(status.getDuration())
+                    .durationType(StatusDurationType.valueOf(status.getDurationType()))
                     .effectText(status.getEffectText())
                     .statusText(status.getStatusText())
-                    .duration(status.getDuration())
+                    .maxLevel(status.getMaxLevel())
                     .removable(Boolean.parseBoolean(status.getRemovable()))
                     .resistible(Boolean.parseBoolean(status.getIsResistible()))
-//                    .iconSrcs(getStatusIconSrcs(nameEn, moveType, statusOrder, status.getMaxLevel()))
-                    .move(abilityFinal)
+                    .applyOrder(status.getApplyOrder())
+                    .gid(status.getGid())
+                    .move(moveFinal)
                     .build();
-            log.info("statusEntity = {}", baseStatusEffectEntity);
+            log.info("[saveMove] baseStatusEffectEntity = {}", baseStatusEffectEntity);
             baseStatusEffectRepository.save(baseStatusEffectEntity);
 
             // 스테이터스 효과 ("type, value \n ...")
-            status.getStatusEffects().lines().forEach(statusEffect -> {
+            status.getStatusModifiers().lines().forEach(statusEffect -> {
                 String[] splitStatusEffect = statusEffect.split(",");
                 StatusModifierType statusModifierType = StatusModifierType.valueOf(splitStatusEffect[0].trim());
                 double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
@@ -224,127 +240,8 @@ public class InsertController {
             });
         });
 
-        return ResponseEntity.ok(InsertResponse.ok(baseCharacter.getId()));
+        return move;
     }
 
-    @PostMapping("/insert-character-asset")
-    public ResponseEntity<InsertResponse> insertCharacterAsset(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.CharacterAssetInsertRequest request) {
-        log.info("characterAssetRequest: {}", request);
-        Long inputCharacterId = request.getCharacterId();
-        BaseCharacter baseCharacter = baseCharacterRepository.findById(inputCharacterId).orElseThrow(() -> new IllegalArgumentException("character 없음, id = " + inputCharacterId));
-        Long characterId = baseCharacter.getId();
-
-        String assetName = request.getAssetName();
-        String cjsName = request.getCjsName();
-        int chargeAttackStartFrame = request.getChargeAttackStartFrame();
-
-//        EffectVisualType effectVisualType = request.getEffectVisualType();
-//        Long moveId = null;
-//        if (effectVisualType.isAbility()) {
-//            Move move = baseCharacter.getMoves().get(MoveType.valueOf(effectVisualType.name()));
-//            if (move == null) throw new IllegalArgumentException("어빌리티에 대응하는 move 없음, assetType = " + effectVisualType);
-//            moveId = move.getId();
-//        }
-
-        String rootCjsName = request.getRootCjsName();
-//        if (!StringUtils.hasText(rootCjsName)) { // rootCjsName 입력 안됬을때,
-//            if (moveVisualType == MoveVisualType.ACTOR)
-//                throw new IllegalArgumentException("rootCjsName 이 입력되지 않음"); // ACTOR 아니면 오류
-//        } else {
-//            rootCjsName = cjsName; // ACTOR 면 자신의 cjsName 이 곧 rootCjsName
-//        }
-//
-//        MoveVisual moveVisual = MoveVisual.builder()
-//                .actorId(characterId)
-//                .type(moveVisualType)
-//                .moveId(moveId)
-//                .name(assetName)
-//                .cjsName(cjsName)
-//                .rootCjsName(rootCjsName)
-//                .chargeAttackStartFrame(chargeAttackStartFrame)
-//                .build();
-//        moveVisualRepository.save(moveVisual);
-
-        return ResponseEntity.ok(InsertResponse.ok(rootCjsName));
-    }
-
-    @PostMapping("/insert/summon")
-    public ResponseEntity<InsertResponse> insertSummon(@RequestBody com.gbf.granblue_simulator.metadata.controller.character.SummonInsertRequest request) {
-        log.info("summonRequest: {}", request);
-        String nameEn = request.getNameEn();
-
-        // 소환용 캐릭터 ID = 6 으로 고정됨
-        BaseCharacter baseCharacter = baseCharacterRepository.findById(request.getCharacterId()).orElseThrow();
-        int elementOrdinal = request.getElementType().ordinal();
-        String summonIconImageSrc = "/static/assets/img/ui/summon-" + elementOrdinal + ".png";
-        Move summon = Move.builder()
-                .name(request.getName())
-                .type(MoveType.SUMMON_DEFAULT)
-                .info(request.getInfo())
-                .elementType(request.getElementType())
-                .damageRate(request.getDamageRate())
-                .coolDown(request.getCoolDown())
-                .hitCount(request.getHitCount())
-//                .iconImageSrc(summonIconImageSrc)
-                .baseActor(baseCharacter)
-                .build();
-        summon = moveRepository.save(summon);
-
-        String attackCjsName = request.getCjsName() + "_attack";
-        String damageCjsName = request.getCjsName() + "_damage";
-        EffectVisual attackEffectVisual = EffectVisual.builder()
-                .type(EffectVisualType.SPECIAL)
-//                .moveId(summon.getId())
-//                .name(request.getName())
-                .cjsName(attackCjsName)
-//                .rootCjsName(attackCjsName)
-                .build();
-        EffectVisual damageEffectVisual = EffectVisual.builder()
-                .type(EffectVisualType.SPECIAL)
-//                .moveId(summon.getId())
-//                .name(request.getName())
-                .cjsName(damageCjsName)
-//                .rootCjsName(attackCjsName) // root 는 attack 으로
-                .build();
-        moveVisualRepository.saveAll(List.of(attackEffectVisual, damageEffectVisual));
-
-        // 스테이터스
-        final Move summonFinal = summon;
-        request.getStatuses().forEach(status -> {
-            if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
-            int statusOrder = request.getStatuses().indexOf(status) + 1;
-            // 스테이터스
-            BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()
-                    .type(StatusEffectType.valueOf(status.getType()))
-                    .name(status.getName())
-                    .targetType(StatusEffectTargetType.valueOf(status.getTargetType()))
-                    .maxLevel(status.getMaxLevel())
-                    .effectText(status.getEffectText())
-                    .statusText(status.getStatusText())
-                    .duration(status.getDuration())
-                    .removable(Boolean.parseBoolean(status.getRemovable()))
-                    .resistible(Boolean.parseBoolean(status.getIsResistible()))
-//                    .iconSrcs(getSummonStatusIconSrcs(nameEn, statusOrder, status.getMaxLevel()))
-                    .move(summonFinal)
-                    .build();
-            log.info("statusEntity = {}", baseStatusEffectEntity);
-            baseStatusEffectRepository.save(baseStatusEffectEntity);
-
-            // 스테이터스 효과 ("type, value \n ...")
-            status.getStatusEffects().lines().forEach(statusEffect -> {
-                String[] splitStatusEffect = statusEffect.split(",");
-                StatusModifierType statusModifierType = StatusModifierType.valueOf(splitStatusEffect[0].trim());
-                double statusEffectValue = Double.parseDouble(splitStatusEffect[1].trim());
-                StatusModifier statusModifierEntity = StatusModifier.builder()
-                        .baseStatusEffect(baseStatusEffectEntity)
-                        .type(statusModifierType)
-                        .value(statusEffectValue)
-                        .build();
-                statusModifierRepository.save(statusModifierEntity);
-            });
-        });
-
-        return ResponseEntity.ok(InsertResponse.ok(baseCharacter.getId()));
-    }
 
 }

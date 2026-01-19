@@ -3,7 +3,7 @@ package com.gbf.granblue_simulator.battle.logic.actor.enemy;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
@@ -85,7 +85,7 @@ public abstract class EnemyLogic {
         return (Enemy) battleContext.getEnemy();
     }
 
-    protected Move selfMove(MoveType moveType) {
+    protected BaseMove selfMove(MoveType moveType) {
         return this.self().getMove(moveType);
     }
 
@@ -100,7 +100,7 @@ public abstract class EnemyLogic {
         // 공격행동 봉인 여부 체크 및 반환
         double calcedStrikeSealed = mainActor.getStatus().getStatusDetails().getCalcedStrikeSealed();
         boolean isStrikeSealed = Math.random() < calcedStrikeSealed;
-        if (isStrikeSealed) return resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null);
+        if (isStrikeSealed) return resultMapper.toResult(BaseMove.getTransientMove(STRIKE_SEALED), null, Collections.emptyList(), null);
 
         // 공격행동 결정 및 수행
         Enemy mainEnemy = (Enemy) mainActor;
@@ -132,7 +132,7 @@ public abstract class EnemyLogic {
      */
     protected DefaultActorLogicResult defaultAttack() {
         // 평타 횟수 (독립시행)
-        Move attackMove = selfMove(
+        BaseMove attackMove = selfMove(
                 Math.random() < self().getStatus().getTripleAttackRate() ? MoveType.TRIPLE_ATTACK :
                         Math.random() < self().getStatus().getDoubleAttackRate() ? MoveType.DOUBLE_ATTACK :
                                 MoveType.SINGLE_ATTACK);
@@ -165,7 +165,7 @@ public abstract class EnemyLogic {
      * @return DefaultActorLogicResult
      */
     protected DefaultActorLogicResult defaultChargeAttack(Double modifiedDamageRate) {
-        Move chargeAttack = selfMove(self().getCurrentStandbyType().getChargeAttackType());
+        BaseMove chargeAttack = selfMove(self().getCurrentStandbyType().getChargeAttackType());
         // 타겟설정
         List<Actor> targets = getAttackTargets(chargeAttack.isAllTarget(), chargeAttack.getHitCount(), battleContext.getFrontCharacters());
         // 데미지 계산
@@ -192,7 +192,7 @@ public abstract class EnemyLogic {
      *
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability) {
         return this.defaultAbility(ability, null, null);
     }
 
@@ -204,7 +204,7 @@ public abstract class EnemyLogic {
      * @param modifiedHitCount   : 변경할 히트수 (기본 히트수 사용시 null)
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability, Double modifiedDamageRate, Integer modifiedHitCount) {
         // 타겟설정
         List<Actor> targets = new ArrayList<>();
         DamageLogicResult damageLogicResult = null;
@@ -241,7 +241,7 @@ public abstract class EnemyLogic {
         if (currentStandbyType == null) return null; // 발생중인 전조 없음
 
         OmenResult omenResult = null;
-        Move resultMove = selfMove(currentStandbyType); // 기본적으로 현재 전조를 반환
+        BaseMove resultMove = selfMove(currentStandbyType); // 기본적으로 현재 전조를 반환
         Omen currentOmen = resultMove.getOmen();
         // 전조 연산
         int processedOmenValue = omenLogic.updateOmenValue(self(), otherResult);
@@ -265,7 +265,7 @@ public abstract class EnemyLogic {
         // 컨텍스트, currentOrder 갱신 -> 하지않음, 어차피 강제종료
         
         // 결과 반환
-        Move deadMove = enemy.getMove(DEAD_DEFAULT);
+        BaseMove deadMove = enemy.getMove(DEAD_DEFAULT);
         return resultMapper.toResult(deadMove);
     }
 

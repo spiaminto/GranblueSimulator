@@ -1,9 +1,6 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusDurationType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,7 +47,7 @@ public class StatusEffect {
      * @param actor
      * @return
      */
-    public StatusEffect mapBattleActor(Actor actor) {
+    public StatusEffect mapActor(Actor actor) {
         this.actor = actor;
         actor.getStatusEffects().add(this);
         return this;
@@ -100,6 +97,7 @@ public class StatusEffect {
 
     /**
      * 남은 효과시간을 반환 (턴, 초) 영속일시 9999
+     *
      * @return
      */
     public int getRemainingDuration() {
@@ -188,6 +186,7 @@ public class StatusEffect {
 
     /**
      * MISS, RESIST 등의 이펙트 생성시 사용
+     *
      * @param type
      * @param effectText
      * @param actor
@@ -207,6 +206,38 @@ public class StatusEffect {
                 .iconSrc("")
                 .build()
                 .setActor(actor);
+    }
+
+    /**
+     * 해당 StatusModifierType 이 있는지 확인
+     * @param modifierType
+     * @return 있으면 true
+     */
+    public boolean hasModifier(StatusModifierType modifierType) {
+        return this.baseStatusEffect.getModifier(modifierType) != null;
+    }
+
+    /**
+     * StatusModifierType 에 맞는 modifier 가져옴
+     * @param modifierType
+     * @return 없으면 null
+     */
+    public StatusModifier getModifier(StatusModifierType modifierType) {
+        return this.baseStatusEffect.getModifier(modifierType);
+    }
+
+    /**
+     * StatusModifierType 에 맞는 modifier 의 value 에 level 을 적용하여 반환 (소숫점 둘째자리 내림)
+     * @param modifierType 없으면 에러나니 직접 코드상에서 지정해서 호출
+     * @return
+     * @throws IllegalArgumentException 없는 StatusModifierType 으로 요청시 발생
+     */
+    public double getModifierValue(StatusModifierType modifierType) {
+        StatusModifier modifier = this.baseStatusEffect.getModifier(modifierType);
+        if (modifier == null) // 없으면 특정 값 설정하지 않고 즉시 에러내는게 디버깅 할때 나을듯
+            throw new IllegalArgumentException("없는 StatusModifier 접근, modifier = " + modifierType.name() + " 현재 스테이터스 = " + this.baseStatusEffect.toString());
+        double modifierInitValue = modifier.getInitValue();
+        return this.level > 0 ? Math.floor(modifierInitValue * level * 100) / 100.0 : modifierInitValue;
     }
 
 }

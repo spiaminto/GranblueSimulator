@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.battle.service;
 
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.repository.ActorRepository;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -64,26 +63,23 @@ public class BattleCommandService {
      */
     @Transactional(timeout = 1)
     public List<ActorLogicResult> progressTurn() {
-        Member currentMember = battleContext.getMember();
         List<ActorLogicResult> progressTurnResults = new ArrayList<>();
-        // 1. 동기화
-        progressTurnResults.addAll(syncLogic.processSync());
-        // 1.1 락 획득
+        // 락 획득
         getActorLock();
-        // 2. 아군 전체가 공격행동
+        // 동기화
+        progressTurnResults.addAll(syncLogic.processSync());
+        // 아군 전체가 공격행동
         progressTurnResults.addAll(battleLogic.processStrike());
-        // 3. 적이 공격행동
+        // 적이 공격행동
         progressTurnResults.addAll(battleLogic.processEnemyStrike());
-        // 4. 턴 종료 처리
+        // 턴 종료 처리
         if (!battleContext.getFrontCharacters().isEmpty()) {
             progressTurnResults.addAll(battleLogic.processTurnEnd());
             // CHECK 나중에 부활기능이 추가될경우, 쿨다운을 위시한 부분을 전처리 해줘야함
         }
-        // 빈 결과 제거
-        progressTurnResults = progressTurnResults.stream().filter(ActorLogicResult::notEmpty).toList();
 
         // 턴 증가
-        currentMember.increaseTurn();
+        battleContext.getMember().increaseTurn();
         // 커맨드 후처리
         postProcessCommand(progressTurnResults);
 
@@ -99,7 +95,7 @@ public class BattleCommandService {
      */
     @Transactional(timeout = 1)
     public List<ActorLogicResult> ability(Long moveId) {
-        Move ability = moveRepository.findById(moveId).orElseThrow(() -> new MoveValidationException("해당 행동이 존재하지 않음 moveId = " + moveId));
+        BaseMove ability = moveRepository.findById(moveId).orElseThrow(() -> new MoveValidationException("해당 행동이 존재하지 않음 moveId = " + moveId));
         Actor mainCharacter = battleContext.getMainActor();
         // 검증
         if (mainCharacter.getAbilityCooldown(ability.getType()) > 0)
@@ -107,15 +103,14 @@ public class BattleCommandService {
         if (mainCharacter.getAbilitySealed(ability.getType()))
             throw new MoveValidationException("어빌리티 봉인 중,  actor = " + mainCharacter.getName() + ", ability = " + ability.getName());
 
-        mainCharacter.updateCommandType(ability.getType());
         List<ActorLogicResult> results = new ArrayList<>();
+
+        // 락 획득
+        getActorLock();
 
         // 동기화
         List<ActorLogicResult> syncResults = syncLogic.processSync();
         results.addAll(syncResults);
-
-        // 락 획득
-        getActorLock();
 
         // 실행
         List<ActorLogicResult> moveResults = battleLogic.processAbility(ability);
@@ -138,16 +133,16 @@ public class BattleCommandService {
         Member member = battleContext.getMember();
         Long fatalChainMoveId = member.getFatalChainMoveId();
         if (fatalChainMoveId == null) throw new MoveValidationException("페이탈 체인 id 없음, member = " + member);
-        Move fatalChain = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new MoveValidationException("페이탈 체인 없음, fatalChainMoveId = " + fatalChainMoveId));
+        BaseMove fatalChain = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new MoveValidationException("페이탈 체인 없음, fatalChainMoveId = " + fatalChainMoveId));
 
         List<ActorLogicResult> results = new ArrayList<>();
+
+        // 락 획득
+        getActorLock();
 
         // 동기화
         List<ActorLogicResult> syncResults = syncLogic.processSync();
         results.addAll(syncResults);
-
-        // 락 획득
-        getActorLock();
 
         // 실행
         List<ActorLogicResult> moveResults = battleLogic.processFatalChain(fatalChain);
@@ -171,15 +166,14 @@ public class BattleCommandService {
     public List<ActorLogicResult> summon(Long summonId, boolean doUnionSummon) {
         Actor leaderCharacter = battleContext.getLeaderCharacter();
         if (leaderCharacter.isAlreadyDead()) throw new MoveValidationException("주인공이 사망하면 소환석을 사용할수 없음");
-        Move summonMove = moveRepository.findById(summonId).orElseThrow(() -> new IllegalArgumentException("없는 소환석"));
-
+        BaseMove summonMove = moveRepository.findById(summonId).orElseThrow(() -> new IllegalArgumentException("없는 소환석"));
         List<ActorLogicResult> results = new ArrayList<>();
-
-        // 동기화
-        results.addAll(syncLogic.processSync());
 
         // 락 획득
         getActorLock();
+
+        // 동기화
+        results.addAll(syncLogic.processSync());
 
         // 실행
         results.addAll(battleLogic.processSummon(summonMove, doUnionSummon));
@@ -283,7 +277,7 @@ public class BattleCommandService {
 
         for (int index = 0; index < results.size(); index++) {
             ActorLogicResult result = results.get(index);
-            Move move = result.getMove();
+            BaseMove move = result.getMove();
             if (move.getType() == MoveType.SYNC) continue; // SYNC 는 무시
 
             int resultHonor = 0;

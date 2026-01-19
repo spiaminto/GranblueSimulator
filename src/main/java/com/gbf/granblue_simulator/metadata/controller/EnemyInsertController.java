@@ -1,17 +1,17 @@
 package com.gbf.granblue_simulator.metadata.controller;
 
-import com.gbf.granblue_simulator.metadata.controller.character.EnemyAssetInsertRequest;
+import com.gbf.granblue_simulator.metadata.controller.request.enemy.*;
 import com.gbf.granblue_simulator.metadata.controller.response.EnemyInsertResponse;
 import com.gbf.granblue_simulator.metadata.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
-import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelType;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
+import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
 import com.gbf.granblue_simulator.metadata.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,10 +36,10 @@ public class EnemyInsertController {
     private final BaseStatusEffectRepository baseStatusEffectRepository;
     private final StatusModifierRepository statusModifierRepository;
     private final OmenCancelCondRepository omenCancelCondRepository;
-    private final MoveVisualRepository moveVisualRepository;
+    private final EffectVisualRepository effectVisualRepository;
 
     @PostMapping("/insert/enemy")
-    public EnemyInsertResponse insertEnemy(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyInsertRequest request) {
+    public EnemyInsertResponse insertEnemy(@RequestBody EnemyInsertRequest request) {
         log.info("enemyInsertRequest: {}", request);
 
         BaseEnemy baseEnemy = BaseEnemy.builder()
@@ -50,7 +50,7 @@ public class EnemyInsertController {
                 .build();
         baseEnemyRepository.save(baseEnemy);
 
-        Move dead = Move.builder()
+        BaseMove dead = BaseMove.builder()
                 .name(null)
                 .type(MoveType.DEAD)
                 .info("dead")
@@ -58,7 +58,7 @@ public class EnemyInsertController {
                 .build();
         moveRepository.save(dead);
 
-        Move formChange = Move.builder()
+        BaseMove formChange = BaseMove.builder()
                 .name("폼 체인지")
                 .type(MoveType.FORM_CHANGE_DEFAULT)
                 .info("form change")
@@ -70,10 +70,10 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-attack")
-    public EnemyInsertResponse insertAttack(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyAttackRequest request) {
+    public EnemyInsertResponse insertAttack(@RequestBody EnemyAttackRequest request) {
         log.info("enemyAttackRequest: {}", request);
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move singleAttack = Move.builder()
+        BaseMove singleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
                 .type(MoveType.SINGLE_ATTACK)
@@ -84,7 +84,7 @@ public class EnemyInsertController {
                 .build();
         moveRepository.save(singleAttack);
 
-        Move doubleAttack = Move.builder()
+        BaseMove doubleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
                 .type(MoveType.DOUBLE_ATTACK)
@@ -95,7 +95,7 @@ public class EnemyInsertController {
                 .build();
         moveRepository.save(doubleAttack);
 
-        Move tripleAttack = Move.builder()
+        BaseMove tripleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
                 .type(MoveType.TRIPLE_ATTACK)
@@ -110,10 +110,10 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-idle")
-    public EnemyInsertResponse insertIdle(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyIdleRequest request) {
+    public EnemyInsertResponse insertIdle(@RequestBody EnemyIdleRequest request) {
         log.info("enemyIdleRequest: {}", request);
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move idle = Move.builder()
+        BaseMove idle = BaseMove.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("idle")
@@ -125,10 +125,10 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-damaged")
-    public EnemyInsertResponse insertDamaged(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyDamagedRequest request) {
+    public EnemyInsertResponse insertDamaged(@RequestBody EnemyDamagedRequest request) {
         log.info("enemyDamagedRequest: {}", request);
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move damaged = Move.builder()
+        BaseMove damaged = BaseMove.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("damaged")
@@ -140,10 +140,10 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-break")
-    public EnemyInsertResponse insertBreak(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyBreakRequest request) {
+    public EnemyInsertResponse insertBreak(@RequestBody EnemyBreakRequest request) {
         log.info("enemyBreakRequest: {}", request);
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move breakMove = Move.builder()
+        BaseMove breakMove = BaseMove.builder()
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("break")
@@ -155,10 +155,10 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-standby")
-    public EnemyInsertResponse insertStandby(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyStandbyInsertRequest request) {
+    public EnemyInsertResponse insertStandby(@RequestBody EnemyStandbyInsertRequest request) {
         log.info("enemyStandbyRequest: {}", request);
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move standby = Move.builder()
+        BaseMove standby = BaseMove.builder()
                 .name(request.getOmen().getName())
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getOmen().getInfo())
@@ -195,11 +195,11 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-charge-attack")
-    public EnemyInsertResponse insertChargeAttack(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyChargeAttackRequest request) {
+    public EnemyInsertResponse insertChargeAttack(@RequestBody EnemyChargeAttackRequest request) {
         log.info("chargeAttackReuqest: {}", request);
 
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move chargeAttack = Move.builder()
+        BaseMove chargeAttack = BaseMove.builder()
                 .name(request.getName())
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getInfo())
@@ -214,7 +214,7 @@ public class EnemyInsertController {
         chargeAttack = moveRepository.save(chargeAttack);
 
         // 스테이터스
-        final Move chargeAttackFinal = chargeAttack;
+        final BaseMove chargeAttackFinal = chargeAttack;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
             // 스테이터스
@@ -253,11 +253,11 @@ public class EnemyInsertController {
     }
 
     @PostMapping("/insert/enemy-ability")
-    public ResponseEntity<InsertResponse> insertAbility(@RequestBody com.gbf.granblue_simulator.metadata.controller.enemy.EnemyAbilityRequest request) {
+    public ResponseEntity<InsertResponse> insertAbility(@RequestBody EnemyAbilityRequest request) {
         log.info("request: {}", request);
 
         BaseEnemy baseEnemy = baseEnemyRepository.findById(request.getEnemyId()).orElseThrow();
-        Move ability = Move.builder()
+        BaseMove ability = BaseMove.builder()
                 .type(MoveType.valueOf(request.getType()))
                 .name(request.getName())
                 .info(request.getInfo())
@@ -273,7 +273,7 @@ public class EnemyInsertController {
         log.info("ability = {}", ability);
 
         // Status 저장
-        final Move abilityFinal = ability;
+        final BaseMove abilityFinal = ability;
         request.getStatuses().forEach(status -> {
             if (!StringUtils.hasText(status.getType())) return; // status type 없으면 리턴
             BaseStatusEffect baseStatusEffectEntity = BaseStatusEffect.builder()

@@ -5,7 +5,7 @@ import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
@@ -61,7 +61,7 @@ public abstract class CharacterLogic {
     public abstract List<ActorLogicResult> processTurnEnd();
 
     // 페이탈 체인
-    public ActorLogicResult processFatalChain(Move fatalChain) {
+    public ActorLogicResult processFatalChain(BaseMove fatalChain) {
         return defaultFatalChain(fatalChain);
     }
 
@@ -70,10 +70,9 @@ public abstract class CharacterLogic {
         return battleContext.getMainActor();
     }
 
-    protected Move selfMove(MoveType moveType) {
+    protected BaseMove selfMove(MoveType moveType) {
         return this.self().getMove(moveType);
     }
-
 
     /**
      * 공격 행동을 수행
@@ -88,7 +87,7 @@ public abstract class CharacterLogic {
         // 공격행동 봉인 여부 체크 및 반환
         double calcedStrikeSealed = mainActor.getStatus().getStatusDetails().getCalcedStrikeSealed();
         boolean isStrikeSealed = Math.random() < calcedStrikeSealed;
-        if (isStrikeSealed) return resultMapper.toResult(Move.getTransientMove(STRIKE_SEALED), null, null);
+        if (isStrikeSealed) return resultMapper.toResult(BaseMove.getTransientMove(STRIKE_SEALED), null, null);
 
         // 공격행동 결정 및 수행
         boolean readyChargeAttack = mainActor.getChargeGauge() >= mainActor.getBaseActor().getMaxChargeGauge();
@@ -141,7 +140,7 @@ public abstract class CharacterLogic {
     protected DefaultActorLogicResult defaultAttack() {
         Actor self = this.self();
         // 평타 횟수 (독립시행)
-        Move attackMove = selfMove(
+        BaseMove attackMove = selfMove(
                 Math.random() < self.getStatus().getTripleAttackRate() ? MoveType.TRIPLE_ATTACK :
                         Math.random() < self.getStatus().getDoubleAttackRate() ? MoveType.DOUBLE_ATTACK :
                                 MoveType.SINGLE_ATTACK
@@ -176,7 +175,7 @@ public abstract class CharacterLogic {
      * @return DefaultActorLogicResult
      */
     protected DefaultActorLogicResult defaultChargeAttack(Double modifiedDamageRate, List<BaseStatusEffect> selectedBaseStatusEffects) {
-        Move chargeAttack = selfMove(CHARGE_ATTACK_DEFAULT);
+        BaseMove chargeAttack = selfMove(CHARGE_ATTACK_DEFAULT);
         // 오의 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : chargeAttack.getDamageRate();
         // 스테이터스 변경 확인
@@ -202,7 +201,7 @@ public abstract class CharacterLogic {
      *
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability) {
         return this.defaultAbility(ability, null, null, null);
     }
 
@@ -211,7 +210,7 @@ public abstract class CharacterLogic {
      *
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability, List<BaseStatusEffect> selectedBaseStatusEffects) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability, List<BaseStatusEffect> selectedBaseStatusEffects) {
         return this.defaultAbility(ability, null, null, selectedBaseStatusEffects);
     }
 
@@ -222,7 +221,7 @@ public abstract class CharacterLogic {
      * @param modifiedHitCount   : 변경할 히트수 (기본 히트수 사용시 null)
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability, Double modifiedDamageRate, Integer modifiedHitCount) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability, Double modifiedDamageRate, Integer modifiedHitCount) {
         return this.defaultAbility(ability, modifiedDamageRate, modifiedHitCount, null);
     }
 
@@ -237,7 +236,7 @@ public abstract class CharacterLogic {
      * @param selectedBaseStatusEffects : 변경(선택)할 스테이터스 (어빌리티의 기본 모든 스테이터스 사용시 null)
      * @return DefaultActorLogicResult
      */
-    protected DefaultActorLogicResult defaultAbility(Move ability, Double modifiedDamageRate, Integer modifiedHitCount, List<BaseStatusEffect> selectedBaseStatusEffects) {
+    protected DefaultActorLogicResult defaultAbility(BaseMove ability, Double modifiedDamageRate, Integer modifiedHitCount, List<BaseStatusEffect> selectedBaseStatusEffects) {
         // 데미지 배율 변경확인
         double damageRate = modifiedDamageRate != null ? modifiedDamageRate : ability.getDamageRate();
         // 히트수 변경 확인
@@ -251,7 +250,7 @@ public abstract class CharacterLogic {
         // 스테이터스 적용
         SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(baseStatusEffects);
         // 쿨다운, 사용횟수 설정 (커맨드 수행시에만 설정)
-        if (abilityType.getParentType() == MoveType.ABILITY && self().getCommandType() == ability.getType()) {
+        if (abilityType.getParentType() == MoveType.ABILITY && ability.getId().equals(battleContext.getCommandAbilityId())) {
             self().updateAbilityCooldowns(ability.getCoolDown(), abilityType);
             self().increaseAbilityUseCount(abilityType);
         }
@@ -273,7 +272,7 @@ public abstract class CharacterLogic {
      *
      * @param move 참전자 효과가 들어있는 move
      */
-    public void registerForAllMove(Move move) {
+    public void registerForAllMove(BaseMove move) {
         Member refMember = self().getMember();
         Room room = refMember.getRoom();
         List<Member> targetMembers = room.getMembers().stream()
@@ -299,7 +298,7 @@ public abstract class CharacterLogic {
      * @param fatalChain
      * @return
      */
-    protected ActorLogicResult defaultFatalChain(Move fatalChain) {
+    protected ActorLogicResult defaultFatalChain(BaseMove fatalChain) {
         DamageLogicResult damageLogicResult = damageLogic.processPartyDamage(fatalChain);
         SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(fatalChain);
         chargeGaugeLogic.setFatalChainGauge(0); // 페이탈 체인 게이지 초기화
@@ -333,13 +332,13 @@ public abstract class CharacterLogic {
             // 컨텍스트 갱신
             battleContext.frontCharacterDead(mainActor, firstSubCharacter);
             // 결과 반환
-            Move deadMove = mainActor.getMove(DEAD_DEFAULT);
+            BaseMove deadMove = mainActor.getMove(DEAD_DEFAULT);
             return resultMapper.toResult(deadMove, null, null);
         }
     }
 
     protected ActorLogicResult defaultGuard() {
-        return resultMapper.toResult(Move.getTransientMove(GUARD_DEFAULT), null, null);
+        return resultMapper.toResult(BaseMove.getTransientMove(GUARD_DEFAULT), null, null);
     }
 
     // 가변 오버라이드 (내부사용)

@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.party.controller.dto;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,9 +15,9 @@ public class PartyCharacterInfo {
     private String portraitSrc;
 
     // 캐릭터 상세
-    private Move chargeAttack;
-    private List<Move> abilities;
-    private List<Move> supportAbilities;
+    private BaseMove chargeAttack;
+    private List<BaseMove> abilities;
+    private List<BaseMove> supportAbilities;
     private boolean isMainCharacter;
     private String elementType;
     private Integer atk;

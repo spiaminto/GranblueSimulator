@@ -10,7 +10,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,7 +34,7 @@ public class EnemyLogicResultMapper {
      * @return
      */
     public ActorLogicResult emptyResult() {
-        return ActorLogicResult.builder().move(Move.getTransientMove(MoveType.NONE)).build();
+        return ActorLogicResult.builder().move(BaseMove.getTransientMove(MoveType.NONE)).build();
     }
 
     public ActorLogicResult fromDefaultResult(DefaultActorLogicResult defaultActorLogicResult) {
@@ -48,7 +48,7 @@ public class EnemyLogicResultMapper {
      * @param move
      * @return
      */
-    public ActorLogicResult toResult(Move move) {
+    public ActorLogicResult toResult(BaseMove move) {
         return map(move, null, null, null, null);
     }
 
@@ -60,7 +60,7 @@ public class EnemyLogicResultMapper {
      * @param omen
      * @return
      */
-    public ActorLogicResult toResultWithOmen(Move move, OmenResult omen) {
+    public ActorLogicResult toResultWithOmen(BaseMove move, OmenResult omen) {
         return map(move, null, null, null, omen);
     }
 
@@ -71,7 +71,7 @@ public class EnemyLogicResultMapper {
      * @param statusResult
      * @return
      */
-    public ActorLogicResult toResult(Move move, SetStatusEffectResult statusResult) {
+    public ActorLogicResult toResult(BaseMove move, SetStatusEffectResult statusResult) {
         return map(move, null, null, statusResult, null);
     }
 
@@ -81,11 +81,11 @@ public class EnemyLogicResultMapper {
      * @param move
      * @return
      */
-    public ActorLogicResult toResult(Move move, DamageLogicResult damageLogicResult, List<Actor> attackTargets, SetStatusEffectResult statusResult) {
+    public ActorLogicResult toResult(BaseMove move, DamageLogicResult damageLogicResult, List<Actor> attackTargets, SetStatusEffectResult statusResult) {
         return map(move, damageLogicResult, attackTargets, statusResult, null);
     }
 
-    protected ActorLogicResult map(Move move, DamageLogicResult damageLogicResult, List<Actor> attackTargets, SetStatusEffectResult setStatusEffectResult, OmenResult omen) {
+    protected ActorLogicResult map(BaseMove move, DamageLogicResult damageLogicResult, List<Actor> attackTargets, SetStatusEffectResult setStatusEffectResult, OmenResult omen) {
         Actor mainActor = battleContext.getEnemy();
         if (mainActor == null) throw new IllegalArgumentException("[map] mainActor 없음 move = " + move.getName());
         Actor enemy = battleContext.getEnemy();

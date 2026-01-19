@@ -7,7 +7,7 @@ import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
@@ -57,7 +57,7 @@ public class HairaLogic extends CharacterLogic {
     @Override
     public ActorLogicResult postProcessToPartyMove(ActorLogicResult partyMoveResult) {
         // 아군이 2회이상 행동할때마다 사포아비 2 발동
-        Move resultMove = partyMoveResult.getMove();
+        BaseMove resultMove = partyMoveResult.getMove();
         if (resultMove.getParentType() == MoveType.ATTACK || resultMove.getType() == MoveType.CHARGE_ATTACK_DEFAULT) { // 미리 좀 거르고 시작
             return battleContext.getFrontCharacters().stream()
                     .filter(partyMoveResult::isFromActor)
@@ -81,7 +81,7 @@ public class HairaLogic extends CharacterLogic {
 
     @Override // 자신이 지보의 황성 상태일때, 스택에 비례해 자신에게 재행동, 적에게 감전, 지보의 황성 삭제,
     protected ActorLogicResult firstAbility() {
-        Move ability = selfMove(MoveType.FIRST_ABILITY);
+        BaseMove ability = selfMove(MoveType.FIRST_ABILITY);
         return getEffectByName(self(), "지보의 황성")
                 .map(statusEffect -> {
                     StatusModifierType multiStrikeModifier = statusEffect.getLevel() >= 5 ? StatusModifierType.QUADRUPLE_STRIKE
@@ -115,7 +115,7 @@ public class HairaLogic extends CharacterLogic {
     @Override // 아군이 2회이상 행동할때마다 자신에게 지보의 황성, 오의게이지 20% 상승,
     protected ActorLogicResult secondSupportAbility() {
         // 오의게이지 증가
-        chargeGaugeLogic.setChargeGauge(self(), self().getChargeGauge() + 20);
+        chargeGaugeLogic.addChargeGauge(self(), 20);
         return resultMapper.fromDefaultResult(defaultAbility(selfMove(MoveType.SECOND_SUPPORT_ABILITY)));
     }
 

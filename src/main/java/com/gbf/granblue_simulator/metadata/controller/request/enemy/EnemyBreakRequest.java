@@ -1,5 +1,4 @@
-package com.gbf.granblue_simulator.metadata.controller.enemy;
-
+package com.gbf.granblue_simulator.metadata.controller.request.enemy;
 import lombok.Data;
 
 @Data

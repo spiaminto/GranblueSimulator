@@ -9,13 +9,11 @@ import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
 import com.gbf.granblue_simulator.battle.logic.actor.character.CharacterLogic;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
 import com.gbf.granblue_simulator.battle.logic.actor.enemy.EnemyLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.TurnEndStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.system.SummonLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
-import com.gbf.granblue_simulator.battle.logic.util.StatusUtil;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
@@ -31,6 +29,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByModifierType;
+import static java.util.function.Predicate.not;
 
 @Component
 @RequiredArgsConstructor
@@ -138,15 +137,13 @@ public class BattleLogic {
      * @param ability
      * @return
      */
-    public List<ActorLogicResult> processAbility(Move ability) {
+    public List<ActorLogicResult> processAbility(BaseMove ability) {
         Actor mainCharacter = battleContext.getMainActor();
         Actor enemy = battleContext.getEnemy();
 
         // 어빌리티 사용
         ActorLogicResult abilityResult = callCharacterLogic((logic) -> logic.processAbility(ability.getType()), mainCharacter);
         List<ActorLogicResult> results = new ArrayList<>();
-        // 커맨드 필드 초기화
-        mainCharacter.updateCommandType(null);
 
         // 반응
         results.addAll(postProcessToMove(abilityResult));
@@ -165,7 +162,7 @@ public class BattleLogic {
         return results;
     }
 
-    public List<ActorLogicResult> processFatalChain(Move fatalChain) {
+    public List<ActorLogicResult> processFatalChain(BaseMove fatalChain) {
         Actor mainActor = battleContext.getMainActor(); // fatalChain 실행시, 프론트에서 전열 멤버중 첫번째 캐릭터를 mainActor 로 등록해서 가져옴
 
         List<ActorLogicResult> results = new ArrayList<>();
@@ -184,7 +181,7 @@ public class BattleLogic {
      * @param doUnionSummon
      * @return
      */
-    public List<ActorLogicResult> processSummon(Move summon, boolean doUnionSummon) {
+    public List<ActorLogicResult> processSummon(BaseMove summon, boolean doUnionSummon) {
         // 기본 소환
         List<ActorLogicResult> results = new ArrayList<>();
         ActorLogicResult summonResult = summonLogic.processSummon(summon, false);
@@ -198,7 +195,7 @@ public class BattleLogic {
         if (unionSummonId != null) {
             if (doUnionSummon) {
                 // 합체 소환 처리
-                Move unionSummonMove = moveRepository.findById(unionSummonId).orElseThrow(() -> new IllegalArgumentException("없는 합체 소환석"));
+                BaseMove unionSummonMove = moveRepository.findById(unionSummonId).orElseThrow(() -> new IllegalArgumentException("없는 합체 소환석"));
                 ActorLogicResult unionSummonResult = summonLogic.processSummon(unionSummonMove, true);
                 // 반응
                 results.addAll(postProcessToMove(unionSummonResult));
@@ -327,7 +324,7 @@ public class BattleLogic {
         partyMembers.forEach(partyMember -> {
             partyMember.changeGuard(false); // 가드 off
             List<ActorLogicResult> characterTurnEndResults = callCharacterLogic(CharacterLogic::processTurnEnd, partyMember).stream()
-                    .filter(ActorLogicResult::notEmpty).toList();
+                    .filter(not(ActorLogicResult::isEmpty)).toList();
 
             // 턴종 결과는 여러개라, 모두 반응처리
             characterTurnEndResults.forEach(characterTurnEndResult -> turnEndResults.addAll(postProcessToMove(characterTurnEndResult)));
@@ -335,7 +332,7 @@ public class BattleLogic {
 
         // 적 턴종료 처리
         List<ActorLogicResult> enemyTurnEndResults = callEnemyLogic(EnemyLogic::processTurnEnd, enemy).stream()
-                .filter(ActorLogicResult::notEmpty).toList();
+                .filter(not(ActorLogicResult::isEmpty)).toList();
         // 적 턴종료 반응 처리
         enemyTurnEndResults.forEach(enemyTurnEndResult -> turnEndResults.addAll(postProcessToMove(enemyTurnEndResult)));
 
@@ -369,6 +366,7 @@ public class BattleLogic {
      * @return 파라미터로 넘어온 결과를 포함한 모든 반응처리 결과
      */
     protected List<ActorLogicResult> postProcessToMove(ActorLogicResult firstBaseResult) {
+        if (firstBaseResult.isEmpty()) return Collections.emptyList();
         List<ActorLogicResult> allResults = new ArrayList<>();
         Queue<ActorLogicResult> reactionQueue = new ArrayDeque<>();
 
@@ -417,7 +415,7 @@ public class BattleLogic {
         List<ActorLogicResult> enemyReactions = fromEnemy
                 ? callEnemyLogic(logic -> logic.postProcessToEnemyMove(baseResult), enemy)
                 : callEnemyLogic(logic -> logic.postProcessToPartyMove(baseResult), enemy);
-        enemyReactions = enemyReactions.stream().filter(ActorLogicResult::notEmpty).toList();
+        enemyReactions = enemyReactions.stream().filter(not(ActorLogicResult::isEmpty)).toList();
         results.addAll(enemyReactions);
         battleLogService.saveBattleLogAll(enemyReactions);
 
@@ -430,8 +428,7 @@ public class BattleLogic {
 
         // 3. 아군 전체가 반응
         for (int currentOrder : currentOrderList) {
-            // 반응할 아군을 갱신
-            List<Actor> currentPartyMembers = battleContext.getFrontCharacters();
+            List<Actor> currentPartyMembers = battleContext.getFrontCharacters(); // 반응할 아군을 갱신
             currentPartyMembers.stream()
                     .filter(reactingPartyMember -> !reactingPartyMember.isAlreadyDead()) // 반응 중 사망시 반응 x
                     .filter(reactingPartyMember -> reactingPartyMember.getCurrentOrder() == currentOrder).findAny() // 변경된 순서대로 (사망시 currentOrder += 100)
@@ -452,7 +449,7 @@ public class BattleLogic {
                                 ? callCharacterLogic(logic -> logic.postProcessToEnemyMove(baseResult), reactingPartyMember)
                                 : callCharacterLogic(logic -> logic.postProcessToPartyMove(baseResult), reactingPartyMember);
                         // 저장
-                        if (!reactResult.getMove().getType().isNone()) { // none null, none empty when added
+                        if (!reactResult.isEmpty()) {
                             log.info("[processReactions] 반응 발생 \n baseResult = {}\n  reactResult = {}", baseResult, reactResult);
                             battleLogService.saveBattleLog(reactResult);
                             results.add(reactResult);
@@ -513,174 +510,4 @@ public class BattleLogic {
         battleContext.setCurrentMainActor(actor);
         return logicFunction.apply(enemyLogicMap.get(actor.getBaseActor().getNameEn() + "Logic"));
     }
-
-
-    // ==== 참고용, 나중에 삭제 ======================================================================
-//
-//
-//    /**
-//     * 발생한 행동에 대한 아군 / 적 반응처리 + 캐릭터 단위로 로그 저장 <br>
-//     * 모든 커맨드 ( 공격(턴 진행), 어빌리티 사용, 페이탈 체인, 소환석 ) 이 반드시 해당 메서드로 후처리 해야함 <br>
-//     * 추가로 턴 종료 행동 후에도 반응처리
-//     *
-//     * @param beforeLogicResult 발생한 행동 결과
-//     * @return 파라미터로 넘어온 결과를 포함한 모든 반응처리 결과
-//     */
-//    protected List<ActorLogicResult> postProcessToMoveLegacy(ActorLogicResult beforeLogicResult) {
-//        List<ActorLogicResult> results = new ArrayList<>();
-//        results.add(beforeLogicResult);
-//
-//        // 이전 행동에 따른 분기처리
-//        boolean toEnemy = beforeLogicResult.getMainActorId().equals(battleContext.getEnemy().getId()); // 이전 행동 주체가 적
-//        if (toEnemy) {
-//            // 적이 우선 자신의 행동에 대한 반응
-//            List<ActorLogicResult> enemySelfReactionResults = callEnemyLogic(enemyLogic -> enemyLogic.postProcessToEnemyMove(beforeLogicResult), battleContext.getEnemy())
-//                    .stream().filter(ActorLogicResult::notEmpty).toList();
-//            enemySelfReactionResults.forEach(result -> results.addAll(processReactionsToEnemyResult(result)));
-//
-//            results.addAll(processReactionsToEnemyResult(beforeLogicResult)); // 이쪽은 재귀처리 안함
-//        } else {
-//            Actor beforeResultActor = battleContext.getAllActors().stream()
-//                    .filter(battleActor -> battleActor.getId().equals(beforeLogicResult.getMainActorId()))
-//                    .findFirst().orElseThrow(() -> new IllegalArgumentException("이전 actor 없음, actorId = " + beforeLogicResult.getMainActorId()));
-//
-//            results.addAll(processReactionsToPartyResult(beforeResultActor, beforeLogicResult));
-//        }
-//
-//        return results;
-//    }
-//
-//    /**
-//     * 적의 행동에 대한 아군들의 반응 처리
-//     * 적 행동 → 아군A 반응 → 아군B 반응 → ... → 각 반응에 대한 재귀
-//     */
-//    private List<ActorLogicResult> processReactionsToEnemyResultLegacy(ActorLogicResult beforeEnemyResult) {
-//        List<ActorLogicResult> results = new ArrayList<>();
-//        battleLogService.saveBattleLog(beforeEnemyResult);
-//
-//        if (beforeEnemyResult.getMoveType() == MoveType.DEAD_DEFAULT) {
-//            // CHECK 적 사망시 반응하지 않음.
-//            return results;
-//        }
-//
-//        // 적이 먼저 자신의 행동에 대해 반응
-//        List<ActorLogicResult> enemySelfReactionResults = callEnemyLogic(enemyLogic -> enemyLogic.postProcessToEnemyMove(beforeEnemyResult), battleContext.getEnemy())
-//                .stream().filter(ActorLogicResult::notEmpty).toList();
-//        battleLogService.saveBattleLogAll(enemySelfReactionResults);
-//        results.addAll(enemySelfReactionResults);
-//
-//        int[] currentOrderArray = IntStream.range(1, 5).toArray();
-//        for (int currentOrder : currentOrderArray) {
-//            List<Actor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
-//            currentPartyMembers.stream()
-//                    .filter(partyMember -> partyMember.getCurrentOrder() == currentOrder)
-//                    .findFirst().ifPresent(reactingPartyMember -> {
-//                        log.info("[processReactionsToEnemyResult] reaction Active, reactingPartyMember = {}", reactingPartyMember);
-//                        // 이미 사망한 경우
-//                        if (battleContext.getEnemy().isAlreadyDead() || reactingPartyMember.isAlreadyDead()) return;
-//
-//                        // 사망 여부 처리
-//                        ActorLogicResult deadResult = processDead(reactingPartyMember, battleContext.getEnemy());
-//                        if (deadResult != null) {
-//                            battleLogService.saveBattleLog(deadResult);
-//                            results.add(deadResult);
-//                            return; // 사망시 즉시반환
-//                        }
-//
-//                        // 1. 이전 적의 행동에 따른 아군 반응을 순서대로 처리
-//                        ActorLogicResult reactResult = callCharacterLogic((logic) -> logic.postProcessToEnemyMove(beforeEnemyResult), reactingPartyMember);
-//
-//                        // 1-2. 이전 적의 행동에 따른 아군 반응이 실제로 발생시, 해당 아군 반응에 대해 추가 아군의 반응 재귀처리
-//                        if (reactResult.getMoveType() != MoveType.NONE) {
-//                            log.info("[processReactionsToEnemyResult] 반응발생 \n beforeResult = {}\n  reactResult = {}", beforeEnemyResult, reactResult);
-//                            results.add(reactResult);
-//                            battleLogService.saveBattleLog(reactResult);
-//                            results.addAll(processReactionsToPartyResult(reactingPartyMember, reactResult));
-//                        }
-//
-//                        // 1-4. 이전 적의 행동에 대한 아군반응에 대한 추가 아군 반응이 없을시, 다음 순서의 아군 반응을 처리
-//                    });
-//        }
-//
-//        return results.stream().filter(actorLogicResult -> actorLogicResult.getMoveType() != MoveType.NONE).toList();
-//    }
-//
-//
-//    /**
-//     * 아군의 행동에 대한 반응 처리
-//     * 아군 행동 → 적 반응 (+ BREAK 특수처리) → 아군들 반응 → 각 반응에 대한 재귀
-//     *
-//     * @param beforeResultActor: 이전 행동 결과의 mainActor
-//     * @param beforeResult:      이전 행동 결과
-//     */
-//    private List<ActorLogicResult> processReactionsToPartyResultLegacy(Actor beforeResultActor, ActorLogicResult beforeResult) {
-//        List<ActorLogicResult> results = new ArrayList<>();
-//        battleLogService.saveBattleLog(beforeResult);
-//
-//        Actor enemy = battleContext.getEnemy();
-//
-//        if (beforeResult.getMoveType() == MoveType.DEAD_DEFAULT) {
-//            // CHECK 아군이 사망시 반응하지 않음.
-//            // 아군이 사망시, partyMembers 에서 즉시 제거됨
-//            // 그렇게 되면 이전 결과에 반응할때, 해당 캐릭터의 id 로 partyMembers 에서 더이상 캐릭터를 조회할수없게됨
-//            // 캐릭터 로직에서 캐릭터 없는 오류가 발생함 -> 하지만 캐릭터 로직은 파라미터로 넘어오는 partyMemebrs 를 필터링 없이 신뢰하고 싶음.
-//            // 이렇게 전파되는걸 막기위해, DEFAULT_DEAD 의 경우 반응하지 않도록 미리설정하고
-//            // 필요한경우, CharacterLogic 에 postProcessDead 생성후, emptyResult 를 반환시키고, 필요한 캐릭터 로직이 override 해서 사용하도록 해야할듯?
-//            return results;
-//        }
-//
-//        // 1-1. 적이 우선, 아군의 행동에 반응
-//        List<ActorLogicResult> enemyReactions = callEnemyLogic((logic) -> logic.postProcessToPartyMove(beforeResult), enemy);
-//        results.addAll(enemyReactions);
-//
-//        // 1-2. 적의 반응으로 BREAK 발생시, 적의 추가 반응
-////        enemyReactions.stream()
-////                .filter(reaction -> reaction.getMoveType().getParentType() == MoveType.BREAK)
-////                .findFirst()
-////                .ifPresent(breakReaction -> {
-////                    results.addAll(callEnemyLogic((logic) -> logic.postProcessToEnemyMove(breakReaction), enemy));
-////                }); // CHECK 적의 BREAK 에 대해서만 발동함, 예조 해제에 따른 추가효과 적용을 위한 특수케이스임. (원래 적의 반응에 대한 추가반응은 구현 X)
-//
-//        // 2-0. 아군의 반응을 위해, 행동주체의 순서를 맨 앞으로 당김
-//        List<Integer> currentOrderList = IntStream.range(1, 5).boxed().collect(Collectors.toList()); // CHECK 파티 멤버는 갱신되거나 없을수 있기 때문에 currentOrder 로 매칭되는 파티원만 실행하도록 함.
-//        currentOrderList.remove(beforeResultActor.getCurrentOrder());
-//        currentOrderList.addFirst(beforeResultActor.getCurrentOrder());
-//
-//        for (int currentOrder : currentOrderList) {
-//            List<Actor> currentPartyMembers = battleContext.getFrontCharacters(); // CHECK 갱신을 반영하기 위해 반드시 새로가져옴
-//            currentPartyMembers.stream()
-//                    .filter(partyMember -> partyMember.getCurrentOrder() == currentOrder)
-//                    .findFirst().ifPresent(reactingPartyMember -> {
-//                        // 이미 사망한 경우
-//                        if (enemy.isAlreadyDead() || reactingPartyMember.isAlreadyDead()) return;
-//
-//                        // 사망 여부 처리
-//                        ActorLogicResult deadResult = processDead(reactingPartyMember, enemy);
-//                        if (deadResult != null) {
-//                            results.add(deadResult);
-//                            battleLogService.saveBattleLog(deadResult);
-//                            return; // 사망시 즉시반환
-//                        }
-//
-//                        // 2-1. 아군의 행동에 대해 아군이 순서대로(주체먼저) 반응
-//                        ActorLogicResult reactResult = callCharacterLogic((logic) -> logic.postProcessToPartyMove(beforeResult), reactingPartyMember);
-//
-//                        // 2-2. 이전 아군의 행동에 따른 아군 반응이 실제로 발생시, 해당 아군 반응에 대해 추가 아군의 반응 재귀처리
-//                        if (reactResult.getMoveType() != MoveType.NONE) {
-//                            log.info("[processReactionsToPartyResult] 반응발생 \n beforeResult = {}\n  reactResult = {}", beforeResult, reactResult);
-//                            results.add(reactResult);
-//                            battleLogService.saveBattleLog(reactResult);
-//                            results.addAll(processReactionsToPartyResult(reactingPartyMember, reactResult));
-//                        }
-//
-//                        // 2-3. 혹시모를 무한재귀를 방지
-//                        if (results.size() > 50)
-//                            throw new IllegalArgumentException("반응 메서드의 결과가 50개를 초과, 마지막 결과: " + results.getLast());
-//
-//                        // 2-4. 이전 아군의 행동에 대한 아군반응에 대한 추가 아군 반응이 없을시, 다음 순서의 아군 반응을 처리
-//                    });
-//        }
-//
-//        return results.stream().filter(actorLogicResult -> actorLogicResult.getMoveType() != MoveType.NONE).toList();
-//    }
 }

@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,7 +36,7 @@ public class Status {
     // 공격
     private int atk;
 
-    // 방어력 (소숫점 1째짜리 까지만 허용, 아래 버림)
+    // 방어력 (무속성 기본, 소숫점 1째짜리 까지만 허용, 아래 버림)
     private double def;
 
     // 최대체력
@@ -126,8 +127,8 @@ public class Status {
         this.maxHp = details.getCalcedMaxHp();
         if (maxHp > 0 && maxHp < hp) this.hp = maxHp; // 혼신, 배수 처리를 위해 HP 를 최우선 처리
 
-        this.atk = details.getCalcedAtk(this.getCalcedHpRate());
-        this.def = details.getCalcedDef();
+        this.atk = details.getCalcedAtk(this.getCalcedHpRate(), ElementType.PLAIN);
+        this.def = details.getCalcedDef(ElementType.PLAIN);
 
         this.doubleAttackRate = details.getCalcedDoubleAttackRate();
         this.tripleAttackRate = details.getCalcedTripleAttackRate();

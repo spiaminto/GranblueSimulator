@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.actor.dto;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.battle.logic.damage.MoveDamageType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
@@ -21,7 +21,7 @@ import java.util.*;
 public class ActorLogicResult {
     // entity
     private Actor mainActor;
-    private Move move;
+    private BaseMove move;
 
     // Member
     private Integer currentTurn;
@@ -60,8 +60,12 @@ public class ActorLogicResult {
     // 헬퍼들
     public void updateHonor(int honor) { this.honor = honor; }
 
-    public boolean notEmpty() {
-        return this.move.getType() != MoveType.NONE;
+    /**
+     * 비어있는 결과 인지 확인
+     * @return move.type == NONE 인경우 true 반환
+     */
+    public boolean isEmpty() {
+        return this.move.getType() == MoveType.NONE;
     }
 
     public boolean isFromActor(Actor actor) {

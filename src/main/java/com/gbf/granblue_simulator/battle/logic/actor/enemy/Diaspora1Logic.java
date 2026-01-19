@@ -14,7 +14,7 @@ import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
@@ -218,7 +218,7 @@ public class Diaspora1Logic extends EnemyLogic {
     // 긴급 수복모드 종료시 자신에게 남아있는 활성레벨에 맞는 모드로 전환, 자신에게 걸린 모든 디버프 해제
     protected ActorLogicResult thirdSupportAbility() {
         Actor self = self();
-        Move ability = selfMove(MoveType.THIRD_SUPPORT_ABILITY);
+        BaseMove ability = selfMove(MoveType.THIRD_SUPPORT_ABILITY);
         // 현재 활성 제거
         StatusEffect currentActivateStatus = getEffectByName(self, "활성").orElseThrow(() -> new IllegalStateException("[thirdSupportAbility] 모드 전환에 필요한 활성효과 없음"));
         String currentActivateStatusName = currentActivateStatus.getBaseStatusEffect().getName();
@@ -266,7 +266,7 @@ public class Diaspora1Logic extends EnemyLogic {
         // 서포트어빌리티 3 모드전환 발동
         ActorLogicResult thirdSupportAbilityResult = thirdSupportAbility();
         // 폼체인지 무브
-        Move formChangeMove = selfMove(MoveType.FORM_CHANGE_DEFAULT);
+        BaseMove formChangeMove = selfMove(MoveType.FORM_CHANGE_DEFAULT);
         // 다음 폼 set
         BaseEnemy currentBaseEnemy = (BaseEnemy) self().getBaseActor();
         String rootNameEn = currentBaseEnemy.getRootNameEn();
@@ -280,7 +280,7 @@ public class Diaspora1Logic extends EnemyLogic {
 
         self().updateCurrentForm(nextBaseEnemy.getFormOrder());
         // 입장무브
-        Move formChangeEntryMove = self().getMove(MoveType.FORM_CHANGE_ENTRY);
+        BaseMove formChangeEntryMove = self().getMove(MoveType.FORM_CHANGE_ENTRY);
         // 폼체인지 후 2페이즈의 인자방출 영창기 등록
         self().updateNextIncantStandbyType(MoveType.STANDBY_D);
 

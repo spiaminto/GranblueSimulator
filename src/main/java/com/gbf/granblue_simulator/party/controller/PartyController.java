@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.party.controller.dto.PartySummonInfo;
 import com.gbf.granblue_simulator.user.User;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.party.domain.Party;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.party.repository.PartyRepository;
 import com.gbf.granblue_simulator.user.repository.UserRepository;
@@ -91,11 +91,11 @@ public class PartyController {
                 .chargeAttack(baseActor.getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
                 .abilities(baseActor.getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.ABILITY)
-                        .sorted(Comparator.comparing(Move::getType))
+                        .sorted(Comparator.comparing(BaseMove::getType))
                         .toList())
                 .supportAbilities(baseActor.getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.SUPPORT_ABILITY)
-                        .sorted(Comparator.comparing(Move::getType))
+                        .sorted(Comparator.comparing(BaseMove::getType))
                         .toList())
                 .elementType(baseActor.getElementType().getPresentName())
                 .atk(baseActor.getAtk())

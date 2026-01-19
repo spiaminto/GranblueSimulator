@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.metadata.domain.omen;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,6 +36,6 @@ public class Omen {
     private List<OmenCancelCond> omenCancelConds = new ArrayList<>();
 
     @OneToOne @JoinColumn(name = "move_id")
-    private Move move;
+    private BaseMove move;
 
 }

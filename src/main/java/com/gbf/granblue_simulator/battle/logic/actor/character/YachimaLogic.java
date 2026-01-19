@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.actor.character;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
@@ -55,7 +55,7 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     public ActorLogicResult postProcessToPartyMove(ActorLogicResult partyMoveResult) {
         if (!partyMoveResult.isFromActor(self())) return resultMapper.emptyResult();
-        Move resultMove = partyMoveResult.getMove();
+        BaseMove resultMove = partyMoveResult.getMove();
 
         boolean hasRecordationSync = hasEffectByName(self(), "레코데이션 싱크");
         if (!hasRecordationSync) {
@@ -92,7 +92,7 @@ public class YachimaLogic extends CharacterLogic {
     @Override
     protected ActorLogicResult firstAbility() {
         // 알파레벨에 비례해 히트수 증가
-        Move ability = self().getMove(MoveType.FIRST_ABILITY);
+        BaseMove ability = self().getMove(MoveType.FIRST_ABILITY);
         int hitCount = ability.getHitCount() + getLevelByName(self(), "알파");
         return resultMapper.fromDefaultResult(defaultAbility(ability, null, hitCount));
     }
@@ -107,7 +107,7 @@ public class YachimaLogic extends CharacterLogic {
     // 자신 요다메상승, 턴 진행 없이 통상공격실행 (레코데이션 효과중 전체화)
     @Override
     protected ActorLogicResult thirdAbility() {
-        Move ability = selfMove(MoveType.THIRD_ABILITY);
+        BaseMove ability = selfMove(MoveType.THIRD_ABILITY);
         StatusEffectTargetType applyEffectTarget = hasEffectByName(self(), "레코데이션 싱크")
                 ? StatusEffectTargetType.PARTY_MEMBERS : StatusEffectTargetType.SELF; // 상태효과, 턴진행 없이 통상공격 실행 타겟
 

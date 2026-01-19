@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.battle.service;
 
 import com.gbf.granblue_simulator.battle.domain.BattleLog;
 import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
@@ -100,7 +100,7 @@ public class BattleLogService {
 
     @SneakyThrows
     public void saveBattleLog(ActorLogicResult logicResult) {
-        Move resultMove = logicResult.getMove();
+        BaseMove resultMove = logicResult.getMove();
         if (resultMove.getType().isNone()) return;
 
         Actor mainActor = logicResult.getMainActor();

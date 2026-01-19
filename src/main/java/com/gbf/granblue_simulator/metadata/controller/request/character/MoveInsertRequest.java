@@ -1,38 +1,45 @@
 package com.gbf.granblue_simulator.metadata.controller.request.character;
 
-import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class SummonInsertRequest {
-
-    private Long characterId;
-
+public class MoveInsertRequest {
+    // common
+    private Long actorId;
     private String name;
-    private String nameEn;
     private String info;
     private Double damageRate;
+
+    // ability
+    private String type;
     private Integer hitCount;
     private Integer coolDown;
-    private ElementType elementType;
-    private String cjsName;
+    private String hasMotion;
+    private String hasSupportAbilityEffect;
 
-    private List<SummonStatus> statuses;
+    // summon
+    private String cjsName;
+    private String elementType;
+
+    private List<MoveStatus> statuses;
 
     @Data
-    public static class SummonStatus {
+    public static class MoveStatus {
         private String type;
         private String name;
         private String targetType;
         private Integer maxLevel;
         private String effectText;
         private String statusText;
+        private String durationType;
         private Integer duration;
         private String removable;
         private String isResistible;
+        private Integer applyOrder;
+        private String gid;
 
-        private String statusEffects; // type, value \n
+        private String statusModifiers; // type, value \n
     }
 }

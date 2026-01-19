@@ -8,7 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 
 @Data
-@Builder @Slf4j
+@Builder
+@Slf4j
 public class SetStatusEffectResult {
 
     @Builder.Default
@@ -20,6 +21,7 @@ public class SetStatusEffectResult {
 
     /**
      * SetStatusEffectResult 끼리 병합
+     *
      * @param others 다른 결과들
      */
     public void merge(SetStatusEffectResult... others) {
@@ -32,15 +34,7 @@ public class SetStatusEffectResult {
                 Result thisResult = this.results.get(otherResultActorId);
                 if (thisResult != null) {
                     // 기존 결과 있으면 병합
-                    thisResult.getAddedStatusEffects().addAll(otherResult.getAddedStatusEffects());
-                    thisResult.getRemovedStatusEffects().addAll(otherResult.getRemovedStatusEffects());
-                    thisResult.getLevelDownedStatusEffects().addAll(otherResult.getLevelDownedStatusEffects());
-                    if (otherResult.getHealValue() != null) {
-                        thisResult.setHealValue(Objects.requireNonNullElse(thisResult.getHealValue(), 0) + otherResult.getHealValue());
-                    }
-                    if (otherResult.getDamageValue() != null) {
-                        thisResult.setDamageValue(Objects.requireNonNullElse(thisResult.getDamageValue(), 0) + otherResult.getDamageValue());
-                    }
+                    thisResult.merge(otherResult);
                 } else {
                     // 기존 결과 없으면 복사해서 추가
                     this.results.put(otherResultActorId, otherResult.copy());
@@ -75,6 +69,20 @@ public class SetStatusEffectResult {
                     .healValue(this.healValue)
                     .damageValue(this.damageValue)
                     .build();
+        }
+
+        public Result merge(Result otherResult) {
+            if (otherResult == null) return this;
+            this.getAddedStatusEffects().addAll(otherResult.getAddedStatusEffects());
+            this.getRemovedStatusEffects().addAll(otherResult.getRemovedStatusEffects());
+            this.getLevelDownedStatusEffects().addAll(otherResult.getLevelDownedStatusEffects());
+            if (otherResult.getHealValue() != null) {
+                this.setHealValue(Objects.requireNonNullElse(this.getHealValue(), 0) + otherResult.getHealValue());
+            }
+            if (otherResult.getDamageValue() != null) {
+                this.setDamageValue(Objects.requireNonNullElse(this.getDamageValue(), 0) + otherResult.getDamageValue());
+            }
+            return this;
         }
     }
 

@@ -1,10 +1,8 @@
 package com.gbf.granblue_simulator.metadata.domain.statuseffect;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Type;
 
 import java.util.*;
 import java.util.stream.IntStream;
@@ -24,7 +22,7 @@ public class BaseStatusEffect {
     private Long id;
 
     @ManyToOne @JoinColumn(name = "move_id") @EqualsAndHashCode.Exclude @ToString.Exclude
-    private Move move;
+    private BaseMove move;
 
     private String name; // 일단 effectText 와 동일하게 사용
 
@@ -44,6 +42,7 @@ public class BaseStatusEffect {
     private String effectText; // 이펙트에 띄울 텍스트
     private String statusText; // 스테이터스 창에 띄울 텍스트
     private int displayPriority; // 우선순위 [기본 0] [영속 해제불가 디버프 8] [영속 해제불가 자버프 10] [적 고유버프 100]
+    private int applyOrder; // 적용순서, 필요한경우 1부터 시작
 
     private boolean removable; // 소거불가, 해제불가, 회복불가
     private boolean resistible; // 필중인지 확인
@@ -53,7 +52,7 @@ public class BaseStatusEffect {
 
     private String gid; // 리소스 참조용 gbf id
 
-    public void setMove(Move move) {
+    public void setMove(BaseMove move) {
         this.move = move;
         move.getBaseStatusEffects().add(this);
     }
@@ -89,6 +88,11 @@ public class BaseStatusEffect {
         return this.statusModifiers.values().stream().findFirst().orElse(null);
     }
 
+    /**
+     * StatusModifierType 에 맞는 modifier 가져옴
+     * @param type
+     * @return 없으면 null
+     */
     public StatusModifier getModifier(StatusModifierType type) {
         return this.statusModifiers.get(type);
     }
@@ -98,6 +102,10 @@ public class BaseStatusEffect {
             // dispel 과 clear 를 최우선
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_DISPEL)) return 10;
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_CLEAR)) return 11;
+            // 회복효과는 버프 다음
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_HEAL)) return 55;
+            // 슬립데미지는 회복효과 다음
+            if (this.statusModifiers.containsKey(StatusModifierType.ACT_DAMAGE)) return 56;
             // 게이지 버프/디버프는 일반버프/디버프 다음
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_CHARGE_GAUGE_UP)) return 60;
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_CHARGE_GAUGE_DOWN)) return 110;

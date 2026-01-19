@@ -169,6 +169,8 @@ async function processChargeAttack(response) {
     await postProcessPartyDamage(response, 'party-charge-attack-damage-show');
     // 상태효과 처리
     let totalEndTime = await processStatusEffect(response);
+    // 대기모션 갱신
+    player.play(Player.playRequest(`actor-${response.actorOrder}`, player.getCharacterWaitMotion(response.actorOrder)))
 
     console.log('[processChargeAttack] DONE totalTime', totalEndTime);
     return totalEndTime;
@@ -393,7 +395,7 @@ function fillPartyDamage(response, targetActorIndex) {
             break;
         case MoveType.TURN_END:
             moveType = "ability";
-            elementType = 'NONE'; // 슬립 데미지 무속성 고정
+            elementType = 'PLAIN'; // 슬립 데미지 무속성 고정
             break;
         case MoveType.CHARGE_ATTACK:
             moveType = "charge-attack";

@@ -10,6 +10,20 @@ public enum StatusModifierType {
     // 공인항
     ATK_UP,     // [상승배율]
     ATK_DOWN,   // [감소배율]
+    // 속성항
+    ATK_FIRE_UP,
+    ATK_WATER_UP,
+    ATK_EARTH_UP,
+    ATK_WIND_UP,
+    ATK_LIGHT_UP,
+    ATK_DARK_UP,
+    ATK_FIRE_DOWN,
+    ATK_WATER_DOWN,
+    ATK_EARTH_DOWN,
+    ATK_WIND_DOWN,
+    ATK_LIGHT_DOWN,
+    ATK_DARK_DOWN,
+
     // 혼신항
     STRENGTH, // [최대상승배율] - 감소없음
     // 배수항
@@ -36,7 +50,23 @@ public enum StatusModifierType {
     // 방어력
     DEF_UP, // [상승배율]
     DEF_DOWN, // [감소배율]
+
+    // 속성 방어력 [주로 적]
+    DEF_FIRE_DOWN, // [감소배율]
+    DEF_WATER_DOWN, // [감소배율]
+    DEF_EARTH_DOWN, // [감소배율]
+    DEF_WIND_DOWN, // [감소배율]
+    DEF_LIGHT_DOWN, // [감소배율]
+    DEF_DARK_DOWN, // [감소배율]
+
     TAKEN_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_FIRE_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_WATER_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_EARTH_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_WIND_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_LIGHT_DAMAGE_CUT, // [데미지컷 배율]
+    TAKEN_DARK_DAMAGE_CUT, // [데미지컷 배율]
+
     // 피격 데미지 상승
     TAKEN_SUPPLEMENTAL_DAMAGE_DOWN, // 피격데미지 감소 [상승수치]
     TAKEN_SUPPLEMENTAL_DAMAGE_UP, // 피격 데미지 증가 [감소수치]
@@ -49,10 +79,34 @@ public enum StatusModifierType {
     TAKEN_ABILITY_AMPLIFY_DAMAGE_DOWN, // 피격 어빌리티 데미지 다운 [감소배율]
     TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP, // 피격 오의(특수기) 데미지 업 [상승배율]
     TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_DOWN, // 피격 오의(특수기) 데미지 다운 [감소배율]
+    
+    // 속성 내성 [캐릭터만, 적은 컷 사용]
+    TAKEN_FIRE_DAMAGE_DOWN, // 속성내성 다운 [배율]
+    TAKEN_WATER_DAMAGE_DOWN, // 속성내성 다운 [배율]
+    TAKEN_EARTH_DAMAGE_DOWN, // 속성내성 다운 [배율]
+    TAKEN_WIND_DAMAGE_DOWN, // 속성내성 다운 [배율]
+    TAKEN_LIGHT_DAMAGE_DOWN, // 속성내성 다운 [배율]
+    TAKEN_DARK_DAMAGE_DOWN, // 속성내성 다운 [배율]
 
     TAKEN_DAMAGE_BLOCK, // 피격 데미지 블록 [경감률] 확률은 50%로 고정, 경감률은 일단 50% 상정 고정
 
     TAKEN_DAMAGE_FIX, // 피격 최대 데미지 고정 [고정수치]
+
+    // 피격속성 변환
+    TAKEN_FIRE_SWITCH, // 속성변환 화속성 [1]
+    TAKEN_WATER_SWITCH, // 속성변환 수속성 [1]
+    TAKEN_EARTH_SWITCH, // 속성변환 토속성 [1]
+    TAKEN_WIND_SWITCH, // 속성변환 풍속성 [1]
+    TAKEN_LIGHT_SWITCH, // 속성변환 빛속성 [1]
+    TAKEN_DARK_SWITCH, // 속성변환 암속성 [1]
+
+    // 약점 속성 적용
+    TAKEN_FIRE_WEAK, // 속성적용[1]
+    TAKEN_WATER_WEAK, // 속성적용[1]
+    TAKEN_EARTH_WEAK, // 속성적용[1]
+    TAKEN_WIND_WEAK, // 속성적용[1]
+    TAKEN_LIGHT_WEAK, // 속성적용[1]
+    TAKEN_DARK_WEAK, // 속성적용[1]
 
     BARRIER, // [베리어 수치]
 
@@ -151,16 +205,11 @@ public enum StatusModifierType {
 
     // 후처리를 동반하는 Modifier ===================================================================
 
-
-    // 트리거
-    TRIGGER, // 다른 스테이터스의 트리거가 될경우 사용 [TRIGGERED 와 동일한 값]
-    TRIGGERED, // 다른 스테이터스에 트리거링 될 경우 사용 [TRIGGER 와 동일한 값]
-
     // 고유버프용
     UNIQUE, // 고유버프를 만들기 위한 modifier [0] 표시 외의 효과 없음
 
-    // 없음
-    NONE, // 표시 이외의 효과 없음 [0]
+    // 없음, null
+    NONE,
 
     // 테스트
     TEST,
@@ -218,6 +267,10 @@ public enum StatusModifierType {
                 this == ADDITIONAL_DAMAGE_S ||
                 this == ADDITIONAL_DAMAGE_U ||
                 this == ADDITIONAL_DAMAGE_W;
+    }
+
+    public boolean isNone() {
+        return this == NONE;
     }
 
 }

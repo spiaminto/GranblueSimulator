@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.battle.controller.dto.response.OmenDto;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
@@ -39,7 +39,7 @@ public final class BattleInfoMapper {
                 .maxChargeGauge(partyMember.getMaxChargeGauge())
                 .abilities(partyMember.getBaseActor().getMoves().values().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.ABILITY)
-                        .sorted(Comparator.comparing(Move::getType))
+                        .sorted(Comparator.comparing(BaseMove::getType))
                         .map(move -> MoveInfo.builder()
                                 .id(move.getId())
                                 .name(move.getName())
@@ -72,7 +72,7 @@ public final class BattleInfoMapper {
                 .build();
     }
 
-    public static List<AssetInfo> toAssetInfo(List<Actor> currentFieldActors, List<Move> summonMoves, Move fatalChainMove) {
+    public static List<AssetInfo> toAssetInfo(List<Actor> currentFieldActors, List<BaseMove> summonMoves, BaseMove fatalChainMove) {
         List<AssetInfo> assets =  currentFieldActors.stream()
                 .map(actor -> {
                     ActorVisual actorVisual = actor.getActorVisual();
@@ -88,7 +88,7 @@ public final class BattleInfoMapper {
                     Map<Long, AssetInfo.AbilityCjsDto> abilityCjses = actor.getBaseActor().getMoves().values().stream()
                             .filter(move -> move.getDefaultVisual() != null && (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY))
                             .collect(Collectors.toMap(
-                                    Move::getId,
+                                    BaseMove::getId,
                                     move -> {
                                         EffectVisual defaultVisual = move.getDefaultVisual();
                                         return AssetInfo.AbilityCjsDto.builder()
@@ -139,7 +139,7 @@ public final class BattleInfoMapper {
         return assets;
     }
 
-    public static MoveInfo toFatalChainInfo(Move fatalChainMove) {
+    public static MoveInfo toFatalChainInfo(BaseMove fatalChainMove) {
         return MoveInfo.builder()
                 .id(fatalChainMove.getId())
                 .name(fatalChainMove.getName())
@@ -148,7 +148,7 @@ public final class BattleInfoMapper {
                 .build();
     }
 
-    public static MoveInfo toSummonInfo(Move move, Actor mainCharacter) {
+    public static MoveInfo toSummonInfo(BaseMove move, Actor mainCharacter) {
         return MoveInfo.builder()
                 .id(move.getId())
                 .name(move.getName())

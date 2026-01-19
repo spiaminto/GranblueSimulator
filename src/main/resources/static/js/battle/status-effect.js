@@ -125,7 +125,7 @@ async function processEffectDamageEffect(response) {
             lastDamageShowStartDelay = partyEffectDamageShowStartDelay;
 
             // 데미지 채우기
-            let $damageElements = getDamageElement(targetOrder, 'NONE', 'attack', 'NORMAL', index, damage, [], true);
+            let $damageElements = getDamageElement(targetOrder, 'PLAIN', 'attack', 'NORMAL', index, damage, [], true);
             let $enemyDamageWrapper = $enemyDamageWrappers.get(targetOrder);
             $enemyDamageWrapper.append($damageElements.$damage, $damageElements.$additionalDamage);
             // 마지막에 돔에 추가

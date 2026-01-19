@@ -11,7 +11,7 @@ import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.repository.BaseActorRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +44,7 @@ public class Diaspora2Logic extends EnemyLogic {
 
     @Override
     public ActorLogicResult chargeAttack() {
-        Move chargeAttack = selfMove(self().getCurrentStandbyType().getChargeAttackType());
+        BaseMove chargeAttack = selfMove(self().getCurrentStandbyType().getChargeAttackType());
         double damageRate =
                 chargeAttack.getType() == CHARGE_ATTACK_B ? getChargeAttackBDamageRate() : // 허수몽핵
                         chargeAttack.getType() == CHARGE_ATTACK_D ? getChargeAttackDDamageRate() : // 인자방출

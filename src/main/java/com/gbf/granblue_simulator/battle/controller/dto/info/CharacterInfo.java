@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.battle.controller.dto.info;
 
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import lombok.Builder;
 import lombok.Data;
 
@@ -24,7 +24,7 @@ public class CharacterInfo {
     private Integer hp;
     private Integer hpRate;
 
-    private Move chargeAttack;
+    private BaseMove chargeAttack;
     private List<MoveInfo> abilities;
     private List<StatusEffect> statuses;
 

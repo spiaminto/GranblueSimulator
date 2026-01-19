@@ -1,4 +1,4 @@
-package com.gbf.granblue_simulator.metadata.controller.character;
+package com.gbf.granblue_simulator.metadata.controller.request.character;
 
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
 import lombok.Data;

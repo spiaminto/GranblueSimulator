@@ -4,7 +4,7 @@ import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,7 @@ public class SetStatusLogic {
                 .level(statusEffect.getLevel()) // 레벨 유지
                 .iconSrc(statusEffect.getIconSrc())
                 .build()
-                .mapBattleActor(targetActor);
+                .mapActor(targetActor);
         statusEffectRepository.save(addedStatusEffect);
     }
 
@@ -48,7 +48,7 @@ public class SetStatusLogic {
      *
      * @param move
      */
-    public SetStatusEffectResult setStatusEffect(Move move) {
+    public SetStatusEffectResult setStatusEffect(BaseMove move) {
         List<BaseStatusEffect> baseStatusEffects = move.getBaseStatusEffects();
         if (move.getRandomStatusCount() > 0) {
             // 랜덤효과 N 개 부여
@@ -67,7 +67,7 @@ public class SetStatusLogic {
      * @param move
      * @param selectedTargets
      */
-    public SetStatusEffectResult setStatusEffect(Move move, List<Actor> selectedTargets) {
+    public SetStatusEffectResult setStatusEffect(BaseMove move, List<Actor> selectedTargets) {
         List<BaseStatusEffect> baseStatusEffects = move.getBaseStatusEffects();
         if (move.getRandomStatusCount() > 0) {
             // 랜덤효과 N 개 부여
@@ -237,7 +237,15 @@ public class SetStatusLogic {
         if (appliedBaseStatusEffect.getDuration() > 0) return null; // 이 조건에서 대부분 걸리므로 쪼개서 리턴
         if (appliedBaseStatusEffect.getStatusModifiers().keySet().stream().noneMatch(StatusModifierType::needPostProcess))
             return null;
-        return processStatusLogic.process(targetActor, appliedBaseStatusEffect); // nullable
+        // 임시로 StatusEffect 만들어서 처리
+        StatusEffect addedImmediateEffect = StatusEffect.builder()
+                .actor(targetActor)
+                .duration(appliedBaseStatusEffect.getDuration())
+                .baseStatusEffect(appliedBaseStatusEffect)
+                .level(appliedBaseStatusEffect.getMaxLevel() > 0 ? 1 : 0) // maxLevel 이 존재하는 레벨제의 경우 시작레벨 1
+                .iconSrc(appliedBaseStatusEffect.getIconSrcs().isEmpty() ? "" : appliedBaseStatusEffect.getIconSrcs().getFirst())
+                .build(); // mapActor() 하지 말것
+        return processStatusLogic.process(targetActor, addedImmediateEffect); // nullable
     }
 
     /**
@@ -329,7 +337,7 @@ public class SetStatusLogic {
                         .level(existStatusEffect.getLevel()) // 기존 레벨 이어서 가져감
                         .iconSrc(appliedBaseStatusEffect.getIconSrcs().isEmpty() ? "" : appliedBaseStatusEffect.getIconSrcs().getFirst())
                         .build()
-                        .mapBattleActor(targetActor);
+                        .mapActor(targetActor);
                 this.addStatusEffectsLevel(targetActor, 1, addedStatusEffect); // 1 증가
                 statusEffectRepository.save(addedStatusEffect);
                 return addedStatusEffect;
@@ -342,8 +350,8 @@ public class SetStatusLogic {
             }
         } else {
             // 2. 레벨제 스테이터스가 아님
-            double inputStatusEffectValue = appliedBaseStatusEffect.getFirstModifier().getValue();
-            double currentStatusEffectValue = existStatusEffect.getBaseStatusEffect().getFirstModifier().getValue();
+            double inputStatusEffectValue = appliedBaseStatusEffect.getFirstModifier().getInitValue();
+            double currentStatusEffectValue = existStatusEffect.getBaseStatusEffect().getFirstModifier().getInitValue();
             if (inputStatusEffectValue >= currentStatusEffectValue) {
                 // 2.1 입력 스테이터스 효과값이 같거나 크면 기존 삭제, 갱신준비
                 this.removeStatusEffect(existStatusEffect.getActor(), existStatusEffect);
@@ -370,7 +378,7 @@ public class SetStatusLogic {
                 .level(appliedBaseStatusEffect.getMaxLevel() > 0 ? 1 : 0) // maxLevel 이 존재하는 레벨제의 경우 시작레벨 1
                 .iconSrc(appliedBaseStatusEffect.getIconSrcs().isEmpty() ? "" : appliedBaseStatusEffect.getIconSrcs().getFirst())
                 .build()
-                .mapBattleActor(targetActor);
+                .mapActor(targetActor);
         statusEffectRepository.save(addedStatusEffect);
         return addedStatusEffect;
     }

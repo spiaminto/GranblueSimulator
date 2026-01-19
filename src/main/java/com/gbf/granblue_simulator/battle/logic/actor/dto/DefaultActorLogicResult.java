@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.actor.dto;
 
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.logic.damage.DamageLogicResult;
@@ -14,7 +14,7 @@ import java.util.List;
 @Data
 @Builder
 public class DefaultActorLogicResult {
-    private final Move resultMove;
+    private final BaseMove resultMove;
     private final DamageLogicResult damageLogicResult;
     private final SetStatusEffectResult setStatusEffectResult;
 

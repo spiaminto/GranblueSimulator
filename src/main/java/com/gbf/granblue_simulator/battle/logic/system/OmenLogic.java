@@ -2,7 +2,7 @@ package com.gbf.granblue_simulator.battle.logic.system;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
-import com.gbf.granblue_simulator.metadata.domain.move.Move;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
@@ -30,11 +30,11 @@ public class OmenLogic {
      * @param enemyActor
      * @return Move standby
      */
-    public Optional<Move> triggerOmen(Actor enemyActor) {
+    public Optional<BaseMove> triggerOmen(Actor enemyActor) {
         Enemy enemy = (Enemy) enemyActor;
 
         // 1. 다음 전조를 결정
-        Optional<Move> standbyOptional = Optional.ofNullable(determineStandbyMove(enemy));
+        Optional<BaseMove> standbyOptional = Optional.ofNullable(determineStandbyMove(enemy));
         log.info("[triggerOmen] nextIncantStandbyType = {}, hpRate = {}, ct / max = {} / {}, determinedStandby: standbyOptional = {}", enemy.getNextIncantStandbyType(), enemy.getHpRate(), enemy.getChargeGauge(), enemy.getMaxChargeGauge(), standbyOptional);
         standbyOptional.ifPresent(standby -> {
             // 2. 결정된 다음 전조를 BattleEnemy 엔티티에 set
@@ -86,7 +86,7 @@ public class OmenLogic {
      * @param enemy
      * @return 전조에 따른 standby Move
      */
-    protected Move determineStandbyMove(Enemy enemy) {
+    protected BaseMove determineStandbyMove(Enemy enemy) {
         // 우선순위대로 전조를 결정
         MoveType nextIncantStandbyType = enemy.getNextIncantStandbyType();
         
@@ -123,7 +123,7 @@ public class OmenLogic {
      * @param standby : 결정된 전조 Move
      * @return
      */
-    protected Move setStandbyMove(Enemy enemy, Move standby) {
+    protected BaseMove setStandbyMove(Enemy enemy, BaseMove standby) {
         if (standby == null) return null;
         // 1. 전조 set
         Omen omen = standby.getOmen();
@@ -151,7 +151,7 @@ public class OmenLogic {
         double latestTriggeredHp = enemy.getLatestTriggeredHp();
         return enemy.getBaseActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
-                .map(Move::getOmen)
+                .map(BaseMove::getOmen)
                 .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER) // HP_TRIGGER만
                 // triggerHps 중 "아직 발동하지 않았고, 현재 HP 이하"인 값이 하나라도 있으면 통과
                 .filter(omen ->
@@ -179,7 +179,7 @@ public class OmenLogic {
         double hpRate = enemy.getHpRate();
         return enemy.getBaseActor().getMoves().values().stream()
                 .filter(move -> move.getType().getParentType().equals(MoveType.STANDBY))
-                .map(Move::getOmen)
+                .map(BaseMove::getOmen)
                 .filter(omen -> omen.getOmenType() == OmenType.CHARGE_ATTACK)
                 .filter(omen -> hpRate <= omen.getTriggerHps().getFirst()) // CT기는 트리거 1개
                 .max(Comparator.comparing(omen -> omen.getTriggerHps().getFirst()))
@@ -194,7 +194,7 @@ public class OmenLogic {
      * @return 갱신된 전조값, 0인경우 해제요망
      */
     protected int updateOmenByOtherResult(Enemy enemy, ActorLogicResult otherResult) {
-        Move standbyMove = enemy.getBaseActor().getMoves().get(enemy.getCurrentStandbyType());
+        BaseMove standbyMove = enemy.getBaseActor().getMoves().get(enemy.getCurrentStandbyType());
         Omen omen = standbyMove.getOmen();
         OmenCancelCond cancelCond = omen.getOmenCancelConds().get(enemy.getOmenCancelCondIndex());
         Integer omenValue = enemy.getOmenValue();

@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.battle.logic.system;
 
 import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifier;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
@@ -86,51 +87,59 @@ public class ChargeGaugeLogic {
     }
 
     /**
-     * SetStatus 에서 오의게이지 업 스테이터스 후처리용 (어빌리티, 오의 등에서 스테이터스 형식으로 오의게이지가 증가하는 경우)
+     * SetStatus 에서 오의게이지 업 상태효과 후처리용 (어빌리티, 오의 등에서 상태효과 부여로 오의게이지가 증가하는 경우)
      *
      * @param actor
-     * @param modifyChargeGaugeBaseEffect
+     * @param chargeGaugeUpEffect
      */
-    public void processChargeGaugeFromStatus(Actor actor, BaseStatusEffect modifyChargeGaugeBaseEffect) {
-        StatusModifier chargeGaugeUpModifier = modifyChargeGaugeBaseEffect.getStatusModifiers().get(StatusModifierType.ACT_CHARGE_GAUGE_UP);
-        boolean isGaugeUp = chargeGaugeUpModifier != null;
-
-        StatusModifier chargeGaugeDownModifier = null;
-        double setGaugeValue = actor.getChargeGauge();
-        if (!isGaugeUp) {
-            chargeGaugeDownModifier = modifyChargeGaugeBaseEffect.getStatusModifiers().get(StatusModifierType.ACT_CHARGE_GAUGE_DOWN);
-            setGaugeValue -= chargeGaugeDownModifier.getValue();
-        } else {
-            setGaugeValue += chargeGaugeUpModifier.getValue();
-        }
-
+    public void processChargeGaugeUpFromStatus(Actor actor, StatusEffect chargeGaugeUpEffect) {
+        Double chargeGaugeUpValue = chargeGaugeUpEffect.getModifierValue(StatusModifierType.ACT_CHARGE_GAUGE_UP);
+        double setGaugeValue = actor.getChargeGauge() + chargeGaugeUpValue;
         this.setChargeGauge(actor, setGaugeValue);
     }
 
     /**
-     * SetStatus 에서 페이탈체인 게이지 업 스테이터스 후처리용 (어빌리티, 오의 등에서 스테이터스 형식으로 페이탈 체인 게이지가 증가하는 경우)
+     * SetStatus 에서 오의게이지 다운 상태효과 후처리용
+     * 하나의 상태에 오의 게이지 업 & 다운 모두 있는경우 독립적인 처리를 위해 UP 과 별도로 작성 (게이지 흡수 효과 등)
      *
      * @param actor
-     * @param modifyFatalChainGaugeBaseEffect
+     * @param chargeGaugeDownEffect
      */
-    public void processFatalChainGaugeFromStatus(Actor actor, BaseStatusEffect modifyFatalChainGaugeBaseEffect) {
-        StatusModifier fatalChainGaugeUpModifier = modifyFatalChainGaugeBaseEffect.getStatusModifiers().get(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_UP);
-        boolean isGaugeUp = fatalChainGaugeUpModifier != null;
+    public void processChargeGaugeDownFromStatus(Actor actor, StatusEffect chargeGaugeDownEffect) {
+        Double chargeGaugeUpValue = chargeGaugeDownEffect.getModifierValue(StatusModifierType.ACT_CHARGE_GAUGE_DOWN);
+        double setGaugeValue = actor.getChargeGauge() - chargeGaugeUpValue;
+        this.setChargeGauge(actor, setGaugeValue);
+    }
 
-        StatusModifier fatalChainGaugeDownModifier = null;
-        double setGaugeValue = actor.getMember().getFatalChainGauge();
-        if (!isGaugeUp) {
-            fatalChainGaugeDownModifier = modifyFatalChainGaugeBaseEffect.getStatusModifiers().get(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_DOWN);
-            setGaugeValue -= fatalChainGaugeDownModifier.getValue();
-        } else {
-            setGaugeValue += fatalChainGaugeUpModifier.getValue();
-        }
 
+    /**
+     * SetStatus 에서 페이탈체인 게이지 업 상태효과 후처리용 (어빌리티, 오의 등에서 상태효과 부여로 페이탈 체인 게이지가 증가하는 경우)
+     *
+     * @param actor
+     * @param fatalChainGaugeUpEffect
+     */
+    public void processFatalChainGaugeUpFromStatus(Actor actor, StatusEffect fatalChainGaugeUpEffect) {
+        Double fatalChainGaugeDownValue = fatalChainGaugeUpEffect.getModifierValue(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_DOWN);
+        double setGaugeValue = actor.getMember().getFatalChainGauge() - fatalChainGaugeDownValue;
         this.setFatalChainGauge(setGaugeValue);
     }
 
     /**
-     * 실제로 오의게이지를 변경하는 메서드
+     * SetStatus 에서 페이탈체인 게이지 다운 상태효과 후처리용 <br>
+     * 하나의 상태에 페이탈 체인 게이지 업 & 다운 모두 있는경우 독립적인 처리를 위해 UP 과 별도로 작성 (사실 이건 거의 없긴 함)
+     *
+     * @param actor
+     * @param fatalChainGaugeDownEffect
+     */
+    public void processFatalChainGaugeDownFromStatus(Actor actor, StatusEffect fatalChainGaugeDownEffect) {
+        Double fatalChainGaugeDownValue = fatalChainGaugeDownEffect.getModifierValue(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_DOWN);
+        double setGaugeValue = actor.getMember().getFatalChainGauge() - fatalChainGaugeDownValue;
+        this.setFatalChainGauge(setGaugeValue);
+    }
+
+    /**
+     * 실제로 오의게이지를 변경하는 메서드<br>
+     * 오의게이지 증가량 상태가 적용되지 않음!
      *
      * @param actor
      * @param setValue set 할 값
@@ -143,7 +152,8 @@ public class ChargeGaugeLogic {
     }
 
     /**
-     * 실제로 오의게이지를 변경하는(더하는) 메서드
+     * 실제로 오의게이지를 변경하는(더하는) 메서드<br>
+     * 오의게이지 증가량 상태 적용
      *
      * @param actor
      * @param addValue 더할 값
