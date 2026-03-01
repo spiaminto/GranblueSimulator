@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>그랑블루시뮬</title>
+  <link rel="shortcut icon" href="/static/assets/img/ui/favicon.png" type="image/x-icon">
+  <!-- lib -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" type="text/css" href="/js/slick/slick.css">
+  <link rel="stylesheet" type="text/css" href="/js/slick/slick-theme.css">
+  <!-- font -->
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
+        rel="stylesheet" as="style" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+  <!-- static -->
+  <link href="/css/common.css" rel="stylesheet">
+  <link href="/css/battle/basic.css" rel="stylesheet">
+  <link href="/css/battle/battle-canvas.css" rel="stylesheet">
+  <link href="/css/battle/damage.css" rel="stylesheet">
+  <link href="/css/battle/modals.css" rel="stylesheet">
+  <link href="/css/battle/status-effect.css" rel="stylesheet">
+  <link href="/css/battle/top-menu.css" rel="stylesheet">
+  <link href="/css/battle/ability-slider.css" rel="stylesheet">
+  <link href="/css/battle/command-container.css" rel="stylesheet">
+
+  <style></style>
+
+  <!--lib-->
+  <script src="/js/vendors/require.js"></script>
+  <script src="/js/vendors/jquery.js"></script>
+  <!--static-->
+  <script src="/js/common.js"></script>
+  <script src="/js/battle/util.js"></script>
+  <script src="/js/battle/objects.js"></script>
+  <script src="/js/battle/eventListeners.js"></script>
+  <script src="/js/battle/request-command.js"></script>
+  <script src="/js/battle/process-move.js"></script>
+  <script src="/js/battle/process-party.js"></script>
+  <script src="/js/battle/process-enemy.js"></script>
+  <script src="/js/battle/status-effect.js"></script>
+  <script src="/js/battle/ability-rail.js"></script>
+  <script src="/js/battle/audio-player.js"></script>
+  <script src="/js/battle/state-manager.js"></script>
+  <script src="/js/battle/state-renderer.js"></script>
+  <script src="/js/battle/tutorial.js"></script>
+  <!--gbfap-->
+  <script src="/js/gbfap/animation.js"></script>
+  <script src="/js/gbfap/load-actor.js"></script>
+  <script src="/js/GBFML/util.js"></script>
+  <script>
+
+      // 모듈 로드
+      window.require_is_configured = false;
+      if (!window.require_is_configured) {
+          require.config({
+              baseUrl: "",
+              paths: {
+                  "slick": "/static/js/slick/slick",
+                  "bootstrap": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min",
+                  "createjs": "/static/js/vendors/createjs",
+                  "underscore": "/static/js/vendors/underscore",
+                  "backbone": "/static/js/vendors/backbone",
+                  "lib/raid/extension": "/static/js/gbfap/raid_extension",
+                  "lib/sound": "/static/js/gbfap/audio",
+                  "js/actor": "/static/js/gbfap/actor",
+                  "js/player": "/static/js/gbfap/player",
+                  "js/loader": "/static/js/gbfap/loader",
+              },
+          });
+          require([
+              "slick", "underscore", "createjs", "backbone", "lib/sound",
+              "lib/raid/extension", "js/actor", "js/player", "js/loader", "bootstrap"
+          ], function (slick, underscore) {
+              $(function () {
+                  _ = underscore;
+
+                  // 스케일 초기화
+                  let scale = window.innerWidth / 330;
+                  scale = scale > 2.0 ? 2.0 : scale;
+                  console.log(`[scaleInit] innerWidth = ${window.innerWidth} scale = ${scale}`);
+                  $('#container').css({'transform': `scale(${scale})`, 'transform-origin': 'top left'});
+                  window.scale = scale;
+
+                  // slick 로드
+                  let $abilityPanels = $('#abilitySlider .ability-panel');
+                  $abilityPanels.get().forEach(abilityPanel => {
+                      $(abilityPanel).find('.other-move-info-button').attr('data-actor-index', $(abilityPanel).attr('data-actor-order'));
+                  })
+                  $('#abilitySlider').slick({speed: 200, arrows: false});
+
+                  // 게임 상태 초기화 및 로드
+                  initGameStatus().then(() => {
+                      // assets, player, actor 로드
+                      monkeypatch_createjs();
+                      window.require_is_configured = true;
+                      initActors();
+                  });
+
+                  // (상태 초기화 및 stage 로드 완료후) 로딩 오버레이 이벤트 리스너 등록
+                  $('#loadingOverlay').one('actorLoadFinished', function () {
+                      let $loadingOverlay = $(this);
+                      let $fadeOverlay = $('#fadeOverlay');
+
+                      // touch to start 보이게, loading 제거
+                      let $readyStartInfoWrapper = $(this).find('.ready-start-info-wrapper');
+                      $readyStartInfoWrapper.fadeTo('fast', 1);
+                      $loadingOverlay.find('.loading-image-wrapper').fadeTo('fast', 0);
+
+                      // 사운드 설정 확인 및 등록
+                      let soundStatus = localStorage.getItem('soundStatus');
+                      if (!soundStatus) localStorage.setItem('soundStatus', 'on');
+                      else if (soundStatus === 'off') {
+                          $('.sound-toggle-button').removeClass('btn-outline-light').addClass('btn-outline-secondary');
+                          window.audio.updateDisabled(true);
+                      }
+
+                      $loadingOverlay.one('click', function () {
+                          playSe(Sounds.ui.LOADING_READY.src);
+
+                          $readyStartInfoWrapper.fadeTo(1, 0);
+                          $loadingOverlay.find('.ready-image-wrapper').fadeTo('fast', 1);
+                          $loadingOverlay.css('background-color', 'transparent');
+
+                          setTimeout(() => {
+                              // 오버레이 사라진 후 처리
+                              $loadingOverlay.find('.ready-image-wrapper').fadeTo(1, 0);
+                              $fadeOverlay.css({
+                                  'transform': 'translateX(25%)',
+                                  'transition': 'transform 0.2s ease-out',
+                              }).on('transitionend', () => {
+                                  $loadingOverlay.css('display', 'none');
+                                  $fadeOverlay.css('display', 'none');
+                              });
+
+                              updateBgm(window.stage.processing.response);
+                              player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_PHASE_1));
+
+                              // 시작시 적 사망했을 경우 (또는 적 사망 새로고침)
+                              if (stage.processing.response.moveType === MoveType.DEAD_DEFAULT) {
+                                  let enemyDeadResponse = stage.processing.response;
+                                  // hp 음수로 오는거 0 으로 변환
+                                  let modedHps = [0, ...enemyDeadResponse.hps.slice(1)];
+                                  let modedHpRates = [0, ...enemyDeadResponse.hpRates.slice(1)];
+                                  gameStateManager.setState('hps', modedHps, {force: true});
+                                  gameStateManager.setState('hpRates', modedHpRates, {force: true});
+
+                                  setTimeout(() => processEnemyDead(enemyDeadResponse), 1500); // entry 끝나는거 고려
+                              } else {
+                                  doSync(); // 동기화 폴링 (적 사망시 동기화 안함)
+                              }
+
+                              // 시작시 아군 전원 사망했을 경우 (또는 아군 전원 사망 새로고침)
+                              if (gameStateManager.getState('hps').slice(1).every(hp => hp <= 0) && player.getCharacters().length === 0) {
+                                  gameStateManager.setState('isQuestFailed', true);
+                                  player.lockPlayer(true);
+                              }
+
+                              // 튜토리얼
+                              gameStateManager.setState('tutorialIndex', Math.min(gameStateManager.getState('currentTurn') - 1, 5));
+                              setTimeout(() => $('#tutorialModalButton').click(), 1000);
+
+                          }, 700);
+                      });
+                  });
+
+              });
+          });
+      }
+  </script>
+</head>
+<body>
+
+<div id="container">
+
+  <div id="fadeOverlay">
+    <!-- 페이드 이미지용 -->
+  </div>
+
+  <div id="loadingOverlay">
+    <div class="ready-image-wrapper">
+      <img class="ready-image" src="/assets/img/ui/loading-ready.png">
+    </div>
+    <div class="ready-start-info-wrapper">
+      <div>Touch to Start</div>
+    </div>
+    <div class="loading-image-wrapper">
+      <img class="loading-image" src="/assets/img/ui/loading.png">
+    </div>
+  </div>
+
+  <div id="battleCanvasTopMenu">
+    <div class="top-menu-container d-flex justify-content-between align-items-center">
+      <button type="button" class="btn btn-outline-light sound-toggle-button">sound</button>
+      <div class="turn-indicator"><span class="value"
+                                        th:text="${memberInfo.currentTurn}">1</span><span> turn</span></div>
+      <div class="remaining-time-indicator"><i class="bi bi-stopwatch me-1"></i><span class="value">00:00</span></div>
+      <button type="button" class="btn btn-outline-primary menu-modal-button" data-bs-toggle="modal"
+              data-bs-target="#menuModal">메뉴
+      </button>
+    </div>
+  </div>
+
+  <div id="battleCanvas">
+
+    <div class="waiting-video-container">
+      <video class="waiting-video" muted playsinline loop preload="auto"
+             src="/assets/video/gl/waiting.webm">
+      </video>
+    </div>
+
+    <div class="turn-indicator-container">
+      <div class="turn-indicator"><span>turn </span><span class="value" th:text="${memberInfo.currentTurn}">1</span>
+      </div>
+    </div>
+
+    <div class="honor-container">
+      <div class="honor-wrapper">
+        <span class="honor-value">0000000</span>
+      </div>
+    </div>
+
+    <div class="for-all-move-indicator-container">
+    </div>
+
+    <div class="move-name-info-container">
+      <div class="move-name-info">
+        <span class="move-name-info-text">어빌리티 이름 이름 123</span>
+      </div>
+    </div>
+
+    <div class="omen-container omen-container-bottom enemy blinking-element">
+      <div class="omen-text">
+        <span class="omen-prefix">전조이름</span>
+      </div>
+    </div>
+
+    <div class="enemy-info-container"
+         th:data-initial-actor-id="${enemyInfo.id}"
+         th:data-initial-actor-name="${enemyInfo.name}"
+         th:data-initial-form-order="${enemyInfo.formOrder}"
+         th:data-trigger-hps="${triggerHps}"
+    >
+      <div class="hp-container enemy">
+        <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}" th:data-hp="${enemyInfo.getHp()}">
+          100%
+        </div>
+        <div class="progress hp-bar" role="progressbar" aria-label="enemy hp bar" aria-valuenow="100"
+             aria-valuemin="0"
+             aria-valuemax="100">
+          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 50%"
+               th:style="${'width: ' + enemyInfo.hpRate + '%'}">
+          </div>
+        </div>
+      </div>
+      <div class="status-container enemy actor-0" data-actor-index="0">
+        <div class="show-status-info-button-wrapper enemy">
+          <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
+        </div>
+      </div>
+      <div class="d-flex">
+        <div class="charge-turn-container enemy">
+          <div class="charge-turn-label">CT</div>
+        </div>
+        <div class="omen-container enemy omen-container-top">
+          <div class="omen-text">
+            <span class="omen-prefix">전조 조건 </span>
+            <span class="omen-value">값</span>
+            <span class="omen-info">전조 설명</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvasContainer"></div>
+
+    <div id="actorContainer">
+      <div class="enemy actor-0">
+      </div>
+      <div class="party actor-1">
+        <div class="guard-status" th:data-initial-guard-state="${guardStates[1]}">
+          <img class="guard-status-image" src="/assets/img/gl/ui-guard-status.png" alt="guard-status">
+          <div class="guard-status-effect"></div>
+        </div>
+      </div>
+      <div class="party actor-2">
+        <div class="guard-status" th:data-initial-guard-state="${guardStates[2]}">
+          <img class="guard-status-image" src="/assets/img/gl/ui-guard-status.png" alt="guard-status">
+          <div class="guard-status-effect"></div>
+        </div>
+      </div>
+      <div class="party actor-3">
+        <div class="guard-status" th:data-initial-guard-state="${guardStates[3]}">
+          <img class="guard-status-image" src="/assets/img/gl/ui-guard-status.png" alt="guard-status">
+          <div class="guard-status-effect"></div>
+        </div>
+      </div>
+      <div class="party actor-4">
+        <div class="guard-status" th:data-initial-guard-state="${guardStates[4]}">
+          <img class="guard-status-image" src="/assets/img/gl/ui-guard-status.png" alt="guard-status">
+          <div class="guard-status-effect"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ability-back-button-wrapper">
+      <button class="ability-back-button btn btn-sm"></button>
+    </div>
+
+    <div class="turn-playing-indicator-wrapper">
+      <img class="turn-playing-indicator party" src="/assets/img/ui/ui-player-turn.png">
+      <img class="turn-playing-indicator enemy" src="/assets/img/ui/ui-enemy-turn.png">
+    </div>
+
+    <!-- 채팅 오픈 버튼 -->
+    <button class="btn btn-sm chat-modal-button" data-bs-toggle="modal" data-bs-target="#chatModal"></button>
+    <!-- 채팅 팝업 -->
+    <div class="chat-popup-container"></div>
+
+  </div><!-- #battleCanvas -->
+
+  <div id="commandContainer">
+
+    <div id="abilityRailContainer">
+      <div class="ability-rail-wrapper">
+        <div id="abilityRail">
+          <div class="rail-ability-dummy rail-ability-0"> <!-- 높이 유지용 더미 -->
+            <img src="/assets/img/ch/paladin/ability-1.png">
+          </div>
+        </div>
+      </div>
+      <div id="attackButtonWrapper">
+        <button class="attack-button" id="attackButton"></button>
+        <img src="/assets/img/ui/ui-attack.png">
+      </div>
+    </div>
+
+    <div id="partyCommandContainer">
+
+      <div class="battle-member-wrapper">
+        <div th:each="order : ${#numbers.sequence(1, 4, 1)}">
+          <th:block th:with="characterInfo = ${battleCharacterInfoMap.get(order)}">
+            <div class="battle-portrait"
+                 th:if="${characterInfo != null}"
+                 th:data-actor-order="${characterInfo.order}"
+                 th:data-actor-id="${characterInfo.id}"
+                 th:classappend="${'actor-' + order}">
+              <img src="/assets/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
+              <div class="hp-gauge-wrapper">
+                <div class="hp-gauge">
+                  <div class="barrier-value"><span class="value"></span></div>
+                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar bg-gradient" style="width: 50%"
+                         th:data-hp-rate="${characterInfo.hpRate}"
+                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"
+                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="charge-gauge-wrapper">
+                <div class="charge-gauge">
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="progress additional"
+                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
+                  </div>
+                </div>
+              </div>
+              <div class="ability-usable-indicator-wrapper">
+                <div class="ability-usable-indicator"></div>
+                <div class="ability-usable-indicator"></div>
+                <div class="ability-usable-indicator"></div>
+                <div class="ability-usable-indicator"></div>
+              </div>
+            </div>
+
+            <!--더미-->
+            <div class="battle-portrait empty"
+                 th:if="${characterInfo == null}">
+              <img src="/assets/img/gl/ch-empty.jpg" th:data-seq="${order}">
+            </div>
+          </th:block>
+        </div> <!-- th each -->
+      </div> <!-- .battle-member-wrapper-->
+
+      <div class="summon-button-wrapper">
+        <div class="summon-portrait">
+          <button class="summon-display-button" type="button" data-bs-toggle="collapse" data-bs-target="#summonCollapse"
+                  aria-expanded="false" aria-controls="summonCollapse"></button>
+          <img src="/assets/img/ui/ui-summon-active.png">
+        </div>
+        <div class="union-summon-chance-wrapper">
+          <img class="union-summon-portrait" src="">
+          <img src="/assets/img/ui/union-summon-chance.png">
+        </div>
+        <div class="summon-button-overlay command-overlay"></div>
+      </div>
+
+      <div class="summon-display-wrapper">
+        <div class="collapse collapse-horizontal" id="summonCollapse">
+          <div class="summon-collapse">
+            <div class="summon-list clearfix">
+              <!--
+              <div class="summon-list-item"
+                 data-move-id="${summon.id}"
+                 data-order="${summon.order}"
+                 >
+                <img src="${summon.portraitImageSrc || '/assets/img/summon/empty.jpg'}">
+                <div class="summon-cooldown ${cooldownClass}">${cooldownText}</div>
+                <div class="summon-overlay command-overlay ${overlayClass}" data-move-id="${summon.id}"></div>
+              </div>
+              -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ability-slider-slide-button-wrapper to-right">
+        <button class="btn btn-xxsm"><i class="bi bi-caret-right"></i></button>
+      </div>
+      <div class="ability-slider-slide-button-wrapper to-left">
+        <button class="btn btn-xxsm"><i class="bi bi-caret-left"></i></button>
+      </div>
+
+      <div id="abilitySlider">
+        <div class="slick-slider-item" th:each="characterInfo : ${battleCharacterInfoMap.values()}">
+          <div class="ability-panel"
+               th:data-actor-order="${characterInfo.order}" th:classappend="${'actor-' + characterInfo.order}">
+
+            <div class="ability-battle-portrait">
+              <img src="/assets/img/ch/paladin/battle-portrait.jpg"
+                   th:src="${characterInfo.portraitSrc}">
+              <div class="hp-gauge-wrapper">
+                <div class="hp-gauge">
+                  <div class="barrier-value"><span class="value"></span></div>
+                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar bg-gradient" style="width: 50%"
+                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"
+                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="charge-gauge-wrapper">
+                <div class="charge-gauge">
+                  <div class="progress" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="progress additional"
+                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-wrapper">
+              <button class="btn btn-outline-light btn-xxsm other-move-info-button">서포트,<br>오의 상세</button>
+
+              <div class="charge-attack-wrapper">
+                <div class="charge-attack-info">
+                <span class="charge-attack-name fw-bold" th:text="${'[오의] ' + characterInfo.chargeAttack.name}">
+                  오의 이름
+                </span>
+                  <span> : </span>
+                  <span class="charge-attack-text" th:text="${characterInfo.chargeAttack.info}">
+                  오의 설명
+                </span>
+                </div>
+              </div>
+
+              <div class="ability-wrapper">
+                <!--
+                  <div class="ability-icon"
+                       data-move-id="${ability.id}"
+                       data-order="${ability.order}"
+                       >
+                      <img src="${ability.iconImageSrc || ''}" alt="abilityIcon"/>
+                      <div class="ability-cooldown-text ${cooldownText ? '' : 'invisible'}">
+                          <span class="value">${cooldownText ? cooldownText : '00'}</span>
+                      </div>
+                      <div class="ability-overlay command-overlay ${isReady ? '' : 'not-ready'}"></div>
+                  </div>
+                 -->
+              </div>
+
+            </div> <!-- .panel-wrapper -->
+
+            <div class="status-container party" th:classappend="${'actor-' + characterInfo.order}"
+                 th:data-actor-index="${characterInfo.order}">
+              <div class="show-status-info-button-wrapper">
+                <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="advanced-command-container">
+      <div class="guard-button-wrapper">
+        <div class="guard-button party-1">
+          <img class="guard-img" src="/assets/img/gl/ui-guard-off.png" alt="guard-image">
+        </div>
+        <div class="guard-button party-2">
+          <img class="guard-img" src="/assets/img/gl/ui-guard-off.png" alt="guard-image">
+        </div>
+        <div class="guard-button party-3">
+          <img class="guard-img" src="/assets/img/gl/ui-guard-off.png" alt="guard-image">
+        </div>
+        <div class="guard-button party-4">
+          <img class="guard-img" src="/assets/img/gl/ui-guard-off.png" alt="guard-image">
+        </div>
+      </div>
+      <div class="fatal-chain-gauge-wrapper"
+           th:data-move-id="${fatalChainInfo.id}"
+           th:data-actor-id="${leaderActorId}"
+           th:data-name="${fatalChainInfo.name}"
+           th:data-info="${fatalChainInfo.info}"
+           th:data-icon-image-src="${fatalChainInfo.iconImageSrc}">
+        <div class="fatal-chain-gauge-label">FC</div>
+        <div class="progress fatal-chain-gauge" role="progressbar">
+          <div class="progress-bar bg-warning" style="width: 10%"
+               th:style="${'width: ' + fatalChainGauge + '%'}"></div>
+          <div class="fatal-chain-gauge-value"><span class="value" th:text="${fatalChainGauge}">10</span>%</div>
+        </div>
+        <div class="fatal-chain-gauge-info" th:text="${fatalChainInfo.name + ' : ' + fatalChainInfo.info}"
+             th:data-fatal-chain-move-id="${fatalChainInfo.id}">페이탈 체인 정보
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-command-container">
+      <button type="button" class="btn btn-sm btn-outline-success potion-modal-button" data-bs-toggle="modal"
+              data-bs-target="#potionModal">
+        회복
+      </button>
+      <div class="form-check form-switch show-ability-info-check-wrapper">
+        <input class="form-check-input" type="checkbox" role="switch" id="showAbilityInfoCheck">
+        <label class="form-check-label" for="showAbilityInfoCheck">어빌리티 설명</label>
+      </div>
+      <div class="form-check form-switch charge-attack-check-wrapper">
+        <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck"
+               th:checked="${memberInfo.isChargeAttackOn}">
+        <label class="form-check-label" for="chargeAttackActiveCheck">오의 사용</label>
+      </div>
+      <button type="button" id="tutorialModalButton" class="btn btn-outline-info btn-xxsm ms-2" data-bs-toggle="modal"
+              data-bs-target="#tutorialModal">
+        튜토리얼 확인
+      </button>
+    </div>
+
+  </div> <!-- #commandContainer -->
+
+  <div class="member-info-container">
+    <!--    <div class="member-info-wrapper">-->
+    <!--      <div class="member-username">-->
+    <!--        <ruby>멤버이름최대여덟자-->
+    <!--          <rt>리더직업</rt>-->
+    <!--        </ruby>-->
+    <!--      </div>-->
+    <!--      <div class="honor">공헌도: <span class="value">10101010</span></div>-->
+    <!--      <div class="honor-icon"></div>-->
+    <!--    </div>-->
+  </div>
+
+  <div id="memberInfo" class="d-none" th:data-member-id="${memberInfo.id}">
+    <p th:text="${'멤버ID ' + memberInfo.id}"></p>
+    <p id="roomInfo" th:data-room-id="${roomId}" th:data-room-created-at="${roomCreatedAt}"></p>
+  </div>
+
+  <div id="modalContainer">
+    <!-- 메뉴 모달 -->
+    <div class="modal fade" id="menuModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+         aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="menuModalLabel">메뉴</h1>
+          </div>
+          <div class="modal-body">
+            <p>튜토리얼에서 퇴장하면 튜토리얼이 초기화됩니다.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-sm btn-danger me-1 exit-room-button">퇴장</button>
+            <button id="menuModalCloseButton" type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 포션 모달 -->
+    <div class="modal fade" id="potionModal" tabindex="-1"
+         aria-labelledby="potionModal" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">회복</h1>
+          </div>
+          <div class="modal-body">
+            <div class="potion-icon-container">
+              <div class="potion-icon-wrapper" data-potion-type="single">
+                <img class="potion-icon" src="/assets/img/ui/potion.jpg">
+                <div class="mt-1">포션: <span class="count" th:text="${potionInfo.potionCount}">-1</span>개</div>
+                <div class="potion-overlay command-overlay"
+                     th:classappend="${potionInfo.potionCount == 0 ? 'not-ready' : ''}"></div>
+              </div>
+              <div class="potion-icon-wrapper" data-potion-type="all">
+                <img class="potion-icon" src="/assets/img/ui/all-potion.jpg">
+                <div class="mt-1">올 포션: <span class="count" th:text="${potionInfo.allPotionCount }">-1</span>개</div>
+                <div class="potion-overlay command-overlay"
+                     th:classappend="${potionInfo.allPotionCount == 0 ? 'not-ready' : ''}"></div>
+              </div>
+              <div class="potion-icon-wrapper" data-potion-type="elixir">
+                <img class="potion-icon" src="/assets/img/ui/elixir.jpg">
+                <div class="mt-1">에릭실: <span class="count" th:text="${potionInfo.elixirCount}">-1</span></div>
+                <div class="potion-overlay command-overlay"
+                     th:classappend="${potionInfo.elixirCount == 0 ? 'not-ready' : ''}"></div>
+              </div>
+            </div>
+            <div class="potion-detail-container">
+              <div class="potion-info">포션 설명</div>
+              <div class="potion-target-radio-container">
+                <div>포션을 사용할 대상을 선택하세요.</div>
+                <div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-1"
+                           value="1">
+                    <label class="form-check-label" for="potionTargetRadio-1">1번</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-2"
+                           value="2">
+                    <label class="form-check-label" for="potionTargetRadio-2">2번</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-3"
+                           value="3">
+                    <label class="form-check-label" for="potionTargetRadio-3">3번</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-4"
+                           value="4">
+                    <label class="form-check-label" for="potionTargetRadio-4">4번</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" id="usePotionButton" class="btn btn-sm btn-success me-1" disabled>
+                사용
+              </button>
+              <button type="button" class="btn btn-sm btn-secondary close-button" data-bs-dismiss="modal">
+                닫기
+              </button>
+            </div>
+          </div><!-- .modal-body -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 어빌리티 설명 모달 -->
+    <button type="button" class="btn btn-primary ability-info-modal-button inner-modal-open-button"
+            data-bs-toggle="modal"
+            data-bs-target="#abilityInfoModal">
+      어빌리티 설명 모달 버튼
+    </button>
+    <div class="modal fade" id="abilityInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+         aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <!--            <h4 class="modal-title ability-name fs-5">커맨드 이름</h4>-->
+          </div>
+          <div class="modal-body">
+            <!--            <div class="ability-info-wrapper">-->
+            <!--              <div class="ability-info-icon-wrapper">-->
+            <!--                <img class="ability-info-icon" src="">-->
+            <!--              </div>-->
+            <!--              <div class="ability-info-text">-->
+            <!--              </div>-->
+            <!--            </div>-->
+          </div>
+          <div class="modal-footer">
+            <div class="form-check form-switch">
+              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
+                     id="abilityStatusEffectInfoCheck">
+              <label class="form-check-label" for="abilityStatusEffectInfoCheck">효과 상세</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 close-ability-info-modal-button"
+                    data-bs-dismiss="modal">
+              닫기
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm use-ability-button">사용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--기타 행동 어빌리티 상세 모달-->
+    <button type="button" class="btn btn-primary other-move-info-modal-button inner-modal-open-button"
+            data-bs-toggle="modal"
+            data-bs-target="#otherMoveInfoModal">
+      기타 행동 설명 모달 버튼
+    </button>
+    <div class="modal fade" id="otherMoveInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+         aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <!--            <h4 class="modal-title ability-name fs-5">기타 행동</h4>-->
+          </div>
+          <div class="modal-body">
+            <!--            <div class="ability-info-wrapper">-->
+            <!--              <div class="ability-info-icon-wrapper">-->
+            <!--                <img class="ability-info-icon" src="">-->
+            <!--              </div>-->
+            <!--              <div class="ability-info-text">-->
+            <!--              </div>-->
+            <!--            </div>-->
+          </div>
+          <div class="modal-footer">
+            <!--            <button type="button" class="btn btn-outline-success show-status-info-button btn-sm me-2">효과 상세</button>-->
+            <div class="form-check form-switch">
+              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
+                     id="otherMoveStatusEffectInfoCheck">
+              <label class="form-check-label" for="otherMoveStatusEffectInfoCheck">효과 상세</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm close-ability-info-modal-button"
+                    data-bs-dismiss="modal">
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 스테이터스 모달 -->
+    <button type="button" class="btn btn-primary status-modal-button inner-modal-button" data-bs-toggle="modal"
+            data-bs-target="#statusInfoModal">
+      스테이터스 모달 버튼
+    </button>
+    <div class="modal fade" id="statusInfoModal" tabindex="-1"
+         aria-labelledby="statusInfoModal" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
+          </div>
+          <div class="modal-body">
+
+            <!--        <div class="status-info-wrapper mb-2">-->
+            <!--          <div class="actor-name mb-2">캐릭터 이름</div>-->
+            <!--          <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center mb-2">-->
+            <!--            <div class="actor-estimated-atk">기준 공격력<span class="value">4000~5000</span></div>-->
+            <!--            <button class="btn btn-outline-secondary ms-1 border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#estimatedAtkCollapse">-->
+            <!--              <i class="bi bi-question-circle"></i>-->
+            <!--            </button>-->
+            <!--          </div>-->
+            <!--          <div class="collapse" id="estimatedAtkCollapse">-->
+            <!--            기준 공격력은 현재 적의 공격력에 캐릭터의 방어력을 적용한 최소, 최대값 입니다. 그 외의 상태효과는 적용되지 않은 수치이므로 참고용으로만 사용하세요.-->
+            <!--          </div>-->
+            <!--        </div>-->
+
+            <div class="status-effect-info-wrapper">
+              <!--          <div class="statusEffect-info">-->
+              <!--            <div class="statusEffect-info-icon-wrapper">-->
+              <!--              <img class="statusEffect-info-icon" src="">-->
+              <!--            </div>-->
+              <!--            <div class="statusEffect-info-text">-->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-dismiss="modal">
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 채팅 모달 -->
+    <div class="modal fade" id="chatModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">채팅</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <!-- 이전 대화 스크롤 영역 -->
+          <div class="modal-body chat-message-container">
+          </div>
+
+          <!-- 숏 메시지 -->
+          <div id="shortMessagePanel">
+            <button class="btn btn-xxsm btn-outline-light short-message-button">방어효과 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">회복효과 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">클리어효과 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">오의게이지 요청!</button>
+          </div>
+
+          <!-- 스탬프 패널 (기본 숨김) -->
+          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6;">
+            <!--          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6; flex-wrap:wrap; gap:6px;">-->
+            <img class="stamp-item" data-stamp-key="OK" src="/static/gbf/img/stamp/ok.png"
+                 style="width:52px;cursor:pointer;">
+            <img class="stamp-item" data-stamp-key="THANKS" src="/static/gbf/img/stamp/thanks.png"
+                 style="width:52px;cursor:pointer;">
+          </div>
+
+          <div class="modal-footer" style="gap:6px; flex-wrap:nowrap;">
+            <button id="toggleStampBtn" class="btn btn-outline-secondary btn-sm">스탬프</button>
+            <input type="text" id="chatInput" class="form-control form-control-sm"
+                   placeholder="메시지..." maxlength="100" style="flex:1;">
+            <button id="chatSendBtn" class="btn btn-primary btn-sm">전송</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Tutorial Modal (버튼은 .sub-command-container)-->
+    <div class="modal fade" id="tutorialModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="tutorialModalTitle"></h5>
+          </div>
+          <div class="modal-body" style="padding: 0; overflow-x: hidden;">
+            <div id="tutorialContentWrapper">
+              <!-- 렌더링 -->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="tutorialBeforeBtn">이전</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="tutorialNextBtn">다음</button>
+            <button type="button" class="btn btn-sm btn-outline-success" id="tutorialConfirmBtn" data-bs-dismiss="modal"
+                    style="display: none;" disabled>확인
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- #moodalContainer -->
+
+</div> <!-- #container -->
+
+
+<form id="exitRoomForm" action="/room/exit" method="POST">
+  <input type="hidden" name="memberId" th:value="${memberInfo.id}">
+  <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
+
+<form id="csrfForm">
+  <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
+
+<!--<script href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"-->
+<!--      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"></script>-->
+</body>
+
+</html>

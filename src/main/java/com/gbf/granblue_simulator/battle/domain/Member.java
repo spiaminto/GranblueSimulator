@@ -1,11 +1,11 @@
 package com.gbf.granblue_simulator.battle.domain;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.user.User;
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
+import com.gbf.granblue_simulator.user.domain.User;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 
@@ -35,7 +35,7 @@ public class Member {
     private Long partyId; // 입장시 참조 및 검증용으로만 사용. 실시간 참조 x
 
     @Builder.Default
-    private int currentTurn = 1; // 현재 자신의 턴, 1부터 시작
+    private int currentTurn = 0; // 현재 자신의 턴, 0부터 시작, 첫입장시 0확인 후 BATTLE_START 때 1로 변경
 
     private boolean chargeAttackOn; // 오의 발동 여부, default false
     private boolean chargeAttackSkip; // 오의 스킵 여부, default true
@@ -52,12 +52,17 @@ public class Member {
     
     private int honor; // 공헌도
 
+    @Accessors(fluent = true)
+    private boolean usedSummon; // 소환 여부
+
     private LocalDateTime lastMoveTime; // 마지막 행동 시간
     private int moveCooldown; // 행동 쿨타임, 초 단위
 
+    @Accessors(fluent = true)
+    private boolean checkedResult; // 결과 확인여부
+
     @CreationTimestamp
     private LocalDateTime createdAt;
-
 
 
     public void increaseTurn() {
@@ -76,6 +81,8 @@ public class Member {
         this.moveCooldown = moveCooldown;
     }
 
+    public void updateUsedSummon(boolean usedSummon) {this.usedSummon = usedSummon;}
+
     public void addPotionCount(int count) {
         this.potionCount += count;
     }
@@ -89,6 +96,8 @@ public class Member {
     public void updateFatalChainMoveId(Long fatalChainMoveId) {this.fatalChainMoveId = fatalChainMoveId;}
 
     public void updateFatalChainGauge(int gauge) {this.fatalChainGauge = gauge;}
+
+    public void updateCheckedResult(boolean checkedResult) {this.checkedResult = checkedResult;}
 
 
     /**

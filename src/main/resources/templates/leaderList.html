@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>그랑블루시뮬</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+
+  <link href="/css/battle/basic.css" rel="stylesheet">
+  <link href="/static/css/battle/modals.css" rel="stylesheet">
+
+  <style>
+
+      body {
+          font-family: 'Pretendard', sans-serif;
+          font-size: 0.6rem;
+      }
+
+      .page-header {
+          font-size: 1.2rem;
+          font-weight: bold;
+          margin: 10px 0 0;
+          padding-left: 0.5rem;
+      }
+
+      .name {
+          font-size: 0.7rem;
+          font-weight: bold;
+      }
+
+      .title {
+          padding-left: 0.5rem;
+          font-size: 0.9rem;
+          font-weight: bold;
+      }
+
+      .bordered {
+          border: 1px solid lightgray;
+          border-radius: 5px;
+      }
+
+      .tile {
+          margin: 7px auto;
+          padding: 7px;
+          background-color: white;
+          box-shadow: 5px 5px 3px #ddd;
+          border-radius: 7px;
+      }
+
+      .character-container {
+          width: 100%;
+          padding: 7px;
+      }
+
+      .character-icon-wrapper {
+          width: 100%;
+          padding: 7px;
+      }
+
+      .icon-wrapper {
+          display: inline-block;
+          width: 23%;
+          margin: 2px;
+      }
+
+      .icon-wrapper img {
+          width: 100%;
+      }
+
+      .job-icon-wrapper {
+          width: 50%;
+      }
+
+      .job-icon-wrapper img {
+          width: 100%;
+          box-shadow: 0 2px 5px #ddd;
+          margin-bottom: 5px;
+      }
+
+      .character-name {
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          display: inline-block;
+          width: 110%;
+          overflow: hidden;
+
+      }
+
+      .portrait-wrapper {
+          margin-right: 10px;
+          height: 100px;
+          overflow: hidden;
+      }
+
+      .portrait-wrapper img {
+          height: 110%;
+      }
+
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+      $(function () {
+
+          let scale = window.innerWidth / 330;
+          scale = scale > 2.0 ? 2.0 : scale;
+          console.log('bodywidth = scale = ', window.innerWidth, scale)
+          let container = document.querySelector('#container');
+          container.style.transform = `scale(${scale})`;
+          container.style.transformOrigin = 'top left';
+
+          let $modalContent = $('.modal .modal-content');
+          $modalContent.css('transform', `scale(${scale})`);
+          $modalContent.css('transformOrigin', `left`);
+          $modalContent.css('width', $('#container').width() - 20 + 'px');
+
+      });
+  </script>
+</head>
+<body class="bg-secondary-subtle">
+<div id="container">
+  <h1 class="page-header">캐릭터 리스트</h1>
+
+  <div class="character-container">
+    <div class="tile header">
+      정렬기능예약
+    </div>
+
+    <div class="character-icon-wrapper tile">
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름이최대몇글자인거에요</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름이최대몇글자인거에요</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름이최대몇글자인거에요</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름이최대몇글자인거에요</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름</span>
+      </div>
+      <div class="icon-wrapper">
+        <img src="/static/gbf/img/ci/3040621000_02.jpg">
+        <span class="character-name">이름</span>
+      </div>
+
+    </div>
+
+    <div class="tile">
+      <div class="job-icon-wrapper">
+        <img src="/static/gbf/img/ci/150401_kn_1_01.png">
+        <span class="character-name">이름이최대몇글자인거에요</span>
+      </div>
+    </div>
+
+    <div class="info-wrapper basic tile">
+      예약
+    </div>
+
+    <div class="info-wrapper common tile">
+      캐릭터의 공격 명중률은 100%, 오의 명중률은 200%, 회피율은 1% 입니다.
+      <br>
+      캐릭터의 디버프 명중률은 100%, 저항은 0% 입니다.
+      <br>
+      (필중) 디버프는 적의 디버프 저항이 100% 일때도 반드시 명중합니다.
+    </div>
+
+
+  </div><!-- .info-container -->
+
+</div> <!-- #container -->
+
+<!-- 스테이터스 모달 -->
+<button type="button" class="btn btn-primary status-modal-button d-none" data-bs-toggle="modal"
+        data-bs-target="#statusInfoModal">
+  스테이터스 상세
+</button>
+<div class="modal fade" id="statusInfoModal" tabindex="-1" aria-labelledby="statusInfoModal" aria-hidden="true">
+  <div class="modal-dialog .modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
+      </div>
+      <div class="modal-body">
+
+        <!--        <div class="status-info-wrapper mb-2">-->
+        <!--          <div class="actor-name mb-2">캐릭터 이름</div>-->
+        <!--          <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center mb-2">-->
+        <!--            <div class="actor-estimated-atk">기준 공격력<span class="value">4000~5000</span></div>-->
+        <!--            <button class="btn btn-outline-secondary ms-1 border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#estimatedAtkCollapse">-->
+        <!--              <i class="bi bi-question-circle"></i>-->
+        <!--            </button>-->
+        <!--          </div>-->
+        <!--          <div class="collapse" id="estimatedAtkCollapse">-->
+        <!--            기준 공격력은 현재 적의 공격력에 캐릭터의 방어력을 적용한 최소, 최대값 입니다. 그 외의 상태효과는 적용되지 않은 수치이므로 참고용으로만 사용하세요.-->
+        <!--          </div>-->
+        <!--        </div>-->
+
+        <div class="status-effect-info-wrapper">
+          <!--          <div class="statusEffect-info">-->
+          <!--            <div class="statusEffect-info-icon-wrapper">-->
+          <!--              <img class="statusEffect-info-icon" src="">-->
+          <!--            </div>-->
+          <!--            <div class="statusEffect-info-text">-->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 어빌리티 상태변경 폼 -->
+<form id="abilityStatusForm" th:action="@{/user/ability/status}" method="post" style="display: none;">
+  <input type="hidden" name="moveId" id="moveIdInput">
+  <input type="hidden" name="targetStatus" id="targetStatusInput">
+  <input type="hidden" name="baseActorId" id="baseActorIdInput">
+  <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+</form>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

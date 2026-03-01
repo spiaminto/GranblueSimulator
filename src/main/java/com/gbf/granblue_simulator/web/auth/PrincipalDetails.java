@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.web.auth;
 
 
-import com.gbf.granblue_simulator.user.User;
+import com.gbf.granblue_simulator.user.domain.User;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

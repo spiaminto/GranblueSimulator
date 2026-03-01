@@ -1,15 +1,15 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
-import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import lombok.*;
-import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 import static com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType.*;
@@ -43,6 +43,25 @@ public class DamageStatusDetails implements Cloneable {
     @Getter(AccessLevel.PROTECTED)
     private double baseChargeAttackDamageCapUpRate;
 
+    /* 장비항 */
+    private double weaponDamageCapUpRate;
+    private double weaponNormalAttackDamageCapUpRate;
+    private double weaponAbilityDamageCapUpRate;
+    private double weaponChargeAttackDamageCapUpRate;
+    private int weaponSupplementalDamage;
+    private double weaponSeraphicAmplifyDamageRate;
+
+    /* 데미지 배율 상승 */
+    private double abilityDamageRateUpRate;
+    private double chargeAttackDamageRateUpRate;
+    public double getMoveDamageRateUpRate(MoveType moveType) {
+        return switch (moveType) {
+            case ABILITY -> this.abilityDamageRateUpRate;
+            case CHARGE_ATTACK -> this.chargeAttackDamageRateUpRate;
+            default -> 0;
+        };
+    }
+
     /* 데미지 상한 상승 */
     private double damageCapUpRate;
     private double attackDamageCapUpRate;
@@ -51,9 +70,9 @@ public class DamageStatusDetails implements Cloneable {
 
     public double getMoveDamageCapUpRate(MoveType moveType) {
         return switch (moveType) {
-            case ATTACK -> this.attackDamageCapUpRate;
-            case ABILITY -> this.abilityDamageCapUpRate;
-            case CHARGE_ATTACK -> this.chargeAttackDamageCapUpRate;
+            case ATTACK -> this.attackDamageCapUpRate + this.weaponNormalAttackDamageCapUpRate;
+            case ABILITY -> this.abilityDamageCapUpRate + this.weaponAbilityDamageCapUpRate;
+            case CHARGE_ATTACK -> this.chargeAttackDamageCapUpRate + this.weaponChargeAttackDamageCapUpRate;
             default -> throw new IllegalArgumentException("MoveType is not valid, moveType = " + moveType);
         };
     }
@@ -74,6 +93,15 @@ public class DamageStatusDetails implements Cloneable {
         };
     }
 
+    private int supplementalTripleAttackDamage;
+
+    /**
+     * 트리플 어택시 공격 데미지 상승
+     */
+    public int getTripleAttackSupplementalDamage() {
+        return this.supplementalTripleAttackDamage;
+    }
+
     /* 데미지 상승 */
     private double amplifyDamageRate;
     private double amplifyAttackDamageRate;
@@ -88,6 +116,14 @@ public class DamageStatusDetails implements Cloneable {
             default -> throw new IllegalArgumentException("MoveType is not valid, moveType = " + moveType);
         };
     }
+
+    /* 데미지 감소 */
+    private double amplifyChargeAttackDamageDownRate; // 적의 특수기 데미지 다운 에서 사용
+
+    public double getChargeAttackAmplifyDamageDownRate() {
+        return Math.min(amplifyChargeAttackDamageDownRate, 1); // 일단 상한 100%
+    }
+
 
     // CHECK 상한 및 요다메 관련 감소 및 하락은 적의 받는 피해 감소로 구현.
 
@@ -167,9 +203,48 @@ public class DamageStatusDetails implements Cloneable {
             default -> throw new IllegalArgumentException("ElementType is not valid, elementType = " + elementType);
         };
     }
+    
+    /* 공격 데미지 고정 */
+    private Double damageFixPoint;
 
-    /* 데미지 고정 */
-    private int takenDamageFixPoint;
+    /**
+     * 공격 데미지 고정수치를 반환, 효과 적용중이 아닌경우 null 반환
+     */
+    public Integer getDamageFixPoint() {
+        return this.damageFixPoint != null ? this.damageFixPoint.intValue() : null;
+    }
+
+    /* 피격 데미지 고정 */
+    private Double takenDamageFixPoint;
+
+    /**
+     * 피격 데미지 고정수치를 반환 (0 ~ ), 효과 적용중이 아닌경우 null이 반환됨
+     */
+    public Integer getTakenDamageFixPoint() {
+        return this.takenDamageFixPoint != null ? this.takenDamageFixPoint.intValue() : null;
+    }
+
+    private Double takenDamageFixPointFire;
+    private Double takenDamageFixPointWater;
+    private Double takenDamageFixPointEarth;
+    private Double takenDamageFixPointWind;
+    private Double takenDamageFixPointLight;
+    private Double takenDamageFixPointDark;
+
+    /**
+     * 피격 데미지 고정수치를 반환( 0 ~ ), 효과 적용중이 아닌 경우 null 이 반환됨
+     */
+    public Integer getTakenElementDamageFixPoint(ElementType elementType) {
+        return switch (elementType) {
+            case FIRE -> this.takenDamageFixPointFire != null ? this.takenDamageFixPointFire.intValue() : null;
+            case WATER -> this.takenDamageFixPointWater != null ? this.takenDamageFixPointWater.intValue() : null;
+            case EARTH -> this.takenDamageFixPointEarth != null ? this.takenDamageFixPointEarth.intValue() : null;
+            case WIND -> this.takenDamageFixPointWind != null ? this.takenDamageFixPointWind.intValue() : null;
+            case LIGHT -> this.takenDamageFixPointLight != null ? this.takenDamageFixPointLight.intValue() : null;
+            case DARK -> this.takenDamageFixPointDark != null ? this.takenDamageFixPointDark.intValue() : null;
+            default -> throw new IllegalArgumentException("ElementType is not valid, elementType = " + elementType);
+        };
+    }
 
     /* 데미지 블록 (50%, 0.5 고정) */
     private double takenDamageBlockRate;
@@ -181,23 +256,27 @@ public class DamageStatusDetails implements Cloneable {
     private LocalDateTime takenWindSwitchTime;
     private LocalDateTime takenLightSwitchTime;
     private LocalDateTime takenDarkSwitchTime;
+
     /**
      * 변환 속성 반환
      *
      * @return ElementType, 없으면 NONE
      */
     public ElementType getElementSwitchType() {
-        return Stream.of(
-                        Map.entry(ElementType.FIRE, takenFireSwitchTime),
-                        Map.entry(ElementType.WATER, takenWaterSwitchTime),
-                        Map.entry(ElementType.EARTH, takenEarthSwitchTime),
-                        Map.entry(ElementType.WIND, takenWindSwitchTime),
-                        Map.entry(ElementType.LIGHT, takenLightSwitchTime),
-                        Map.entry(ElementType.DARK, takenDarkSwitchTime))
-                .filter(entry -> entry.getValue() != null)
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse(ElementType.NONE);
+        List<Map.Entry<ElementType, LocalDateTime>> entries = new ArrayList<>();
+        if (takenFireSwitchTime != null)
+            entries.add(Map.entry(ElementType.FIRE, takenFireSwitchTime));
+        if (takenWaterSwitchTime != null)
+            entries.add(Map.entry(ElementType.WATER, takenWaterSwitchTime));
+        if (takenEarthSwitchTime != null)
+            entries.add(Map.entry(ElementType.EARTH, takenEarthSwitchTime));
+        if (takenWindSwitchTime != null)
+            entries.add(Map.entry(ElementType.WIND, takenWindSwitchTime));
+        if (takenLightSwitchTime != null)
+            entries.add(Map.entry(ElementType.LIGHT, takenLightSwitchTime));
+        if (takenDarkSwitchTime != null)
+            entries.add(Map.entry(ElementType.DARK, takenDarkSwitchTime));
+        return entries.stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(ElementType.NONE);
     }
 
     /* 약점 속성 적용 */
@@ -234,6 +313,10 @@ public class DamageStatusDetails implements Cloneable {
 
         Map<StatusModifierType, List<StatusEffect>> map = getModifierMap(actor);
 
+        // 데미지 배율 증가
+        this.abilityDamageRateUpRate = getModifierValueSum(map, ABILITY_DAMAGE_RATE_UP);
+        this.chargeAttackDamageRateUpRate = getModifierValueSum(map, CHARGE_ATTACK_DAMAGE_RATE_UP);
+
         // 데미지 상한
         this.damageCapUpRate = this.baseDamageCapUpRate + getModifierValueSum(map, DAMAGE_CAP_UP);
         this.attackDamageCapUpRate = this.baseAttackDamageCapUpRate + getModifierValueSum(map, ATTACK_DAMAGE_CAP_UP);
@@ -246,11 +329,14 @@ public class DamageStatusDetails implements Cloneable {
         this.supplementalAbilityDamage = (int) getModifierValueSum(map, SUPPLEMENTAL_ABILITY_DAMAGE_UP);
         this.supplementalChargeAttackDamage = (int) getModifierValueSum(map, SUPPLEMENTAL_CHARGE_ATTACK_DAMAGE_UP);
 
+        this.supplementalTripleAttackDamage = (int) getModifierValueSum(map, SUPPLEMENTAL_TRIPLE_ATTACK_DAMAGE_UP);
+
         // 공격 데미지 증가 (승산)
         this.amplifyDamageRate = this.baseAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_DAMAGE_UP);
         this.amplifyAttackDamageRate = this.baseAttackAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_ATTACK_DAMAGE_UP);
         this.amplifyAbilityDamageRate = this.baseAbilityAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_ABILITY_DAMAGE_UP);
         this.amplifyChargeAttackDamageRate = this.baseChargeAttackAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_CHARGE_ATTACK_DAMAGE_UP);
+        this.amplifyChargeAttackDamageDownRate = getModifierValueSum(map, AMPLIFY_CHARGE_ATTACK_DAMAGE_DOWN);
 
         // 피격 데미지 증가, 감소 (합산)
         this.takenSupplementalDamageUpPoint = (int) getModifierValueSum(map, TAKEN_SUPPLEMENTAL_DAMAGE_UP);
@@ -268,44 +354,64 @@ public class DamageStatusDetails implements Cloneable {
         this.takenChargeAttackDamageUpRate = getModifierValueSum(map, TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_UP);
         this.takenChargeAttackDamageDownRate = getModifierValueSum(map, TAKEN_CHARGE_ATTACK_AMPLIFY_DAMAGE_DOWN);
 
-        // 피격 속성 데미지 감소
-        this.takenFireDamageDown = getModifierValueMultiplied(map, TAKEN_FIRE_DAMAGE_DOWN);
-        this.takenWaterDamageDown = getModifierValueMultiplied(map, TAKEN_WATER_DAMAGE_DOWN);
-        this.takenEarthDamageDown = getModifierValueMultiplied(map, TAKEN_EARTH_DAMAGE_DOWN);
-        this.takenWindDamageDown = getModifierValueMultiplied(map, TAKEN_WIND_DAMAGE_DOWN);
-        this.takenLightDamageDown = getModifierValueMultiplied(map, TAKEN_LIGHT_DAMAGE_DOWN);
-        this.takenDarkDamageDown = getModifierValueMultiplied(map, TAKEN_DARK_DAMAGE_DOWN);
+        // 피격 속성 데미지 감소 (속성 내성 증가)
+        this.takenFireDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_FIRE);
+        this.takenWaterDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_WATER);
+        this.takenEarthDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_EARTH);
+        this.takenWindDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_WIND);
+        this.takenLightDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_LIGHT);
+        this.takenDarkDamageDown = getModifierValueMultiplied(map, TAKEN_DAMAGE_DOWN_DARK);
 
         // 피격 데미지, 속성 데미지 컷
         this.takenDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT);
-        this.takenFireDamageCutRate = getModifierValueSum(map, TAKEN_FIRE_DAMAGE_CUT);
-        this.takenWaterDamageCutRate = getModifierValueSum(map, TAKEN_WATER_DAMAGE_CUT);
-        this.takenEarthDamageCutRate = getModifierValueSum(map, TAKEN_EARTH_DAMAGE_CUT);
-        this.takenWindDamageCutRate = getModifierValueSum(map, TAKEN_WIND_DAMAGE_CUT);
-        this.takenLightDamageCutRate = getModifierValueSum(map, TAKEN_LIGHT_DAMAGE_CUT);
-        this.takenDarkDamageCutRate = getModifierValueSum(map, TAKEN_DARK_DAMAGE_CUT);
+        this.takenFireDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_FIRE);
+        this.takenWaterDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_WATER);
+        this.takenEarthDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_EARTH);
+        this.takenWindDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_WIND);
+        this.takenLightDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_LIGHT);
+        this.takenDarkDamageCutRate = getModifierValueSum(map, TAKEN_DAMAGE_CUT_DARK);
 
         // 피격 데미지 고정
-        this.takenDamageFixPoint = (int) getModifierValueMin(map, TAKEN_DAMAGE_FIX);
+        this.takenDamageFixPoint =  getModifierValueMin(map, TAKEN_DAMAGE_FIX);
+        this.takenDamageFixPointFire = getModifierValueMin(map, TAKEN_DAMAGE_FIX_FIRE);
+        this.takenDamageFixPointWater = getModifierValueMin(map, TAKEN_DAMAGE_FIX_WATER);
+        this.takenDamageFixPointEarth = getModifierValueMin(map, TAKEN_DAMAGE_FIX_EARTH);
+        this.takenDamageFixPointWind = getModifierValueMin(map, TAKEN_DAMAGE_FIX_WIND);
+        this.takenDamageFixPointLight = getModifierValueMin(map, TAKEN_DAMAGE_FIX_LIGHT);
+        this.takenDamageFixPointDark = getModifierValueMin(map, TAKEN_DAMAGE_FIX_DARK);
 
         // 피격 데미지 블록
-        this.takenDamageBlockRate = getModifierValueMin(map, TAKEN_DAMAGE_BLOCK); // 현재 0.5 고정
+        this.takenDamageBlockRate = getModifierValueMax(map, TAKEN_DAMAGE_BLOCK);
 
         // 피격 속성 변환
-        this.takenFireSwitchTime = getLatestModifierTime(map, TAKEN_FIRE_SWITCH);
-        this.takenWaterSwitchTime = getLatestModifierTime(map, TAKEN_WATER_SWITCH);
-        this.takenEarthSwitchTime = getLatestModifierTime(map, TAKEN_EARTH_SWITCH);
-        this.takenWindSwitchTime = getLatestModifierTime(map, TAKEN_WIND_SWITCH);
-        this.takenLightSwitchTime = getLatestModifierTime(map, TAKEN_LIGHT_SWITCH);
-        this.takenDarkSwitchTime = getLatestModifierTime(map, TAKEN_DARK_SWITCH);
+        this.takenFireSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_FIRE);
+        this.takenWaterSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_WATER);
+        this.takenEarthSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_EARTH);
+        this.takenWindSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_WIND);
+        this.takenLightSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_LIGHT);
+        this.takenDarkSwitchTime = getLatestModifierTime(map, TAKEN_DAMAGE_SWITCH_DARK);
 
 
     }
 
     public static DamageStatusDetails init(Actor actor) {
+        double weaponDamageCapUpRate = actor.isCharacter() ? 0.1 : 0; // 무기 일반데미지상한 상승항 10%
+        double weaponNormalAttackDamageCapUpRate = actor.isCharacter() ? 0.1 : 0; // 무기 일반공격 상한 상승 10%
+        double weaponAbilityDamageCapUpRate = actor.isCharacter() ? 0.5 : 0; // 무기 어빌리티 데미지 상한 상승 50%
+        double weaponChargeAttackDamageCapUpRate = actor.isCharacter() ? 0.15 : 0; // 무기 어빌리티 데미지 상한 상승 15% (상향전)
+        int weaponSupplementalDamage = actor.isCharacter() ? 5000 : 0; // 무기 요다메 5천
+        double weaponSeraphicAmplifyDamageRate = actor.isCharacter() ? 0.2 : 0; // 천사항 20%
+
         return DamageStatusDetails.builder()
                 .actorId(actor.getId())
                 .actorName(actor.getName())
+
+                .weaponDamageCapUpRate(weaponDamageCapUpRate)
+                .weaponNormalAttackDamageCapUpRate(weaponNormalAttackDamageCapUpRate)
+                .weaponAbilityDamageCapUpRate(weaponAbilityDamageCapUpRate)
+                .weaponChargeAttackDamageCapUpRate(weaponChargeAttackDamageCapUpRate)
+                .weaponSupplementalDamage(weaponSupplementalDamage)
+                .weaponSeraphicAmplifyDamageRate(weaponSeraphicAmplifyDamageRate)
                 .build();
     }
 

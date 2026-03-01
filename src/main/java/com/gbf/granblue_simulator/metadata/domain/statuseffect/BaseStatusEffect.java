@@ -3,8 +3,12 @@ package com.gbf.granblue_simulator.metadata.domain.statuseffect;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.util.StringUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 @Entity
@@ -12,16 +16,21 @@ import java.util.stream.IntStream;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
+@EqualsAndHashCode
+@ToString
 /**
  * 온전히 표현을 위해사용
  * 값과 계산은 캐릭터 로직에서 담당
  */
 public class BaseStatusEffect {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne @JoinColumn(name = "move_id") @EqualsAndHashCode.Exclude @ToString.Exclude
+    @ManyToOne
+    @JoinColumn(name = "move_id")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private BaseMove move;
 
     private String name; // 일단 effectText 와 동일하게 사용
@@ -46,8 +55,15 @@ public class BaseStatusEffect {
 
     private boolean removable; // 소거불가, 해제불가, 회복불가
     private boolean resistible; // 필중인지 확인
+    private boolean uniqueFrame; // 고유항을 가지는지 여부
+    private boolean conditionalModifier; // 레벨에 비례해 효과
 
-    @OneToMany(mappedBy = "baseStatusEffect") @MapKey(name = "type") @Builder.Default @EqualsAndHashCode.Exclude @ToString.Exclude
+    @OneToMany(mappedBy = "baseStatusEffect")
+    @MapKey(name = "type")
+    @Builder.Default
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Getter(AccessLevel.NONE) // getBaseModifiers 사용
     Map<StatusModifierType, StatusModifier> statusModifiers = new LinkedHashMap<>();
 
     private String gid; // 리소스 참조용 gbf id
@@ -58,18 +74,40 @@ public class BaseStatusEffect {
     }
 
     /**
+     * 외부에 보여줄 효과인지 여부, 버프/디버프 만 true
+     */
+    public boolean isDisplayable() {
+        return this.type.isDisplayable();
+    }
+
+    /**
+     * 메타데이터로 보여줄 효과인지 여부, 버프/디버프/DISPLAY_PASSIVE 포함
+     */
+    public boolean isMetadataDisplayable() {
+        return this.type.isMetadataDisplayable();
+    }
+
+    /**
      * gid 를 이용하여 실제 아이콘 src 반환
+     *
      * @return
      */
     public List<String> getIconSrcs() {
-        if (this.gid == null) return new ArrayList<>();
+        if (!StringUtils.hasText(this.gid)) return new ArrayList<>();
         String prefix = "/static/gbf/img/status/";
         String baseName = prefix + this.gid;
         String ext = ".png";
 
         List<String> iconSrcs = new ArrayList<>();
-        if (this.maxLevel > 0)  {
+        if (this.maxLevel > 0) {
             iconSrcs = IntStream.range(0, this.maxLevel)
+                    .mapToObj(index -> prefix + this.gid + "_" + (index + 1) + ext)
+                    .toList();
+        } else if (this.getTargetType() == StatusEffectTargetType.ENEMY
+                && this.durationType == StatusDurationType.TURN
+                && this.duration > 0) {
+            // 레벨제가 아님 + 적(개인) 타겟 + 턴제(즉발아님) -> 남은 턴 기준으로 바뀌는 여러개의 아이콘을 가짐 (명명법은 레벨제와 동일)
+            iconSrcs = IntStream.range(0, this.duration)
                     .mapToObj(index -> prefix + this.gid + "_" + (index + 1) + ext)
                     .toList();
         } else {
@@ -80,16 +118,28 @@ public class BaseStatusEffect {
     }
 
     /**
+     * base 로 저장된 modifier 모두 반환 <br>
+     * 런타임에서 직접 BaseStatusEffect.get 으로 호출하지 않는경우 StatusEffect.getBaseModifiers 사용 권장
+     *
+     * @return linkedHashMap
+     */
+    public Map<StatusModifierType, StatusModifier> getModifiers() {
+        return this.statusModifiers;
+    }
+
+    /**
      * 첫번째 StatusModifier 를 반환.<br>
      * 주로 기본 상태효과 (BasicStatusEffect) 에서 사용
-     * @return
+     *
+     * @return StatusModifier, non null
      */
     public StatusModifier getFirstModifier() {
-        return this.statusModifiers.values().stream().findFirst().orElse(null);
+        return this.statusModifiers.values().stream().findFirst().orElseThrow((() -> new IllegalArgumentException("[getFirstModifier] modifier 없음, id = " + this.id + " name = " + this.name)));
     }
 
     /**
      * StatusModifierType 에 맞는 modifier 가져옴
+     *
      * @param type
      * @return 없으면 null
      */
@@ -98,6 +148,8 @@ public class BaseStatusEffect {
     }
 
     public int getProcessOrder() {
+        if (this.type == StatusEffectType.PASSIVE || this.type == StatusEffectType.DISPLAY_PASSIVE) return 5;
+
         if (this.statusModifiers.size() == 1) { // 기본 상태효과
             // dispel 과 clear 를 최우선
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_DISPEL)) return 10;
@@ -112,9 +164,8 @@ public class BaseStatusEffect {
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_UP)) return 61;
             if (this.statusModifiers.containsKey(StatusModifierType.ACT_FATAL_CHAIN_GAUGE_DOWN)) return 111;
         }
-        
+
         // 기준
-        if (this.type == StatusEffectType.PASSIVE) return 5;
         if (this.type == StatusEffectType.BUFF) return 50;
         if (this.type == StatusEffectType.DEBUFF) return 100;
 

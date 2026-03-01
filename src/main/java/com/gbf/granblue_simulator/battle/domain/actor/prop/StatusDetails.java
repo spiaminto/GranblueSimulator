@@ -5,7 +5,9 @@ import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -17,20 +19,20 @@ import static com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModi
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode
 @ToString
+@Slf4j
 public class StatusDetails implements Cloneable {
 
     private Long actorId;
     private String actorName;
+    private boolean isEnemy;
 
     /* 기본 스텟 */
     // 기본스텟은 캐릭터 LB, 반지, 귀걸이 등으로 수정가능한 옵션을 상정, BaseActor 값을 사용
     private int baseAtk; // 캐릭터 10000, 적 N
-    private double baseDef; // 캐릭터 2.0, 적 N > 10.0 /.1f
+    private double baseDef; // 캐릭터 1.0, 적 N > 10.0 /.1f
     private int baseMaxHp; // 캐릭터 20000
     private double baseDoubleAttackRate; // 캐릭터 0.25
     private double baseTripleAttackRate; // 캐릭터 0.1
-    private double baseDebuffSuccessRate; // 1
-    private double baseDebuffResistRate; // 0
     private double baseAccuracyRate; // 1
     private double baseDodgeRate; // 0
     private double baseCriticalRate; // 0
@@ -44,58 +46,78 @@ public class StatusDetails implements Cloneable {
     // 공인 - 일반항
     private double atkUpRate;
     private double atkDownRate;
-    protected double getCalcedAtkRate() {
-        return Math.max(atkUpRate - atkDownRate, -0.99); // 공격력 상승 상한 X, 공격력 감소 상한 -99%
+    private double atkDownForfeitRate; // 상실 항 (일방공인 감소 상한 50% 에 추가 감소)
+    // 공인 - 별항
+    private double atkUniqueUpRate; // 일반공인과 별도로 합산시 별항 합산 및 곱연산
+
+    // 공격력 감소 효과합
+    protected double getCalcedAtkDownRate(ElementType elementType) {
+        double elementDown = switch (elementType) {
+            case FIRE  -> atkFireDownRate;
+            case WATER -> atkWaterDownRate;
+            case EARTH -> atkEarthDownRate;
+            case WIND  -> atkWindDownRate;
+            case LIGHT -> atkLightDownRate;
+            case DARK  -> atkDarkDownRate;
+            default    -> 0;
+        };
+        double forfeit = Math.clamp(atkDownForfeitRate, 0, 0.1); // 상실항 - 하한을 무시하고 감소, 값의 상한은 10%
+        double downMax = isEnemy ? 0.5 + forfeit : 0.99; // 아군에 대한 공격력 감소 상한 99% / 적에대한 공격력 감소상한 50% + 상실항 10%
+        return Math.min(atkDownRate + elementDown + forfeit, downMax);
     }
 
     // 공인 - 속성항
-    private double atkFireUpRate;
     private double atkFireDownRate;
-    private double atkWaterUpRate;
     private double atkWaterDownRate;
-    private double atkEarthUpRate;
     private double atkEarthDownRate;
-    private double atkWindUpRate;
     private double atkWindDownRate;
-    private double atkLightUpRate;
     private double atkLightDownRate;
-    private double atkDarkUpRate;
     private double atkDarkDownRate;
-    protected double getElementAtkRate(ElementType elementType) {
+
+    private double atkFireUpRate;
+    private double atkWaterUpRate;
+    private double atkEarthUpRate;
+    private double atkWindUpRate;
+    private double atkLightUpRate;
+    private double atkDarkUpRate;
+
+    protected double getElementAtkUpRate(ElementType elementType) {
         return switch (elementType) {
-            case FIRE -> Math.max(atkFireUpRate - atkFireDownRate, -0.99);
-            case WATER -> Math.max(atkWaterUpRate - atkWaterDownRate, -0.99);
-            case EARTH -> Math.max(atkEarthUpRate - atkEarthDownRate, -0.99);
-            case WIND -> Math.max(atkWindUpRate - atkWindDownRate, -0.99);
-            case LIGHT -> Math.max(atkLightUpRate - atkLightDownRate, -0.99);
-            case DARK -> Math.max(atkDarkUpRate - atkDarkDownRate, -0.99);
-            default -> 0;
+            case FIRE  -> atkFireUpRate;
+            case WATER -> atkWaterUpRate;
+            case EARTH -> atkEarthUpRate;
+            case WIND  -> atkWindUpRate;
+            case LIGHT -> atkLightUpRate;
+            case DARK  -> atkDarkUpRate;
+            default    -> 0;
         };
     }
 
     // 공인 - 혼신항
     private double strengthRate;
+
     public double getCalcedStrengthRate(double hpRate) {
         return hpRate > 0.5 ? this.strengthRate * hpRate : this.strengthRate * 0.5; // 아군의 체력이 50% 미만이면 최소배율 (50%) 적용
     }
 
     // 공인 - 배수항
     private double jammedRate;
+
     public double getCalcedJammedRate(double hpRate) {
         return hpRate < 0.5 ? this.jammedRate * (1 - hpRate) : this.jammedRate * 0.5; // 아군의 체력이 50% 초과면 최소배율 (50%) 적용
     }
 
-    // 공인 - 별항
-    private double uniqueUpRate;
-
+    // 최종공격력
     public int getCalcedAtk(double hpRate, ElementType elementType) {
         double resultAtk = baseAtk
-                * (1 + this.getCalcedAtkRate())
-                * (1 + this.getElementAtkRate(elementType))
+                * (1 + atkUpRate - getCalcedAtkDownRate(elementType))
+                * (1 + this.getElementAtkUpRate(elementType))
+                * (1 + this.atkUniqueUpRate)
                 * (1 + this.getWeaponAtkUpRate())
                 * (1 + this.getCalcedStrengthRate(hpRate))
                 * (1 + this.getCalcedJammedRate(hpRate))
-                * (1 + this.getUniqueUpRate());
+                ;
+        // log.info("[getCalcedAtk] atkRate = {}, elementAtkRate = {}, weaponAtkUpRate = {}, strengthRate = {}, jammedRate = {}, uniqueUpRate = {}", this.getCalcedAtkRate(), this.getElementAtkRate(elementType), this.getWeaponAtkUpRate(), this.getCalcedStrengthRate(hpRate), this.getCalcedJammedRate(hpRate), this.getUniqueUpRate());
         return (int) resultAtk;
     }
 
@@ -103,6 +125,8 @@ public class StatusDetails implements Cloneable {
     // 방어 - 일반항
     private double defUpRate;
     private double defDownRate;
+    // 방어 - 상실항
+    private double defDownForfeitRate; // 일반항 방어력 감소 상한 50% 에 추가감소
     // 방어 - 속성항
     private double fireDefDown;
     private double waterDefDown;
@@ -110,6 +134,16 @@ public class StatusDetails implements Cloneable {
     private double windDefDown;
     private double lightDefDown;
     private double darkDefDown;
+
+    // 방어력 감소
+    protected double getCalcedDefDownRate(ElementType elementType) {
+        double elementDown = getElementDefDown(elementType);
+        double forfeit = Math.clamp(defDownForfeitRate, 0, 0.1);
+
+        double downMax = isEnemy ? 0.5 + forfeit : 0.99; // 적에대한 방어력 감소 상한 50% + 상실항 10% / 아군에 대한 방어력 감소 상한 99%
+        return Math.min(defDownRate + elementDown + forfeit, downMax);
+    }
+
     protected double getElementDefDown(ElementType elementType) {
         return switch (elementType) {
             case FIRE -> this.fireDefDown;
@@ -121,17 +155,19 @@ public class StatusDetails implements Cloneable {
             default -> 0; // 무속성 0 반환, 기본 Status.def 에서 PLAIN 으로 사용
         };
     }
-    protected double getCalcedDefRate(ElementType elementType) {
-        double basicDefRate = Math.max(defUpRate - defDownRate, -0.5); // 방어령 상승 X, 하한 -50%
-        double elementDefDown = getElementDefDown(elementType);
-        return basicDefRate - elementDefDown; // 속성깎은 추가로 들어감
+
+    // 방어력 증가
+    protected double getCalcedDefUpRate() {
+        return defUpRate; // 증가 상한 없음
     }
 
+    // 최종 방어력
     public double getCalcedDef(ElementType elementType) {
         double resultDef = baseDef
-                * (1 + this.getCalcedDefRate(elementType));
-        resultDef = Math.ceil(resultDef * 10) / 10; // 소숫점 1째자리 까지만 허용
-        return Math.max(resultDef, 1); // 최소값 1
+                * (1 + getCalcedDefUpRate() - getCalcedDefDownRate(elementType));
+
+        resultDef = Math.ceil(resultDef * 10) / 10; // 소수점 1째자리까지 허용
+        return Math.max(resultDef, 0.1); // 최소값 0.1 ( 기초값 1 기준 피격데미지 10배 )
     }
 
     /* 수호 */
@@ -140,17 +176,36 @@ public class StatusDetails implements Cloneable {
 
     // 수호 - 스킬항
     private double maxHpDownRate;
+    private double maxHpUpRate;
 
-    protected double getCalcedMaxHpDownRate() {
-        return maxHpDownRate = Math.min(maxHpDownRate, 0.99); // 최대체력 감소 상한 -99%
+    protected double getCalcedMaxHpRate() {
+        return Math.clamp(maxHpUpRate - maxHpDownRate, -0.99, 1.0); // 상한 100%, 하한 -99%
     }
 
     public int getCalcedMaxHp() {
         double resultMaxHp = baseMaxHp
                 * (1 + this.getWeaponMaxHpUpRate())
-                * (1 - this.getCalcedMaxHpDownRate());
+                * (1 + this.getCalcedMaxHpRate());
         return (int) resultMaxHp;
     }
+
+    // 베리어
+    private double barrierInitValue; // 중복, 중첩 불가
+
+    public int getCalcedBarrierInitValue() {
+        return (int) barrierInitValue;
+    }
+
+    /* 적대심, 감싸기 */
+    private LocalDateTime substituteAppliedTime; // 최신값
+    /**
+     *  감싸기 효과 부여 시간반환, 감싸기 효과 없을시 null
+     */
+    public LocalDateTime getCalcedSubstituteAppliedTime() { return substituteAppliedTime; }
+
+    private double hostilityUpPoint; // 최댓값
+    private double hostilityDownPoint; // 최댓값
+    public int getCalcedHostilityPoint() { return (int) Math.max(hostilityUpPoint - hostilityDownPoint, 0); } // 하한0, 상한은 일반적으로 10000 (99%)
 
     /* 회복 */
     // 회복량 상승, 감소
@@ -183,16 +238,26 @@ public class StatusDetails implements Cloneable {
     private double debuffSuccessUpRate;
     private double debuffSuccessDownRate;
 
+    /**
+     * 약화 효과 성공률 (증가율, 로직내 기본 명중률 1.0)
+     */
     public double getCalcedDebuffSuccessRate() {
-        return Math.max(baseDebuffSuccessRate + debuffSuccessUpRate - debuffSuccessDownRate, 0); // 상한 x 하한 0 필중처리를 위해 상한 없음. (필중의 경우 100 이상 값 필수, 999예정)
+        double upRate = Math.clamp(debuffSuccessUpRate, 0.0, 1.0);
+        double downRate = Math.clamp(debuffSuccessDownRate, 0.0, 1.0);
+        return Math.clamp(upRate - downRate, 0.0, 1.0); // 0 ~ 100%
     }
 
-    // 약체내성
+    // 약체 내성
     private double debuffResistUpRate;
     private double debuffResistDownRate;
 
+    /**
+     * 약화 효과 내성
+     */
     public double getCalcedDebuffResistRate() {
-        return Math.clamp(baseDebuffResistRate + debuffResistUpRate - debuffResistDownRate, -0.99, 1.0); // 상한 1.0, 하한 - 99% 저항이 음수일경우 성공률에 양으로 곱해짐
+        double upRate = Math.clamp(debuffResistUpRate, 0.0, 2.0);
+        double downRate = Math.clamp(debuffResistDownRate, 0.0, 1.0);
+        return Math.clamp(upRate - downRate, -1.0, 2.0); // 0 ~ 200%
     }
 
     /* 공격 명중률, 회피율 */
@@ -202,6 +267,15 @@ public class StatusDetails implements Cloneable {
 
     public double getCalcedAccuracyRate() {
         return baseAccuracyRate + accuracyUpRate - accuracyDownRate; // 상 하한은 최종 데미지 계산시 적용 (반드시 빗나감 회피 등)
+    }
+
+    private double normalAttackAccuracyDownRate;
+
+    /**
+     * 일반공격 명중률 감소 (암흑 효과)
+     */
+    public double getNormalAttackAccuracyDownRate() {
+        return normalAttackAccuracyDownRate;
     }
 
     // 회피율
@@ -233,6 +307,12 @@ public class StatusDetails implements Cloneable {
 
     public double getCalcedChargeGaugeIncreaseRate() {
         return Math.clamp(baseChargeGaugeIncreaseRate + chargeGaugeIncreaseUpRate - chargeGaugeIncreaseDownRate, -1.0, 1.0); // 상한 100% 하한 -100%
+    }
+
+    // 피데미지 오의게이지 상승률
+    private double chargeGaugeIncreaseUpRateOnDamaged;
+    public double getCalcedChargeGaugeIncreaseRateOnDamaged() {
+        return Math.clamp(chargeGaugeIncreaseUpRateOnDamaged, -1.0, 2.0); // 상한 200% (일단은), 하한 -100%
     }
 
     // 일반공격 오의게이지 상승률
@@ -272,8 +352,9 @@ public class StatusDetails implements Cloneable {
     private double tripleStrike;
     private double quadrupleStrike;
     private double plusStrike;
+
     public int getCalcedStrikeCount() { // 공격 행동 시작 후에 로직에서 sync 를 통해 수정되면 다음턴 공격행동 시작시 반영됨
-        double strikeCount =  quadrupleStrike > 0 ? quadrupleStrike
+        double strikeCount = quadrupleStrike > 0 ? quadrupleStrike
                 : tripleStrike > 0 ? tripleStrike
                 : doubleStrike > 0 ? doubleStrike
                 : 1;
@@ -295,6 +376,14 @@ public class StatusDetails implements Cloneable {
         return this.chargeAttackSealed > 0; // 있으면 1.0 고정
     }
 
+    /* 조건 오의 */
+    private Boolean conditionalChargeAttackCan;
+
+    // 관련 효과가 없거나 조건을 달성하면 true
+    public boolean isConditionalChargeAttackCan() {
+        return this.conditionalChargeAttackCan == null || this.conditionalChargeAttackCan;
+    }
+
     /* 어빌리티 봉인 */
     private double firstAbilitySealed;
     private double secondAbilitySealed;
@@ -309,20 +398,49 @@ public class StatusDetails implements Cloneable {
                 : List.of(firstAbilitySealed > 0, secondAbilitySealed > 0, thirdAbilitySealed > 0, fourthAbilitySealed > 0);
     }
 
+    /* 어빌리티 재사용 가능 */
+    private double abilityReactivate;
+
+    public int getMaxAbilityUseCount() {
+        return abilityReactivate <= 1 ? 1 : (int) abilityReactivate; // reactivate 최소 유효값 2
+    }
+
+    // 요청 내에서 갱신, 마킹 =====================================================================================
+    @Getter // 오의 발동후 마킹
+    private int executedChargeAttackCount;
+
+    public void increaseExecutedChargeAttackCount() {
+        this.executedChargeAttackCount++;
+    }
+
+    @Getter // 오의 재발동시 마킹 -> 재발동시 오의 게이지를 소모하지 않아야 함. 여기서 마킹 후 체크
+    private boolean isExecutingReactivatedChargeAttack;
+
+    public void updateIsExecutingReactivatedChargeAttack(boolean executingReactivatedChargeAttack) {
+        this.isExecutingReactivatedChargeAttack = executingReactivatedChargeAttack;
+    }
+
     // 비 갱신, 기록용 init 후 수정금지 =============================================================================
 
     /* 공격행동 시작시 설정되는 공격행동 총 횟수 */
     @Getter
     private Integer endStrikeCount;
-    public void initEndStrikeCount(int endStrikeCount) { this.endStrikeCount = endStrikeCount; }
+
+    public void initEndStrikeCount(int endStrikeCount) {
+        this.endStrikeCount = endStrikeCount;
+    }
+
+    public void resetEndStrikeCount() {
+        this.endStrikeCount = null;
+    }
 
 
     // 초기화 =====================================================================================================
 
     public static StatusDetails init(Actor actor) {
         BaseActor baseActor = actor.getBaseActor();
-        // CHECK 나중에 혹시 LB, 반지, 귀걸이 등 BaseActor 관련 스테이터스를 수정할경우 여기서 base 에 가산, sync 는 없이.
-        double weaponAtkUpRate = 50.0;  // 장비항 (마그나 400, 일반 100, ex 100, 속성 150 상정, 5 * 2 * 2 * 2.5 50배율 상정)
+        // CHECK 나중에 혹시 LB, 반지, 귀걸이 등 구현한다면, StatusEffect 로 부여시키는게 나을듯
+        double weaponAtkUpRate = 30.0;  // 장비항 (양면 일반공인 600, ex 공인 100, 혼신 50, 기타 50 => 31.5 / 30정도로 일단 적용)
         double weaponMaxHpUpRate = 3.0; // 수호항 일단 상한 400% 인데 처리 x, 장비 수호항 300% 상정
         if (baseActor.isEnemy()) {
             weaponAtkUpRate = 0.0;
@@ -332,14 +450,13 @@ public class StatusDetails implements Cloneable {
         return StatusDetails.builder()
                 .actorId(actor.getId())
                 .actorName(baseActor.getName())
+                .isEnemy(baseActor.isEnemy())
 
                 .baseAtk(baseActor.getAtk())
                 .baseDef(baseActor.getDef())
                 .baseMaxHp(baseActor.getMaxHp())
                 .baseDoubleAttackRate(baseActor.getDoubleAttackRate())
                 .baseTripleAttackRate(baseActor.getTripleAttackRate())
-                .baseDebuffSuccessRate(baseActor.getDebuffSuccessRate())
-                .baseDebuffResistRate(baseActor.getDebuffResistRate())
                 .baseAccuracyRate(baseActor.getAccuracyRate())
                 .baseDodgeRate(baseActor.getDodgeRate())
                 .baseCriticalRate(baseActor.getCriticalRate())
@@ -361,19 +478,43 @@ public class StatusDetails implements Cloneable {
         this.atkDownRate = getModifierValueSum(map, ATK_DOWN);
         this.strengthRate = getModifierValueSum(map, STRENGTH);
         this.jammedRate = getModifierValueSum(map, JAMMED);
-        this.uniqueUpRate = getModifierValueSum(map, ATK_UP_UNIQUE);
+        this.atkUniqueUpRate = getModifierValueSum(map, ATK_UP_UNIQUE);
+        this.atkDownForfeitRate = getModifierValueMax(map, ATK_DOWN_FORFEIT);
 
         this.defUpRate = getModifierValueSum(map, DEF_UP);
         this.defDownRate = getModifierValueSum(map, DEF_DOWN);
+        this.defDownForfeitRate = getModifierValueMax(map, DEF_DOWN_FORFEIT);
 
-        this.fireDefDown = getModifierValueMax(map, DEF_FIRE_DOWN);
-        this.waterDefDown = getModifierValueMax(map, DEF_WATER_DOWN);
-        this.earthDefDown = getModifierValueMax(map, DEF_EARTH_DOWN);
-        this.windDefDown = getModifierValueMax(map, DEF_WIND_DOWN);
-        this.lightDefDown = getModifierValueMax(map, DEF_LIGHT_DOWN);
-        this.darkDefDown = getModifierValueMax(map, DEF_DARK_DOWN);
+        // 속성공격력 상승, 속성 공격력 감소 - 합산
+        this.atkFireUpRate = getModifierValueSum(map, ATK_UP_FIRE);
+        this.atkFireDownRate = getModifierValueSum(map, ATK_DOWN_FIRE);
+        this.atkWaterUpRate = getModifierValueSum(map, ATK_UP_WATER);
+        this.atkWaterDownRate = getModifierValueSum(map, ATK_DOWN_WATER);
+        this.atkEarthUpRate = getModifierValueSum(map, ATK_UP_EARTH);
+        this.atkEarthDownRate = getModifierValueSum(map, ATK_DOWN_EARTH);
+        this.atkWindUpRate = getModifierValueSum(map, ATK_UP_WIND);
+        this.atkWindDownRate = getModifierValueSum(map, ATK_DOWN_WIND);
+        this.atkLightUpRate = getModifierValueSum(map, ATK_UP_LIGHT);
+        this.atkLightDownRate = getModifierValueSum(map, ATK_DOWN_LIGHT);
+        this.atkDarkUpRate = getModifierValueSum(map, ATK_UP_DARK);
+        this.atkDarkDownRate = getModifierValueSum(map, ATK_DOWN_DARK);
+
+        // 속성 방어력 감소 - 합산
+        this.fireDefDown = getModifierValueSum(map, DEF_DOWN_FIRE);
+        this.waterDefDown = getModifierValueSum(map, DEF_DOWN_WATER);
+        this.earthDefDown = getModifierValueSum(map, DEF_DOWN_EARTH);
+        this.windDefDown = getModifierValueSum(map, DEF_DOWN_WIND);
+        this.lightDefDown = getModifierValueSum(map, DEF_DOWN_LIGHT);
+        this.darkDefDown = getModifierValueSum(map, DEF_DOWN_DARK);
 
         this.maxHpDownRate = getModifierValueSum(map, MAX_HP_DOWN);
+        this.maxHpUpRate = getModifierValueSum(map, MAX_HP_UP);
+
+        this.barrierInitValue = getModifierValueMax(map, BARRIER);
+
+        this.substituteAppliedTime = getLatestModifierTime(map, SUBSTITUTE);
+        this.hostilityUpPoint = getModifierValueMax(map, HOSTILITY_UP);
+        this.hostilityDownPoint = getModifierValueMax(map, HOSTILITY_DOWN);
 
         this.healUpRate = getModifierValueSum(map, HEAL_UP);
         this.healDownRate = getModifierValueSum(map, HEAL_DOWN);
@@ -392,6 +533,7 @@ public class StatusDetails implements Cloneable {
 
         this.accuracyUpRate = getModifierValueSum(map, HIT_ACCURACY_UP);
         this.accuracyDownRate = getModifierValueSum(map, HIT_ACCURACY_DOWN);
+        this.normalAttackAccuracyDownRate = getModifierValueSum(map, NORMAL_ATTACK_ACCURACY_DOWN);
 
         this.dodgeUpRate = getModifierValueSum(map, DODGE_RATE_UP);
 
@@ -400,7 +542,10 @@ public class StatusDetails implements Cloneable {
 
         this.chargeGaugeIncreaseUpRate = getModifierValueSum(map, CHARGE_GAUGE_INCREASE_UP);
         this.chargeGaugeIncreaseDownRate = getModifierValueSum(map, CHARGE_GAUGE_INCREASE_DOWN);
+        this.chargeGaugeIncreaseUpRateOnDamaged = getModifierValueSum(map, CHARGE_GAUGE_INCREASE_UP_ON_DAMAGED);
         this.attackChargeGaugeIncreaseDownRate = getModifierValueSum(map, ATTACK_CHARGE_GAUGE_INCREASE_DOWN);
+
+        this.conditionalChargeAttackCan = isReachedMaxLevelByModifier(map, CONDITIONAL_CHARGE_ATTACK);
 
         this.additionalDamageARate = getModifierValueMax(map, ADDITIONAL_DAMAGE_A);
         this.additionalDamageSRate = getModifierValueMax(map, ADDITIONAL_DAMAGE_S);
@@ -424,6 +569,8 @@ public class StatusDetails implements Cloneable {
         this.thirdAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_THIRD);
         this.fourthAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_FOURTH);
         this.allAbilitySealed = getModifierValueMax(map, ABILITY_SEALED_ALL);
+
+        this.abilityReactivate = getModifierValueMax(map, ABILITY_REACTIVATE);
     }
 
     /**

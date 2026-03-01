@@ -75,6 +75,7 @@ public enum MotionType {
     MORTAL_K_2("mortal_K_2"),
 
     ATTACK("attack"),
+    ATTACK_MOTION_ONLY("attack_motion_only"), // 페이탈체인
     ATTACK_SINGLE("short_attack"),
     ATTACK_FIRST_ADV("short_attack_adv"),
     ATTACK_DOUBLE("double"),
@@ -122,8 +123,10 @@ public enum MotionType {
     ABILITY_4("ab_motion_4"),
 
     ABILITY_EFFECT_ONLY("ab_motion_effect_only"),
+    // 어빌리티로 처리되는 타 모션
+    ABILITY_MOTION_ATTACK("ab_motion_attack"),
     ABILITY_MOTION_WIN("ab_motion_win"),
-    ABILITY_MOTION_TO_STB_WAIT("ab_motion_setup"),
+    ABILITY_MOTION_TO_STB("ab_motion_setup"),
 
     VS_MOTION_1("vs_motion_1"),
     VS_MOTION_2("vs_motion_2"),

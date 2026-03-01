@@ -1,7 +1,5 @@
 package com.gbf.granblue_simulator.battle.controller.dto.info;
 
-import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisualType;
-import com.gbf.granblue_simulator.metadata.domain.move.MotionType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -26,9 +24,9 @@ public class AssetInfo {
     private String mainCjs;
     private List<String> attackCjses;
     @Builder.Default
-    private List<String> specialCjses = new ArrayList<>();
+    private List<CjsDto> specialCjses = new ArrayList<>();
     @Builder.Default
-    private Map<Long, AbilityCjsDto> abilityCjses = new HashMap<>();
+    private Map<Long, CjsDto> abilityCjses = new HashMap<>();
     @Builder.Default
     private Map<Long, String> summonCjses = new HashMap<>(); // 주인공만
 
@@ -41,9 +39,10 @@ public class AssetInfo {
     private int chargeAttackStartFrame;
 
     @Data @Builder
-    public static class AbilityCjsDto {
+    public static class CjsDto {
         private String cjs;
         private Boolean isTargetedEnemy;
+        private String voiceLabel;
     }
 
 }

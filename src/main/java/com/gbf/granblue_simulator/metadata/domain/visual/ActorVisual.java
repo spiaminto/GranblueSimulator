@@ -13,10 +13,12 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@ToString @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ActorVisual {
 
-    @Id @EqualsAndHashCode.Include
+    @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // BaseActor.defaultVisual 에 set 만 해둠. 런타임때 조정
 
@@ -31,12 +33,16 @@ public class ActorVisual {
     @OneToMany(mappedBy = "actorVisual")
     @ToString.Exclude
     private List<EffectVisual> effectVisuals = new ArrayList<>();
-    @Transient @ToString.Exclude
+    @Transient
+    @ToString.Exclude
     private List<EffectVisual> attackVisuals = new ArrayList<>();
-    @Transient @ToString.Exclude
+    @Transient
+    @ToString.Exclude
     private List<EffectVisual> chargeAttackVisuals = new ArrayList<>();
-    @Transient @ToString.Exclude
+    @Transient
+    @ToString.Exclude
     private List<EffectVisual> additionalChargeAttackVisuals = new ArrayList<>();
+
     @PostLoad
     protected void initEffectVisuals() { // 맵 도 고려
         Map<EffectVisualType, List<EffectVisual>> map = effectVisuals.stream()
@@ -48,7 +54,13 @@ public class ActorVisual {
     }
 
     public String getPortraitImageSrc() {
-        return "/static/gbf/img/bp/" + gid + ".jpg";
+        String ext = this.cjsName.contains("enemy") ? ".png" : ".jpg";
+        return "/static/gbf/img/bp/" + gid + ext;
+    }
+
+    public String getCharacterIconImageSrc() {
+        String ext = this.cjsName.contains("npc") ? ".jpg" : ".png";
+        return "/static/gbf/img/ci/" + gid + ext;
     }
 
     public String getBodyImageSrc() {

@@ -78,10 +78,14 @@
 
 .damage-wrapper.enemy .damage-miss {
     background: linear-gradient(to bottom, #fbf5f0 35%, #e0daca 55%, #e1dbcb) !important;
-    -webkit-text-stroke: 1px #55443e !important;
+    -webkit-text-stroke: 0.5px #55443e !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     font-size: 20px !important;
+}
+
+.damage-wrapper .damage-miss::after {
+    content: '' !important;
 }
 
 .damage-wrapper .additional-damage-wrapper.damage-miss {
@@ -95,19 +99,20 @@
 .damage-wrapper .critical::after,
 .damage-wrapper .cut::after,
 .damage-wrapper .block::after,
-.damage-wrapper .block_cut::after {
+.damage-wrapper .block_cut::after,
+.damage-wrapper .ineffective::after {
     font-family: 'Nanum Gothic', system-ui, serif;
     font-weight: 900;
     -webkit-text-stroke-width: 0.5px;
     display: inline-block;
-    font-size: 0.35em;
+    font-size: 0.25em;
     letter-spacing: -0.1em;
     position: absolute;
     top: -50%;
     left: 0;
 }
 .damage-wrapper .advantaged::after {
-    content: 'WEAKPOINT';
+    content: 'WEAKPOINT!';
 }
 .damage-wrapper .disadvantaged::after {
     content: 'WEAK';
@@ -127,6 +132,9 @@
 .damage-wrapper .block_cut::after {
     content: 'BLOCK/CUT';
 }
+.damage-wrapper .ineffective::after {
+    content: 'INEFFECTIVE';
+}
 
 .damage-wrapper.enemy .element-type-fire::after,
 .damage-wrapper.enemy .element-type-water::after,
@@ -135,7 +143,7 @@
 .damage-wrapper.enemy .element-type-light::after,
 .damage-wrapper.enemy .element-type-dark::after { /* 적 데미지 접두어 추가 설정 */
     -webkit-text-stroke-width: 0.5px !important;
-    font-size: 0.4em; !important; /* 폰트 사이즈 줄임 */
+    font-size: 0.3em; !important; /* 폰트 사이즈 줄임 */
 }
 
 /* 아군 통상공격 데미지 ================================================================================================== */
@@ -151,63 +159,68 @@
     position: absolute;
     z-index: 29;
     opacity: 0;
-    font-size: 45px;
-    line-height: 45px;
+    font-size: 43px;
+    line-height: 43px;
 
     will-change: transform, opacity;
 }
 
 .attack-damage.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
     font-size: 32px;
     line-height: 32px;
 }
 
+/* 난격 16 -> 15 -> 13 -> 10 -> 6 */
 .damage-wrapper.attack.party .damage-index-0 {
     top: 50%;
-    left: -5%;
+    left: -7%;
 }
-.damage-wrapper.attack.party .damage-index-0.multi-1 {top: 35%; left: -5%;}
-.damage-wrapper.attack.party .damage-index-0.multi-2 {top: 20%; left: -5%;}
-.damage-wrapper.attack.party .damage-index-0.multi-3 {top: 5%; left: -5%;}
-.damage-wrapper.attack.party .damage-index-0.multi-4 {top: -10%; left: -5%;}
-.damage-wrapper.attack.party .damage-index-0.multi-5 {top: -25%; left: -5%;}
+.damage-wrapper.attack.party .damage-index-0.multi-1 {top: 34%; left: -7%;}
+.damage-wrapper.attack.party .damage-index-0.multi-2 {top: 19%; left: -7%;}
+.damage-wrapper.attack.party .damage-index-0.multi-3 {top: 6%; left: -7%;}
+.damage-wrapper.attack.party .damage-index-0.multi-4 {top: -6%; left: -7%;}
+.damage-wrapper.attack.party .damage-index-0.multi-5 {top: -12%; left: -7%;}
 
 .damage-wrapper.attack.party .damage-index-1 {
     top: 40%;
-    left: 17%;
+    left: 16%;
 }
-.damage-wrapper.attack.party .damage-index-1.multi-1 {top: 25%; left: 17%;}
-.damage-wrapper.attack.party .damage-index-1.multi-2 {top: 10%; left: 17%;}
-.damage-wrapper.attack.party .damage-index-1.multi-3 {top: -5%; left: 17%;}
-.damage-wrapper.attack.party .damage-index-1.multi-4 {top: -20%; left: 17%;}
-.damage-wrapper.attack.party .damage-index-1.multi-5 {top: -35%; left: 17%;}
+.damage-wrapper.attack.party .damage-index-1.multi-1 {top: 24%; left: 16%;}
+.damage-wrapper.attack.party .damage-index-1.multi-2 {top: 9%; left: 16%;}
+.damage-wrapper.attack.party .damage-index-1.multi-3 {top: -4%; left: 16%;}
+.damage-wrapper.attack.party .damage-index-1.multi-4 {top: -14%; left: 16%;}
+.damage-wrapper.attack.party .damage-index-1.multi-5 {top: -20%; left: 16%;}
 
 .damage-wrapper.attack.party .damage-index-2 {
     top: 30%;
     left: 39%;
 }
-.damage-wrapper.attack.party .damage-index-2.multi-1 {top: 15%; left: 39%;}
-.damage-wrapper.attack.party .damage-index-2.multi-2 {top: 0; left: 39%;}
-.damage-wrapper.attack.party .damage-index-2.multi-3 {top: -15%; left: 39%;}
-.damage-wrapper.attack.party .damage-index-2.multi-4 {top: -30%; left: 39%;}
-.damage-wrapper.attack.party .damage-index-2.multi-5 {top: -45%; left: 39%;}
+.damage-wrapper.attack.party .damage-index-2.multi-1 {top: 14%; left: 39%;}
+.damage-wrapper.attack.party .damage-index-2.multi-2 {top: -1%; left: 39%;}
+.damage-wrapper.attack.party .damage-index-2.multi-3 {top: -14%; left: 39%;}
+.damage-wrapper.attack.party .damage-index-2.multi-4 {top: -24%; left: 39%;}
+.damage-wrapper.attack.party .damage-index-2.multi-5 {top: -30%; left: 39%;}
 
 /* 추격 */
 .additional-damage-wrapper {
     position: absolute;
     visibility: hidden;
-    font-size: 45px; /* attack-damage 와 동일하게 */
-    line-height: 45px;
+    font-size: 42px; /* attack-damage 와 동일하게 */
+    line-height: 42px;
 }
 
 .additional-damage-wrapper.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
     font-size: 32px; /* attack-damage disadvantaged 와 동일하게 */
     line-height: 32px;
 }
 
+.additional-damage-wrapper.advantaged {
+    font-size: 46px; /* attack-damage advantaged 와 동일하게 */
+    line-height: 46px;
+}
+
 .additional-damage {
+    -webkit-text-stroke-width: 0.5px !important;
     opacity: 0;
     visibility: visible;
     font-size: 85%; /* .attack-damage 의 85% */
@@ -284,8 +297,8 @@
     z-index: 29;
     position: relative;
     opacity: 0; /* display none 하면 동적으로 요소 넣을떄마다 중앙위치가 변경되어 opacity 로 조절 */
-    font-size: 44px;
-    line-height: 44px;
+    font-size: 41px;
+    line-height: 41px;
     margin-bottom: -12px;
 
     will-change: transform, opacity;
@@ -297,20 +310,28 @@
 }
 
 .ability-damage.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
     font-size: 36px;
     line-height: 36px;
 }
 
+.ability-damage.advantaged {
+    font-size: 45px;
+    line-height: 45px;
+}
+
 .ability-damage.multiple {
-    font-size: 33px;
-    line-height: 33px;
+    font-size: 32px;
+    line-height: 32px;
 }
 
 .ability-damage.multiple.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
     font-size: 28px;
     line-height: 28px;
+}
+
+.ability-damage.multiple.advantaged {
+    font-size: 34px;
+    line-height: 34px;
 }
 
 .ability-damage.multiple::after {
@@ -331,17 +352,21 @@
 .charge-attack-damage {
     position: relative;
     opacity: 0; /* display none 하면 동적으로 요소 넣9을떄마다 중앙위치가 변경되어 opacity 로 조절 */
-    font-size: 48px;
-    line-height: 48px;
+    font-size: 46px;
+    line-height: 46px;
 
     will-change: transform, opacity;
     /*text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;*/
 }
 
 .charge-attack-damage.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
     font-size: 40px;
     line-height: 40px;
+}
+
+.charge-attack-damage.advantaged {
+    font-size: 49px;
+    line-height: 49px;
 }
 
 /* 적 데미지 =========================================================================================================== */
@@ -354,7 +379,7 @@
     width: 100%;
     height: 100%;
     top: 5%;
-    left: 10%;
+    left: 5%;
     z-index: 29;
 }
 
@@ -362,39 +387,41 @@
     position: absolute;
     opacity: 0;
     font-size: 28px;
-    line-height: 28px;
+    line-height: 30px;
+    letter-spacing: -1px;
 
     will-change: transform, opacity;
+    /*-webkit-text-stroke-width: 0.5px;*/
     /*text-shadow: -2px 0 grey, 0 2px grey, 2px 0 grey, 0 -2px grey;*/
     /*text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;*/
 }
 
 .attack-damage.enemy.disadvantaged {
-    -webkit-text-stroke-width: 0.5px;
-    font-size: 24px;
+    font-size: 22px;
     line-height: 24px;
+}
+
+.attack-damage.enemy.advantaged {
+    font-size: 32px;
+    line-height: 35px;
 }
 
 .additional-damage-wrapper.enemy {
     position: absolute;
     visibility: hidden;
     z-index: 28;
-    -webkit-text-stroke-width: 0.5px;
     font-size: 26px;
     line-height: 26px;
 }
 
 .additional-damage.enemy {
     will-change: transform, opacity;
+    letter-spacing: -1px;
+    -webkit-text-stroke-width: 0.5px;
 }
 
 .additional-damage-wrapper.enemy .additional-damage.enemy::after {
     content: '';
-}
-
-.attack-damage.enemy.disadvantaged {
-    font-size: 22px;
-    line-height: 22px;
 }
 
 /* 적 공격은 난격 없이 본격-추격-본격-추격-.... */
@@ -445,22 +472,34 @@
     /*animation: damage-pop 1s cubic-bezier(.71,.55,.62,1.57) forwards;*/
 }
 
-.party-attack-damage-show {
+.party-attack-damage-show,
+.party-charge-attack-damage-show {
     animation: party-attack-damage-show 1.2s linear forwards;
 }
+.disadvantaged.party-attack-damage-show,
+.disadvantaged.party-charge-attack-damage-show {
+    animation: party-multiple-ability-damage-show 1.2s linear forwards;
+}
+.advantaged.party-attack-damage-show,
+.critical.party-attack-damage-show,
+.advantaged.party-charge-attack-damage-show,
+.critical.party-charge-attack-damage-show {
+    animation: advantage-party-attack-damage-show 1.2s linear forwards;
+}
+
 
 .party-additional-damage-show {
     animation: party-additional-damage-show 1.2s linear forwards;
 }
+/*.disadvantaged .party-additional-damage-show {*/
+/*    animation: party-multiple-ability-damage-show 1.2s linear forwards;*/
+/*}*/
 
-.party-charge-attack-damage-show {
-    animation: party-attack-damage-show 1.2s linear forwards;
-}
 
 .ability-damage-show {
     animation: party-ability-damage-show 0.9s linear forwards;
 }
-
+.disadvantaged.ability-damage-show,
 .multiple-ability-damage-show {
     animation: party-multiple-ability-damage-show 0.9s linear forwards;
 }
@@ -470,14 +509,19 @@
 }
 
 .enemy-damage-show {
-    animation: enemy-damage-show 1s linear forwards;
+    animation: party-attack-damage-show 1s linear forwards;
+}
+.advantaged.enemy-damage-show {
+    animation: advantage-party-attack-damage-show 1s linear forwards;
+}
+.disadvantaged.enemy-damage-show {
+    animation: party-multiple-ability-damage-show 1s linear forwards;
 }
 
 .heal-show { /* 아군, 적군 힐 통합 */
     animation: heal-show 0.7s linear forwards;
 }
-
-.enemy-turn-damage-show { /* 아군이 적에게 턴데미지 */
+.enemy-turn-damage-show { /* 적이 아군에게 턴데미지 */
     animation: enemy-turn-damage-show 0.7s linear forwards;
 }
 
@@ -507,6 +551,31 @@
     }
 }
 
+@keyframes advantage-party-attack-damage-show {
+    0% {
+        opacity: 1;
+        transform: translate3d(0,0,0) scale(1.0);
+    }
+    2% {
+        opacity: 1;
+        transform: scale(1.4);
+    }
+    21% {
+        transform: scale(1.1);
+    }
+    /*38% {*/
+    /*    */
+    /*}*/
+    88% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.1);
+    }
+}
+
 @keyframes party-attack-damage-show { /* 48 + 204 + 204 + 600 + 144, 1200*/
     0% {
         opacity: 1;
@@ -517,7 +586,7 @@
         transform: scale(1.2);
     }
     21% {
-        transform: scale(1.2);
+        transform: scale(1.0);
     }
     38% {
         transform: scale(1.0);
@@ -533,10 +602,10 @@
 @keyframes party-additional-damage-show {
     0% {
         opacity: 1;
-        transform: translate3d(0,0,0) scale(1.1);
+        transform: translate3d(0,0,0) scale(1.0);
     }
     21% {
-        transform: scale(1.1);
+        /*transform: scale(1.1);*/
     }
     38% {
         transform: scale(1.0);
@@ -549,28 +618,28 @@
     }
 }
 
-@keyframes party-charge-attack-damage-show { /* 50 + 200 + 200 + 600 + 150, 1200*/
-    0% {
-        opacity: 1;
-        transform: translate3d(0,0,0) scale(1.0);
-    }
-    4% {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-    21% {
-        transform: scale(1.2);
-    }
-    38% {
-        transform: scale(1.0);
-    }
-    88% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-    }
-}
+/*@keyframes party-charge-attack-damage-show { !* 50 + 200 + 200 + 600 + 150, 1200*!*/
+/*    0% {*/
+/*        opacity: 1;*/
+/*        transform: translate3d(0,0,0) scale(1.0);*/
+/*    }*/
+/*    4% {*/
+/*        opacity: 1;*/
+/*        transform: scale(1.2);*/
+/*    }*/
+/*    21% {*/
+/*        transform: scale(1.2);*/
+/*    }*/
+/*    38% {*/
+/*        transform: scale(1.0);*/
+/*    }*/
+/*    88% {*/
+/*        opacity: 1;*/
+/*    }*/
+/*    100% {*/
+/*        opacity: 0;*/
+/*    }*/
+/*}*/
 
 @keyframes party-ability-damage-show { /* 실제길이: 27 + 126 + 99 + 495 + 153 */
     0% {
@@ -670,29 +739,51 @@
     }
 }
 
+/*@keyframes enemy-damage-show {*/
+/*    0% {*/
+/*        opacity: 0;*/
+/*        transform: translate3d(0,0,0) scale(1);*/
+/*    }*/
+/*    3% {*/
+/*        opacity: 1;*/
+/*        transform: scale(1.2);*/
+/*    }*/
+/*    10% {*/
+/*        opacity: 1;*/
+/*        transform: scale(1.0);*/
+/*    }*/
+/*    92% {*/
+/*        opacity: 1;*/
+/*        transform: translateY(0);*/
+/*    }*/
+/*    100% {*/
+/*        opacity: 0;*/
+/*        transform: translateY(30%);*/
+/*    }*/
+/*}*/
 
-@keyframes enemy-damage-show {
-    0% {
-        opacity: 0;
-        transform: translate3d(0,0,0) scale(1);
-    }
-    3% {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-    10% {
-        opacity: 1;
-        transform: scale(1.0);
-    }
-    92% {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(30%);
-    }
-}
+/*@keyframes advantage-enemy-damage-show {*/
+/*    0% {*/
+/*        opacity: 0;*/
+/*        transform: translate3d(0,0,0) scale(1);*/
+/*    }*/
+/*    3% {*/
+/*        opacity: 1;*/
+/*        transform: scale(1.4);*/
+/*    }*/
+/*    10% {*/
+/*        opacity: 1;*/
+/*        transform: scale(1.0);*/
+/*    }*/
+/*    92% {*/
+/*        opacity: 1;*/
+/*        transform: translateY(0);*/
+/*    }*/
+/*    100% {*/
+/*        opacity: 0;*/
+/*        transform: translateY(30%);*/
+/*    }*/
+/*}*/
 
 @keyframes enemy-turn-damage-show {
     /* from enemy-damage-show 아래로 살짝 내림 */

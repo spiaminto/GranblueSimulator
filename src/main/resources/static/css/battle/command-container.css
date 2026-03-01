@@ -104,6 +104,37 @@
     left: 0;
 }
 
+.hp-gauge .progress{
+    height: 5px;
+    border: solid 1px black;
+}
+
+
+.hp-gauge .progress-bar {
+    background-color: #0cc223;
+}
+
+.hp-gauge-value {
+    position: absolute;
+    right: 0;
+    bottom: 0px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
+    color: white;
+}
+
+
+.barrier-value {
+    position: absolute;
+    right: 0;
+    bottom: 12px;
+    font-weight: bold;
+    font-size: 0.8rem;
+    text-shadow: -0.5px 0 darkblue, 0 0.5px darkblue, 0.5px 0 darkblue, 0 -0.5px darkblue;
+    color: #31fdff;
+}
+
 .charge-gauge-wrapper {
     position: absolute;
     width: 95%;
@@ -112,38 +143,57 @@
     left: 0;
 }
 
+.charge-gauge {
+    position: relative;
+    width: 100%;
+}
+
+.charge-gauge .progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #704e29;
+}
+
+.charge-gauge .progress-bar {
+    background-color: #cc7d4b;
+}
+
+.charge-gauge.active .progress-bar {
+    background-color: #fef1a7;
+}
+
+.charge-gauge .progress.additional .progress-bar {
+    background-color: #ffa8b3;
+}
+
+.charge-gauge .progress.additional {
+    background-color: transparent;
+}
+.charge-gauge.active .progress.additional {
+    box-shadow: 0 0 4px 1px #f86966;
+}
+
 .charge-gauge-value {
     position: absolute;
     right: 0;
-    bottom: 2px;
+    bottom: -3px;
+    font-size: 0.5rem; /* '%' 크기 */
+    line-height: 0.7rem;
+    font-weight: bold;
+    text-shadow: -0.5px 0 #a46b3d, 0 0.5px #a46b3d, 0.5px 0 #a46b3d, 0 -0.5px #a46b3d;
+    /*color: #e1ddd3;*/
+    color: #dbdacc;
+}
+
+.charge-gauge.active .charge-gauge-value {
+    color: white;
+}
+
+.charge-gauge-value .value {
     font-size: 0.7rem;
-    font-weight: bold;
-    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
-    color: white;
-}
-
-.hp-gauge-value {
-    position: absolute;
-    right: 0;
-    bottom: 2px;
-    font-weight: bold;
-    font-size: 0.9rem;
-    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
-    color: white;
-}
-
-
-.hp-gauge .progress{
-    height: 5px;
-    border: solid 1px black;
-}
-
-.charge-gauge .progress{
-    height: 3px;
-}
-
-.hp-gauge .progress-bar {
-    background-color: #0cc223;
 }
 
 .ability-usable-indicator-wrapper {
@@ -331,7 +381,7 @@
 
 .fatal-chain-gauge-label {
     color: white;
-    margin-left: -5px;
+    margin-left: -13px;
     padding-right: 3px;
     font-size: 15px;
     font-style: italic;

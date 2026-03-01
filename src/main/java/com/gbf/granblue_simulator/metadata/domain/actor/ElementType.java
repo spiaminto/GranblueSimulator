@@ -20,16 +20,17 @@ public enum ElementType {
     
     PLAIN("무속성", 10), // 무속성
 
-    SELECTABLE("선택가능", 20), // 속성 변환이 가능한 주인공 전용
-    ACTOR("자속성", 30), // Move.Actor 의 속성을 따라감. 속성변환이 가능한 주인공 어빌리티 전용
+    SELECTABLE("선택가능", 20), // 속성 변환이 가능한 주인공 전용 (BaseActor SELECTABLE 지정 후 Actor 변환시 Party.leaderCharacterElementType 등으로 대입하면 될듯)
+    ACTOR("자속성", 30), // BaseMove.elementType 을 ACTOR 로 지정해놓으면 Move.elementType 별도로 만들 필요 없을거 같음.
     RANDOM("랜덤속성", 40), // 랜덤속성 -> 로직에서 변환해서사용
 
     NONE("없음", 99) // null
 
     ,
     ;
-    
     // CHECK insert 에서 ordinal 사용중
+
+    private static final ElementType[] MAIN_ELEMENTS = {FIRE, WATER, EARTH, WIND, LIGHT, DARK};
 
     private final String presentName;
     private final int order;
@@ -96,9 +97,8 @@ public enum ElementType {
 
     // 랜덤 속성 반환
     public static ElementType getRandomElementType() {
-        ElementType[] mainElements = {FIRE, WATER, WIND, EARTH, LIGHT, DARK};
-        int idx = ThreadLocalRandom.current().nextInt(mainElements.length);
-        return mainElements[idx];
+        int idx = ThreadLocalRandom.current().nextInt(MAIN_ELEMENTS.length);
+        return MAIN_ELEMENTS[idx];
     }
 
 }

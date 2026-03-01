@@ -8,6 +8,5 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter @EqualsAndHashCode(callSuper = true) @ToString(callSuper = true)
-@Inheritance(strategy = InheritanceType.JOINED)
 public class BaseCharacter extends BaseActor {
 }

@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.metadata.domain.visual;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,17 +20,25 @@ public class EffectVisual { // attack, ability, chargeattack
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_visual_id")
+    @JsonIgnore
     private ActorVisual actorVisual;
 
     private String cjsName; // effectCjs
 
     private int chargeAttackStartFrame; // 오의 스킵시 시작프레임
     private boolean isTargetedEnemy; // targeted 어빌리티의 이펙트 target
+    private String voiceLabel;
 
     public String getPortraitImageSrc() {
         // 일단 소환석만 사용중
         String gid = this.cjsName.replace("summon_", "");
         return "/static/gbf/img/bp/" + gid + ".jpg";
+    }
+
+    public String getCutinImageSrc() {
+        // 일단 소환석만 사용중
+        String gid = this.cjsName.replace("summon_", "");
+        return "/static/gbf/img/cutin/" + gid + ".jpg";
     }
 
 }

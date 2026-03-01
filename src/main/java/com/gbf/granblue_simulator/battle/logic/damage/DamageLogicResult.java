@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.damage;
 
+import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,4 +21,7 @@ public class DamageLogicResult {
     private List<MoveDamageType> damageTypes = new ArrayList<>(); // 적은 타겟이 여러개라 여러개 써야함
     @Builder.Default
     private Integer attackMultiHitCount = 1;
+    @Builder.Default
+    private List<Actor> enemyAttackTargets = new ArrayList<>();
+    private int normalAttackCount;
 }

@@ -2,11 +2,13 @@ package com.gbf.granblue_simulator.battle.logic.statuseffect;
 
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.battle.logic.actor.character.CharacterLogicResultMapper;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.battle.logic.actor.enemy.EnemyLogicResultMapper;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.battle.logic.ReactionLogic;
+import com.gbf.granblue_simulator.battle.logic.move.mapper.CharacterLogicResultMapper;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
+import com.gbf.granblue_simulator.battle.logic.move.mapper.EnemyLogicResultMapper;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusDurationType;
@@ -18,7 +20,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
@@ -27,11 +28,14 @@ import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 @RequiredArgsConstructor
 public class TurnEndStatusLogic {
 
+    private final BattleContext battleContext; // 특히, 아군의 턴데미지 적의 턴데미지 때 mainActor 설정이 필요하여 사용
+
+    private final ProcessStatusLogic processStatusLogic;
+    private final SetStatusLogic setStatusLogic;
+    private final ReactionLogic reactionLogic;
+
     private final CharacterLogicResultMapper characterLogicResultMapper;
     private final EnemyLogicResultMapper enemyLogicResultMapper;
-    private final ProcessStatusLogic processStatusLogic;
-    private final BattleContext battleContext; // 특히, 아군의 턴데미지 적의 턴데미지 때 mainActor 설정이 필요하여 사용
-    private final StatusEffectRepository statusEffectRepository;
 
     /**
      * 턴 종료 시 상태효과 처리
@@ -40,65 +44,59 @@ public class TurnEndStatusLogic {
      * @param turnEndProcessStartTime 턴 종료 처리 시작시간 (턴 종료시 생성/갱신된 상태효과의 경우 duration 진행 안함)
      * @return
      */
-    public ActorLogicResult progressStatusEffect(LocalDateTime turnEndProcessStartTime) {
+    public MoveLogicResult progressStatusEffect(LocalDateTime turnEndProcessStartTime) {
         List<Actor> allActors = battleContext.getCurrentFieldActors();
 
-        // StatusEffect 남은시간 1턴 감소
-        allActors.stream()
-                .map(Actor::getStatusEffects)
-                .flatMap(Collection::stream)
-                .forEach(statusEffect -> {
-                    if (statusEffect.getBaseStatusEffect().getDurationType().isTurnBased() // 턴제
-                            && !(statusEffect.getBaseStatusEffect().getDurationType() == StatusDurationType.TURN_INFINITE) // 영속아님
-                            && statusEffect.getUpdatedAt().isBefore(turnEndProcessStartTime)) // 턴종료 처리 이전 갱신된 상태효과
-                        statusEffect.subtractDuration(1);
-                });
-
-        // 남은시간 0 턴인 상태효과
-        Map<Actor, List<StatusEffect>> expiredEffectsMap = allActors.stream()
-                .collect(Collectors.toMap(
-                        actor -> actor,
-                        actor -> actor.getStatusEffects().stream()
-                                .filter(effect -> effect.getDuration() == 0)
-                                .collect(Collectors.toList())
-                ));
-
-        // 삭제
-        expiredEffectsMap.forEach((actor, expiredStatusEffects) -> {
-            if (!expiredStatusEffects.isEmpty()) {
-                expiredStatusEffects.forEach(effect -> log.info("[progressStatusEffects] expired: actor={}, status={}", actor.getName(), effect.getBaseStatusEffect().getName()));
-                actor.getStatusEffects().removeAll(expiredStatusEffects);
-                statusEffectRepository.deleteAllInBatch(expiredStatusEffects);
+        SetStatusEffectResult statusEffectResult = SetStatusEffectResult.emptyResult();
+        for (Actor actor : allActors) {
+            List<StatusEffect> expiredStatusEffects = new ArrayList<>();
+            for (StatusEffect statusEffect : actor.getStatusEffects()) {
+                // 상태효과의 남은 효과시간을 1턴 감소
+                if (statusEffect.getBaseStatusEffect().getDurationType().isTurnBased() // 턴제
+                        && !(statusEffect.getBaseStatusEffect().getDurationType() == StatusDurationType.TURN_INFINITE) // 영속아님
+                        && statusEffect.getUpdatedAt().isBefore(turnEndProcessStartTime)) { // 턴종료 처리 이전 갱신된 상태효과
+                    statusEffect.subtractDuration(1);
+                }
+                // 효과시간이 0턴이면 제거 목록에 삽입 (마운트 등 무한지속 + 효과 소모후 expire 하는경우가 있어 턴 감소와 분리)
+                if (statusEffect.getDuration() <= 0) {
+                    expiredStatusEffects.add(statusEffect);
+                }
             }
-        });
 
-        // 스테이터스 갱신
-        allActors.forEach(actor -> actor.getStatus().syncStatus());
+            // 효과시간 0턴 이하가 된 효과 제거 및 결과 병합
+            SetStatusEffectResult removedResult = setStatusLogic.removeStatusEffectsWithResult(actor, expiredStatusEffects);
+            statusEffectResult.merge(removedResult);
 
-        return enemyLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.TURN_FINISH));
+            // 스텟 재계산
+            actor.getStatus().syncStatus();
+        }
+
+        return enemyLogicResultMapper.toResult(ResultMapperRequest.of(Move.getTransientMove(battleContext.getEnemy(), MoveType.TURN_FINISH), statusEffectResult));
     }
 
     /**
-     * 턴 종료시 스테이터스 효과 처리
+     * 턴 종료시 스테이터스 효과 및 그에따른 반응 처리
      *
      * @param enemy
      * @param partyMembers
      * @return MoveType.NONE 결과를 리턴하지 않음
      */
-    public List<ActorLogicResult> processTurnEnd(Actor enemy, List<Actor> partyMembers) {
+    public List<MoveLogicResult> processTurnEnd(Actor enemy, List<Actor> partyMembers) {
         // 아군 전원 사망시 처리 스킵
         if (partyMembers.isEmpty()) return List.of();
 
-        List<ActorLogicResult> results = new ArrayList<>();
+        List<MoveLogicResult> results = new ArrayList<>();
         Actor partyMainActor = partyMembers.getFirst();
 
         // 아군 턴종 힐 처리
         battleContext.setCurrentMainActor(partyMainActor);
         results.addAll(process(partyMembers, StatusModifierType.ACT_HEAL, MoveType.TURN_END_HEAL));
+        results.addAll(process(partyMembers, StatusModifierType.ACT_RATE_HEAL, MoveType.TURN_END_HEAL));
 
         // 적 턴종 힐 처리
         battleContext.setCurrentMainActor(enemy);
         results.addAll(process(List.of(enemy), StatusModifierType.ACT_HEAL, MoveType.TURN_END_HEAL));
+        results.addAll(process(List.of(enemy), StatusModifierType.ACT_RATE_HEAL, MoveType.TURN_END_HEAL));
 
         // 아군 오의 게이지 상승
         battleContext.setCurrentMainActor(partyMainActor);
@@ -113,11 +111,13 @@ public class TurnEndStatusLogic {
 
         // 아군에 대한 턴종 데미지 처리
         battleContext.setCurrentMainActor(enemy);
-        results.addAll(process(partyMembers, StatusModifierType.ACT_DAMAGE, MoveType.TURN_END_DAMAGE)); // ACT_RATE_DAMAGE 까지 처리
+        results.addAll(process(partyMembers, StatusModifierType.ACT_DAMAGE, MoveType.TURN_END_DAMAGE));
+        results.addAll(process(partyMembers, StatusModifierType.ACT_RATE_DAMAGE, MoveType.TURN_END_DAMAGE));
 
         // 적에 대한 턴종 데미지 처리
         battleContext.setCurrentMainActor(partyMainActor);
         results.addAll(process(List.of(enemy), StatusModifierType.ACT_DAMAGE, MoveType.TURN_END_DAMAGE));
+        results.addAll(process(partyMembers, StatusModifierType.ACT_RATE_DAMAGE, MoveType.TURN_END_DAMAGE));
 
         return results;
     }
@@ -130,15 +130,29 @@ public class TurnEndStatusLogic {
      * @param transientMoveType ActorLogic.moveType, TransientMove 만 가능
      * @return
      */
-    protected List<ActorLogicResult> process(List<Actor> targetActors, StatusModifierType modifierType, MoveType transientMoveType) {
-        Map<BaseStatusEffect, SetStatusEffectResult> statusEffectResultMap = new HashMap<>();
-        Map<StatusEffect, Actor> statusTargetMap = getStatusMapByModifier(targetActors, modifierType); // modifierType 을 가진 모든 StatusEffect 를 key 로 하는 타겟맵 (StatusEffect 기준이므로 Actor 는 1:1 대응)
-        statusTargetMap.forEach((statusEffect, target) -> {
-            ProcessStatusLogic.ProcessStatusLogicResult processResult = processStatusLogic.process(target, statusEffect, modifierType);
+    protected List<MoveLogicResult> process(List<Actor> targetActors, StatusModifierType modifierType, MoveType transientMoveType) {
+        List<MoveLogicResult> results = new ArrayList<>(); // 같은 상태효과 별로 묶임 + 각각에 대한 반응까지 순서대로
+        Move move = Move.getTransientMove(battleContext.getMainActor(), transientMoveType); // 결과용 transient move
+        Map<BaseStatusEffect, SetStatusEffectResult> statusEffectResultMap = new HashMap<>(); // 하나의 상태효과와 그에대한 효과 부여 결과 맵
 
-            // StatusEffect 마다 결과를 전부 만듦 (같은 효과라도 레벨 등이 달라 효과량이 다를수 있음)
-            Map<Long, SetStatusEffectResult.Result> results = new HashMap<>();
-            results.put(target.getId(), SetStatusEffectResult.Result.builder()
+        Map<StatusEffect, Actor> statusTargetMap = getStatusMapByModifier(targetActors, modifierType); // modifierType 을 가진 모든 StatusEffect 를 key 로 하는 타겟맵 (StatusEffect 기준이므로 Actor 는 1:1 대응)
+        if (statusTargetMap.isEmpty()) return results;
+
+        List<Map.Entry<StatusEffect, Actor>> orderedStatusTargetEntries = statusTargetMap.entrySet().stream()
+                .sorted(Comparator.comparing(entry -> entry.getKey().getCreatedAt()))
+                .toList(); // 같은 효과 끼리 순서대로 처리하기 위해 정렬 (부여 시간 우선, 필요시 baseEffect.id 정렬 한번 더)
+
+        for (int i = 0; i < orderedStatusTargetEntries.size(); i++) {
+            Map.Entry<StatusEffect, Actor> currentEntry = orderedStatusTargetEntries.get(i); // 하나의 효과 + 효과타겟 엔트리
+            StatusEffect statusEffect = currentEntry.getKey();
+            Actor target = currentEntry.getValue();
+
+            // 상태효과에 따른 처리 수행
+            ProcessStatusLogic.ProcessStatusLogicResult processResult = processStatusLogic.process(target, target, statusEffect, modifierType);
+
+            // Actor 마다 Actor 에 부여된 StatusEffect 에 따른 각각의 결과를 전부 만듦 (같은 효과라도 레벨 등이 달라 효과량이 다를수 있음)
+            Map<Long, SetStatusEffectResult.Result> currentResult = new HashMap<>();
+            currentResult.put(target.getId(), SetStatusEffectResult.Result.builder()
                     .actorId(target.getId())
                     .addedStatusEffects(processResult.getAddedStatusEffects())
                     .removedStatusEffects(processResult.getRemovedStatusEffects())
@@ -146,21 +160,27 @@ public class TurnEndStatusLogic {
                     .damageValue(processResult.getDamageValue())
                     .build());
 
-            // StatusEffect.BaseStatusEffect 가 같은것 끼리 merge
+            // 현재까지의 결과에 merge
             statusEffectResultMap.merge(
                     statusEffect.getBaseStatusEffect(),
-                    SetStatusEffectResult.builder().results(results).build()
+                    SetStatusEffectResult.builder().results(currentResult).build()
                     , (existing, current) -> {
                         existing.merge(current);
                         return existing;
                     });
-        });
 
-        BaseMove move = BaseMove.getTransientMove(transientMoveType);
-        List<ActorLogicResult> logicResults = statusEffectResultMap.values().stream()
-                .map(setStatusResult -> characterLogicResultMapper.toResult(move, null, setStatusResult))
-                .toList();
-        return logicResults; // 같은 modifierType 계열에서는 정렬하지 않음
+            // 다음 baseEffect 가 없거나, 기존 처리하던 baseEffect 와 다를 경우 -> 현재까지의 결과를 ActorLogicResult 로 변환 및 반응처리
+            BaseStatusEffect nextBaseEffect = i < orderedStatusTargetEntries.size() - 1
+                    ? orderedStatusTargetEntries.get(i + 1).getKey().getBaseStatusEffect()
+                    : null;
+            if (nextBaseEffect == null || !nextBaseEffect.equals(statusEffect.getBaseStatusEffect())) {
+                MoveLogicResult result = characterLogicResultMapper.toResult(ResultMapperRequest.of(move, null, statusEffectResultMap.get(statusEffect.getBaseStatusEffect())));
+                List<MoveLogicResult> reactionResults = reactionLogic.processReaction(result);
+                results.addAll(reactionResults);
+            }
+        }
+
+        return results; // 같은 modifierType 계열에서는 정렬하지 않음
     }
 
 
@@ -173,7 +193,7 @@ public class TurnEndStatusLogic {
      * @return StatusEffect 를 key 로하는 맵. StatusEffect.BaseStatusEffect 가 같아도 별도로 취급되어 반환됨
      */
     protected Map<StatusEffect, Actor> getStatusMapByModifier(List<Actor> targets, StatusModifierType modifierType) {
-        Map<StatusEffect, Actor> resultMap = new HashMap<>();
+        Map<StatusEffect, Actor> resultMap = new LinkedHashMap<>();
 
         for (Actor target : targets) {
             List<StatusEffect> effects = getEffectsByModifierType(target, modifierType);
@@ -191,8 +211,7 @@ public class TurnEndStatusLogic {
 
 
     /*
-    원본 처리순서
-    (참고) 우리쪽은 캐릭터에 달린 onTurnEnd 로 스테이터스를 세팅하기때문에 근본적으로 처리순서가 다름
+    (참고) 원본 처리순서
 
     피데미지시 효과
     스택소모 버프/디버프, 웨폰버스트, 피타겟 효과

@@ -1,13 +1,16 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 
 @Entity
@@ -27,6 +30,9 @@ public class StatusEffect {
     private Integer level; // 레벨 (실시간)
     private String iconSrc;
 
+    @Builder.Default
+    private int activeModifierCount = -1;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_status_effect_id")
     private BaseStatusEffect baseStatusEffect;
@@ -40,6 +46,9 @@ public class StatusEffect {
 
     @CreationTimestamp
     private LocalDateTime updatedAt; // 생성시 초기화, 레벨 증가시 업데이트. 효과가 적용될때만(+레벨상승) 해당 필드갱신
+
+    @Transient
+    private boolean isTransient; // NO_EFFECT, MISS 등
 
     /**
      * 연관관계 함께 매핑
@@ -64,10 +73,25 @@ public class StatusEffect {
         return this;
     }
 
+    /**
+     * 외부에 보여줄 효과 인지 여부, 보여주면 true
+     */
+    public boolean isDisplayable() {
+        return this.baseStatusEffect.isDisplayable();
+    }
+
+    /**
+     * 리필제 효과인지 확인
+     *
+     * @return DurationType 이 LEVEL_INFINITE 이면 true
+     */
+    public boolean isRefillable() {
+        return this.baseStatusEffect.getDurationType() == StatusDurationType.LEVEL_INFINITE;
+    }
+
     protected void updateLevel(int level) {
         this.level = Math.clamp(level, 0, this.baseStatusEffect.getMaxLevel());
-        int nextIconIndex = Math.clamp(this.level - 1, 0, this.baseStatusEffect.getIconSrcs().size() - 1);
-        this.iconSrc = this.baseStatusEffect.getIconSrcs().get(nextIconIndex);
+        this.iconSrc = this.getCurrentIconSrc();
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -96,6 +120,44 @@ public class StatusEffect {
     }
 
     /**
+     * activeModifierCount 수정
+     *
+     * @param activeModifierCount: 최소 0 부터 적용가능. 카운트 초과시 전체적용
+     */
+    public void updateActiveModifierCount(int activeModifierCount) {
+        if (this.baseStatusEffect.getModifiers().size() <= activeModifierCount) this.activeModifierCount = -1;
+        else {
+            this.activeModifierCount = Math.max(activeModifierCount, 0);
+        }
+    }
+
+    /**
+     * 모든 BaseMove.modifiers 반환 <br>
+     */
+    public Map<StatusModifierType, StatusModifier> getBaseModifiers() {
+        return this.baseStatusEffect.getModifiers();
+    }
+
+    /**
+     * 활성화 되어있는 modifiers 만 반환 <br>
+     * 실제 런타임에서 StatusEffect 의 modifier 적용시 이쪽을 사용
+     */
+    public Map<StatusModifierType, StatusModifier> getActiveModifiers() {
+        if (this.activeModifierCount < 0) return this.baseStatusEffect.getModifiers();
+        else {
+            Map<StatusModifierType, StatusModifier> result = new LinkedHashMap<>();
+            Set<Map.Entry<StatusModifierType, StatusModifier>> entries = this.getBaseStatusEffect().getModifiers().entrySet();
+            int i = 1;
+            for (Map.Entry<StatusModifierType, StatusModifier> entry : entries) {
+                if (i <= this.activeModifierCount) break; // count  유효값 0~, 1부터 등록
+                result.put(entry.getKey(), entry.getValue());
+                i++;
+            }
+            return result;
+        }
+    }
+
+    /**
      * 남은 효과시간을 반환 (턴, 초) 영속일시 9999
      *
      * @return
@@ -118,6 +180,7 @@ public class StatusEffect {
 
     protected void updateDuration(int duration) {
         this.duration = Math.max(0, duration);
+        this.iconSrc = this.getCurrentIconSrc();
     }
 
     /**
@@ -185,12 +248,46 @@ public class StatusEffect {
     }
 
     /**
+     * 해당 StatusModifierType 이 있는지 확인
+     *
+     * @param modifierType
+     * @return 있으면 true
+     */
+    public boolean hasModifier(StatusModifierType modifierType) {
+        return this.baseStatusEffect.getModifier(modifierType) != null;
+    }
+
+    /**
+     * StatusModifierType 에 맞는 modifier 가져옴
+     *
+     * @param modifierType
+     * @return 없으면 null
+     */
+    public StatusModifier getModifier(StatusModifierType modifierType) {
+        return this.baseStatusEffect.getModifier(modifierType);
+    }
+
+    /**
+     * StatusModifierType 에 맞는 modifier 의 value 에 level 을 적용하여 반환 (소숫점 둘째자리 내림, 리필식은 레벨 적용 x)
+     *
+     * @param modifierType 없으면 에러나니 직접 코드상에서 지정해서 호출
+     * @throws IllegalArgumentException 없는 StatusModifierType 으로 요청시 발생
+     */
+    public double getModifierValue(StatusModifierType modifierType) {
+        StatusModifier modifier = this.baseStatusEffect.getModifier(modifierType);
+        if (modifier == null) // 없으면 특정 값 설정하지 않고 즉시 에러내는게 디버깅 할때 나을듯
+            throw new IllegalArgumentException("없는 StatusModifier 접근, modifier = " + modifierType.name() + " 현재 스테이터스 = " + this.baseStatusEffect.toString());
+        double modifierInitValue = modifier.getInitValue();
+        return this.baseStatusEffect.getDurationType() != StatusDurationType.LEVEL_INFINITE && this.level > 0
+                ? Math.floor(modifierInitValue * level * 100) / 100.0
+                : modifierInitValue;
+    }
+
+    /**
      * MISS, RESIST 등의 이펙트 생성시 사용
      *
-     * @param type
-     * @param effectText
-     * @param actor
-     * @return
+     * @param effectText "MISS", "RESIST", "NO EFFECT", ...
+     * @return transient StatusEffect (isTransient = true, id = null)
      */
     public static StatusEffect getTransientStatusEffect(StatusEffectType type, String effectText, Actor actor) {
         return StatusEffect.builder()
@@ -204,40 +301,46 @@ public class StatusEffect {
                         .build())
                 .level(0)
                 .iconSrc("")
+                .isTransient(true)
                 .build()
                 .setActor(actor);
     }
 
     /**
-     * 해당 StatusModifierType 이 있는지 확인
-     * @param modifierType
-     * @return 있으면 true
+     * BaseStatusEffect 로 부터 저장을 위한 StatusEffect 를 생성후 반환 (actor set, 매핑 필요)
      */
-    public boolean hasModifier(StatusModifierType modifierType) {
-        return this.baseStatusEffect.getModifier(modifierType) != null;
+    public static StatusEffect fromBaseEffect(BaseStatusEffect baseEffect, Actor actor) {
+        StatusEffect statusEffect = StatusEffect.builder()
+                .actor(actor)
+                .duration(baseEffect.getDuration())
+                .baseStatusEffect(baseEffect)
+                .level(baseEffect.getMaxLevel() > 0 ? 1 : 0)
+                .iconSrc(baseEffect.getIconSrcs().isEmpty() ? "" : baseEffect.getIconSrcs().getFirst())
+                .build();
+        statusEffect.iconSrc = statusEffect.getCurrentIconSrc();
+        return statusEffect;
     }
 
     /**
-     * StatusModifierType 에 맞는 modifier 가져옴
-     * @param modifierType
-     * @return 없으면 null
+     * 현재 조건에 맞는 iconSrc 를 가져옴, 필요시 반환 값으로 iconSrc 갱신
      */
-    public StatusModifier getModifier(StatusModifierType modifierType) {
-        return this.baseStatusEffect.getModifier(modifierType);
-    }
+    protected String getCurrentIconSrc() {
+        if (this.baseStatusEffect.getIconSrcs().isEmpty()) return "";
 
-    /**
-     * StatusModifierType 에 맞는 modifier 의 value 에 level 을 적용하여 반환 (소숫점 둘째자리 내림)
-     * @param modifierType 없으면 에러나니 직접 코드상에서 지정해서 호출
-     * @return
-     * @throws IllegalArgumentException 없는 StatusModifierType 으로 요청시 발생
-     */
-    public double getModifierValue(StatusModifierType modifierType) {
-        StatusModifier modifier = this.baseStatusEffect.getModifier(modifierType);
-        if (modifier == null) // 없으면 특정 값 설정하지 않고 즉시 에러내는게 디버깅 할때 나을듯
-            throw new IllegalArgumentException("없는 StatusModifier 접근, modifier = " + modifierType.name() + " 현재 스테이터스 = " + this.baseStatusEffect.toString());
-        double modifierInitValue = modifier.getInitValue();
-        return this.level > 0 ? Math.floor(modifierInitValue * level * 100) / 100.0 : modifierInitValue;
+        String currentIconSrc = "";
+        if (this.baseStatusEffect.getMaxLevel() > 0) {
+            // 레벨제
+            currentIconSrc = this.baseStatusEffect.getIconSrcs().get(Math.clamp(this.level - 1, 0, this.baseStatusEffect.getIconSrcs().size() - 1));
+        } else if (this.baseStatusEffect.getTargetType() == StatusEffectTargetType.ENEMY
+                && this.baseStatusEffect.getDurationType() == StatusDurationType.TURN
+                && this.baseStatusEffect.getDuration() > 0) {
+            // 레벨제 아님 && 적(개인)타겟 && 턴제 && 0턴 초과 -> 효과 아이콘이 남은 턴을 따라감 (1턴이 0번째)
+            currentIconSrc = this.baseStatusEffect.getIconSrcs().get(Math.clamp(this.duration - 1, 0, this.baseStatusEffect.getIconSrcs().size() - 1));
+        } else {
+            // 일반
+            currentIconSrc = this.baseStatusEffect.getIconSrcs().getFirst();
+        }
+        return currentIconSrc;
     }
 
 }

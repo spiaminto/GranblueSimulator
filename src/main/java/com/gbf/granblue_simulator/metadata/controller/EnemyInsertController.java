@@ -6,7 +6,7 @@ import com.gbf.granblue_simulator.metadata.controller.response.InsertResponse;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
+import com.gbf.granblue_simulator.metadata.domain.omen.BaseOmen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelType;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
@@ -31,8 +31,8 @@ import java.util.Arrays;
 public class EnemyInsertController {
 
     private final BaseEnemyRepository baseEnemyRepository;
-    private final MoveRepository moveRepository;
-    private final OmenRepository omenRepository;
+    private final BaseMoveRepository baseMoveRepository;
+    private final BaseOmenRepository baseOmenRepository;
     private final BaseStatusEffectRepository baseStatusEffectRepository;
     private final StatusModifierRepository statusModifierRepository;
     private final OmenCancelCondRepository omenCancelCondRepository;
@@ -54,17 +54,15 @@ public class EnemyInsertController {
                 .name(null)
                 .type(MoveType.DEAD)
                 .info("dead")
-                .baseActor(baseEnemy)
                 .build();
-        moveRepository.save(dead);
+        baseMoveRepository.save(dead);
 
         BaseMove formChange = BaseMove.builder()
                 .name("폼 체인지")
-                .type(MoveType.FORM_CHANGE_DEFAULT)
+//                .type(MoveType.FORM_CHANGE_DEFAULT)
                 .info("form change")
-                .baseActor(baseEnemy)
                 .build();
-        moveRepository.save(formChange);
+        baseMoveRepository.save(formChange);
 
         return EnemyInsertResponse.ok(baseEnemy.getId());
     }
@@ -76,35 +74,32 @@ public class EnemyInsertController {
         BaseMove singleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
-                .type(MoveType.SINGLE_ATTACK)
+//                .type(MoveType.SINGLE_ATTACK)
                 .info("single attack")
                 .hitCount(1)
                 .isAllTarget(request.isAllTarget())
-                .baseActor(baseEnemy)
                 .build();
-        moveRepository.save(singleAttack);
+        baseMoveRepository.save(singleAttack);
 
         BaseMove doubleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
-                .type(MoveType.DOUBLE_ATTACK)
+//                .type(MoveType.DOUBLE_ATTACK)
                 .info("double attack")
                 .hitCount(2)
                 .isAllTarget(request.isAllTarget())
-                .baseActor(baseEnemy)
                 .build();
-        moveRepository.save(doubleAttack);
+        baseMoveRepository.save(doubleAttack);
 
         BaseMove tripleAttack = BaseMove.builder()
                 .name(null)
                 .elementType(request.getElementType())
-                .type(MoveType.TRIPLE_ATTACK)
+//                .type(MoveType.TRIPLE_ATTACK)
                 .info("triple attack")
                 .hitCount(3)
                 .isAllTarget(request.isAllTarget())
-                .baseActor(baseEnemy)
                 .build();
-        moveRepository.save(tripleAttack);
+        baseMoveRepository.save(tripleAttack);
 
         return EnemyInsertResponse.ok(baseEnemy.getId());
     }
@@ -117,9 +112,9 @@ public class EnemyInsertController {
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("idle")
-                .baseActor(baseEnemy)
+
                 .build();
-        moveRepository.save(idle);
+        baseMoveRepository.save(idle);
 
         return EnemyInsertResponse.ok(baseEnemy.getId());
     }
@@ -132,9 +127,9 @@ public class EnemyInsertController {
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("damaged")
-                .baseActor(baseEnemy)
+
                 .build();
-        moveRepository.save(damaged);
+        baseMoveRepository.save(damaged);
 
         return EnemyInsertResponse.ok(baseEnemy.getId());
     }
@@ -147,9 +142,9 @@ public class EnemyInsertController {
                 .name(null)
                 .type(MoveType.valueOf(request.getType()))
                 .info("break")
-                .baseActor(baseEnemy)
+
                 .build();
-        moveRepository.save(breakMove);
+        baseMoveRepository.save(breakMove);
 
         return EnemyInsertResponse.ok(baseEnemy.getId());
     }
@@ -162,11 +157,11 @@ public class EnemyInsertController {
                 .name(request.getOmen().getName())
                 .type(MoveType.valueOf(request.getType()))
                 .info(request.getOmen().getInfo())
-                .baseActor(baseEnemy)
-                .build();
-        moveRepository.save(standby);
 
-        Omen omen = Omen.builder()
+                .build();
+        baseMoveRepository.save(standby);
+
+        BaseOmen omen = BaseOmen.builder()
                 .name(request.getOmen().getName())
                 .omenType(OmenType.valueOf(request.getOmen().getType()))
                 .info(request.getOmen().getInfo())
@@ -174,9 +169,8 @@ public class EnemyInsertController {
                                 .map(String::trim)
                                 .map(Integer::parseInt)
                                 .toList())
-                .move(standby)
                 .build();
-        omenRepository.save(omen);
+        baseOmenRepository.save(omen);
         // 해제조건
         request.getOmen().getCancelConditions().lines().forEach(cancelCondition -> {
             String[] splitCancelCondition = cancelCondition.split(",");
@@ -206,12 +200,11 @@ public class EnemyInsertController {
                 .elementType(request.getElementType())
                 .hitCount(request.getHitCount())
                 .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
-                .randomStatusCount(request.getRandomStatusCount())
                 .damageRate(request.getDamageRate() + 0.0)
                 .damageConstant(request.getDamageConstant())
-                .baseActor(baseEnemy)
+
                 .build();
-        chargeAttack = moveRepository.save(chargeAttack);
+        chargeAttack = baseMoveRepository.save(chargeAttack);
 
         // 스테이터스
         final BaseMove chargeAttackFinal = chargeAttack;
@@ -267,9 +260,9 @@ public class EnemyInsertController {
                 .hitCount(request.getHitCount())
                 .isAllTarget(Boolean.parseBoolean(request.getIsAllTarget()))
                 .coolDown(request.getCoolDown())
-                .baseActor(baseEnemy)
+
                 .build();
-        ability = moveRepository.save(ability);
+        ability = baseMoveRepository.save(ability);
         log.info("ability = {}", ability);
 
         // Status 저장

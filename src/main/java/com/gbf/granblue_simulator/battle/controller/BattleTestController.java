@@ -8,7 +8,7 @@ import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.repository.MemberRepository;
 import com.gbf.granblue_simulator.battle.service.BattleCommandService;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +43,8 @@ public class BattleTestController {
     @Transactional
     public String battlePage(Model model) {
 
-        Long roomId = 176L;
-        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+        Long roomId = 211L;
+        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 2L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
         battleContext.init(findMember, null);
 
         // model 에 정보추가
@@ -70,13 +70,11 @@ public class BattleTestController {
         battleContext.getFrontCharacters().forEach(partyMember -> partyMember.updateAbilityCooldowns(0, MoveType.FIRST_ABILITY, MoveType.SECOND_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY));
         battleContext.getFrontCharacters().forEach(Actor::resetAbilityUseCount);
         Actor leaderCharacter = battleContext.getLeaderCharacter();
-        int[] summonIndexes = leaderCharacter.getSummonMoveIds().stream()
-                .mapToInt(summonId -> leaderCharacter.getSummonMoveIds().indexOf(summonId))
-                .filter(index -> index >= 0)
-                .toArray();
-        leaderCharacter.updateSummonCoolDown(0, summonIndexes);
+        leaderCharacter.getSummons().forEach(summonMove -> {
+            summonMove.updateCooldown(0);
+        });
 
-        List<ActorLogicResult> syncResults = battleCommandService.sync();
+        List<MoveLogicResult> syncResults = battleCommandService.sync();
         List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
 
         log.info("syncResponse: {}", syncResponse);

@@ -1,8 +1,8 @@
 async function processAttack(response) {
     let attackHitCount = response.damages.length; // 공격 데미지 발생수
     let attackMultiHitCount = response.attackMultiHitCount; // 난격 수
-    let attackCount = attackHitCount / attackMultiHitCount; // 본 공격 카운트 (1 || 2 || 3, 난격제외)
-    let elementType = response.elementTypes[0];
+    let attackCount = response.normalAttackCount; // 본 공격 카운트 (1 || 2 || 3, 난격제외)
+    let elementTypes = response.elementTypes;
 
     let attackMotions = [Player.c_animations.ATTACK_SHORT, Player.c_animations.ATTACK_DOUBLE, Player.c_animations.ATTACK_TRIPLE];
 
@@ -20,7 +20,7 @@ async function processAttack(response) {
         // damage-index-N, multi-N : 난격 여부 확인 후 클래스 설정 / [012 345 678] 3타 3난격 시 di-0 m-0, di-0 m-1, di-0 m-2, di-1 m-0, di-1 m-1, ...
 
         let $attackDamage = $(`
-            <div class="attack-damage actor-${response.actorOrder} element-type-${elementType.toLowerCase()} damage-index-${attackIndex} multi-${multiAttackIndex} ${missClassName} ${damageTypeClassName}">
+            <div class="attack-damage actor-${response.actorOrder} element-type-${elementTypes[index].toLowerCase()} damage-index-${attackIndex} multi-${multiAttackIndex} ${missClassName} ${damageTypeClassName}">
               ${damage}
             </div>
         `) // 본 공격 (+ 난격)
@@ -29,13 +29,13 @@ async function processAttack(response) {
 
         if (response.additionalDamages.length > 0 && response.additionalDamages[index].length > 0) {
             let $additionalDamageWrapper = $(` 
-                <div class="additional-damage-wrapper actor-${response.actorOrder} element-type-${elementType.toLowerCase()} damage-index-${attackIndex} multi-${multiAttackIndex} ${missClassName} ${damageTypeClassName}">
+                <div class="additional-damage-wrapper actor-${response.actorOrder} element-type-${elementTypes[index].toLowerCase()} damage-index-${attackIndex} multi-${multiAttackIndex} ${missClassName} ${damageTypeClassName}">
                   ${damage} 
                 </div>
             `) // 공간 확보를 위해 ${damage} 채워넣음
             $additionalDamageWrapper.append((response.additionalDamages[index] || []).map(additionalDamage =>
                 $(`
-                    <div class="additional-damage element-type-${elementType.toLowerCase()}">
+                    <div class="additional-damage element-type-${elementTypes[index].toLowerCase()}">
                       ${additionalDamage}
                     </div>
                 `)
@@ -43,7 +43,6 @@ async function processAttack(response) {
             $damageWrapper.append($additionalDamageWrapper);
         }
 
-        // $damageWrapper.append($additionalDamage);
         // 마지막에 DOM 에 추가
         index >= attackHitCount - 1 ? $targetActorContainer.append($damageWrapper) : null;
     });
@@ -83,10 +82,10 @@ async function processAttack(response) {
         }
 
         // 데미지 표시 (위의 모션 재생에서 대기하는 만큼 동기화됨. 1타 모션 - 1타 데미지1, 2, 3 ... / 2타 모션 - 2타 데미지1, 2, 3 ...)
-        let startDelay = 0; // N 번째 모션의 데미지 1 부터 시작, effectDuration 선반영
-        let multiAttackAdditionalDelay = multiAttackIndex * 115; // 난격마다 추가 딜레이 (이펙트 모션은 4프레임, 약 120ms 마다 재생됨)
+        let startDelay = 3 * Constants.defaultCjsInterval; // 모션보다 약간 늦게 시작 (3프레임)
+        let multiAttackAdditionalDelay = multiAttackIndex * 5 * Constants.defaultCjsInterval; // 난격마다 추가 딜레이 (5프레임)
         let totalDelay = startDelay + multiAttackAdditionalDelay; // 최종 딜레이
-        console.log('[processAttack], index = ', index, ' totalDelay = ', totalDelay, 'effectDuration = ', effectDuration, ' multiAttackAdditionalDelay = ', multiAttackAdditionalDelay, ' isLastAttack = ', isLastAttack)
+        // console.log('[processAttack], index = ', index, ' totalDelay = ', totalDelay, 'effectDuration = ', effectDuration, ' multiAttackAdditionalDelay = ', multiAttackAdditionalDelay, ' isLastAttack = ', isLastAttack)
 
         let $attackDamage = $attackDamages.eq(index);
         let $additionalDamage = $additionalDamages.eq(index);
@@ -96,14 +95,9 @@ async function processAttack(response) {
                 setTimeout(() => $(additionalDamage).addClass('party-additional-damage-show'), 50 * (index + 1));
             });
         }, totalDelay);
-
-        // 마지막 공격 데미지 모션 직후 전조 갱신 및 전조모션 강제재생
-        if (isLastAttack && response.omen.updateTiming === 'damage') {
-            setTimeout(() => gameStateManager.setState('omen', response.omen), 400); // 0.27s (8fps)
-        }
     }
 
-    // 마지막 모션 대기
+    // 마지막 캐릭터 모션 종료 대기
     let damageDelay = await wait(lastDamageEffectDuration); // 모션, 데미지 동시에 나가므로 모션만 대기
     //  상태갱신
     let statusEffectDelay = await processStatusEffect(response);
@@ -118,7 +112,7 @@ async function processAbility(response) {
 
     // 속도를 빠르게 하기위해 다음과 같이 설정 [N]: 대기시간 scale / 모션 + 이펙트 의 경우 일반적으로 이펙트가 긺, 긴쪽을 따라감
     // 어빌리티 : <모션[1] 이펙트[1]> 데미지[1] 상태효과[1]
-    // 서포트 어빌리티 (모션 + 이펙트 + 데미지 + 상태효과) : <모션[X] 이펙트[0.5]> 데미지[0.5] 상태효과[0.5]
+    // 서포트 어빌리티 또는 턴 진행중 일반 어빌리티 (모션 + 이펙트 + 데미지 + 상태효과) : <모션[X] 이펙트[0.5]> 데미지[0.75] 상태효과[0.5]
     // 서포트 어빌리티 (모션 + 이펙트 + 상태효과) : <모션[X] 이펙트[0.5]> 상태효과[0.5]
     // 서포트 어빌리티 (ab_motion_effect_only + 이펙트 + 상태효과) : <모션[X] 이펙트[0.5]> 상태효과 [0.5] -> 모션 없는것임
     // 서포트 어빌리티 (모션 + 상태효과) : 모션[0.05] 상태효과[0.05] -> 사실상 스킵
@@ -126,19 +120,29 @@ async function processAbility(response) {
     let hasDamage = response.damages.length > 0;
     let isSupportAbility = response.moveType.getParentType() === MoveType.SUPPORT_ABILITY;
     let hasEffect = player.actors.get(`actor-${response.actorOrder}`).animation.abilities.hasOwnProperty(response.moveId);
+    let turnProgressing = player.locked;
     hasEffect = Player.c_animations.isAttack(response.motion) ? true : hasEffect; // 공격모션(이펙트)인 경우도 있음
 
+    // 효과 있는경우만 인디케이터 갱신
+    if (hasEffect) {
+        window.gameStateManager.setState('indicator.moveName', response.moveName);
+    }
+
     // 모션, 이펙트 처리
+    let cjsName = !hasEffect && response.visualInfo ? response.visualInfo.moveCjsName : null; // response 로 내려온 이펙트가 첫 로드시 로드되지 않은 이펙트인 경우 지정 (트리거 어빌리티, 변화 어빌리티 등)
+    let isTargetedEnemy = cjsName ? response.visualInfo.isTargetedEnemy : null;
     let animationDuration = await player.play(Player.playRequest('actor-' + response.actorOrder, response.motion, {
         abilityType: response.moveId,
+        cjsName: cjsName,
+        isTargetedEnemy: isTargetedEnemy
     })); // 기본적으로 긴 이펙트쪽의 duration 을 반환
-    let animationDurationScale = !hasEffect ? 0.05 : isSupportAbility ? 0.5 : 1;
+    let animationDurationScale = !hasEffect ? 0.05 : isSupportAbility ? 0.5 : 0.75;
     if (!hasDamage) { // 데미지 처리가 없을시, 모션을 기다림
         await wait(animationDuration * animationDurationScale);
     }
 
     // 데미지 처리
-    let damageDurationScale = isSupportAbility ? 0.5 : 1;
+    let damageDurationScale = isSupportAbility || turnProgressing ? 0.75 : 1;
     let damageDelay = 0;
     if (hasDamage) {
         let damageShowClass = response.damages.length > 2 ? 'multiple-ability-damage-show' : 'ability-damage-show'
@@ -146,7 +150,7 @@ async function processAbility(response) {
     }
 
     // 상태효과 처리
-    let statusEffectDelayScale = !hasEffect ? 0.05 : isSupportAbility ? 0.5 : 1;
+    let statusEffectDelayScale = !hasEffect ? 0.025 : (isSupportAbility || turnProgressing) ? 0.5 : 1;
     let statusDelay = await processStatusEffect(response, statusEffectDelayScale);
 
     let leftOverMotionDelay = animationDuration - (damageDelay + statusDelay);
@@ -163,66 +167,79 @@ async function processAbility(response) {
 }
 
 async function processChargeAttack(response) {
+    gameStateManager.setState('canChargeAttacks', response.canChargeAttacks); // 이펙트 재생후 대기모션을 올바르게 설정하기 위해 먼저 갱신
     // 이펙트 재생
     await player.play(Player.playRequest('actor-' + response.actorOrder, response.motion), true, 100);
     // 데미지 처리
     await postProcessPartyDamage(response, 'party-charge-attack-damage-show');
     // 상태효과 처리
     let totalEndTime = await processStatusEffect(response);
-    // 대기모션 갱신
-    player.play(Player.playRequest(`actor-${response.actorOrder}`, player.getCharacterWaitMotion(response.actorOrder)))
-
     console.log('[processChargeAttack] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
-async function processSummon(response) {
-    // 본 소환: hasUnionSummon = [true / false], isUnionSummon = false
-    // 합체 소환: hasUnionSummon = true, isUnionSummon = true
-    let hasUnionSummon = response.hasUnionSummon;
-    let isUnionSummon = response.isUnionSummon;
-    let summonId = response.moveId;
+async function processSummon(response, unionSummonResponse) {
+    let hasUnionSummon = !!unionSummonResponse;
+    let isUnionSummon = response.moveType === MoveType.UNION_SUMMON;
+    gameStateManager.setState('usedSummon', true, {force: true}); // 쿨타임 변경여부와 관계없이 반드시 업데이트
 
     // 소환 이펙트 재생
     if (hasUnionSummon && !isUnionSummon) {
         // 합체소환 컷인
+        let unionSummonInfo = gameStateManager.getState('unionSummonInfo');
+        let unionSummonCutinSrc = unionSummonInfo.cutinImageSrc;
+        let summonInfo = Object.values(gameStateManager.getState('summon')).find(summon => summon.id === response.moveId);
+        let currentSummonCutinSrc = summonInfo ? summonInfo.cutinImageSrc : '';
+        let cutinSrcs = [currentSummonCutinSrc, unionSummonCutinSrc];
+        const promises = cutinSrcs.map((url) => {
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.src = url;
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(`[processSummon] image failed to load, url = ${url}`);
+            });
+        });
+        await Promise.all(promises);
+
         window.gameStateManager.setState('raid_union_summon_name', response.moveName);
-        await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {
-            abilityType: 'UNION_SUMMON',
-            summonId: summonId,
-            unionSummonId: gameStateManager.getState('unionSummonId'), // response.unionSummonId 쓰면 안됨. MoveType.SUMMON 이면 이미 갱신된거 넘어옴
+        await player.play(Player.playRequest(player.getGlobalActor().actorId, Player.c_animations.ABILITY_UI, {
+            abilityType: BASE_ABILITY.UI.UNION_SUMMON_CUTIN.name,
+            cutInSrcs: cutinSrcs
         })); // 합체소환 컷인은 기다리지 않아도 될듯. (SUMMON 과 동시재생)
     }
     let leaderActor = player.actors.values().find(actor => actor.isLeaderCharacter);
+    let summonCjsName = response.visualInfo.moveCjsName;
     if (!isUnionSummon) {
         // 본소환
         await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON), true);
-        await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON_ATTACK, {summonId: summonId}), true);
-        await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON_DAMAGE, {summonId: summonId}), true, 300);
-    } else {
-        // 합체소환
-        await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: BASE_ABILITY.RAID_BUFF}), true);
-        // 쓰고나서 null 로 갱신
-        gameStateManager.setState('unionSummonId', null);
+        await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.WINDOW_EFFECT, {cjsName: summonCjsName + '_attack'}), true);
     }
+    await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.WINDOW_EFFECT, {cjsName: summonCjsName + '_damage'}), true, 300);
 
     let damageShowClass = response.damages.length > 2 ? 'multiple-ability-damage-show' : 'ability-damage-show'
     await postProcessPartyDamage(response, damageShowClass);
 
-    let totalEndTime = await processStatusEffect(response);
+    let delayScale = isUnionSummon ? 0.5 : 1;
+    let totalEndTime = await processStatusEffect(response, delayScale);
+
+    gameStateManager.setState('unionSummonInfo', null);
     console.log('[processSummon] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
 async function processFatalChain(response) {
-    let firstActor = player.actors.values().find(actor => actor.isCharacter());
-    let fatalChainRequest = Player.playRequest(firstActor.actorId, Player.c_animations.ABILITY_EFFECT_ONLY, {abilityType: response.moveId});
-    let mainCharacterAttackRequest = Player.playRequest(firstActor.actorId, Player.c_animations.ATTACK_MOTION_ONLY);
-    let partyMembersActorIndexArray = player.actors.values().filter(actor => actor.isCharacter() && actor.actorId !== firstActor.actorId).map(actor => actor.actorIndex);
-    let partyAttackRequests = partyMembersActorIndexArray.map(actorIndex => Player.playRequest('actor-' + actorIndex, Player.c_animations.ATTACK)).toArray();
-    // 아군전체 어택 이펙트
-    let partyAttackDuration = await player.playWithOthers(mainCharacterAttackRequest, partyAttackRequests)
-    await new Promise(resolve => setTimeout(() => resolve(partyAttackDuration), partyAttackDuration / 3));
+    let partyMembersActorIndexArray = player.actors.values().filter(actor => actor.isCharacter()).map(actor => actor.actorIndex).toArray().sort((a, b) => a - b);
+    // console.log('[processFatalChain] partyMembersActorIndexArray = ', partyMembersActorIndexArray);
+    if (partyMembersActorIndexArray.length <= 0) return;
+
+    let partyAttackRequests = partyMembersActorIndexArray.map(actorIndex => Player.playRequest('actor-' + actorIndex, Player.c_animations.ATTACK_MOTION_ONLY));
+    let fatalChainRequest = Player.playRequest(player.getGlobalActor().actorId, Player.c_animations.ABILITY_EFFECT_ONLY, {
+        cjsName: response.visualInfo.moveCjsName,
+    });
+
+    // 아군전체 어택
+    partyAttackRequests.forEach((request, index) => setTimeout(() => player.play(request), (index + 1) * 100));
+    await wait(partyAttackRequests.length * 100);
     // 페이탈 체인 이펙트
     await player.play(fatalChainRequest, true);
     // 데미지 처리
@@ -262,7 +279,6 @@ async function processCharacterDead(response) {
     let abilityPanels = $('#abilitySlider .slick-slide:not(.slick-cloned) .ability-panel');
     let deadCharacterAbilityPanel = abilityPanels.filter(`[data-actor-order="${actorOrder}"]`);
     $('#abilitySlider').slick('slickRemove', abilityPanels.index(deadCharacterAbilityPanel));
-    window.abilityPanels[actorOrder] = $();
 
     // player.actor 삭제
     player.removeActor(actorOrder);
@@ -357,13 +373,6 @@ async function postProcessPartyDamage(response, damageShowClass, delayScale = 1.
         }
     )
 
-    // 적의 전조 조건이 [데미지] 일 경우 갱신
-    if (response.omen.updateTiming === 'damage') {
-        setTimeout(() => {
-            gameStateManager.setState('omen', response.omen);
-        }, lastDelay + 400); // 0.27s (8fps) + 마진
-    }
-
     let toNextDelay = lastDelay + Constants.Delay.damageShowToNext; // 마지막 데미지 표시 ~ 페이드아웃 시작 시점에 resolve()
     return wait(toNextDelay * delayScale);
 }
@@ -381,7 +390,7 @@ function fillPartyDamage(response, targetActorIndex) {
 
     let moveType = "none";
     let isMultipleAbilityDamage = false;
-    let elementType = response.elementTypes[0];
+    let elementTypes = response.elementTypes;
     switch (moveParentType) {
         case MoveType.ATTACK:
             moveType = "attack";
@@ -395,7 +404,7 @@ function fillPartyDamage(response, targetActorIndex) {
             break;
         case MoveType.TURN_END:
             moveType = "ability";
-            elementType = 'PLAIN'; // 슬립 데미지 무속성 고정
+            elementTypes = ['PLAIN']; // 무속성 고정
             break;
         case MoveType.CHARGE_ATTACK:
             moveType = "charge-attack";
@@ -410,7 +419,7 @@ function fillPartyDamage(response, targetActorIndex) {
         <div class="damage-wrapper ${moveType} damage-wrapper-index-${currentDamageWrapperIndex}"></div>
     `);
     damages.forEach(function (damage, damageIndex) {
-        let $damageElements = getDamageElement(response.actorOrder, elementType, moveType, response.damageTypes[0], damageIndex, damage, []);
+        let $damageElements = getDamageElement(response.actorOrder, elementTypes[damageIndex], moveType, response.damageTypes[0], damageIndex, damage, []);
         if (isMultipleAbilityDamage) $damageElements.$damage.addClass('multiple');
         $damageWrapper.prepend($damageElements.$damage);
     })

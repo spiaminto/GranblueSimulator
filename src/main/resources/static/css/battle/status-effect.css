@@ -18,10 +18,21 @@
 .status-effect-wrapper.party {
     /*text-align: right;*/
     position: absolute;
-    top: 0;
     right: 0;
     overflow: visible;
     z-index: 39;
+}
+#actorContainer>.actor-1 .status-effect-wrapper.party {
+    top: -4px;
+}
+#actorContainer>.actor-2 .status-effect-wrapper.party {
+    top: 4px;
+}
+#actorContainer>.actor-3 .status-effect-wrapper.party {
+    top: 10px;
+}
+#actorContainer>.actor-4 .status-effect-wrapper.party {
+    top: 16px;
 }
 
 #actorContainer>.actor-2 .status-effect-wrapper.party,
@@ -30,7 +41,7 @@
 }
 
 .status-effect-wrapper.party .status-effect {
-    margin-top: -8px;
+    margin-top: -9px;
 }
 
 .status-effect.buff {
@@ -55,8 +66,8 @@
 }
 
 .status-effect-wrapper.party .status-effect-text {
-    font-size: 15px;
-    margin-left: -2px;
+    font-size: 13px;
+    margin-left: -4px;
     font-weight: bold;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
 }
@@ -78,11 +89,11 @@
 
 .status-effect-wrapper.enemy .status-effect img {
     display: inline-block;
-    width: 25px;
+    width: 24px;
 }
 
 .status-effect-wrapper.enemy .status-effect-text {
-    font-size: 16px;
+    font-size: 14px;
     margin-left: -3px;
     font-weight: bold;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;

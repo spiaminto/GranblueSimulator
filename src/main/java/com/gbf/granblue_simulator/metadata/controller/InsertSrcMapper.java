@@ -31,13 +31,13 @@ public final class InsertSrcMapper {
 
     private static String getFileName(MoveType moveType) {
         return switch (moveType) {
-            case IDLE_DEFAULT -> "idle";
-            case DAMAGED_DEFAULT -> "damaged";
+//            case IDLE_DEFAULT -> "idle";
+//            case DAMAGED_DEFAULT -> "damaged";
             case CHARGE_ATTACK_DEFAULT -> "ca";
             case SUMMON_DEFAULT -> "summon";
-            case SINGLE_ATTACK -> "sa";
-            case DOUBLE_ATTACK -> "da";
-            case TRIPLE_ATTACK -> "ta";
+//            case SINGLE_ATTACK -> "sa";
+//            case DOUBLE_ATTACK -> "da";
+//            case TRIPLE_ATTACK -> "ta";
             case FIRST_ABILITY -> "ab-1";
             case SECOND_ABILITY -> "ab-2";
             case THIRD_ABILITY -> "ab-3";

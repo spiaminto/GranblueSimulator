@@ -6,24 +6,24 @@ import com.gbf.granblue_simulator.battle.controller.dto.response.*;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
+import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
 import com.gbf.granblue_simulator.battle.repository.MemberRepository;
 import com.gbf.granblue_simulator.battle.repository.RoomRepository;
-import com.gbf.granblue_simulator.battle.service.BattleCommandService;
-import com.gbf.granblue_simulator.battle.service.BattleLogService;
-import com.gbf.granblue_simulator.battle.service.MemberService;
+import com.gbf.granblue_simulator.battle.service.*;
+import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.metadata.repository.BaseEnemyRepository;
-import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
+import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
+import com.gbf.granblue_simulator.metadata.service.BaseActorService;
 import com.gbf.granblue_simulator.party.domain.Party;
 import com.gbf.granblue_simulator.party.repository.PartyRepository;
 import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
@@ -35,6 +35,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.gbf.granblue_simulator.battle.controller.BattleInfoMapper.*;
 
@@ -52,9 +54,7 @@ import static com.gbf.granblue_simulator.battle.controller.BattleInfoMapper.*;
 public class BattleController {
 
     private final MemberRepository memberRepository;
-    private final MoveRepository moveRepository;
-
-    private final MemberService memberService;
+    private final BaseMoveRepository baseMoveRepository;
     private final PartyRepository partyRepository;
 
     private final BattleContext battleContext;
@@ -64,42 +64,83 @@ public class BattleController {
     private final BattleResponseMapper responseMapper;
     private final BaseEnemyRepository baseEnemyRepository;
     private final RoomRepository roomRepository;
+    private final MemberService memberService;
+    private final RoomChatService roomChatService;
+    private final RoomService roomService;
+    private final BaseActorService baseActorService;
+
+    @GetMapping("/members/me/tutorial")
+    public String getTutorialRoom(@AuthenticationPrincipal PrincipalDetails principalDetails, Model model) {
+        Long userId = principalDetails.getUser().getId();
+        Room room = roomService.enterTutorialRoom(userId);
+
+        Member member;
+        if (room.getMembers().isEmpty()) {
+            member = memberService.enterTutorialRoom(room.getId(), userId);
+            battleContext.init(member, null);
+            List<MoveLogicResult> battleStartResults = battleCommandService.startBattle();
+            responseMapper.toBattleResponse(battleStartResults).forEach(response -> log.info("[getRoom] battleStartResponse: \n{}", response));
+        } else {
+            member = room.getMembers().stream().filter(roomMember -> roomMember.getUser().getId().equals(userId)).toList().getFirst();
+            battleContext.init(member, null);
+        }
+
+        setInfoAttributes(model, member);
+
+        return "battle/battleTutorial";
+    }
 
     @GetMapping("/room/{roomId}")
-    @Transactional
     public String getRoom(@PathVariable Long roomId,
-                          @AuthenticationPrincipal PrincipalDetails principal, Model model) {
+                          @AuthenticationPrincipal PrincipalDetails principal,
+                          Model model,
+                          RedirectAttributes redirectAttributes) {
 
-        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        battleContext.init(findMember, null);
+        Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        if (member.getRoom().getRoomStatus() != RoomStatus.ACTIVE || member.checkedResult()) {
+            // 결과창으로 이동
+            return "redirect:/room/" + roomId + "/result";
+        }
 
-        setInfoAttributes(model, findMember);
+        if (member.getActors().isEmpty()) {
+            // 이미 나간 방
+            redirectAttributes.addFlashAttribute("alertMessage", "이미 퇴장한 방입니다.");
+            return "redirect:/";
+        }
 
-        model.asMap().entrySet().forEach(entry -> {
-//            log.info("k = {}", entry.getKey());
-//            log.info("v = {}", entry.getValue());
-        });
+        battleContext.init(member, null);
+
+        if (member.getCurrentTurn() <= 0) {
+            // 첫입장
+            List<MoveLogicResult> battleStartResults = battleCommandService.startBattle();
+            responseMapper.toBattleResponse(battleStartResults).forEach(response -> log.info("[getRoom] battleStartResponse: \n{}", response));
+        }
+
+        setInfoAttributes(model, member);
 
         return "battle/battle";
     }
 
     @GetMapping("/room/{roomId}/result")
-    @Transactional
     public String getRoomResult(@PathVariable Long roomId,
                                 @AuthenticationPrincipal PrincipalDetails principal, Model model) {
 
-        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         // CHECK 나중에 수정
-//        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+//        Member member = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
 
-        model.addAttribute("member", findMember);
-        Room room = findMember.getRoom();
-        Actor enemy = findMember.getActors().stream().filter(Actor::isEnemy).findFirst().orElseThrow(() -> new IllegalArgumentException("적 없음"));
+        model.addAttribute("member", member);
+        Room room = member.getRoom();
+        BaseActor enemy = baseActorService.findById(room.getEnemyBaseId()).orElseThrow(() -> new IllegalArgumentException("잘못된 적 정보입니다. id = " + room.getEnemyBaseId()));
+
+        if (!member.checkedResult()) {
+            member.updateCheckedResult(true);
+        }
 
         String formattedEndedAt = room.getEndedAt().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.KOREA));
         BattleResultInfo resultInfo = BattleResultInfo.builder()
                 .enemyName(enemy.getName())
-                .enemyPortraitSrc(enemy.getActorVisual().getPortraitImageSrc())
+                .enemyPortraitSrc(enemy.getDefaultVisual().getPortraitImageSrc())
                 .endedAt(formattedEndedAt)
                 .enterUserCount(room.getEnterUserCount())
                 .build();
@@ -111,25 +152,25 @@ public class BattleController {
         String totalTime = String.format("%02d:%02d", minutesPart, secondsPart);
 
         List<BattleResultMemberInfo> resultMemberInfos = room.getMembers().stream()
-                .map(member -> {
-                            int totalDamage = battleLogService.getEnemyTakenDamageSumByMember(member, enemy);
+                .map(roomMember -> {
+                            int totalDamage = battleLogService.getEnemyTakenDamageSumByMember(roomMember);
                             return BattleResultMemberInfo.builder()
-                                    .username(member.getUser().getUsername())
+                                    .username(roomMember.getUser().getUsername())
                                     .enemyHp(String.format("%,d", enemy.getMaxHp()))
-                                    .totalTurns(member.getCurrentTurn())
+                                    .totalTurns(roomMember.getCurrentTurn())
                                     .totalTime(totalTime)
                                     .totalDamage(totalDamage)
                                     .formattedTotalDamage(String.format("%,d", totalDamage))
                                     .totalDamageRate((int) ((double) totalDamage / enemy.getMaxHp() * 100 * 100) / 100.0)
-                                    .totalHonor(String.format("%,d", member.getHonor()))
+                                    .totalHonor(String.format("%,d", roomMember.getHonor()))
                                     .build();
                         }
                 ).sorted(Comparator.comparing(BattleResultMemberInfo::getTotalDamage).reversed())
                 .toList();
         model.addAttribute("memberInfos", resultMemberInfos);
 
-        String findUsername = findMember.getUser().getUsername();
-        BattleResultMemberInfo myInfo = resultMemberInfos.stream().filter(memberInfo -> memberInfo.getUsername().equals(findUsername)).findFirst().orElseThrow(() -> new IllegalArgumentException("there are no findMember.getUsername, username = " + findUsername));
+        String findUsername = member.getUser().getUsername();
+        BattleResultMemberInfo myInfo = resultMemberInfos.stream().filter(memberInfo -> memberInfo.getUsername().equals(findUsername)).findFirst().orElseThrow(() -> new IllegalArgumentException("there are no member.getUsername, username = " + findUsername));
         model.addAttribute("myInfo", myInfo);
 
         return "battle/result";
@@ -138,6 +179,7 @@ public class BattleController {
     @GetMapping("/api/enemy-src")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getEnemySrcMap(@RequestParam Long memberId) {
+        log.info("[getEnemySrcMap] memberId = {}", memberId);
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         battleContext.init(member, null);
         Actor enemy = battleContext.getEnemy();
@@ -145,7 +187,7 @@ public class BattleController {
 
         Map<String, Object> result = new HashMap<>();
 
-        List<AssetInfo> assetInfoAssets = toAssetInfo(List.of(enemy), new ArrayList<>(), null);
+        List<AssetInfo> assetInfoAssets = toAssetInfo(List.of(enemy), new ArrayList<>());
         result.put("assetInfo", assetInfoAssets.getFirst());
         result.put("actorName", enemy.getName());
         result.put("formOrder", enemyConcrete.getCurrentForm());
@@ -180,6 +222,22 @@ public class BattleController {
         return ResponseEntity.ok(memberResponses);
     }
 
+    @GetMapping("/api/rooms/{roomId}/chats")
+    @ResponseBody
+    public List<ChatResponse> getChats(@PathVariable Long roomId,
+                                       @RequestParam(required = false) Long lastId) {
+        return roomChatService.getChats(roomId, lastId);
+    }
+
+    @PostMapping("/api/rooms/{roomId}/chats")
+    @ResponseBody
+    public ChatResponse send(@PathVariable Long roomId,
+                             @RequestBody ChatSendRequest request,
+                             @AuthenticationPrincipal PrincipalDetails principalDetails) {
+        Long userId = principalDetails.getUser().getId();
+        return roomChatService.save(roomId, userId, request);
+    }
+
 
     @PostMapping("/api/sync")
     @ResponseBody
@@ -191,7 +249,7 @@ public class BattleController {
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
         battleContext.init(findMember, null);
-        List<ActorLogicResult> syncResults = battleCommandService.sync();
+        List<MoveLogicResult> syncResults = battleCommandService.sync();
         List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
 
 //        log.info("syncResponse: {}", syncResponse);
@@ -213,7 +271,7 @@ public class BattleController {
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
         battleContext.init(findMember, characterId, moveId);
-        List<ActorLogicResult> results = battleCommandService.ability(moveId);
+        List<MoveLogicResult> results = battleCommandService.ability(moveId);
 
         List<BattleResponse> responses = responseMapper.toBattleResponse(results);
         responses.forEach(response -> log.info("[postAbility] response: {}", response));
@@ -233,7 +291,7 @@ public class BattleController {
 //        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
 
         battleContext.init(findMember, characterId);
-        List<ActorLogicResult> results = battleCommandService.fatalChain();
+        List<MoveLogicResult> results = battleCommandService.fatalChain();
 
         List<BattleResponse> responses = responseMapper.toBattleResponse(results);
         responses.forEach(response -> log.info("[postFatalChain] response: {}", response));
@@ -255,7 +313,7 @@ public class BattleController {
         Actor leaderActor = findMember.getActors().stream().filter(actor -> actor.getBaseActor().isLeaderCharacter()).findFirst().orElseThrow(() -> new MoveValidationException("주인공 캐릭터가 없음"));
 
         battleContext.init(findMember, leaderActor.getId());
-        List<ActorLogicResult> results = battleCommandService.summon(summonId, request.isDoUnionSummon());
+        List<MoveLogicResult> results = battleCommandService.summon(summonId, request.isDoUnionSummon());
 
         List<BattleResponse> responses = responseMapper.toBattleResponse(results);
 
@@ -272,7 +330,7 @@ public class BattleController {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("멤버가 없음"));
 
         battleContext.init(member, null);
-        List<ActorLogicResult> turnProgressResults = battleCommandService.progressTurn();
+        List<MoveLogicResult> turnProgressResults = battleCommandService.progressTurn();
 
         List<BattleResponse> responses = responseMapper.toBattleResponse(turnProgressResults);
 
@@ -304,6 +362,7 @@ public class BattleController {
 
     @PostMapping("/api/toggle-charge-attack")
     @ResponseBody
+    @Transactional
     public ResponseEntity<ToggleChargeAttackResponse> postToggleChargeAttack(@RequestBody ToggleChargeAttackRequest request,
                                                                              @AuthenticationPrincipal PrincipalDetails principalDetails) {
         log.info("chargeAttackOnRequest = {}", request);
@@ -311,9 +370,14 @@ public class BattleController {
         // TODO 검증
         Long userId = principalDetails == null ? 1L : principalDetails.getId();
 
-        boolean chargeAttackOn = memberService.updateChargeAttackOn(request.getRoomId(), userId, request.isChargeAttackOn());
+        Member member = memberRepository.findByRoomIdAndUserId(request.getRoomId(), userId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        member.updateChargeAttackOn(request.isChargeAttackOn());
+        battleContext.init(member, null); // statusDetails 초기화를 위해 필요함
+        List<Boolean> canChargeAttacks = member.getActors().stream().sorted(Comparator.comparing(Actor::getCurrentOrder)).map(Actor::canCharacterChargeAttack).toList();
+
         ToggleChargeAttackResponse response = ToggleChargeAttackResponse.builder()
-                .chargeAttackOn(chargeAttackOn)
+                .chargeAttackOn(member.isChargeAttackOn())
+                .canChargeAttacks(canChargeAttacks)
                 .build();
         return ResponseEntity.ok(response);
     }
@@ -348,6 +412,70 @@ public class BattleController {
         return ResponseEntity.ok(potionResponse);
     }
 
+    @GetMapping("/api/rooms/{roomId}/members/me/battle-init")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getInitData(@PathVariable Long roomId,
+                                                           @AuthenticationPrincipal PrincipalDetails principalDetails) {
+        // 캐릭터 인포, leaderActorId
+        Member member = memberRepository.findByRoomIdAndUserId(roomId, principalDetails.getId()).orElseThrow(() -> new IllegalArgumentException("잘못된 멤버 요청입니다."));
+
+        Map<String, Object> result = new HashMap<>();
+
+        battleContext.init(member, null);
+
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        Map<Integer, CharacterBattleInfo> characterInfo = partyMembers.stream()
+                .map(BattleInfoMapper::toCharacterInfo)
+                .collect(Collectors.toMap(CharacterBattleInfo::getOrder, Function.identity()));
+        result.put("characterInfo", characterInfo);
+
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getId() : null;
+        result.put("leaderActorId", leaderActorId);
+
+        // 적 인포
+        Enemy enemy = (Enemy) battleContext.getEnemy();
+        EnemyInfo enemyInfo = toEnemyInfo(enemy);
+        result.put("enemyInfo", enemyInfo);
+
+        // 적 hp 트리거
+        BaseEnemy baseEnemy = (BaseEnemy) enemy.getBaseActor();
+        String enemyRootNameEn = baseEnemy.getRootNameEn();
+        List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(enemyRootNameEn);
+        List<Integer> triggerHps = baseEnemies.stream()
+                .flatMap(base -> base.getOmens().values().stream())
+                .flatMap(baseOmen -> baseOmen.getOmenType() == OmenType.HP_TRIGGER
+                        ? baseOmen.getTriggerHps().stream() : Stream.empty())
+                .toList();
+        result.put("triggerHps", triggerHps);
+
+        // 소환석 인포
+        List<Move> summonMoves = leaderCharacter.getSummons();
+        List<MoveInfo> summonInfos = summonMoves.stream().map(MoveInfo::from).toList();
+        result.put("summonInfos", summonInfos);
+
+        // 페이탈 체인 인포
+        Long fatalChainMoveId = member.getFatalChainMoveId();
+        BaseMove fatalChainMove = baseMoveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
+        MoveInfo fatalChainInfo = MoveInfo.from(fatalChainMove);
+        result.put("fatalChainInfo", fatalChainInfo);
+
+        // 페이탈 체인 게이지
+        result.put("fatalChainGauge", member.getFatalChainGauge());
+
+        // 캐릭터 + 적 에셋 (소환석, 펭탈 체인 포함) AssetInfo.Asset 으로 변환
+        List<AssetInfo> assetInfos = toAssetInfo(battleContext.getCurrentFieldActors(), summonMoves);
+        result.put("assetInfos", assetInfos);
+        assetInfos.forEach(assetInfo -> log.info("assetInfo = {}", assetInfo));
+
+        // 기타
+        result.put("currentTurn", member.getCurrentTurn());
+        result.put("startTime", member.getRoom().getCreatedAt());
+        result.put("usedSummon", member.usedSummon());
+
+        return ResponseEntity.ok(result);
+    }
+
     /**
      * 초기 SSR 시 필요한 정보 model 에 set
      *
@@ -379,9 +507,9 @@ public class BattleController {
         model.addAttribute("roomCreatedAt", roomCreatedAt);
 
         // 캐릭터 인포, leaderActorId
-        Map<Integer, CharacterInfo> battleCharacterInfoMap = partyMembers.stream()
+        Map<Integer, CharacterBattleInfo> battleCharacterInfoMap = partyMembers.stream()
                 .map(BattleInfoMapper::toCharacterInfo)
-                .collect(Collectors.toMap(CharacterInfo::getOrder, Function.identity()));
+                .collect(Collectors.toMap(CharacterBattleInfo::getOrder, Function.identity()));
         model.addAttribute("battleCharacterInfoMap", battleCharacterInfoMap);
         Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getId() : null;
         model.addAttribute("leaderActorId", leaderActorId);
@@ -396,12 +524,9 @@ public class BattleController {
         String enemyRootNameEn = baseEnemy.getRootNameEn();
         List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(enemyRootNameEn);
         List<Integer> triggerHps = baseEnemies.stream()
-                .flatMap(base -> base.getMoves().values().stream()
-                        .filter(move -> move.getParentType() == MoveType.STANDBY))
-                .map(BaseMove::getOmen)
-                .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER)
-                .map(Omen::getTriggerHps)
-                .flatMap(Collection::stream)
+                .flatMap(base -> base.getOmens().values().stream())
+                .flatMap(baseOmen -> baseOmen.getOmenType() == OmenType.HP_TRIGGER
+                        ? baseOmen.getTriggerHps().stream() : Stream.empty())
                 .toList();
 
 //        List<Integer> triggerHps = baseEnemies.stream().map(BaseEnemy::getHpTriggers)
@@ -410,14 +535,13 @@ public class BattleController {
         model.addAttribute("triggerHps", triggerHps);
 
         // 소환석 인포
-        List<Long> summonMoveIds = leaderCharacter.getSummonMoveIds();
-        List<BaseMove> summonMoves = moveRepository.findAllById(summonMoveIds);
-        List<MoveInfo> summonInfos = summonMoves.stream().map(move -> toSummonInfo(move, leaderCharacter)).toList();
+        List<Move> summonMoves = leaderCharacter.getSummons();
+        List<MoveInfo> summonInfos = summonMoves.stream().map(BattleInfoMapper::toSummonInfo).toList();
         model.addAttribute("summonInfos", summonInfos);
 
         // 페이탈 체인 인포
         Long fatalChainMoveId = member.getFatalChainMoveId();
-        BaseMove fatalChainMove = moveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
+        BaseMove fatalChainMove = baseMoveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
         MoveInfo fatalChainInfo = toFatalChainInfo(fatalChainMove);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
 
@@ -425,7 +549,7 @@ public class BattleController {
         model.addAttribute("fatalChainGauge", member.getFatalChainGauge());
 
         // 캐릭터 + 적 에셋 (소환석, 펭탈 체인 포함) AssetInfo.Asset 으로 변환
-        List<AssetInfo> assetInfos = toAssetInfo(currentFieldActors, summonMoves, fatalChainMove);
+        List<AssetInfo> assetInfos = toAssetInfo(currentFieldActors, summonMoves);
 
         assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
         model.addAttribute("assetInfos", assetInfos);

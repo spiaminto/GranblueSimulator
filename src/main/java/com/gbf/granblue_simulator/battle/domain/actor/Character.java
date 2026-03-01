@@ -14,12 +14,5 @@ import lombok.experimental.SuperBuilder;
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Character extends Actor {
 
-    public static Character of(BaseCharacter baseCharacter) {
-        return Character.builder()
-                .name(baseCharacter.getName())
-                .baseActor(baseCharacter)
-                .build();
-    }
-
 }
 

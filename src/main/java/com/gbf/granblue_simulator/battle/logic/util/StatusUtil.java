@@ -27,24 +27,12 @@ public final class StatusUtil {
         Map<StatusModifierType, List<StatusEffect>> map = new EnumMap<>(StatusModifierType.class);
 
         for (StatusEffect statusEffect : actor.getStatusEffects()) {
-            for (StatusModifierType type : statusEffect.getBaseStatusEffect().getStatusModifiers().keySet()) { // StatusModifierType 으로 순회
+            for (StatusModifierType type : statusEffect.getActiveModifiers().keySet()) { // StatusModifierType 으로 순회
                 map.computeIfAbsent(type, key -> new ArrayList<>()).add(statusEffect); // StatusModifierType key 로 추가, 없으면 새로 생성해서 삽입
             }
         }
 
         return map;
-    }
-
-    /**
-     * name 이름의 StatusEffect 가졌는지 확인 (contains)
-     *
-     * @param actor
-     * @param name
-     * @return 가졌으면 true
-     */
-    public static boolean hasEffectByName(Actor actor, String name) {
-        return actor.getStatusEffects().stream()
-                .anyMatch(battleStatus -> battleStatus.getBaseStatusEffect().getName().contains(name));
     }
 
     /**
@@ -64,15 +52,34 @@ public final class StatusUtil {
      * 해당 Move 가 가진 BaseStatusEffect 중  파라미터로 넘어온 name 을 가진 BaseStatusEffect 반환, findfirst, contains <br>
      * 해당 Move 의 여러 상태효과중 특정 상태효과를 가져와야 할때 사용 (반드시 존재하는 상태효과여야 함)
      *
-     * @param move
-     * @param name
-     * @return
      * @throws IllegalArgumentException 해당 이름의 상태효과 가 없음
      */
-    public static BaseStatusEffect getBaseEffectByNameFromMove(BaseMove move, String name) {
+    public static BaseStatusEffect getBaseEffectByName(BaseMove move, String name) {
         return move.getBaseStatusEffects().stream()
                 .filter(status -> status.getName().contains(name))
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("해당 이름의 상태효과 없음"));
+    }
+
+    /**
+     * 해당 Move 가 가진 BaseStatusEffect 중  파라미터로 넘어온 name 을 가진 BaseStatusEffect 반환, findfirst, contains <br>
+     * 해당 Move 의 여러 상태효과중 특정 상태효과를 가져와야 할때 사용 (반드시 존재하는 상태효과여야 함)
+     *
+     * @throws IllegalArgumentException 해당 이름의 상태효과 가 없음
+     */
+    public static BaseStatusEffect getBaseEffectByNameContains(BaseMove move, String name) {
+        return move.getBaseStatusEffects().stream()
+                .filter(status -> status.getName().contains(name))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("해당 이름의 상태효과 없음"));
+    }
+
+    /**
+     * 해당 BaseMove 가 가진 BaseStatusEffect 중  파라미터로 넘어온 name 과 같은 BaseStatusEffect를 모두 반환 <br>
+     * 해당 BaseMove 의 여러 상태효과중 특정 상태효과를 가져와야 할때 사용
+     */
+    public static List<BaseStatusEffect> getBaseEffectsByName(BaseMove move, String name) {
+        return move.getBaseStatusEffects().stream()
+                .filter(status -> status.getName().equals(name))
+                .toList();
     }
 
     /**
@@ -90,26 +97,41 @@ public final class StatusUtil {
     }
 
     /**
-     * 해당 name 을 가진 StatusEffect 반환, findfirst, contains
-     *
-     * @param actor
-     * @param name
-     * @return
+     * 해당 name 과 같은 StatusEffect 중 첫번째 반환, equals
      */
     public static Optional<StatusEffect> getEffectByName(Actor actor, String name) {
+        return actor.getStatusEffects().stream()
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getName().equals(name))
+                .findFirst();
+    }
+
+    /**
+     * 해당 name 을 포함하는 StatusEffect 중 첫번째 반환, contains <br>
+     * 필요시에만 사용
+     */
+    public static Optional<StatusEffect> getEffectByNameContains(Actor actor, String name) {
         return actor.getStatusEffects().stream()
                 .filter(statusEffect -> statusEffect.getBaseStatusEffect().getName().contains(name))
                 .findFirst();
     }
 
     /**
-     * 해당 name 을 가진 List<StatusEffect> 반환, contains
+     * 해당 name 과 같은 List<StatusEffect> 반환, equals
+     */
+    public static List<StatusEffect> getEffectsByName(Actor actor, String name) {
+        return actor.getStatusEffects().stream()
+                .filter(battleStatus -> battleStatus.getBaseStatusEffect().getName().contains(name))
+                .toList();
+    }
+
+    /**
+     * 해당 name 을 포함하는 List<StatusEffect> 반환, contains
      *
      * @param actor
      * @param name
      * @return
      */
-    public static List<StatusEffect> getEffectsByName(Actor actor, String name) {
+    public static List<StatusEffect> getEffectsByNameContains(Actor actor, String name) {
         return actor.getStatusEffects().stream()
                 .filter(battleStatus -> battleStatus.getBaseStatusEffect().getName().contains(name))
                 .toList();
@@ -124,7 +146,7 @@ public final class StatusUtil {
      */
     public static Optional<StatusEffect> getEffectByModifierType(Actor actor, StatusModifierType statusModifierType) {
         return actor.getStatusEffects().stream()
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType))
+                .filter(statusEffect -> statusEffect.getActiveModifiers().containsKey(statusModifierType))
                 .findFirst();
     }
 
@@ -140,7 +162,7 @@ public final class StatusUtil {
         List<StatusEffect> result = new ArrayList<>();
 
         for (StatusEffect statusEffect : actor.getStatusEffects()) {
-            if (statusEffect.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType)) {
+            if (statusEffect.getActiveModifiers().containsKey(statusModifierType)) {
                 result.add(statusEffect);
             }
         }
@@ -164,20 +186,6 @@ public final class StatusUtil {
     }
 
     /**
-     * 주어진 actor 의 StatusEffect 중 StatusModifierType 이 같은 기본 상태효과를 반환
-     *
-     * @param actor
-     * @param modifierType
-     * @return Optional<StatusEffect>
-     */
-    public static Optional<StatusEffect> getBasicEffectByModifierType(Actor actor, StatusModifierType modifierType) {
-        return actor.getStatusEffects().stream()
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().size() == 1) // 기본 상태 효과
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().get(modifierType) != null)
-                .findFirst();
-    }
-
-    /**
      * 주어진 actor 의 StatusEffect 중 StatusModifierType, StatusEffectTargetType 이 모두 같은 기본 상태효과를 반환 <br>
      * 기본 상태효과 + 같은 modifier + 같은 타겟항 (참전자 / 개인) 모두 만족할경우 반환함.
      *
@@ -187,9 +195,22 @@ public final class StatusUtil {
      */
     public static Optional<StatusEffect> getBasicEffectByModifierTypeAndTargetType(Actor actor, StatusModifierType modifierType, StatusEffectTargetType targetType) {
         return actor.getStatusEffects().stream()
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().size() == 1) // 기본 상태 효과
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getTargetType() == targetType) // 타겟 타입 (주로 개인 / 참전자 구분용)
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getStatusModifiers().get(modifierType) != null)
+                .filter(statusEffect -> !statusEffect.getBaseStatusEffect().isUniqueFrame()) // 기본 상태 효과
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getTargetType().isAllMemberTarget() == targetType.isAllMemberTarget()) // 참전자 / 개인 효과 구분
+                .filter(statusEffect -> statusEffect.getActiveModifiers().get(modifierType) != null)
+                .findFirst();
+    }
+
+    /**
+     * 주어진 actor 의 stackable StatusEffect 중 targetType, name 이 같은 효과 반환 (동일항 효과) <br>
+     *
+     * @param targetBaseEffect 찾을 기본 상태효과 (누적 또는 레벨식)
+     */
+    public static Optional<StatusEffect> getSameStackableBasicEffectsByName(Actor actor, BaseStatusEffect targetBaseEffect) {
+        return actor.getStatusEffects().stream()
+                .filter(statusEffect -> !statusEffect.getBaseStatusEffect().isUniqueFrame()) // 기본 상태 효과
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getTargetType().isAllMemberTarget() == targetBaseEffect.getTargetType().isAllMemberTarget()) // 참전자 / 개인 효과 구분
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getName().equals(targetBaseEffect.getName())) // 이름기반 매칭
                 .findFirst();
     }
 
@@ -207,9 +228,9 @@ public final class StatusUtil {
         return actors.stream()
                 .map(Actor::getStatusEffects)
                 .flatMap(List::stream)
-                .filter(battleStatus -> battleStatus.getBaseStatusEffect().getStatusModifiers().containsKey(statusModifierType))
+                .filter(statusEffect -> statusEffect.getActiveModifiers().containsKey(statusModifierType))
                 .max(Comparator
-                        .comparing((StatusEffect statusEffect) -> statusEffect.getBaseStatusEffect().getStatusModifiers().get(statusModifierType).getInitValue())
+                        .comparing((StatusEffect statusEffect) -> statusEffect.getBaseModifiers().get(statusModifierType).getInitValue())
                         .thenComparing(StatusEffect::getCreatedAt))
                 ;
     }
@@ -238,6 +259,19 @@ public final class StatusUtil {
         return actor.getStatusEffects().stream()
                 .filter(statusEffect -> name.equals(statusEffect.getBaseStatusEffect().getName()))
                 .anyMatch(StatusEffect::isMaxLevel);
+    }
+
+    /**
+     * 주어진 항이 포함된 이펙트의 최대레벨 여부를 판별 <br>
+     * 일부 내부 조건형 이펙트에서 사용예정, 임시구현임. (CONDITIONAL_CHARGE_ATTACK)
+     *
+     * @return 레벨 max 면 true, 아니라면 false, 주어진 항을 포함하는 효과가 없다면 null
+     */
+    public static Boolean isReachedMaxLevelByModifier(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+        List<StatusEffect> statusEffects = statusModifierMap.get(type);
+        if (statusEffects == null || statusEffects.isEmpty()) return null;
+        StatusEffect firstEffect = statusEffects.getFirst();
+        return firstEffect.isMaxLevel();
     }
 
     /**
@@ -306,31 +340,31 @@ public final class StatusUtil {
     /**
      * 주어진 항의 modifier 수치 최솟값을 구함 <br>
      * 주로 겹치는 고유 상태효과의 Modifier 들 중 합산 상한연산이 아닌 우열연산 하는 효과에서 사용 <br>
-     * 피데미지 고정 (TAKEN_DAMAGE_FIX), 블록 효과 (TAKEN_DAMAGE_BLOCK) 에서 사용
+     * 피데미지 고정 (TAKEN_DAMAGE_FIX) 에서 사용
      *
      * @param statusModifierMap 항 맵
-     * @return 최솟값, 없으면 0
+     * @return 최솟값(0 ~) 없으면 null
      */
-    public static double getModifierValueMin(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
+    public static Double getModifierValueMin(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
         List<StatusEffect> statusEffects = statusModifierMap.get(type);
-        if (statusEffects == null || statusEffects.isEmpty()) return 0;
+        if (statusEffects == null || statusEffects.isEmpty()) return null;
 
-        Double min = null; // null 로 초기화 후 사용, null 을 반환하진 않음.
+        double min = Double.MAX_VALUE;
         for (StatusEffect effect : statusEffects) {
             double val = effect.getModifierValue(type);
-            if (min == null || val < min) {
+            if (val < min) {
                 min = val;
             }
         }
-        return min;
+        return Math.max(min, 0.0);
     }
 
     /**
      * 주어진 항의 modifier 수치중 가장 마지막에 적용된 modifier 의 적용시간을 가져옴 <br>
-     * 피데미지 속성변환 에서 사용중
+     * 피데미지 속성변환, 감싸기 에서 사용중
      *
      * @param statusModifierMap 항 맵
-     * @return 최솟값, 없으면 0
+     * @return 최솟값, 없으면 null
      */
     public static LocalDateTime getLatestModifierTime(Map<StatusModifierType, List<StatusEffect>> statusModifierMap, StatusModifierType type) {
         List<StatusEffect> statusEffects = new ArrayList<>(statusModifierMap.getOrDefault(type, Collections.emptyList()));
@@ -340,8 +374,6 @@ public final class StatusUtil {
         LocalDateTime latestTime = statusEffects.getFirst().getCreatedAt();
         return latestTime;
     }
-
-
 
 
     /**

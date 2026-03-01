@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>그랑블루시뮬</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+
+  <link href="/static/css/basic.css" rel="stylesheet">
+  <link href="/static/css/common.css" rel="stylesheet">
+  <link href="/static/css/battle/modals.css" rel="stylesheet">
+
+  <style>
+
+      .info-details .move-name {
+          background-color: lightgray;
+          padding: 1px;
+          font-size: 13px;
+          font-weight: bold;
+      }
+
+
+      .bordered {
+          border: 1px solid lightgray;
+          border-radius: 5px;
+      }
+
+      .info-container {
+      }
+
+      .portrait-wrapper {
+          margin-right: 10px;
+          width: 100px;
+          height: 100px;
+          overflow: hidden;
+          border-radius: 7px;
+          box-shadow: 2px 2px 3px lightgray;
+      }
+
+      .portrait-wrapper img {
+          width: 250%;
+          position: relative;
+          left: -75%;
+          top: -20%;
+      }
+
+      /* info-wrapper */
+      .info-wrapper {
+      }
+
+      .info-wrapper.header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+      }
+
+      .info-wrapper.basic {
+          display: flex;
+      }
+
+      .change-character-button-wrapper {
+          display: flex;
+          justify-content: space-around;
+      }
+
+      .change-character-button-wrapper .btn {
+          padding: 3px 10px;
+      }
+
+      /* info-details */
+      .info-details {
+          margin: 5px auto;
+          padding: 7px;
+      }
+
+      .info-details.status {
+          margin: 0;
+          padding: 0;
+      }
+
+      .info-details .status-container {
+          display: none;
+      }
+
+      .info-details-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 5px;
+      }
+
+      .info-details-footer .cooldown {
+          font-weight: bold;
+          padding-top: 5px;
+      }
+
+      .info-details.charge-attack .incant-attack {
+          background-color: rgba(255, 205, 243, 0.8);
+      }
+
+      .info-details.charge-attack .hp-trigger {
+          background-color: rgba(235, 235, 235, 0.8);
+      }
+
+      .info-details.charge-attack .charge-attack {
+          background-color: rgba(255, 243, 205, 0.8);
+      }
+
+      .info-details.charge-attack ul {
+          margin: 5px 0;
+      }
+
+      .info-details.ability .icon {
+          position: relative;
+          margin-right: 10px;
+      }
+
+      .info-details.ability .icon img {
+          width: 40px;
+          position: relative;
+          top: 15%;
+      }
+
+      .info-details.ability .text {
+          width: 100%;
+      }
+
+      .ability-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+
+      .ability-header .name {
+          flex: 1;
+      }
+
+      .ability-header .ability-status-display-name {
+          margin-right: 5px;
+          vertical-align: middle;
+      }
+
+      .hr-sm {
+          margin: 3px 0;
+      }
+
+      .ability-header .form-switch {
+          min-height: 0;
+          display: inline-block;
+      }
+
+      .ability-header .form-check-input {
+          width: 2.5em;
+          height: 1.5em;
+      }
+
+      .ability-header .ability-status-buy {
+          cursor: pointer;
+      }
+
+      .modal {
+          max-width: 660px;
+      }
+
+      #statusInfoModal .modal-dialog {
+          margin-left: 10px !important;
+      }
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/static/js/basic.js"></script>
+  <script src="/static/js/battle/objects.js"></script>
+  <script th:inline="javascript">
+      /*<![CDATA[*/
+      const abilities = /*[[${enemyInfo.abilities}]]*/ [];
+      const supportAbilities = /*[[${enemyInfo.supportAbilities}]]*/ [];
+      const chargeAttacks = /*[[${enemyInfo.chargeAttackInfos}]]*/ {};
+
+      const moveInfoMap = {};
+      supportAbilities.forEach(ability => {
+          moveInfoMap[ability.id] = new MoveInfo(ability);
+      });
+      chargeAttacks.forEach(chargeAttack => {
+          moveInfoMap[chargeAttack.id] = new MoveInfo(chargeAttack);
+      })
+      /*]]>*/
+  </script>
+  <script>
+      $(function () {
+
+          // 상태효과 확인
+          // $('.show-status-info-button').on('click', function () {
+          //     openMetadataStatusInfo($(this).parent().parent().find('.status-container'), {statusOnly: true});
+          // });
+
+          // 상태효과 확인
+          $('.show-status-info-button').on('click', function () {
+              let moveId = $(this).closest('.info-details').attr('data-move-id');
+              let moveInfo = moveInfoMap[moveId];
+              openMetadataStatusInfo(moveInfo.statusEffects, {statusOnly: true});
+              // openStatusInfoWrapperLegacy($(this).parent().parent().find('.status-container'), {statusOnly: true});
+          });
+
+      });
+  </script>
+</head>
+<body class="bg-secondary-subtle">
+<div id="container">
+  <div class="page-header">
+    <h1>적 상세</h1>
+    <button class="btn btn-xxsm btn-outline-secondary" onclick="location.href='/'"><i class="bi bi-house"></i></button>
+  </div>
+
+  <div class="info-container" th:data-enemy-id="${enemyInfo.getId()}">
+    <div class="info-wrapper header tile title-sm">
+      <div class="" th:text="${enemyInfo.name}">
+        적이름
+      </div>
+      <div class="element-type" th:text="${enemyInfo.elementType}"> 속성</div>
+    </div>
+
+    <div class="info-wrapper basic tile">
+      <div class="portrait-wrapper">
+        <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg" th:src="${enemyInfo.portraitSrc}">
+      </div>
+      <div class="info-details status">
+        <div class="move-name">기초 스테이터스</div>
+        <hr class="hr-sm">
+        <div class="status-atk">공격력 : <span class="value" th:text="${enemyInfo.atk}">00</span></div>
+        <div class="status-hp">체력 : <span class="value" th:text="${enemyInfo.hp}">00</span></div>
+        <div class="status-def">방어력 : <span class="value" th:text="${enemyInfo.def}">00</span></div>
+        <div class="status-da">더블어택 확률 : <span class="value" th:text="${enemyInfo.doubleAttackRate}">00</span>%
+        </div>
+        <div class="status-ta">트리플어택 확률 : <span class="value" th:text="${enemyInfo.tripleAttackRate}">00</span>%</div>
+        <div class="status-ta">차지턴(CT) : <span class="value" th:text="${enemyInfo.maxChargeGauge}">00</span></div>
+      </div>
+    </div>
+
+    <div class="change-character-button-wrapper tile">
+      <button class="btn btn-xsm btn-outline-secondary" onclick="location.href = '/'"> 홈으로</button>
+      <button class="btn btn-xsm btn-outline-warning"
+              th:if="${enemyInfo.beforeFormId != null}"
+              th:data-url="@{/base-enemies/{id}(id=${enemyInfo.beforeFormId})}"
+              onclick="location.href=this.dataset.url"> 이전 형태
+      </button>
+      <button class="btn btn-xsm btn-outline-success"
+              th:if="${enemyInfo.nextFormId != null}"
+              th:data-url="@{/base-enemies/{id}(id=${enemyInfo.nextFormId})}"
+              onclick="location.href=this.dataset.url"> 다음 형태
+      </button>
+    </div>
+
+    <div class="info-wrapper charge-attack tile">
+      <div class="title-md">특수기 상세</div>
+      <div class="info-details charge-attack bordered" th:each="chargeAttack : ${enemyInfo.chargeAttacks}" th:data-move-id="${chargeAttack.move.id}">
+        <div class="move-name" th:classappend="${chargeAttack.omen.omenType.className}">
+          <span th:text="${'[ ' + chargeAttack.omen.omenType.info + ' ]'}">[타입]</span>
+          <span th:text="${chargeAttack.omen.name}">전조 이름</span>
+        </div>
+        <hr class="hr-sm">
+        <div>
+          <div th:if="${chargeAttack.omen.omenType.name.equals('HP_TRIGGER')}">
+            <div class="font-lg fw-bold">트리거 HP</div>
+            <span th:each="triggerHp : ${chargeAttack.omen.triggerHps}" th:text="${triggerHp + '% '}"></span>
+            <hr class="hr-sm">
+          </div>
+          <div class="font-lg fw-bold">전조 정보</div>
+          <span th:utext="${#strings.replace(chargeAttack.omen.info, '◆', '<br/>◆')}">전조 정보</span>
+        </div>
+        <hr class="hr-sm">
+        <div>
+          <div class="font-lg fw-bold">해제 조건 <span th:if="${chargeAttack.cancelConds.size() > 1}"> (랜덤)</span></div>
+          <ul>
+            <li th:each="cancelCond : ${chargeAttack.cancelConds}"
+                th:text="${cancelCond.info + ': ' + cancelCond.initValue}">
+              해제 조건
+            </li>
+          </ul>
+        </div>
+        <hr class="hr-sm">
+        <div class="font-lg fw-bold">특수기 효과</div>
+        <div class="info" th:utext="${#strings.replace(chargeAttack.move.info, '◆', '<br/>◆')}">
+          오의 설명 대충 5배 데미지 아군의 xx 증가 yy 효과 적에게 xx 효과 yy 효과
+        </div>
+        <div class="status-container">
+          <div class="status" th:each="status : ${chargeAttack.move.statusEffects}"
+               th:data-status-type="${status.type}">
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
+                 th:src="${status.iconSrc}"/>
+            <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
+            <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>
+            <div class="status-duration d-none" th:text="${status.duration}">스테이터스 효과턴</div>
+          </div>
+        </div>
+        <div class="info-details-footer">
+          <button th:if="${!chargeAttack.move.statusEffects.isEmpty()}" class="btn btn-outline-primary btn-xxsm show-status-info-button">효과 상세</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-wrapper support-ability tile">
+      <div class="title-md">서포트 어빌리티 상세</div>
+      <div class="info-details support-ability bordered" th:each="ability : ${enemyInfo.supportAbilities}" th:data-move-id="${ability.id}">
+
+        <div class="ability-header move-name" th:data-move-id="${ability.id}" th:text="${ability.name}">
+          어빌리티 이름
+        </div>
+
+        <hr class="hr-sm">
+        <div class="info" th:utext="${#strings.replace(ability.info, '◆', '<br/>◆')}">
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+        </div>
+        <div class="status-container">
+          <div class="status" th:each="status : ${ability.statusEffects}"
+               th:data-status-type="${status.type}">
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
+                 th:src="${status.iconSrc}"/>
+            <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
+            <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>
+            <div class="status-duration d-none" th:text="${status.duration}">스테이터스 효과턴</div>
+          </div>
+        </div>
+        <div class="info-details-footer">
+          <button th:if="${!ability.statusEffects.isEmpty()}" class="btn btn-outline-primary btn-xxsm show-status-info-button">효과 상세</button>        </div>
+      </div>
+    </div>
+
+
+    <div class="info-wrapper common tile">
+      기본 공격 명중률은 100%, 오의 명중률은 200%, 회피율은 0% 입니다.
+      <br>
+      기본 약화효과 명중률은 100%, 저항은 0% 입니다.
+      <br>
+      [필중] 약화효과는 디버프 저항 효과에 관계없이 반드시 명중합니다.
+    </div>
+
+
+  </div><!-- .info-container -->
+
+</div> <!-- #container -->
+
+<!-- 스테이터스 모달 -->
+<button type="button" class="btn btn-primary status-modal-button d-none" data-bs-toggle="modal"
+        data-bs-target="#statusInfoModal">
+  스테이터스 상세
+</button>
+<div class="modal fade" id="statusInfoModal" tabindex="-1" aria-labelledby="statusInfoModal" aria-hidden="true">
+  <div class="modal-dialog .modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
+      </div>
+      <div class="modal-body">
+
+        <!--        <div class="status-info-wrapper mb-2">-->
+        <!--          <div class="actor-name mb-2">캐릭터 이름</div>-->
+        <!--          <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center mb-2">-->
+        <!--            <div class="actor-estimated-atk">기준 공격력<span class="value">4000~5000</span></div>-->
+        <!--            <button class="btn btn-outline-secondary ms-1 border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#estimatedAtkCollapse">-->
+        <!--              <i class="bi bi-question-circle"></i>-->
+        <!--            </button>-->
+        <!--          </div>-->
+        <!--          <div class="collapse" id="estimatedAtkCollapse">-->
+        <!--            기준 공격력은 현재 적의 공격력에 캐릭터의 방어력을 적용한 최소, 최대값 입니다. 그 외의 상태효과는 적용되지 않은 수치이므로 참고용으로만 사용하세요.-->
+        <!--          </div>-->
+        <!--        </div>-->
+
+        <div class="status-effect-info-wrapper">
+          <!--          <div class="statusEffect-info">-->
+          <!--            <div class="statusEffect-info-icon-wrapper">-->
+          <!--              <img class="statusEffect-info-icon" src="">-->
+          <!--            </div>-->
+          <!--            <div class="statusEffect-info-text">-->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

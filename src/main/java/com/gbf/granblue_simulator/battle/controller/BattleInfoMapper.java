@@ -1,13 +1,14 @@
 package com.gbf.granblue_simulator.battle.controller;
 
 import com.gbf.granblue_simulator.battle.controller.dto.info.AssetInfo;
-import com.gbf.granblue_simulator.battle.controller.dto.info.CharacterInfo;
+import com.gbf.granblue_simulator.battle.controller.dto.info.CharacterBattleInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.info.EnemyInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.info.MoveInfo;
-import com.gbf.granblue_simulator.battle.controller.dto.response.OmenDto;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
@@ -23,33 +24,33 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class BattleInfoMapper {
 
-    public static CharacterInfo toCharacterInfo(Actor partyMember) {
-        return CharacterInfo.builder()
+    public static CharacterBattleInfo toCharacterInfo(Actor partyMember) {
+        return CharacterBattleInfo.builder()
                 .id(partyMember.getId())
                 .name(partyMember.getName())
                 .order(partyMember.getCurrentOrder())
                 .portraitSrc(partyMember.getActorVisual().getPortraitImageSrc())
                 .statuses(partyMember.getStatusEffects().stream()
                         .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
-                        .filter(battleStatus -> battleStatus.getBaseStatusEffect().getType().isPresentable()).toList())
+                        .filter(StatusEffect::isDisplayable)
+                        .map(StatusEffectDto::of)
+                        .toList())
                 .hp(partyMember.getHp())
                 .maxHp(partyMember.getMaxHp())
-                .hpRate(partyMember.getHpRate())
+                .hpRate(partyMember.getHpRateInt())
                 .chargeGauge(partyMember.getChargeGauge())
                 .maxChargeGauge(partyMember.getMaxChargeGauge())
-                .abilities(partyMember.getBaseActor().getMoves().values().stream()
+                .abilities(partyMember.getMoves().stream()
                         .filter(move -> move.getType().getParentType() == MoveType.ABILITY)
-                        .sorted(Comparator.comparing(BaseMove::getType))
-                        .map(move -> MoveInfo.builder()
-                                .id(move.getId())
-                                .name(move.getName())
-                                .info(move.getInfo())
-                                .cooldown(move.getCoolDown())
-                                .iconImageSrc(move.getIconImageSrc())
-                                .abilityType(move.getAbilityType().name())
-                                .build())
+                        .sorted(Comparator.comparing(Move::getType))
+                        .map(MoveInfo::from)
                         .toList())
-                .chargeAttack(partyMember.getBaseActor().getMoves().get(MoveType.CHARGE_ATTACK_DEFAULT))
+                .supportAbilities(partyMember.getMoves().stream()
+                        .filter(move -> move.getType() != MoveType.TRIGGERED_ABILITY && move.getType().getParentType() == MoveType.SUPPORT_ABILITY)
+                        .sorted(Comparator.comparing(Move::getType))
+                        .map(MoveInfo::from)
+                        .toList())
+                .chargeAttack(MoveInfo.from(partyMember.getFirstMove(MoveType.CHARGE_ATTACK_DEFAULT)))
                 .abilityCoolDowns(partyMember.getAbilityCooldowns())
                 .abilitySealeds(partyMember.getAbilitySealeds())
                 .fatalChainGauge(partyMember.getBaseActor().isLeaderCharacter() ? partyMember.getFatalChainGauge() : null)
@@ -62,17 +63,20 @@ public final class BattleInfoMapper {
                 .id(enemy.getId())
                 .name(enemy.getName())
                 .formOrder(enemy.getCurrentForm())
-                .statuses(enemy.getStatusEffects().stream().filter(battleStatus -> battleStatus.getBaseStatusEffect().getType().isPresentable()).toList())
+                .statuses(enemy.getStatusEffects().stream()
+                        .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
+                        .filter(StatusEffect::isDisplayable)
+                        .map(StatusEffectDto::of)
+                        .toList())
                 .hp(enemy.getHp())
-                .hpRate(enemy.getHpRate())
+                .hpRate(enemy.getHpRateInt())
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
-                .initialMoveType(enemy.getCurrentStandbyType() == null ? MoveType.IDLE_DEFAULT : enemy.getCurrentStandbyType()) // 동적으로
-                .omen(OmenDto.builder().build())
+                .omen(null)
                 .build();
     }
 
-    public static List<AssetInfo> toAssetInfo(List<Actor> currentFieldActors, List<BaseMove> summonMoves, BaseMove fatalChainMove) {
+    public static List<AssetInfo> toAssetInfo(List<Actor> currentFieldActors, List<Move> summonMoves) {
         List<AssetInfo> assets =  currentFieldActors.stream()
                 .map(actor -> {
                     ActorVisual actorVisual = actor.getActorVisual();
@@ -85,28 +89,34 @@ public final class BattleInfoMapper {
                     List<String> attackCjses = actorVisual.getAttackVisuals().stream().map(EffectVisual::getCjsName).sorted().toList();
 
                     // 어빌리티
-                    Map<Long, AssetInfo.AbilityCjsDto> abilityCjses = actor.getBaseActor().getMoves().values().stream()
-                            .filter(move -> move.getDefaultVisual() != null && (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY))
+                    Map<Long, AssetInfo.CjsDto> abilityCjses = actor.getMoves().stream()
+                            .filter(move -> move.getBaseMove().getDefaultVisual() != null && (move.getType().getParentType() == MoveType.ABILITY || move.getType().getParentType() == MoveType.SUPPORT_ABILITY))
                             .collect(Collectors.toMap(
-                                    BaseMove::getId,
+                                    Move::getId,
                                     move -> {
-                                        EffectVisual defaultVisual = move.getDefaultVisual();
-                                        return AssetInfo.AbilityCjsDto.builder()
+                                        EffectVisual defaultVisual = move.getBaseMove().getDefaultVisual();
+                                        return AssetInfo.CjsDto.builder()
                                                 .cjs(defaultVisual.getCjsName())
                                                 .isTargetedEnemy(defaultVisual.isTargetedEnemy())
+                                                .voiceLabel(defaultVisual.getVoiceLabel())
                                                 .build();
                                     }
                             ));
                     // 페이탈 체인
                     if (actor.isCharacter()) {
-                        abilityCjses.put(fatalChainMove.getId(), AssetInfo.AbilityCjsDto.builder()
-                                .cjs(fatalChainMove.getDefaultVisual().getCjsName())
-                                .isTargetedEnemy(fatalChainMove.getDefaultVisual().isTargetedEnemy())
+                        Move fatalChainMove = actor.getFirstMove(MoveType.FATAL_CHAIN_DEFAULT);
+                        abilityCjses.put(fatalChainMove.getId(), AssetInfo.CjsDto.builder()
+                                .cjs(fatalChainMove.getBaseMove().getDefaultVisual().getCjsName())
+                                .isTargetedEnemy(fatalChainMove.getBaseMove().getDefaultVisual().isTargetedEnemy())
                                 .build());
                     }
 
                     // 오의
-                    List<String> specialCjses = actorVisual.getChargeAttackVisuals().stream().map(EffectVisual::getCjsName).toList();
+                    List<AssetInfo.CjsDto> specialCjses = actorVisual.getChargeAttackVisuals().stream()
+                            .map(effectVisual -> AssetInfo.CjsDto.builder()
+                                    .cjs(effectVisual.getCjsName())
+                                    .voiceLabel(effectVisual.getVoiceLabel())
+                                    .build()).toList();
                     Integer chargeAttackStartFrame = actorVisual.getChargeAttackVisuals().stream().map(EffectVisual::getChargeAttackStartFrame).max(Comparator.naturalOrder()).orElse(0);
 
                     // 추가 오의
@@ -116,7 +126,7 @@ public final class BattleInfoMapper {
                     boolean isLeaderCharacter = actor.getBaseActor().isLeaderCharacter();
                     Map<Long, String> summonCjses = new HashMap<>();
                     if (isLeaderCharacter) {
-                        summonMoves.forEach(move -> summonCjses.put(move.getId(), move.getDefaultVisual().getCjsName()));
+                        summonMoves.forEach(move -> summonCjses.put(move.getId(), move.getBaseMove().getDefaultVisual().getCjsName()));
                     }
 
                     return AssetInfo.builder()
@@ -148,14 +158,17 @@ public final class BattleInfoMapper {
                 .build();
     }
 
-    public static MoveInfo toSummonInfo(BaseMove move, Actor mainCharacter) {
+    public static MoveInfo toSummonInfo(Move move) {
         return MoveInfo.builder()
                 .id(move.getId())
-                .name(move.getName())
-                .info(move.getInfo())
-                .iconImageSrc(move.getIconImageSrc())
-                .portraitImageSrc(move.getDefaultVisual().getPortraitImageSrc())
-                .cooldown(mainCharacter.getSummonCoolDowns().get(mainCharacter.getSummonMoveIds().indexOf(move.getId())))
+                .name(move.getBaseMove().getName())
+                .info(move.getBaseMove().getInfo())
+                .iconImageSrc(move.getBaseMove().getIconImageSrc())
+                .portraitImageSrc(move.getBaseMove().getDefaultVisual().getPortraitImageSrc())
+                .cutinImageSrc(move.getBaseMove().getDefaultVisual().getCutinImageSrc())
+                .cjsName(move.getBaseMove().getDefaultVisual().getCjsName())
+                .cooldown(move.getCooldown())
+                .maxCooldown(move.getBaseMove().getCoolDown())
                 .build();
     }
 }

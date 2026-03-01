@@ -12,12 +12,17 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
 public class Room {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
+    @Enumerated(EnumType.STRING)
+    private RoomStatus roomStatus;
     private String info; // 방 정보 (밖에 표시할 이름)
 
     private Long ownerId; // 방장 userid
@@ -27,12 +32,15 @@ public class Room {
     private Integer maxUserCount = 3; // 최대 유저 수
     private int enterUserCount = 0; // 입장한 유저수
 
-    @OneToMany(mappedBy = "room") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "room")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Member> members = new ArrayList<>(); // 방에 있는 유저들
 
-    private Long enemyActorId; // 편의용 적 id
+    private Long enemyBaseId; // 편의용 적 id
 
-    private Long unionSummonId;
+    private Long unionSummonId; // 대기중인 합체소환 id (Move.id)
 
     private boolean isHidden;
 
@@ -53,6 +61,16 @@ public class Room {
         this.info = info;
     }
 
+    /**
+     * 방 상태 변경
+     */
+    public void changeStatus(RoomStatus roomStatus) {
+        this.roomStatus = roomStatus;
+        if (roomStatus == RoomStatus.CLEARED || roomStatus == RoomStatus.FAILED_TIMEOUT || roomStatus == RoomStatus.FAILED_EMPTY) {
+            this.endedAt = LocalDateTime.now();
+        }
+    }
+
     public void updateEndedAtNow() {
         this.endedAt = LocalDateTime.now();
     }
@@ -63,12 +81,15 @@ public class Room {
         this.ownerUsername = ownerUsername;
     }
 
-    public void setEnemyActorId() {
-        this.enemyActorId = 7L; // 현재 디아스포라(7) 로 고정
+    public boolean isFinished() {
+        return this.roomStatus == RoomStatus.CLEARED
+                || this.roomStatus == RoomStatus.FAILED_TIMEOUT
+                || this.roomStatus == RoomStatus.FAILED_EMPTY;
     }
 
     /**
      * 합체소환 id 세팅 <br>
+     *
      * @param unionSummonId 초기화는 null
      */
     public void updateUnionSummonId(Long unionSummonId) {

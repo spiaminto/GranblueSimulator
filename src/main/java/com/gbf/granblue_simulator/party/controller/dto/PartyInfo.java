@@ -14,7 +14,7 @@ public class PartyInfo {
     private final String info;
     private final boolean isPrimary;
 
-    private final List<PartyCharacterInfo> characterInfos;
+    private final List<UserCharacterInfo> characterInfos;
     private final List<PartySummonInfo> summonInfos;
 
 

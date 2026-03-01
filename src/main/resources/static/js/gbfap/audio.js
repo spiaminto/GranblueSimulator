@@ -14,7 +14,7 @@ define([], (function () {
             // the following functions are needed for the animation playback
             // they are called from inside GBF files
             play: function (file, {isLocal = false} = {}) {
-                if (this.disabled)
+                if (!file || this.disabled || file.includes('voice'))
                     return;
                 try {
                     let audio = null;
@@ -190,7 +190,6 @@ define([], (function () {
                     audio.dispatchEvent(new Event('ended'));
                 }
             },
-
         }
     }
     return window.audio;

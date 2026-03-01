@@ -5,7 +5,7 @@
     z-index: -1;
     /*background-color: transparent;*/
     padding: 4px 12px;
-    width: 320px;
+    width: 330px;
     height: 152px;
     background: url('https://prd-game-a-granbluefantasy.akamaized.net/assets/img/sp/raid/footer_bg.png?1729002592') repeat-x;
     background-size: 3px;
@@ -22,19 +22,29 @@
     margin-left: 1px; /*복사된 다음 엘리먼트의 왼쪽 외각선 표시 방지*/
 }
 
+.panel-wrapper {
+    width: 240px;
+    height: 116px;
+    position: absolute;
+    top: 0;
+    left: 62px;
+}
+
 /* 오의 정보 ========================================================================================================== */
+#abilitySlider .other-move-info-button {
+    padding: 4.5px 3px;
+}
+
 .charge-attack-wrapper {
     position: absolute;
     top: 0;
-    left: 60px;
-    width: 230px;
+    right: 0;
+    width: 192px;
     height: 41px;
-
     padding: 3px;
     border-radius: 5px;
     overflow: hidden;
-
-    box-shadow: inset 0 0 6px 1px rgba(168,132,99,0.5);
+    box-shadow: inset 0 0 6px 1px rgba(168, 132, 99, 0.5);
     border: 1px solid #a88463;
     margin-bottom: 1px;
 }
@@ -48,16 +58,16 @@
 .ability-wrapper {
     position: absolute;
     top: 45px;
-    left: 60px;
+    left: 0;
     height: 66px;
-    width: 230px;
+    width: 100%;
 
     display: flex;
     padding: 3px 0;
     justify-content: space-evenly;
-    margin-bottom: 2px;
 
-    box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
+    margin-bottom: 2px;
+    box-shadow: inset 0 0 6px 1px rgba(99, 159, 168, 0.5);
     border: 1px solid #639fa8;
     border-radius: 5px;
     background: #150f0f;
@@ -99,12 +109,6 @@
     display: none;
 }
 
-.panel-wrapper {
-    width: 262px; /* battle-portriat 합쳐 100% */
-    position: absolute;
-    top: 0;
-}
-
 /* 상태 효과 아이콘 ====================================================================================================== */
 .status-container.party {
     position: absolute;
@@ -133,6 +137,10 @@
     width: 33px;
 }
 
+.show-status-info-button-wrapper.enemy button {
+    width: 100%;
+}
+
 .status-container.party .status {
     display: flex;
     align-items: center;
@@ -141,6 +149,14 @@
 .status-container.party .status .status-icon {
     display: inline-block;
     width: 22px;
+}
+
+/* 상태효과 - 메타데이터 */
+.status-container.ability,
+.status-container.summon,
+.status-container.support-ability,
+.status-container.charge-attack {
+    display: none;
 }
 
 

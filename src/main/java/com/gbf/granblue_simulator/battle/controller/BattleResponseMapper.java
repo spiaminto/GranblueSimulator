@@ -1,16 +1,22 @@
 package com.gbf.granblue_simulator.battle.controller;
 
+import com.gbf.granblue_simulator.battle.controller.dto.info.MoveInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.response.BattleResponse;
-import com.gbf.granblue_simulator.battle.controller.dto.response.OmenDto;
-import com.gbf.granblue_simulator.battle.controller.dto.response.StatusDto;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.battle.controller.dto.response.VisualInfo;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ForMemberAbilityInfo;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
+import com.gbf.granblue_simulator.battle.service.MoveService;
+import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
+import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -27,34 +33,20 @@ import java.util.stream.Stream;
 public class BattleResponseMapper {
 
     private final BattleContext battleContext;
+    private final MoveService moveService;
 
-    public List<BattleResponse> toBattleResponse(List<ActorLogicResult> results) {
+    public List<BattleResponse> toBattleResponse(List<MoveLogicResult> results) {
         results.forEach(result -> log.info("result = {}", result));
-        boolean containsUnionSummon = results.stream().filter(result -> result.getMove().getType() == MoveType.SUMMON_DEFAULT)
-                .count() > 1;
         List<Integer> estimatedEnemyAtk = getEstimatedEnemyAtk();
 
         return results.stream().map(result -> {
                     Actor mainActor = result.getMainActor();
-                    BaseMove move = result.getMove();
-                    String moveCjsName = move.getDefaultVisual() != null ? move.getDefaultVisual().getCjsName() : "";
+                    Move move = result.getMove();
+                    BaseMove baseMove = move.getBaseMove();
 
                     OmenResult omenResult = result.getOmenResult();
-                    OmenDto omenDto = null;
-                    if (omenResult != null) {
-                        omenDto = OmenDto.builder()
-                                .type(omenResult.getType())
-                                .standbyMoveType(omenResult.getStandbyMoveType())
-                                .remainValue(omenResult.getRemainValue())
-                                .cancelCondition(omenResult.getCancelCond().getInfo())
-                                .updateTiming(omenResult.getCancelCond().getType().getUpdateTiming())
-                                .name(omenResult.getName())
-                                .info(omenResult.getInfo())
-                                .motion(omenResult.getMotion())
-                                .build();
-                    }
 
-                    Map<Long, ActorLogicResult.Snapshot> snapshots = result.getSnapshots();
+                    Map<Long, MoveLogicResult.Snapshot> snapshots = result.getSnapshots();
                     Integer fatalChainGauge = null;
                     int enemyMaxChargeGauge = 0;
                     int attackMultiHitCount = 0;
@@ -62,29 +54,35 @@ public class BattleResponseMapper {
 
                     List<Integer> hps = new ArrayList<>(Collections.nCopies(5, null));
                     List<Integer> hpRates = new ArrayList<>(Collections.nCopies(5, null));
+                    List<Integer> barriers = new ArrayList<>(Collections.nCopies(5, null));
                     List<Integer> chargeGauges = new ArrayList<>(Collections.nCopies(5, null));
                     List<List<Integer>> abilityCoolDowns = Stream.generate(ArrayList<Integer>::new).limit(5).collect(Collectors.toList());
                     List<List<Boolean>> abilitySealeds = Stream.generate(ArrayList<Boolean>::new).limit(5).collect(Collectors.toList());
-                    List<List<StatusDto>> currentStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
-                    List<List<StatusDto>> addedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
-                    List<List<StatusDto>> removedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
-                    List<List<StatusDto>> levelDownedStatusEffectsList = Stream.generate(ArrayList<StatusDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusEffectDto>> currentStatusEffectsList = Stream.generate(ArrayList<StatusEffectDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusEffectDto>> addedStatusEffectsList = Stream.generate(ArrayList<StatusEffectDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusEffectDto>> removedStatusEffectsList = Stream.generate(ArrayList<StatusEffectDto>::new).limit(5).collect(Collectors.toList());
+                    List<List<StatusEffectDto>> levelDownedStatusEffectsList = Stream.generate(ArrayList<StatusEffectDto>::new).limit(5).collect(Collectors.toList());
                     List<Integer> heals = new ArrayList<>(Collections.nCopies(5, null));
                     List<Integer> effectDamages = new ArrayList<>(Collections.nCopies(5, null));
+                    List<Boolean> canChargeAttacks = new ArrayList<>(Collections.nCopies(5, false));
 
-                    for (Map.Entry<Long, ActorLogicResult.Snapshot> entry : snapshots.entrySet()) {
-                        ActorLogicResult.Snapshot snapshot = entry.getValue();
+                    for (Map.Entry<Long, MoveLogicResult.Snapshot> entry : snapshots.entrySet()) {
+                        MoveLogicResult.Snapshot snapshot = entry.getValue();
                         fatalChainGauge = snapshot.getFatalChainGauge(); // 스냅샷 모두 동일값
                         Integer currentOrder = snapshot.getCurrentOrder();
                         hps.set(currentOrder, snapshot.getHp() < 0 ? 0 : snapshot.getHp());
                         hpRates.set(currentOrder, snapshot.getHpRate() < 0 ? 0 : snapshot.getHpRate());
+                        barriers.set(currentOrder, snapshot.getBarrier());
                         chargeGauges.set(currentOrder, snapshot.getChargeGauge());
+                        canChargeAttacks.set(currentOrder, snapshot.getCanChargeAttack());
                         abilityCoolDowns.set(currentOrder, snapshot.getAbilityCooldowns());
                         abilitySealeds.set(currentOrder, snapshot.getAbilitySealeds());
-                        currentStatusEffectsList.set(currentOrder, snapshot.getCurrentStatusEffects().stream().map(StatusDto::of).toList());
-                        addedStatusEffectsList.set(currentOrder, snapshot.getAddedStatusEffects().stream().map(StatusDto::of).toList());
-                        removedStatusEffectsList.set(currentOrder, snapshot.getRemovedStatusEffects().stream().map(StatusDto::of).toList());
-                        levelDownedStatusEffectsList.set(currentOrder, snapshot.getLevelDownedStatusEffects().stream().map(StatusDto::of).toList());
+                        currentStatusEffectsList.set(currentOrder, snapshot.getCurrentStatusEffects());
+                        addedStatusEffectsList.set(currentOrder, snapshot.getAddedStatusEffects());
+                        levelDownedStatusEffectsList.set(currentOrder, snapshot.getLevelDownedStatusEffects());
+                        if (result.getMove().getType() != MoveType.TURN_FINISH) { // 턴 진행으로 사라진 효과는 제외
+                            removedStatusEffectsList.set(currentOrder, snapshot.getRemovedStatusEffects());
+                        }
                         heals.set(currentOrder, snapshot.getHeal());
                         effectDamages.set(currentOrder, snapshot.getEffectDamage());
 
@@ -99,7 +97,7 @@ public class BattleResponseMapper {
                             enemyMaxChargeGauge = snapshot.getMaxChargeGauge();
                         }
                     }
-                    
+
                     // 의미없는 null 제거
                     heals = heals.stream().allMatch(Objects::isNull) ? new ArrayList<>() : heals;
                     effectDamages = effectDamages.stream().allMatch(Objects::isNull) ? new ArrayList<>() : effectDamages;
@@ -107,8 +105,50 @@ public class BattleResponseMapper {
                     // 사망시 frontCharacter 에서 제거되어 snapshot 이 생성되지 않음
                     if (mainActorOrder == -1) mainActorOrder = mainActor.getCurrentOrder();
 
-                    Long unionSummonId = battleContext.getMember().getRoom().getUnionSummonId();
-                    boolean hasUnionSummon = containsUnionSummon && move.getType() == MoveType.SUMMON_DEFAULT;
+                    MoveInfo unionSummonInfo = null;
+                    if (move.getType() == MoveType.SYNC) {
+                        if (battleContext.getMember().getRoom().getUnionSummonId() != null) {
+                            unionSummonInfo = moveService.findById(battleContext.getMember().getRoom().getUnionSummonId())
+                                    .map(unionSummonMove -> {
+                                        if (unionSummonMove.getActor().getId().equals(battleContext.getLeaderCharacter().getId()))  return null; // 내 소환은 합체소환 불가
+                                        BaseMove unionSummonBaseMove = unionSummonMove.getBaseMove();
+                                        EffectVisual visual = unionSummonBaseMove.getDefaultVisual();
+                                        return MoveInfo.builder()
+                                                .cjsName(visual.getCjsName())
+                                                .type(unionSummonBaseMove.getType().name())
+                                                .name(unionSummonBaseMove.getName() + " (소환: " + unionSummonMove.getActor().getMember().getUser().getUsername() + ")")
+                                                .info(unionSummonBaseMove.getInfo())
+                                                .portraitImageSrc(visual.getPortraitImageSrc())
+                                                .cutinImageSrc(visual.getCutinImageSrc())
+                                                .statusEffects(unionSummonBaseMove.getBaseStatusEffects().stream()
+                                                        .filter(BaseStatusEffect::isDisplayable)
+                                                        .map(StatusEffectDto::of)
+                                                        .toList())
+                                                .build();
+                                    })
+                                    .orElse(null);
+                        }
+                    }
+
+                    VisualInfo visualInfo = null;
+                    EffectVisual moveVisual = move.getBaseMove().getDefaultVisual();
+                    // 기본 비주얼
+                    if (moveVisual != null) {
+                        visualInfo = VisualInfo.builder()
+                                .moveCjsName(moveVisual.getCjsName())
+                                .isTargetedEnemy(moveVisual.isTargetedEnemy())
+                                .build();
+                    }
+
+                    // 참전자 효과, 비주얼
+                    ForMemberAbilityInfo forMemberAbilityInfo = result.getForMemberAbilityInfo();
+                    if (result.getMove().getType() == MoveType.SYNC && forMemberAbilityInfo != null) {
+                        visualInfo = VisualInfo.builder()
+                                .moveCjsName(forMemberAbilityInfo.getCjsName())
+                                .isTargetedEnemy(forMemberAbilityInfo.getIsTargetedEnemy())
+                                .build();
+                    }
+
 
                     return BattleResponse.builder()
                             // actor
@@ -117,11 +157,10 @@ public class BattleResponseMapper {
 
                             // move
                             .moveId(move.getId())
-                            .moveName(move.getName())
+                            .moveName(baseMove.getName())
                             .moveType(move.getType())
-                            .motion(move.getMotionType().getMotion())
-                            .isAllTarget(move.isAllTarget())
-                            .moveCjsName(moveCjsName)
+                            .motion(baseMove.getMotionType().getMotion())
+                            .isAllTarget(baseMove.isAllTarget())
 
                             // damageResult
                             .damages(result.getDamages().stream().map(damage -> damage != -1 ? damage + "" : "MISS").toList()) // 회피시 -1, 데미지 감소시 0, 나머지 음수는 오류이나 표출
@@ -129,19 +168,24 @@ public class BattleResponseMapper {
                             .elementTypes(result.getDamageElementTypes())
                             .damageTypes(result.getDamageTypes())
                             .totalHitCount(result.getTotalHitCount())
+                            .normalAttackCount(result.getNormalAttackCount())
                             // damageResult from snapshot
                             .attackMultiHitCount(attackMultiHitCount)
 
                             .enemyAttackTargetIds(result.getEnemyAttackTargets().stream().map(Actor::getId).toList())
 
                             // omen
-                            .omen(omenDto)
+                            .omen(omenResult)
+
+                            .forMemberAbilityInfo(forMemberAbilityInfo)
 
                             // snapshot
                             .actorOrder(mainActorOrder)
                             .hps(hps)
                             .hpRates(hpRates)
+                            .barriers(barriers)
                             .chargeGauges(chargeGauges)
+                            .canChargeAttacks(canChargeAttacks)
                             .fatalChainGauge(fatalChainGauge)
                             .enemyMaxChargeGauge(enemyMaxChargeGauge)
                             .abilityCoolDowns(abilityCoolDowns)
@@ -154,40 +198,23 @@ public class BattleResponseMapper {
                             .heals(heals)
                             .effectDamages(effectDamages)
 
+                            // visual
+                            .visualInfo(visualInfo)
+
                             //honor
                             .resultHonor(result.getHonor())
 
                             // etc
                             .summonCooldowns(result.getSummonCooldowns())
-                            .hasUnionSummon(hasUnionSummon)
-                            .unionSummonId(unionSummonId)
-                            .isUnionSummon(result.isUnionSummon())
                             .estimatedEnemyAtk(estimatedEnemyAtk)
+                            .isEnemyFormChange(result.isEnemyFormChange())
+                            .unionSummonInfo(unionSummonInfo)
+                            .forMemberAbilityInfo(forMemberAbilityInfo)
 
                             .build();
                 }
         ).toList();
 
-    }
-
-    public List<List<StatusDto>> toStatusEffectDtosList(List<List<ResultStatusEffectDto>> statusEffectDtosList) {
-        return statusEffectDtosList.stream()
-                .map(statusEffects ->
-                        statusEffects.isEmpty() ? new ArrayList<StatusDto>() : statusEffects.stream()
-                                .map(statusEffect ->
-                                        StatusDto.builder()
-                                                .type(statusEffect.getStatusEffectType().name())
-                                                .name(statusEffect.getName())
-                                                .imageSrc(statusEffect.getIconSrc())
-                                                .effectText(statusEffect.getEffectText())
-                                                .statusText(statusEffect.getStatusText())
-                                                .displayPriority(statusEffect.getDisplayPriority())
-                                                .durationType(statusEffect.getDurationType())
-                                                .duration(statusEffect.getDuration())
-                                                .remainingDuration(statusEffect.getRemainingDuration())
-                                                .build()
-                                ).toList()
-                ).toList();
     }
 
     /**

@@ -1,7 +1,7 @@
 package com.gbf.granblue_simulator.battle.repository;
 
 import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.user.User;
+import com.gbf.granblue_simulator.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

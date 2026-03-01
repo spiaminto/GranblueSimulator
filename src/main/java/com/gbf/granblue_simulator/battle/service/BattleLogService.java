@@ -2,15 +2,15 @@ package com.gbf.granblue_simulator.battle.service;
 
 import com.gbf.granblue_simulator.battle.domain.BattleLog;
 import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.repository.BattleLogRepository;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +31,7 @@ public class BattleLogService {
 
     private final BattleLogRepository battleLogRepository;
     private final BattleContext battleContext;
+    private final Gson gson;
 
 
     /**
@@ -69,7 +70,7 @@ public class BattleLogService {
         return totalDamageSum;
     }
 
-    public int getEnemyTakenDamageSumByMember(Member member, Actor enemy) {
+    public int getEnemyTakenDamageSumByMember(Member member) {
         List<BattleLog> battleLogs = battleLogRepository.findByRoomIdAndUserIdAndEnemyActorBaseIdNotNull(member.getRoom().getId(), member.getUser().getId());
 
         // 데미지 합
@@ -94,14 +95,15 @@ public class BattleLogService {
         return totalDamageSum;
     }
 
-    public void saveBattleLogAll(List<ActorLogicResult> results) {
+    public void saveBattleLogAll(List<MoveLogicResult> results) {
         results.forEach(this::saveBattleLog);
     }
 
     @SneakyThrows
-    public void saveBattleLog(ActorLogicResult logicResult) {
-        BaseMove resultMove = logicResult.getMove();
-        if (resultMove.getType().isNone()) return;
+    public void saveBattleLog(MoveLogicResult logicResult) {
+        Move resultMove = logicResult.getMove();
+        BaseMove baseMove = resultMove.getBaseMove();
+        if (baseMove.getType().isNone()) return;
 
         Actor mainActor = logicResult.getMainActor();
 
@@ -123,11 +125,11 @@ public class BattleLogService {
                         .toArray())
                 .toArray(int[][]::new);
 
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        // CHECK 나중에 용량 최적화 해야할수있음 key 이름 단축, bytea 압축, key 당 actorOrder 기반 array 로 저장 등의 방법 고려
         List<String> statuses = new ArrayList<>();
         List<String> statusDetails = new ArrayList<>();
         List<String> damageStatusDetails = new ArrayList<>();
-        Map<Long, ActorLogicResult.Snapshot> snapshots = logicResult.getSnapshots();
+        Map<Long, MoveLogicResult.Snapshot> snapshots = logicResult.getSnapshots();
         snapshots.forEach((id, snapshot) -> {
             statuses.add(gson.toJson(snapshot.getStatus()));
             statusDetails.add(gson.toJson(snapshot.getStatusDetails()));
@@ -156,5 +158,5 @@ public class BattleLogService {
                 .build());
 
     }
-
+    
 }

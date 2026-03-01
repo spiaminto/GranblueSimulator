@@ -11,17 +11,29 @@ public class MoveInsertRequest {
     private String name;
     private String info;
     private Double damageRate;
+    private String logicId;
 
     // ability
     private String type;
+    private String abilityType;
     private Integer hitCount;
     private Integer coolDown;
-    private String hasMotion;
-    private String hasSupportAbilityEffect;
+    private Long defaultVisualId;
+    private String motionType;
+    private String conditionTrackerString;
+    private String triggerType;
+    private String triggerPhase;
 
     // summon
-    private String cjsName;
+    private String summonCjsName;
     private String elementType;
+
+    // visual
+    private String visualType;
+    private Long actorVisualId;
+    private String cjsName;
+    private int chargeAttackStartFrame;
+    private String isTargetedEnemy;
 
     private List<MoveStatus> statuses;
 
@@ -37,6 +49,8 @@ public class MoveInsertRequest {
         private Integer duration;
         private String removable;
         private String isResistible;
+        private String isUniqueFrame;
+        private String conditionalModifier;
         private Integer applyOrder;
         private String gid;
 

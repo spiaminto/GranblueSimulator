@@ -10,7 +10,6 @@ class MoveResponse {
         this.moveType = MoveType.byName(data.moveType);
         this.moveName = data.moveName;
         this.motion = data.motion || 'none';
-        this.moveCjsName = data.moveCjsName;
 
         this.allTarget = data.isAllTarget ?? false;
 
@@ -21,8 +20,9 @@ class MoveResponse {
         this.elementTypes = data.elementTypes || [];
         this.damageTypes = data.damageTypes || [];
         this.attackMultiHitCount = data.attackMultiHitCount;
+        this.normalAttackCount = data.normalAttackCount;
 
-        this.enemyAttackTargetOrders = data.enemyAttackTargetIds.map(id => stage.gGameStatus.actorIds.indexOf(id + ''));
+        this.enemyAttackTargetOrders = data.enemyAttackTargetIds.map(id => gameStateManager.getState('actorIds').indexOf(id));
 
 
         // status result [적][아군][아군][아군][아군]
@@ -37,28 +37,37 @@ class MoveResponse {
         this.effectDamages = data.effectDamages || [];
 
         // omen
-        this.omen = new OmenDto(data.omen || {});
+        this.omen = data.omen !== null ? new OmenDto(data.omen) : OmenDto.empty();
 
         // snapshot
         this.hps = data.hps || [];
         this.hpRates = data.hpRates || [];
+        this.barriers = data.barriers || [];
         this.chargeGauges = data.chargeGauges || [];
+        this.canChargeAttacks = data.canChargeAttacks || [];
         this.fatalChainGauge = data.fatalChainGauge ?? 0;
         this.enemyMaxChargeGauge = data.enemyMaxChargeGauge ?? 0;
         this.abilityCoolDowns = data.abilityCoolDowns || [];
         this.abilitySealeds = data.abilitySealeds || [];
         this.abilityUseCounts = data.abilityUseCounts || [];
-        this.currentStatusEffectsList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type !== 'PASSIVE').map(s => new StatusDto(s)));
+        this.currentStatusEffectsList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type === 'BUFF' || s.type === 'DEBUFF').map(s => new StatusDto(s)));
+
+        // visual
+        this.visualInfo = data.visualInfo !== null ? new VisualInfo(data.visualInfo) : null;
 
         // honor
         this.resultHonor = data.resultHonor ?? 0;
 
         // etc
         this.summonCooldowns = data.summonCooldowns || [];
-        this.unionSummonId = data.unionSummonId ?? null;
-        this.isUnionSummon = data.isUnionSummon ?? false;
-        this.hasUnionSummon = data.hasUnionSummon ?? false;
         this.enemyEstimatedAtk = data.estimatedEnemyAtk || [];
+        this.isEnemyFormChange = data.isEnemyFormChange ?? false;
+        this.unionSummonInfo = data.unionSummonInfo !== null ? new MoveInfo(data.unionSummonInfo) : null;
+        this.forMemberAbilityInfo = data.forMemberAbilityInfo !== null ? {
+            sourceUsername: data.forMemberAbilityInfo.sourceUsername,
+            moveName: data.forMemberAbilityInfo.moveName,
+        } : null;
+
     }
 
     print() {
@@ -71,11 +80,18 @@ function parseMoveResponseList(jsonArray) {
     return jsonArray.map(item => new MoveResponse(item));
 }
 
+class VisualInfo{
+    constructor({moveCjsName, isTargetedEnemy}) {
+        this.moveCjsName = moveCjsName;
+        this.isTargetedEnemy = !!isTargetedEnemy;
+    }
+}
+
 class StatusDto {
     constructor({
                     type,
                     name,
-                    imageSrc,
+                    iconSrc,
                     effectText,
                     statusText,
                     duration,
@@ -84,7 +100,7 @@ class StatusDto {
                 }, removed = false) {
         this.type = type;
         this.name = name;
-        this.imageSrc = imageSrc;
+        this.iconSrc = iconSrc || '';
         this.effectText = effectText;
         this.statusText = statusText;
         this.durationType = durationType;
@@ -98,15 +114,33 @@ class StatusDto {
 }
 
 class OmenDto {
-    constructor({type, remainValue, cancelCondition, name, info, motion, updateTiming, standbyMoveType}) {
-        this.type = OmenType.byName(type);
-        this.remainValue = remainValue;
-        this.cancelCondition = cancelCondition;
-        this.updateTiming = updateTiming;
+    constructor({type, name, omenInfo, motion, chargeAttackInfo, standbyMoveType, omenBreak, omenCancelCond}) {
         this.name = name;
-        this.info = info;
+        this.info = omenInfo;
+        this.chargeAttackInfo = chargeAttackInfo;
+        this.type = OmenType.byName(type);
         this.motion = motion;
-        this.standbyMoveType = MoveType.byName(standbyMoveType);
+        this.isBreak = omenBreak;
+        this.cancelConditions = (omenCancelCond || []).map(c => new OmenCancelCondition(c));
+        this.standbyMoveType = MoveType.byName(standbyMoveType); // updateBgm 에서 사용
+    }
+
+    static empty() {
+        return new OmenDto({type: 'NONE', name: '', info: '', motion: null, standbyMoveType: null, isBreak: false, omenCancelCond: []});
+    }
+
+    isEmpty() {
+        return this.type === OmenType.NONE;
+    }
+}
+
+class OmenCancelCondition {
+    constructor({index, remainValue, info, updateTiming, cancelType}) {
+        this.index = index;
+        this.remainValue = remainValue;
+        this.info = info;
+        this.updateTiming = updateTiming;
+        this.cancelType = cancelType;
     }
 }
 
@@ -120,11 +154,16 @@ class MoveInfo {
                     actorId,
                     actorIndex,
                     info,
-                    coolDown,
-                    iconSrc,
-                    portraitSrc,
+                    cooldown,
+                    maxCooldown,
+                    iconImageSrc,
+                    portraitImageSrc,
+                    cutinImageSrc,
                     count,
-                    additionalType // 추가타입 (포션타입, 어빌리티 타입)
+                    additionalType, // 추가타입 (포션타입, 어빌리티 타입)
+                    cjsName,
+                    statusEffects,
+                    sealed,
                 }) {
         this.type = type || '';
         this.id = Number(id) || -1;
@@ -133,17 +172,29 @@ class MoveInfo {
         this.actorId = Number(actorId) || -1;
         this.actorIndex = actorIndex || '';
         this.info = info || '';
-        this.coolDown = Number(coolDown) || -1;
-        this.iconSrc = iconSrc;
-        this.portraitSrc = portraitSrc;
-        this.count = Number(count) || -1;
+        this.cooldown = cooldown !== null ? Number(cooldown) : -999; // 0, -1(재사용불가) 가능
+        this.maxCooldown = maxCooldown !== null  ? Number(maxCooldown) : -999; // 0, -1(재사용불가) 가능
+        this.iconImageSrc = iconImageSrc;
+        this.portraitImageSrc = portraitImageSrc;
+        this.cutinImageSrc = cutinImageSrc;
+        this.sealed = sealed;
+        // this.count = Number(count) || -1;
         this.additionalType = additionalType || '';
+        this.cjsName = cjsName || '';
+        this.statusEffects = (statusEffects || []).map(s => new StatusDto(s));
     }
 }
 
 /* 상수 ================================================================================================================ */
 
 const Constants = {
+
+    // 15
+    defaultMortalStartFrame: 15,
+    // 31
+    defaultCjsInterval: 31,
+    // framerate = 32.2580...
+    // createjs.Ticker.framerate = 30.303030303030305; // interval 33
 
     enemy: {
         // key: cjsName (stage.gGameStatus.enemyMainCjsName)
@@ -170,16 +221,16 @@ const Constants = {
         }
     },
 
-    summon: {
-        // id
-        69: {
-            name: '제우스',
-            info: '적에게 2배 빛속성 데미지 2회, 공격력 다운, 방어력 다운, 아군 전체의 오의 게이지 상승량 증가',
-            cjs: 'summon_2040080000_02',
-            portraitSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/raid_normal/2040080000_03.jpg',
-            cutinSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/cutin/2040080000_03.jpg',
-        }
-    },
+    // summon: {
+    //     // id
+    //     summon_2040080000_02: {
+    //         name: '제우스',
+    //         info: '적에게 2배 빛속성 데미지 2회, 공격력 다운, 방어력 다운, 아군 전체의 오의 게이지 상승량 증가',
+    //         cjs: 'summon_2040080000_02',
+    //         portraitSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/raid_normal/2040080000_03.jpg',
+    //         cutinSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/cutin/2040080000_03.jpg',
+    //     }
+    // },
 
     Delay: {
         // 1200 데미지표시 ~ 데미지 삭제까지 딜레이 (데미지 표시시간 최대치)
@@ -197,24 +248,6 @@ Object.freeze(Constants);
 /* MoveType ========================================================================================================== */
 const MoveType = {
     ROOT: {name: 'ROOT', parentType: null, className: 'root'},
-    IDLE: {name: 'IDLE', parentType: 'ROOT', className: 'idle'},
-    IDLE_DEFAULT: {name: 'IDLE_DEFAULT', parentType: 'IDLE', className: 'idle-default'},
-    IDLE_A: {name: 'IDLE_A', parentType: 'IDLE', className: 'idle-a'},
-    IDLE_B: {name: 'IDLE_B', parentType: 'IDLE', className: 'idle-b'},
-    IDLE_C: {name: 'IDLE_C', parentType: 'IDLE', className: 'idle-c'},
-    IDLE_D: {name: 'IDLE_D', parentType: 'IDLE', className: 'idle-d'},
-    IDLE_E: {name: 'IDLE_E', parentType: 'IDLE', className: 'idle-e'},
-    IDLE_F: {name: 'IDLE_F', parentType: 'IDLE', className: 'idle-f'},
-    IDLE_G: {name: 'IDLE_G', parentType: 'IDLE', className: 'idle-g'},
-    DAMAGED: {name: 'DAMAGED', parentType: 'ROOT', className: 'damaged'},
-    DAMAGED_DEFAULT: {name: 'DAMAGED_DEFAULT', parentType: 'DAMAGED', className: 'damaged-default'},
-    DAMAGED_A: {name: 'DAMAGED_A', parentType: 'DAMAGED', className: 'damaged-a'},
-    DAMAGED_B: {name: 'DAMAGED_B', parentType: 'DAMAGED', className: 'damaged-b'},
-    DAMAGED_C: {name: 'DAMAGED_C', parentType: 'DAMAGED', className: 'damaged-c'},
-    DAMAGED_D: {name: 'DAMAGED_D', parentType: 'DAMAGED', className: 'damaged-d'},
-    DAMAGED_E: {name: 'DAMAGED_E', parentType: 'DAMAGED', className: 'damaged-e'},
-    DAMAGED_F: {name: 'DAMAGED_F', parentType: 'DAMAGED', className: 'damaged-f'},
-    DAMAGED_G: {name: 'DAMAGED_G', parentType: 'DAMAGED', className: 'damaged-g'},
     STANDBY: {name: 'STANDBY', parentType: 'ROOT', className: 'standby'},
     STANDBY_A: {name: 'STANDBY_A', parentType: 'STANDBY', className: 'standby-a'},
     STANDBY_B: {name: 'STANDBY_B', parentType: 'STANDBY', className: 'standby-b'},
@@ -223,24 +256,15 @@ const MoveType = {
     STANDBY_E: {name: 'STANDBY_E', parentType: 'STANDBY', className: 'standby-e'},
     STANDBY_F: {name: 'STANDBY_F', parentType: 'STANDBY', className: 'standby-f'},
     STANDBY_G: {name: 'STANDBY_G', parentType: 'STANDBY', className: 'standby-g'},
-    BREAK: {name: 'BREAK', parentType: 'ROOT', className: 'break'},
-    BREAK_A: {name: 'BREAK_A', parentType: 'BREAK', className: 'break-a'},
-    BREAK_B: {name: 'BREAK_B', parentType: 'BREAK', className: 'break-b'},
-    BREAK_C: {name: 'BREAK_C', parentType: 'BREAK', className: 'break-c'},
-    BREAK_D: {name: 'BREAK_D', parentType: 'BREAK', className: 'break-d'},
-    BREAK_E: {name: 'BREAK_E', parentType: 'BREAK', className: 'break-e'},
-    BREAK_F: {name: 'BREAK_F', parentType: 'BREAK', className: 'break-f'},
-    BREAK_G: {name: 'BREAK_G', parentType: 'BREAK', className: 'break-g'},
     ATTACK: {name: 'ATTACK', parentType: 'ROOT', className: 'attack'},
-    SINGLE_ATTACK: {name: 'SINGLE_ATTACK', parentType: 'ATTACK', className: 'single-attack', attackCount: 1},
-    DOUBLE_ATTACK: {name: 'DOUBLE_ATTACK', parentType: 'ATTACK', className: 'double-attack', attackCount: 2},
-    TRIPLE_ATTACK: {name: 'TRIPLE_ATTACK', parentType: 'ATTACK', className: 'triple-attack', attackCount: 3},
-    QUADRUPLE_ATTACK: {name: 'QUADRUPLE_ATTACK', parentType: 'ATTACK', className: 'quadruple-attack', attackCount: 4},
+    NORMAL_ATTACK: {name: 'NORMAL_ATTACK', parentType: 'ATTACK', className: 'normal_attack'},
     ABILITY: {name: 'ABILITY', parentType: 'ROOT', className: 'ability'},
     FIRST_ABILITY: {name: 'FIRST_ABILITY', parentType: 'ABILITY', className: 'first-ability'},
     SECOND_ABILITY: {name: 'SECOND_ABILITY', parentType: 'ABILITY', className: 'second-ability'},
     THIRD_ABILITY: {name: 'THIRD_ABILITY', parentType: 'ABILITY', className: 'third-ability'},
+    FOURTH_ABILITY: {name: 'FOURTH_ABILITY', parentType: 'ABILITY', className: 'fourth-ability'},
     SUPPORT_ABILITY: {name: 'SUPPORT_ABILITY', parentType: 'ROOT', className: 'support-ability'},
+    TRIGGERED_ABILITY: {name: 'TRIGGERED_ABILITY', parentType: 'SUPPORT_ABILITY', className: 'triggered-ability'},
     FIRST_SUPPORT_ABILITY: {
         name: 'FIRST_SUPPORT_ABILITY',
         parentType: 'SUPPORT_ABILITY',
@@ -305,12 +329,13 @@ const MoveType = {
     CHARGE_ATTACK_F: {name: 'CHARGE_ATTACK_F', parentType: 'CHARGE_ATTACK', className: 'charge-attack-f'},
     CHARGE_ATTACK_G: {name: 'CHARGE_ATTACK_G', parentType: 'CHARGE_ATTACK', className: 'charge-attack-g'},
 
-    FORM_CHANGE: {name: 'FORM_CHANGE', parentType: 'ROOT', className: 'form-change'},
-    FORM_CHANGE_DEFAULT: {name: 'FORM_CHANGE_DEFAULT', parentType: 'FORM_CHANGE', className: 'form-change-default'},
-    FORM_CHANGE_ENTRY: {name: 'FORM_CHANGE_ENTRY', parentType: 'FORM_CHANGE', className: 'form-change-entry'},
-
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
-    SUMMON_DEFAULT: {name: 'SUMMON_DEFAULT', parentType: 'SUMMON', className: 'summon'},
+    SUMMON_DEFAULT: {name: 'SUMMON_DEFAULT', parentType: 'SUMMON', className: 'summon-default'},
+    FIRST_SUMMON: {name: 'FIRST_SUMMON', parentType: 'SUMMON', className: 'first-summon'},
+    SECOND_SUMMON: {name: 'SECOND_SUMMON', parentType: 'SUMMON', className: 'second-summon'},
+    THIRD_SUMMON: {name: 'THIRD_SUMMON', parentType: 'SUMMON', className: 'third-summon'},
+    FOURTH_SUMMON: {name: 'FOURTH_SUMMON', parentType: 'SUMMON', className: 'fourth-summon'},
+    UNION_SUMMON: {name: 'UNION_SUMMON', parentType: 'SUMMON', className: 'union-summon'},
 
     DEAD: {name: 'DEAD', parentType: 'ROOT', className: 'dead'},
     DEAD_DEFAULT: {name: 'DEAD_DEFAULT', parentType: 'DEAD', className: 'dead'},
@@ -353,6 +378,7 @@ Object.values(MoveType).forEach(moveType => { // 부모타입 반환 getParentTy
     }
 });
 Object.freeze(MoveType);
+
 
 /*
 

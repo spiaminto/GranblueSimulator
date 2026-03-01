@@ -1,16 +1,17 @@
 package com.gbf.granblue_simulator.metadata.domain.move;
 
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.omen.Omen;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Type;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Entity
 @Builder
@@ -25,18 +26,29 @@ public class BaseMove {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_id")
-    private BaseActor baseActor;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private MoveType type = MoveType.NONE;
 
     @Enumerated(EnumType.STRING)
-    private MoveType type;
+    @Builder.Default
+    private TriggerType triggerType = TriggerType.NONE;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TriggerPhase triggerPhase = TriggerPhase.NONE;
 
     @Enumerated(EnumType.STRING)
     private AbilityType abilityType;
 
     @Enumerated(EnumType.STRING)
-    private MotionType motionType;
+    @Builder.Default
+    private MotionType motionType = MotionType.NONE;
+
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<TrackingCondition, Object> conditionTracker = new HashMap<>();
 
     @OneToMany(mappedBy = "move")
     @Builder.Default
@@ -44,19 +56,16 @@ public class BaseMove {
     @ToString.Exclude
     private List<BaseStatusEffect> baseStatusEffects = new ArrayList<>();
 
-    @OneToOne(mappedBy = "move")
-    @EqualsAndHashCode.Exclude
-    @ToString.Exclude
-    private Omen omen;
-
-    @OneToOne @JoinColumn(name = "default_visual_id")
-    private EffectVisual defaultVisual;
+    @OneToOne
+    @JoinColumn(name = "default_visual_id")
+    private EffectVisual defaultVisual; // 이펙트가 있는 어빌리티, 고유 이펙트가 있는 캐릭터 오의 에서 사용
 
     private String name; // 외부에 보여줄 값, 필요한경우만 설정 (nullable)
     private String info;
 
     @Enumerated(EnumType.STRING)
     private ElementType elementType;
+
     private double damageRate;
     private int damageConstant;
 
@@ -66,32 +75,54 @@ public class BaseMove {
     // 어빌리티
     private int coolDown; // 쿨타임
 
-    // 랜덤 스테이터스 효과 부여시 사용
-    private int randomStatusCount;
-
     // 오의
     @Accessors(fluent = true)
     private boolean isAllTarget; // 적 전체 대상 공격인지 (보스용)
 
-    // set character
-    public void setCharacter(BaseActor baseActor) {
-        this.baseActor = baseActor;
-    }
+    private String logicId;
+
+    /*
+    // CHECK DB 컬럼은 유지중
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id")
+    @ToString.Exclude
+    private BaseActor baseActor;
+     */
 
     public MoveType getParentType() {
         return this.type.getParentType();
     }
 
+    /**
+     * applyOrder 를 key 로 하는 맵 반환, 일반적으로 조건에 따라 적용되는 효과가 다를시 사용
+     */
+    public Map<Integer, List<BaseStatusEffect>> getEffectsGroupByApplyOrder() {
+        return this.baseStatusEffects.stream().collect(Collectors.groupingBy(BaseStatusEffect::getApplyOrder)); // value 는 mutable list
+    }
+
+    /**
+     * applyOrder + id 로 정렬하여 반환
+     */
+    public List<BaseStatusEffect> getOrderedBaseStatusEffects() {
+        return this.baseStatusEffects.stream()
+                .filter(baseStatusEffect -> baseStatusEffect.getType() != StatusEffectType.PASSIVE)
+                .sorted(Comparator.comparing(BaseStatusEffect::getApplyOrder).thenComparing(BaseStatusEffect::getId))
+                .toList();
+    }
+
     // 아이콘 이미지
     public String getIconImageSrc() {
         String ext = ".png";
-        if (this.type == MoveType.SUMMON_DEFAULT) {
+        if (this.type == MoveType.SUMMON) {
             return "/static/gbf/img/ab/summon-" + this.elementType.name().toLowerCase() + ext;
         }
         if (this.type == MoveType.FATAL_CHAIN_DEFAULT) {
             return "/static/gbf/img/ab/fc-" + this.elementType.name().toLowerCase() + ext;
         }
-        return "/static/gbf/img/ab/" + this.id + ext;
+        if (this.type == MoveType.ABILITY) {
+            return "/static/gbf/img/ab/" + this.id + ext;
+        }
+        return ""; // 나머지는 비워서 반환
     }
 
     /**
@@ -104,29 +135,15 @@ public class BaseMove {
      * @return
      */
     public static BaseMove getTransientMove(MoveType type) {
-        return getTransientMove(type, null, null);
-    }
-
-    /**
-     * referenceMove 의 정보로 transientMove 생성 및 반환 <br>
-     * 사용중: <br>
-     * SYNC (참전자 상태효과 적용)
-     * <br>
-     * CHECK Move 에서 null 나오면 확인
-     *
-     * @return
-     */
-    public static BaseMove getTransientMove(MoveType type, String moveName, EffectVisual effectVisual) {
         MotionType motionType = type == MoveType.STRIKE_SEALED ? MotionType.DAMAGE : MotionType.NONE; // 임시구현
-        String name = moveName != null ? moveName : "";
         return BaseMove.builder()
-                .name(name)
-                .defaultVisual(effectVisual)
+                .name(type.name())
+                .defaultVisual(null)
                 .type(type)
                 .baseStatusEffects(new ArrayList<>())
                 .motionType(motionType)
-                .omen(Omen.builder().build())
                 .build();
     }
+
 
 }

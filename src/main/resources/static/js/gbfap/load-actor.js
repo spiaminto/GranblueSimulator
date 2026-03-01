@@ -21,7 +21,6 @@ function initAsset() {
             isEnemy: assetInfo.isEnemy,
             isChargeAttackSkip: assetInfo.isChargeAttackSkip,
             currentOrder: assetInfo.actorOrder,
-            startMotion: Player.c_animations.WAIT, // 사실상 무쓸모
         })
     );
     let firstCharacterAsset = actorAssets.find(asset => !asset.isEnemy);
@@ -33,46 +32,18 @@ function initAsset() {
     actorAssets.push(
         new Animation("global", {
             cjs: globalActorParam.cjs, // animation to play
-            specials: ["raid_mortal_skip"], // charge attacks
-            abilities: {
-                BUFF: { // abilityType
-                    cjs: 'raid_effect_buff',
-                    isTargetedEnemy: true
-                },
-                DEBUFF: {
-                    cjs: 'raid_effect_debuff',
-                    isTargetedEnemy: true
-                },
-                HEAL: {
-                    cjs: 'raid_effect_heal',
-                    isTargetedEnemy: false,
-                },
-                AB_START: {
-                    cjs: 'ab_start',
-                    isTargetedEnemy: true,
-                },
-                UNION_SUMMON: {
-                    cjs: 'raid_union_summon',
-                    isTargetedEnemy: false
-                },
-                BUFF_FOR_ALL: {
-                    cjs: 'summon_2040216000_01_damage',
-                    isTargetedEnemy: false
-                },
-                QUEST_CLEAR: {
-                    cjs: 'quest_clear',
-                    isTargetedEnemy: false
-                },
-                QUEST_FAILED: {
-                    cjs: 'quest_failed',
-                    isTargetedEnemy: false
-                },
+            specials: [{cjs: "raid_mortal_skip"}], // charge attacks
+            abilities: {},
+            windowEffects: {
+                // playByCjsName 에서 사용 [테스트 중]
+                /*
+                cjsName : {options...}
+                */
             },
             weapon: globalActorParam.weapon,
             isLeaderCharacter: globalActorParam.isLeaderCharacter,
             currentOrder: 5,
             summons: [],
-            demoMotions: ["stbwait"], // animation playlist under the Demo action
             isEnemy: false
         }))
     console.log(`[loadActor] initAsset actorAssets = `, actorAssets);

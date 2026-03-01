@@ -1,16 +1,16 @@
 package com.gbf.granblue_simulator.web;
 
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.exception.ChatException;
 import com.gbf.granblue_simulator.battle.exception.DamageValidationException;
+import com.gbf.granblue_simulator.battle.exception.MoveProcessingException;
 import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.TransactionException;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.ModelAndView;
@@ -86,6 +86,13 @@ public class ControllerAdvice {
         return ResponseEntity.internalServerError().body(body);
     }
 
+    @ExceptionHandler(ChatException.class)
+    public ResponseEntity<Map<String, Object>> handleChatException(ChatException e) {
+        log.error("[handleChatException] message= {}", e.getMessage());
+        log.error("[handleChatException] member = {}", battleContext.getMember());
+        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage(), "code", e.getCode()));
+    }
+
     @ExceptionHandler(MoveValidationException.class)
     public ResponseEntity<Map<String, Object>> handleMoveValidationException(MoveValidationException e) {
         log.error("[handleMoveValidationException] isConditionFailed = {}, message={}", e.isConditionFailed(), e.getMessage());
@@ -93,6 +100,14 @@ public class ControllerAdvice {
         battleContext.print();
         return ResponseEntity.badRequest()
                 .body(Map.of("message", e.getMessage(), "code", code));
+    }
+
+    @ExceptionHandler(MoveProcessingException.class)
+    public ResponseEntity<Map<String, Object>> handleMoveProcessingException(MoveProcessingException e) {
+        log.error("[handleMoveProcessingException] message={}, code = {}", e.getMessage(), e.getCode());
+        battleContext.print();
+        return ResponseEntity.badRequest()
+                .body(Map.of("message", e.getMessage(), "code", e.getCode()));
     }
 
     @ExceptionHandler(DamageValidationException.class)

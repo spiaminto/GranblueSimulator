@@ -22,9 +22,9 @@ public class OmenCancelCond {
     private Integer initValue; // 해제 조건 초기값
 
     @ManyToOne @JoinColumn(name = "omen_id")
-    private Omen omen;
+    private BaseOmen omen;
 
-    public void setOmen(Omen omen) {
+    public void setOmen(BaseOmen omen) {
         this.omen = omen;
         omen.getOmenCancelConds().add(this);
     }

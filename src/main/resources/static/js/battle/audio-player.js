@@ -117,7 +117,7 @@ class AudioPlayer {
      * 추가 사운드를 재생
      */
     playAdditionalSound(cjsName = null, motion = null, moveType = null) {
-        console.debug('[playAdditionalSound] actorName = ', cjsName, ' moveType = ', moveType, ' motion = ', motion);
+        // console.debug('[playAdditionalSound] actorName = ', cjsName, ' moveType = ', moveType, ' motion = ', motion);
         if (!Sounds[cjsName]) return;
         let additionalSound = Sounds[cjsName].additional;
         if (!additionalSound) return;
@@ -126,7 +126,7 @@ class AudioPlayer {
         let soundByMoveType = additionalSound[moveType?.name]?.src;
         let soundByMoveTypeParent = additionalSound[moveType?.getParentType()?.name]?.src;
 
-        console.log('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
+        console.debug('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
         [soundByMotion, soundByMoveType, soundByMoveTypeParent].forEach(src => window.audio.play(src, {isLocal: true}));
         // this.loadSounds([soundByMotion, soundByMoveType, soundByMoveTypeParent]).then(() => {
         //     this.playAllSounds();
@@ -150,7 +150,7 @@ const Sounds = { // key = mainCjs.name
             100: {src: bgmSrc + 'diaspora-0.mp3', index: 0, formOrder: 1},
             90: {src: bgmSrc + 'diaspora-5.mp3', index: 1, formOrder: 1},
             75: {src: bgmSrc + 'diaspora-6.mp3', index: 2, formOrder: 1},
-            'STANDBY_D': {src: bgmSrc + 'diaspora-7.mp3', index: 3, formOrder: 1},
+            'STANDBY_C': {src: bgmSrc + 'diaspora-7.mp3', index: 3, formOrder: 1},
         }
 
     },

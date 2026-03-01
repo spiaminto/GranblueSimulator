@@ -1,10 +1,16 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Entity
 @Builder
@@ -33,6 +39,7 @@ public class Status {
     @EqualsAndHashCode.Exclude
     private DamageStatusDetails damageStatusDetails;
 
+
     // 공격
     private int atk;
 
@@ -44,6 +51,10 @@ public class Status {
 
     // 현재 체력
     private int hp;
+
+    // 베리어
+    private int maxBarrier;
+    private int barrier;
 
     private double doubleAttackRate;
     private double tripleAttackRate;
@@ -67,7 +78,7 @@ public class Status {
     /**
      * base 를 기준으로 엔티티 생성시 초기값 저장
      */
-    public void init(Actor actor) {
+    public Status init(Actor actor) {
         BaseActor baseActor = actor.getBaseActor();
 
         this.maxChargeGauge = baseActor.getMaxChargeGauge();
@@ -79,6 +90,7 @@ public class Status {
         actor.updateHp(-1); // Actor 엔티티 첫 생성시 hp 선 계산을 위해 지정
 
         this.syncStatus(); // base 만 저장
+        return this;
     }
 
     /**
@@ -107,9 +119,25 @@ public class Status {
     }
 
     /**
+     * 데미지로 인한 갱신
+     */
+    public void updateBarrier(int barrier) {
+        this.barrier = barrier;
+    }
+
+    /**
+     * 상태효과 부여 또는 삭제로 인한 베리어 초기화
+     */
+    public void clearBarrier() {
+        this.barrier = 0;
+        this.maxBarrier = 0;
+    }
+
+    /**
      * 스테이터스 갱신 (재계산)
      */
     public void syncStatus() {
+
         // 1. 스테이터스 상세 초기화 및 동기화
         if (this.statusDetails == null) {
             this.statusDetails = StatusDetails.init(actor);
@@ -126,6 +154,11 @@ public class Status {
 
         this.maxHp = details.getCalcedMaxHp();
         if (maxHp > 0 && maxHp < hp) this.hp = maxHp; // 혼신, 배수 처리를 위해 HP 를 최우선 처리
+
+        if (this.barrier <= 0) { // 베리어는 갱신 전 선초기화 필수
+            this.maxBarrier = details.getCalcedBarrierInitValue();
+            this.barrier = this.maxBarrier;
+        }
 
         this.atk = details.getCalcedAtk(this.getCalcedHpRate(), ElementType.PLAIN);
         this.def = details.getCalcedDef(ElementType.PLAIN);

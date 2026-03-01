@@ -1,32 +1,29 @@
 package com.gbf.granblue_simulator.battle.domain.actor;
 
-import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.battle.domain.Member;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.*;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.move.TriggerType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode(exclude = {"statusEffects", "status"})
+@EqualsAndHashCode(of = {"id", "createdAt", "dtype", "name", "currentOrder", "elementType"})
 @ToString
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn
@@ -34,10 +31,12 @@ public abstract class Actor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(insertable = false, updatable = false)
     private String dtype;
 
     private String name;
+
     private Integer currentOrder; // 자신의 배치 순서
 
     @Enumerated(EnumType.STRING)
@@ -45,36 +44,24 @@ public abstract class Actor {
 
     @Accessors(fluent = true)
     private boolean isGuardOn;
-    @Accessors(fluent = true)
-    private boolean canGuard;
-
-    private Integer substitute; // 감싸기 (우선순위, 1 2 존재)
 
     private int executedStrikeCount; // 해당 턴 공격행동 횟수 (턴 종료시 0으로 초기화)
-
-    @Type(ListArrayType.class)
-    @Column(name = "ability_cooldowns", columnDefinition = "integer[]")
-    private List<Integer> abilityCooldowns;
-
-    @Type(ListArrayType.class)
-    @Column(name = "ability_use_counts", columnDefinition = "integer[]")
-    private List<Integer> abilityUseCounts;
-
-    @Type(ListArrayType.class)
-    @Column(name = "summon_move_ids", columnDefinition = "bigint[]")
-    private List<Long> summonMoveIds; // 소환석 id, MC 에 귀속시켜야함, 나중에 isMC 같은거 추가해야할듯
-
-    @Type(ListArrayType.class)
-    @Column(name = "summon_cool_downs", columnDefinition = "integer[]")
-    private List<Integer> summonCoolDowns; // 소환석 쿨타임, 순서 지켜서, 소환금지 상태효과는 구현하지 않을 예정
-
-    // 페이탈체인 id
-    private Long fatalChainMoveId;
 
     @OneToMany(mappedBy = "actor")
     @Builder.Default
     @ToString.Exclude
-    private List<StatusEffect> statusEffects = new ArrayList<>();
+    @Getter(AccessLevel.NONE)
+    private List<Move> moves = new ArrayList<>();
+    @Transient
+    @Builder.Default
+    @ToString.Exclude
+    @Getter(AccessLevel.NONE)
+    private Map<MoveType, List<Move>> moveTypeMap = new HashMap<>();
+    @Transient
+    @Builder.Default
+    @ToString.Exclude
+    @Getter(AccessLevel.NONE)
+    private Map<TriggerType, List<Move>> triggerTypeMap = new HashMap<>();
 
     @OneToOne(mappedBy = "actor")
     @ToString.Exclude
@@ -95,10 +82,12 @@ public abstract class Actor {
     @ToString.Exclude
     private ActorVisual actorVisual;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+    @OneToMany(mappedBy = "actor")
+    @Builder.Default
+    @ToString.Exclude
+    private List<StatusEffect> statusEffects = new ArrayList<>();
 
-    @ToString.Include(name = "statusEffects") // 출력될 이름 지정
+    @ToString.Include(name = "statusEffects")
     public List<String> toStringStatusEffects() {
         if (statusEffects == null) return null;
         return statusEffects.stream()
@@ -106,13 +95,137 @@ public abstract class Actor {
                 .collect(Collectors.toList());
     }
 
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @PostLoad
+    protected void postLoad() {
+        initMoveMap();
+    }
+
+    // INIT, MAPPING =====================================================================================
+
+    public void init() {
+        if (this.isEnemy()) {
+            Enemy enemy = (Enemy) this;
+            enemy.updateLatestTriggeredHp(100);
+            enemy.updateCurrentForm(1);
+        }
+        this.elementType = this.getBaseActor().getElementType();
+    }
+
     public void mapStatus(Status status) {
         this.status = status;
     }
 
-    public void mapMember(Member member) {
+    public Actor mapMember(Member member) {
         this.member = member;
         member.getActors().add(this);
+        return this;
+    }
+
+    // MOVE =============================================================================================
+
+    private void initMoveMap() {
+        this.moveTypeMap.clear();
+        this.triggerTypeMap.clear();
+        for (Move move : moves) {
+            addMoveToMap(move);
+        }
+    }
+
+    private void addMoveToMap(Move move) {
+        this.moveTypeMap.computeIfAbsent(move.getType(), k -> new ArrayList<>()).add(move);
+        this.triggerTypeMap.computeIfAbsent(move.getTriggerType(), k -> new ArrayList<>()).add(move);
+    }
+
+    private void removeMoveFromMap(Move move) {
+        List<Move> byType = this.moveTypeMap.get(move.getType());
+        if (byType != null) byType.remove(move);
+        List<Move> byTrigger = this.triggerTypeMap.get(move.getTriggerType());
+        if (byTrigger != null) byTrigger.remove(move);
+    }
+
+    public void addMove(Move move) {
+        this.moves.add(move);
+        addMoveToMap(move);
+    }
+
+    public void addMoves(List<Move> newMoves) {
+        this.moves.addAll(newMoves);
+        for (Move move : newMoves) {
+            addMoveToMap(move);
+        }
+    }
+
+    /**
+     * 매핑된 Move 를 삭제, MoveService 로 사용권장
+     */
+    public void removeMove(Move move) {
+        if (this.moves.remove(move)) {
+            removeMoveFromMap(move);
+        }
+    }
+
+    /**
+     * 매핑된 Move 를 삭제, MoveService 로 사용권장
+     */
+    public void removeMoves(List<Move> targetMoves) {
+        this.moves.removeAll(targetMoves);
+        for (Move move : targetMoves) {
+            removeMoveFromMap(move);
+        }
+    }
+
+    /**
+     * 수정 불가능한 moves 반환, 수정작업은 엔티티 메서드로만 할 것
+     */
+    public List<Move> getMoves() {
+        return Collections.unmodifiableList(this.moves);
+    }
+
+    public List<Move> getMoves(TriggerType triggerType) {
+        return this.triggerTypeMap.getOrDefault(triggerType, Collections.emptyList());
+    }
+
+    public List<Move> getMoves(MoveType moveType) {
+        return this.moveTypeMap.getOrDefault(moveType, Collections.emptyList());
+    }
+
+    public Move getFirstMove(MoveType moveType) {
+        List<Move> moves = this.moveTypeMap.get(moveType);
+        return moves == null || moves.isEmpty()
+                ? null
+                : moves.getFirst();
+    }
+
+    public Move getFirstMoveByLogicId(String logicId) {
+        return this.moves.stream().filter(move -> move.getBaseMove().getLogicId().equals(logicId)).findFirst().orElse(null);
+    }
+
+    /**
+     * (커맨드) 어빌리티만 조회
+     */
+    public List<Move> getAbilities() {
+        return Stream.of(
+                        MoveType.FIRST_ABILITY,
+                        MoveType.SECOND_ABILITY,
+                        MoveType.THIRD_ABILITY,
+                        MoveType.FOURTH_ABILITY
+                )
+                .map(this::getFirstMove)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    // ========================================================================================================
+
+    public boolean isEnemy() {
+        return "BaseEnemy".equals(this.baseActor.getDtype());
+    }
+
+    public boolean isCharacter() {
+        return "BaseCharacter".equals(this.baseActor.getDtype());
     }
 
     public void updateBaseActor(BaseActor baseActor) {
@@ -124,27 +237,12 @@ public abstract class Actor {
         this.actorVisual = actorVisual;
     }
 
-//    public String getdType() {
-//        return dtype; // lombok getter 안먹혀서 생성
-//    }
-
-    public boolean isEnemy() {
-        return "BaseEnemy".equals(this.baseActor.getDtype());
+    public StatusDetails getStatusDetails() {
+        return this.status.getStatusDetails();
     }
 
-    public boolean isCharacter() {
-        return "BaseCharacter".equals(this.baseActor.getDtype());
-    }
-
-    public void init() {
-        if (this.isEnemy()) {
-            Enemy enemy = (Enemy) this;
-            enemy.updateLatestTriggeredHp(100);
-            enemy.updateCurrentForm(1);
-        }
-        this.elementType = this.getBaseActor().getElementType();
-        this.abilityCooldowns = new ArrayList<>(List.of(0, 0, 0, 0));
-        this.abilityUseCounts = new ArrayList<>(List.of(0, 0, 0, 0));
+    public DamageStatusDetails getDamageStatusDetails() {
+        return this.status.getDamageStatusDetails();
     }
 
     /**
@@ -160,10 +258,6 @@ public abstract class Actor {
 
     public void updateChargeGauge(int chargeGauge) {
         this.status.setChargeGauge(chargeGauge);
-    }
-
-    public void updateFatalChainGauge(int gauge) {
-        this.status.setFatalChainGauge(gauge);
     }
 
     /**
@@ -199,18 +293,8 @@ public abstract class Actor {
     /**
      * 현재 체력 비율을 NN% 로 반환
      */
-    public int getHpRate() {
+    public int getHpRateInt() {
         return this.status.getCalcedHpRateInt();
-    }
-
-    /**
-     * 자신의 Move 반환
-     *
-     * @param moveType
-     * @return 없으면 MoveType.NONE 반환
-     */
-    public BaseMove getMove(MoveType moveType) {
-        return this.getBaseActor().getMoves().getOrDefault(moveType, BaseMove.getTransientMove(MoveType.NONE));
     }
 
     /**
@@ -236,7 +320,7 @@ public abstract class Actor {
     }
 
     /**
-     * 자신의 현재 공격행동 횟수를 증가 <br>
+     * 자신의 해당 턴 중 공격행동 횟수를 증가 <br>
      * 가드, 턴친행 없이 일반공격 은 이 카운트 수정 x
      */
     public void increaseExecutedStrikeCount() {
@@ -247,29 +331,30 @@ public abstract class Actor {
         this.executedStrikeCount = 0;
     }
 
+    /**
+     * 오의 발동 가능 여부를 반환. 발동 가능시 true
+     */
+    public boolean canCharacterChargeAttack() {
+        boolean isCharacter = this.isCharacter();
+        boolean isChargeAttackOn = this.getMember().isChargeAttackOn();
+        boolean readyChargeAttack = this.getChargeGauge() >= 100;
+        boolean chargeAttackSealed = this.getStatus().getStatusDetails().getCalcedChargeAttackSealed();
+        boolean isConditionalChargeAttackCan = this.getStatus().getStatusDetails().isConditionalChargeAttackCan(); // 조건형 오의
+        return isCharacter && isChargeAttackOn && readyChargeAttack && isConditionalChargeAttackCan && !chargeAttackSealed;
+    }
 
-    public int getAbilityCooldown(MoveType abilityType) {
-        int abilityIndex = abilityType.getAbilityOrder() - 1;
-        return this.abilityCooldowns.get(abilityIndex);
+    public List<Integer> getAbilityCooldowns() {
+        return this.getAbilities().stream()
+                .map(Move::getCooldown)
+                .toList();
     }
 
     public void updateAbilityCooldowns(int cooldown, MoveType... abilityTypes) {
         for (MoveType abilityType : abilityTypes) {
-            int abilityIndex = abilityType.getAbilityOrder() - 1;
-            this.abilityCooldowns.set(abilityIndex, Math.max(cooldown, 0));
-        }
-    }
-
-    /**
-     * 어빌리티의 쿨타임 update
-     *
-     * @param amount       증감값
-     * @param abilityTypes 어빌리티 타입
-     */
-    public void modifyAbilityCooldowns(int amount, MoveType... abilityTypes) {
-        for (MoveType abilityType : abilityTypes) {
-            int abilityIndex = abilityType.getAbilityOrder() - 1;
-            this.abilityCooldowns.set(abilityIndex, Math.max(this.abilityCooldowns.get(abilityIndex) + amount, 0));
+            Move ability = this.getFirstMove(abilityType);
+            if (ability != null) {
+                ability.updateCooldown(cooldown);
+            }
         }
     }
 
@@ -277,36 +362,23 @@ public abstract class Actor {
      * 어빌리티 쿨타임 진행
      */
     public void progressAbilityCoolDown() {
-        this.abilityCooldowns.replaceAll(coolDown -> Math.max(0, coolDown - 1));
+        this.getAbilities().forEach(ability -> ability.updateCooldown(Math.max(0, ability.getCooldown() - 1)));
     }
 
     /**
-     * 어빌리티 사용 횟수 확인
+     * 어빌리티 현재 턴에서의 사용횟수를 리스트로 반환
      *
-     * @param abilityType
      * @return
      */
-    public int getAbilityUseCount(MoveType abilityType) {
-        int abilityOrder = abilityType.getAbilityOrder();
-        return this.abilityUseCounts.get(abilityOrder - 1);
-    }
-
-    /**
-     * 어빌리티의 사용횟수 증가
-     *
-     * @param abilityType 어빌리티 타입
-     */
-    public int increaseAbilityUseCount(MoveType abilityType) {
-        int abilityIndex = abilityType.getAbilityOrder() - 1;
-        this.abilityUseCounts.set(abilityIndex, this.abilityUseCounts.get(abilityIndex) + 1);
-        return this.abilityUseCounts.get(abilityIndex);
+    public List<Integer> getAbilityUseCounts() {
+        return this.getAbilities().stream().map(Move::getCurrentTurnUseCount).toList();
     }
 
     /**
      * 어빌리티 사용횟수 초기화 (턴 종료시, 어빌리티 사용횟수는 감소없이 초기화만)
      */
     public void resetAbilityUseCount() {
-        this.abilityUseCounts = List.of(0, 0, 0, 0);
+        this.getAbilities().forEach(Move::clearCurrentTurnUseCount);
     }
 
     /**
@@ -329,24 +401,28 @@ public abstract class Actor {
         return this.status.getStatusDetails().getCalcedAbilitySealedList().get(abilityIndex);
     }
 
-
     /**
-     * 소환석 쿨타임 적용
-     *
-     * @param coolDown
-     * @param summonIndexes
+     * 소환석 조회 <br>
+     * 슬롯 순서대로 정렬된 소환석 리스트를 반환 (비어있을 수 있음)
      */
-    public void updateSummonCoolDown(int coolDown, int... summonIndexes) {
-        for (int summonIndex : summonIndexes) {
-            this.summonCoolDowns.set(summonIndex, coolDown);
-        }
+    public List<Move> getSummons() {
+        return MoveType.SUMMONS.stream() // order by ordinal
+                .map(this::getFirstMove)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    public List<Integer> getSummonCooldowns() {
+        return this.getSummons().stream()
+                .map(Move::getCooldown)
+                .toList();
     }
 
     /**
      * 소환석 쿨타임 진행
      */
     public void progressSummonCoolDown() {
-        this.summonCoolDowns.replaceAll(coolDown -> Math.max(0, coolDown - 1));
+        this.getSummons().forEach(move -> move.updateCooldown(Math.max(0, move.getCooldown() - 1)));
     }
 
     /**

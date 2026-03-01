@@ -4,8 +4,8 @@ async function processResponseMoves(responses, requestType = '') {
     console.log('===[processResponseMoves]================================================================== \n moveResponses = \n', moveResponses);
     // moveResponses.forEach(response => response.print());
 
-    // 결과 리스트에 폼체인지가 있을경우 에셋 미리 로드
-    if (moveResponses.some(response => response.moveType === MoveType.FORM_CHANGE_DEFAULT)) {
+    // 결과 리스트에 폼체인지 결과가 있을경우 에셋 미리 로드
+    if (moveResponses.some(response => response.isEnemyFormChange)) {
         waitingProcess(true);
         await loadNextEnemyActor();
         waitingProcess(false);
@@ -13,6 +13,8 @@ async function processResponseMoves(responses, requestType = '') {
 
     // 멤버 표시 갱신
     requestMembersInfo();
+    // 채팅 갱신
+    requestChat();
 
     let isTurnRequest = requestType === 'turn';
     let isMoveRequest = requestType === 'move';
@@ -39,17 +41,12 @@ async function processResponseMoves(responses, requestType = '') {
 
         stage.processing.response = response;
         let nextResponse = moveResponses[moveResponses.indexOf(response) + 1];
-        // 구조상 캐릭터 행동에 대한 반응으로 다음 결과인 Enemy.moveType STANDBY_X 를 통해 갱신된 전조정보가 전달되므로, 해당 정보로 갱신을 위해 설정
-        if (!isEnemyResponse && nextResponse && nextResponse.moveType.getParentType() === MoveType.STANDBY) {
-            response.omen = nextResponse.omen; // 수정하기 싫은데...
-        }
 
         updateBgm(response);
 
         switch (parentType) {
             case MoveType.SUPPORT_ABILITY:
             case MoveType.ABILITY:
-                window.gameStateManager.setState('indicator.moveName', response.moveName);
                 isEnemyResponse ? await processEnemyAbility(response) : await processAbility(response);
                 break;
             case MoveType.ATTACK:
@@ -62,35 +59,24 @@ async function processResponseMoves(responses, requestType = '') {
             case MoveType.STANDBY:
                 await processEnemyStandBy(response);
                 break;
-            case MoveType.BREAK:
-                await processEnemyBreak(response);
-                break;
-            case MoveType.FORM_CHANGE:
-                response.moveType === MoveType.FORM_CHANGE_DEFAULT ? await processFormChange(response) : null; // FORM_CHANGE_ENTRY 는 무시
-                break;
             case MoveType.GUARD:
                 // 가드 연하게 + se 재생
                 $(`#actorContainer > .actor-${response.actorOrder} .guard-status`).removeClass('guard-on').addClass('guard-on-processing');
-                if (nextResponse.moveType.getParentType() !== MoveType.GUARD) playSe(Sounds.global.GUARD_WAIT.src);
+                playSe(Sounds.global.GUARD_WAIT.src);
                 break;
             case MoveType.FATAL_CHAIN:
                 await processFatalChain(response);
                 break;
             case MoveType.SUMMON:
                 window.gameStateManager.setState('indicator.moveName', response.moveName);
-                await processSummon(response);
+                let unionSummonResponse = moveResponses.find(response => response.moveType === MoveType.UNION_SUMMON);
+                await processSummon(response, unionSummonResponse);
                 break;
             case MoveType.TURN_END:
                 await processTurnEndProcess(response);
-                // $('#actorContainer .guard-status').removeClass('guard-on-processing'); // 가드 해제
                 break;
             case MoveType.DEAD:
-                if (actorOrder === 0) {
-                    await processEnemyDead(response);
-                    return;
-                } else {
-                    await processCharacterDead(response);
-                }
+                isEnemyResponse ? await processEnemyDead(response) : await processCharacterDead(response);
                 break;
             case MoveType.ETC:
                 if (response.moveType === MoveType.STRIKE_SEALED) await processStrikeSealed(response);
@@ -103,8 +89,9 @@ async function processResponseMoves(responses, requestType = '') {
 
         // 후딜레이
         let globalDelay = Constants.Delay.globalMoveDelay;
-        if ([MoveType.ATTACK, MoveType.STANDBY].includes(parentType)) globalDelay /= 2;
-        if ([MoveType.GUARD].includes(parentType)) globalDelay = 0;
+        if (nextResponse && parentType === MoveType.ATTACK && [MoveType.SUPPORT_ABILITY, MoveType.ABILITY].includes(nextResponse.moveType.getParentType())) {
+            globalDelay /= 2;
+        }
         await wait(globalDelay);
     }
 
@@ -136,18 +123,28 @@ async function processResponseMoves(responses, requestType = '') {
             $('#actorContainer .guard-status').removeClass('guard-on-processing');
             gameStateManager.setState('guardStates', [null, false, false, false, false]);
 
-            // 공격 상태 및 플레이어 상태 정상화
+            // 클리어 또는 실패시가 아닐때
             if (!gameStateManager.getState('isQuestCleared') && !gameStateManager.getState('isQuestFailed')) {
+                // 공격 상태 및 플레이어 상태 정상화
                 gameStateManager.setState('isAttackClicked', false);
                 player.lockPlayer(false);
-            }
 
-            // 턴 갱신
-            playSe(Sounds.ui.TURN_INDICATOR.src);
-            setTimeout(() => gameStateManager.setState('currentTurn', gameStateManager.getState('currentTurn') + 1), 300);
+                // 소환 가능하도록 변경
+                gameStateManager.setState('usedSummon', false, {force: true});
+
+                // 턴 갱신
+                playSe(Sounds.ui.TURN_INDICATOR.src);
+                setTimeout(() => gameStateManager.setState('currentTurn', gameStateManager.getState('currentTurn') + 1), 300);
+
+                // 튜토리얼시 진행
+                if (gameStateManager.getState('tutorialIndex') != null) {
+                    gameStateManager.setState('tutorialIndex', Math.min(gameStateManager.getState('tutorialIndex') + 1, 5));
+                    setTimeout(() => $('#tutorialModalButton').click(), 1000);
+                }
+            }
         }
     }
-    
+
     // 상태처리
     let lastProcessedResponse = stage.processing.response;
     gameStateManager.setState('enemyEstimatedAtk', lastProcessedResponse.enemyEstimatedAtk);
@@ -160,17 +157,17 @@ async function processSync(response) {
     window.gameStateManager.setState('indicator.moveResultHonor', response.resultHonor);
 
     // 합체소환 id 반영,
-    if (response.unionSummonId !== null) // null 이 아닌경우에만 사용하므로 타이밍을 분리하지 않는한 이게 최선인듯
-        gameStateManager.setState('unionSummonId', response.unionSummonId);
+    if (!!response.unionSummonInfo) // null 이 아닌경우에만 사용하므로 타이밍을 분리하지 않는한 이게 최선인듯
+        gameStateManager.setState('unionSummonInfo', response.unionSummonInfo, {force: true}); // 턴 시작시 SYNC 에서 갱신되더라도, 턴 종료후 SYNC 에서 재갱신 하도록 해서 찬스 보이게
 
     let hasAddedBuffStatusEffects = response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0);
     let hasHeals = response.heals.find(heal => heal > 0);
     let effectDuration = 0;
     if (hasAddedBuffStatusEffects || hasHeals) { // 참전자 버프 있음 or 참전자 힐 있음
         // 참전자 효과 인디케이터 렌더링
-        let usernameWithMovename = response.moveName; // SYNC 인 경우 'username_movename' 으로 반환됨
-        let sourceUsername = usernameWithMovename.split('_')[0];
-        let moveName = usernameWithMovename.split('_')[1];
+        let forMemberAbilityInfo = response.forMemberAbilityInfo;
+        let sourceUsername = forMemberAbilityInfo.sourceUsername;
+        let moveName = forMemberAbilityInfo.moveName;
         let $forAllMoveIndicatorContainer = $('#battleCanvas .for-all-move-indicator-container');
         let $forAllMoveIndicator = $(`
           <div class="for-all-move-indicator">
@@ -183,8 +180,11 @@ async function processSync(response) {
             $forAllMoveIndicator.remove();
         });
 
-        // 이펙트 처리 - 필요시 공통 이펙트 사용
-        effectDuration = await player.play(Player.playRequest('global', Player.c_animations.ABILITY_MOTION, {abilityType: 'BUFF_FOR_ALL'}), true);
+        // 이펙트 처리
+        effectDuration = await player.play(Player.playRequest(player.getGlobalActor().actorId, Player.c_animations.ABILITY_EFFECT_ONLY, {
+            cjsName: response.visualInfo.moveCjsName,
+            isTargetedEnemy: response.visualInfo.isTargetedEnemy
+        }), true);
     }
 
     // 스테이터스 처리
@@ -210,7 +210,7 @@ async function processStrikeSealed(response) {
         })
     );
     // 모션 재생
-    player.play(Player.playRequest(`actor-${actorOrder}`, Player.c_animations.ABILITY_MOTION_DAMAGE, {abilityType: BASE_ABILITY.ATTACK_SEALED}));
+    player.play(Player.playRequest(`actor-${actorOrder}`, Player.c_animations.ABILITY_MOTION_DAMAGE, {abilityType: BASE_ABILITY.STRIKE_SEALED.name}));
     // 공격불가 디버프 동시 표시
     let debuffDelay = processDebuffEffect(tempAddedDebuffStatusesList);
     await wait(debuffDelay);
@@ -227,7 +227,7 @@ async function processTurnEndProcess(response) {
     // 스테이터스 처리
     let processStatusDuration = await processStatusEffect(response, 0.5);
 
-    console.log('[processTurnEndProcess] DONE type = ', response.moveType, ' processStatusDuration = ', processStatusDuration);
+    console.log('[processTurnEndProcess] DONE type = ', response.moveType.name, ' processStatusDuration = ', processStatusDuration);
     return processStatusDuration;
 }
 

@@ -39,7 +39,13 @@ public class LogTraceAspect {
     @Pointcut("execution(* com.gbf.granblue_simulator..logic..*(..))")
     public void allLogic() {};
 
-    @Around("(allService() || allLogic()) && ignoreHealthCheck()")
+    @Pointcut("within(com.gbf.granblue_simulator.battle.logic..*Dependencies)")
+    public void logicDependencies() {};
+
+    @Pointcut("execution(* com.gbf.granblue_simulator.battle.logic.move..register(..))")
+    public void registerMove() {};
+
+    @Around("(allService() || allLogic()) && ignoreHealthCheck() && !logicDependencies() && !registerMove()")
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
         if (!activated) return null;
 

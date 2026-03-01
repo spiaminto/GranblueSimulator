@@ -1,11 +1,10 @@
 package com.gbf.granblue_simulator.battle.logic.damage;
 
-import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusDetails;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.DamageStatusDetails;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
+import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import jakarta.annotation.PostConstruct;
 import jakarta.transaction.TransactionScoped;
 import lombok.Builder;
@@ -30,48 +29,63 @@ public class DamageCalcLogic {
     protected void initBaseCapMap() {
         baseCapMap.put(MoveType.ATTACK, BaseCap.builder()
                 .baseSoftCap(40000)
+                .softCapApplyRate(0.1)
                 .baseHardCap(60000)
+                .hardCapApplyRate(0.01)
                 .exDamageCap(660000)
+                .exDamageCapApplyRate(0.001)
                 .build());
         baseCapMap.put(MoveType.ABILITY, BaseCap.builder()
-                .baseSoftCap(10000)
-                .baseHardCap(20000)
+                .baseSoftCap(30000)
+                .softCapApplyRate(0.1)
+                .baseHardCap(40000)
+                .hardCapApplyRate(0.01)
                 .exDamageCap(1300000)
+                .exDamageCapApplyRate(0.001)
                 .build());
         baseCapMap.put(MoveType.CHARGE_ATTACK, BaseCap.builder()
                 .baseSoftCap(480000)
+                .softCapApplyRate(0.1)
                 .baseHardCap(660000)
+                .hardCapApplyRate(0.01)
                 .exDamageCap(1300000)
+                .exDamageCapApplyRate(0.001)
                 .build());
     }
 
     /**
      * 아군 캐릭터의 행동에 의한 데미지를 계산
      *
-     * @param mainActor       행동한 캐릭터
-     * @param target          데미지 발생 타겟 [일반적으로 적]
-     * @param moveType        데미지가 발생하는 행동
-     * @param moveElementType move.elementType, 6속성 만 허용
-     * @param damageRate      데미지 배율
-     * @param hitCount        히트수
+     * @param mainActor   행동한 캐릭터
+     * @param target      데미지 발생 타겟 [일반적으로 적]
+     * @param moveType    데미지가 발생하는 행동
+     * @param elementType 속성, 6속성만 허용
+     * @param baseDamageRate  데미지 배율
+     * @param hitCount    히트수
      * @return
      */
-    protected GetDamageResult getPartyDamage(Actor mainActor, Actor target, MoveType moveType, ElementType moveElementType, double damageRate, int hitCount) {
+    protected GetDamageResult getPartyDamage(Actor mainActor, Actor target, MoveType moveType, ElementType elementType, double baseDamageRate, int hitCount) {
 
-        MoveType processMoveType = moveType.getParentType(); // ATTACK || ABILITY || CHARGE_ATTACK
+        MoveType processMoveType = moveType.getParentType(); // ROOT(ATTACK) || ABILITY || CHARGE_ATTACK
         if (processMoveType == MoveType.SUMMON || processMoveType == MoveType.FATAL_CHAIN || processMoveType == MoveType.SUPPORT_ABILITY)
             processMoveType = MoveType.ABILITY;
 
         int attackMultiHitCount = 1; // 난격 효과시 통상공격 갯수 (효과 있으면 2부터 시작)
 
         Status mainActorStatus = mainActor.getStatus();
-        DamageStatusDetails mainActorDamageStatus = mainActor.getStatus().getSyncDamageStatus();
-        Status targetStatus = target.getStatus();
-        DamageStatusDetails targetDamageStatus = targetStatus.getSyncDamageStatus();
+        DamageStatusDetails mainActorDamageStatus = mainActorStatus.getDamageStatusDetails();
+        if (mainActorDamageStatus == null) mainActorDamageStatus = mainActorStatus.getSyncDamageStatus();
+        Status targetActorStatus = target.getStatus();
+        DamageStatusDetails targetDamageStatus = targetActorStatus.getDamageStatusDetails();
+        if (targetDamageStatus == null) targetDamageStatus = targetActorStatus.getSyncDamageStatus();
 
-        double atk = applyElementTypeToAtk(moveElementType, mainActor); // 속변과 상관없이 자속성 공격력 증가는 적용
-        ElementType damageElementType = applyElementSwitch(moveElementType, targetDamageStatus);
+        double atk = applyElementTypeToAtk(elementType, mainActor); // 속변과 상관없이 자속성 공격력 증가는 적용
+
+        double moveDamageRateUpRate = mainActorDamageStatus.getMoveDamageRateUpRate(processMoveType);
+        double damageRate = baseDamageRate * (1 + moveDamageRateUpRate); // 어빌리티/오의 배율 상승
         double baseDamage = applyDamageRate(damageRate, atk);
+
+        ElementType damageElementType = applyElementSwitch(elementType, targetDamageStatus);
         DamageDto damageDto = DamageDto.builder()
                 .elementType(damageElementType)
                 .moveDamageType(MoveDamageType.NORMAL)
@@ -85,13 +99,11 @@ public class DamageCalcLogic {
 
         damageDto = applyDef(target, damageDto);
 
-        damageDto = applyDamageCap(processMoveType, mainActorDamageStatus, damageRate, damageDto);
+        damageDto = applyDamageCap(processMoveType, mainActorDamageStatus, baseDamageRate, damageDto); // baseDamageRate 사용
 
         damageDto = applyElementalDamageDown(targetDamageStatus, damageDto);
 
         damageDto = applyDamageBlock(targetDamageStatus, damageDto);
-
-        damageDto = applyDamageCut(targetDamageStatus, damageDto);
 
         if (processMoveType == MoveType.ATTACK) {
             // 통상공격이면 난격, 추격 적용
@@ -100,7 +112,9 @@ public class DamageCalcLogic {
             damageDto = applyAdditionalDamage(mainActor, damageDto);
         }
 
-        damageDto = applyAmplifyAndSupplementalDamage(processMoveType, mainActorDamageStatus, targetDamageStatus, damageDto);
+        damageDto = applyAmplifyAndSupplementalDamage(processMoveType, mainActorDamageStatus, targetDamageStatus, damageDto, hitCount);
+
+        damageDto = applyDamageCut(targetDamageStatus, damageDto); // 데미지컷은 요다메뒤에
 
         damageDto = applyExDamageCap(processMoveType, damageDto, hitCount);
 
@@ -109,12 +123,12 @@ public class DamageCalcLogic {
 
         damageDto = applyDamageFix(targetDamageStatus, damageDto);
 
-        log.info("==========[getDamage] party damage calc finished, mainActorName = {}, targetActorName = {}, processType = {} damageDto = {}, attackMultiHitCount = {} elementTypes = {}", mainActor.getName(), target.getName(), processMoveType, damageDto, attackMultiHitCount, moveElementType);
+        log.info("==========[getDamage] party damage calc finished, mainActorName = {}, targetActorName = {}, processType = {} damageDto = {}, attackMultiHitCount = {} elementType = {}", mainActor.getName(), target.getName(), processMoveType, damageDto, attackMultiHitCount, elementType);
         return GetDamageResult.builder()
                 .damages(damageDto.getResultDamages())
                 .additionalDamages(damageDto.getResultAdditionalDamages())
                 .attackMultiHitCount(attackMultiHitCount)
-                .elementTypes(List.of(damageDto.getElementType()))
+                .elementTypes(Collections.nCopies(hitCount * attackMultiHitCount, damageDto.getElementType()))
                 .damageType(damageDto.getMoveDamageType())
                 .build();
     }
@@ -139,11 +153,13 @@ public class DamageCalcLogic {
         int hitCount = 1; // 적의 공격은 1회 1히트가 원칙
         int attackMultiHitCount = 1; // 현재 적은 난격효과를 적용하지 않음
 
-        Status mainActorStatus = mainActor.getStatus();
-        DamageStatusDetails mainActorDamageStatus = mainActorStatus.getSyncDamageStatus();
-        Status targetActorStatus = target.getStatus();
-        DamageStatusDetails targetDamageStatus = targetActorStatus.getSyncDamageStatus();
 
+        Status mainActorStatus = mainActor.getStatus();
+        DamageStatusDetails mainActorDamageStatus = mainActorStatus.getDamageStatusDetails();
+        if (mainActorDamageStatus == null) mainActorDamageStatus = mainActorStatus.getSyncDamageStatus();
+        Status targetActorStatus = target.getStatus();
+        DamageStatusDetails targetDamageStatus = targetActorStatus.getDamageStatusDetails();
+        if (targetDamageStatus == null) targetDamageStatus = targetActorStatus.getSyncDamageStatus();
 
         double atk = applyElementTypeToAtk(moveElementType, mainActor);
         ElementType damageElementType = applyElementSwitch(moveElementType, targetDamageStatus);
@@ -167,11 +183,11 @@ public class DamageCalcLogic {
 
         damageDto = applyDamageBlock(targetDamageStatus, damageDto);
 
-        damageDto = applyDamageCut(targetDamageStatus, damageDto);
-
         damageDto = applyAdditionalDamage(mainActor, damageDto); // 적은 난격이 없고, 특수기에도 추격이 붙음
 
-        damageDto = applyAmplifyAndSupplementalDamage(processMoveType, mainActorDamageStatus, targetDamageStatus, damageDto);
+        damageDto = applyAmplifyAndSupplementalDamage(processMoveType, mainActorDamageStatus, targetDamageStatus, damageDto, hitCount);
+
+        damageDto = applyDamageCut(targetDamageStatus, damageDto); // 데미지컷은 요다메 다음
 
         damageDto = applyExDamageCap(processMoveType, damageDto, hitCount);
 
@@ -199,7 +215,7 @@ public class DamageCalcLogic {
      * @return
      */
     protected double applyElementTypeToAtk(ElementType elementType, Actor targetActor) {
-        int hpRate = targetActor.getHpRate();
+        double hpRate = targetActor.getStatus().getCalcedHpRate();
         int calcedAtk = targetActor.getStatus().getStatusDetails().getCalcedAtk(hpRate, elementType);// actor.getStatus().getDef() 사용하지 않기
         log.info("[applyElementTypeToAtk] elementType = {}, calcedAtk = {}", elementType, calcedAtk);
         return calcedAtk;
@@ -300,8 +316,7 @@ public class DamageCalcLogic {
     /**
      * 본처리 - 데미지 상한 적용
      *
-     * @param damageStatus
-     * @param damageDto
+     * @param damageRate 어빌리티의 경우, 데미지 배율 가산시 상한이 변할수 있으니 어빌리티 배율 상승 효과적용 전의 배율 사용
      * @return
      */
     protected DamageDto applyDamageCap(MoveType moveType, DamageStatusDetails damageStatus, double damageRate, DamageDto damageDto) {
@@ -313,15 +328,28 @@ public class DamageCalcLogic {
         // 1. 데미지 상한 상승 효과 확인
         double damageCapUpRate = damageStatus.getDamageCapUpRate(); // 일반 데미지 상한 상승
         double moveDamageCapUpRate = damageStatus.getMoveDamageCapUpRate(moveType); // 행동별 데미지 상한 상승
-        double totalDamageCapUpRate = damageCapUpRate + moveDamageCapUpRate; // 총 데미지 상한 상승
+        double weaponDamageCapUpRate = damageStatus.getWeaponDamageCapUpRate();
+        double totalDamageCapUpRate = damageCapUpRate + moveDamageCapUpRate + weaponDamageCapUpRate; // 총 데미지 상한 상승
 
         // 2. 기본 데미지 상한에 데미지 상한 상승 적용
         double damageSoftCap = (baseCap.getBaseSoftCap() * (1 + totalDamageCapUpRate));
         double damageHardCap = (baseCap.getBaseHardCap() * (1 + totalDamageCapUpRate));
         if (moveType == MoveType.ABILITY) {
-            // 어빌리티는 1타 당 루트배율 만큼 상한지정 (10000기준 5배 22360, 10배 31622, 15배 38729, 20배 44721)
-            damageSoftCap = damageSoftCap * Math.sqrt(damageRate);
-            damageHardCap = damageHardCap * Math.sqrt(damageRate);
+            // 어빌리티는 배율의 지수배에 비례해 상한지정
+            damageSoftCap = damageSoftCap * Math.pow(damageRate, 0.9);
+            damageHardCap = damageHardCap * Math.pow(damageRate, 0.9);
+            // 지수값에 따른 배율 변화
+            //1
+            // 1 / 2.00 / 5.00 / 8.00 / 10.0 / 12.0 / 15.0 / 20.0
+            //0.9
+            // 1 / 1.87 / 4.26 / 6.50 / 7.94 / 9.36 / 11.4 / 14.82
+            //0.8
+            // 1 / 1.74 / 3.62 / 5.28 / 6.31 / 7.30 / 8.73 / 10.99
+            //0.7
+            // 1 / 1.62 / 3.09 / 4.29 / 5.01 / 5.69 / 6.66 / 8.14
+            //0.5
+            // 1 / 1.41 / 2.24 / 2.83 / 3.16 / 3.46 / 3.87 / 4.47
+
         }
 
         // 3. 데미지에 데미지 상한 실적용
@@ -336,7 +364,7 @@ public class DamageCalcLogic {
             resultDamage = damage;
         }
 
-        log.info("[applyDamageCap] damage = {}, resultDamage = {}, damageCapRate = {}, moveDamageCapRate = {}", damage, resultDamage, damageCapUpRate, moveDamageCapUpRate);
+        log.info("[applyDamageCap] damage = {}, resultDamage = {}, softCap = {}, hardCap = {}, damageCapRate = {}, moveDamageCapRate = {}", damage, resultDamage, damageSoftCap, damageHardCap, damageCapUpRate, moveDamageCapUpRate);
         return DamageDto.builder()
                 .elementType(damageDto.getElementType())
                 .moveDamageType(damageDto.getMoveDamageType())
@@ -389,28 +417,64 @@ public class DamageCalcLogic {
      *
      * @return
      */
-    protected DamageDto applyAmplifyAndSupplementalDamage(MoveType moveType, DamageStatusDetails damageStatus, DamageStatusDetails targetDamageStatus, DamageDto damageDto) {
+    protected DamageDto applyAmplifyAndSupplementalDamage(MoveType moveType, DamageStatusDetails damageStatus, DamageStatusDetails targetDamageStatus, DamageDto damageDto, int hitCount) {
         // CHECK 기본적으로 데미지컷에 의해 받는데미지가 0이 되는 경우 데미지 상승 관련 효과가 적용되지 않는다고 함.
-        if (targetDamageStatus.getTakenDamageCutRate() + targetDamageStatus.getTakenElementDamageCutRate(damageDto.getElementType()) >= 1.0) return damageDto;
+        if (targetDamageStatus.getTakenDamageCutRate() + targetDamageStatus.getTakenElementDamageCutRate(damageDto.getElementType()) >= 1.0)
+            return damageDto;
 
         // 1. 공격 데미지 증가 및 피격데미지 증가, 감소 확인
         int supplementalDamage = damageStatus.getSupplementalDamage();
         int moveSupplementalDamage = damageStatus.getMoveSupplementalDamage(moveType);
+        int weaponSupplementalDamage = damageStatus.getWeaponSupplementalDamage();
+
+        int tripleAttackSupplementalDamage = moveType == MoveType.NORMAL_ATTACK && hitCount == 3 ? damageStatus.getTripleAttackSupplementalDamage() : 0;
+
         int takenSupplementalDamageUpPoint = targetDamageStatus.getTakenSupplementalDamageUpPoint();
         int takenSupplementalDamageDownPoint = targetDamageStatus.getTakenSupplementalDamageDownPoint();
-        double totalSupplementalDamage = supplementalDamage + moveSupplementalDamage
+
+        double totalSupplementalDamage = supplementalDamage + moveSupplementalDamage + weaponSupplementalDamage + tripleAttackSupplementalDamage
                 + takenSupplementalDamageUpPoint - takenSupplementalDamageDownPoint;
 
         // 2. 공격 데미지 상승 및 피격 데미지 상승, 감소 확인
         double amplifyDamageUpRate = damageStatus.getAmplifyDamageRate();
         double moveAmplifyDamageUpRate = damageStatus.getMoveAmplifyDamageRate(moveType);
+        double weaponSeraphicAmplifyDamageRate = damageStatus.getWeaponSeraphicAmplifyDamageRate();
+
+        double chargeAttackAmplifyDamageDownRate = moveType.getParentType() == MoveType.CHARGE_ATTACK ? damageStatus.getChargeAttackAmplifyDamageDownRate() : 0; // 오의(적의 특수기) 데미지 다운
+
         double takenAmplifyDamageUpRate = targetDamageStatus.getTakenAmplifyDamageUpRate();
         double takenAmplifyDamageDownRate = targetDamageStatus.getTakenAmplifyDamageDownRate();
+
         double moveTakenAmplifyDamageUpRate = targetDamageStatus.getMoveTakenDamageUpRate(moveType);
         double moveTakenAmplifyDamageDownRate = targetDamageStatus.getMoveTakenDamageDownRate(moveType);
+
         double totalAmplifyDamageRate =
-                amplifyDamageUpRate + moveAmplifyDamageUpRate + takenAmplifyDamageUpRate + moveTakenAmplifyDamageUpRate
-                        - takenAmplifyDamageDownRate - moveTakenAmplifyDamageDownRate;
+                amplifyDamageUpRate + moveAmplifyDamageUpRate + takenAmplifyDamageUpRate + moveTakenAmplifyDamageUpRate + weaponSeraphicAmplifyDamageRate
+                        - takenAmplifyDamageDownRate - moveTakenAmplifyDamageDownRate
+                        - chargeAttackAmplifyDamageDownRate;
+
+        log.info("""
+                        [applyAmplifyAndSupplementalDamage]
+                        > SupplementalDamage
+                           supplementalDamage={}, moveSupplementalDamage={}, weaponSupplementalDamage = {}
+                           tripleAttackSupplementalDamage={},
+                           takenSupplementalDamageUpPoint={}, takenSupplementalDamageDownPoint={}
+                           totalSupplementalDamage={}
+                        > AmplifyDamageRate
+                           amplifyDamageUpRate={}, moveAmplifyDamageUpRate={}, seraphicAmplifyDamageRate={}
+                           takenAmplifyDamageUpRate={}, takenAmplifyDamageDownRate={}
+                           moveTakenAmplifyDamageUpRate={}, moveTakenAmplifyDamageDownRate={}
+                           chargeAttackAmplifyDamageDownRate={}
+                           totalAmplifyDamageRate={}""",
+                supplementalDamage, moveSupplementalDamage, weaponSupplementalDamage,
+                tripleAttackSupplementalDamage,
+                takenSupplementalDamageUpPoint, takenSupplementalDamageDownPoint,
+                totalSupplementalDamage,
+                amplifyDamageUpRate, moveAmplifyDamageUpRate, weaponSeraphicAmplifyDamageRate,
+                takenAmplifyDamageUpRate, takenAmplifyDamageDownRate,
+                moveTakenAmplifyDamageUpRate, moveTakenAmplifyDamageDownRate,
+                chargeAttackAmplifyDamageDownRate,
+                totalAmplifyDamageRate);
 
         double damage = damageDto.getDamage();
         double resultDamage = 0;
@@ -557,12 +621,26 @@ public class DamageCalcLogic {
      * @param targetActor
      * @return
      */
-    protected double getAccuracyRate(Actor mainActor, Actor targetActor, MoveType moveType) {
-        Double mainActorAccuracyRate = mainActor.getStatus().getAccuracyRate(); // 기본값 1, 상한 하한 없음
-        mainActorAccuracyRate = moveType == MoveType.CHARGE_ATTACK && !mainActor.isEnemy() ?
-                mainActorAccuracyRate + 1 : mainActorAccuracyRate; // 아군 오의의 경우 기본 명중률을 2로
-        Double targetActorDodgeRate = targetActor.getStatus().getDodgeRate(); // 기본값 0.01 (또는 0.0), 상한 하한 없음
+    protected double getAccuracyRate(Actor mainActor, Actor targetActor, MoveType processMoveType) {
+        // 명중률
+        double mainActorAccuracyRate = mainActor.getStatus().getAccuracyRate(); // 기본값 1, 상한 하한 없음
+        // 행동별 보정
+        if (processMoveType == MoveType.CHARGE_ATTACK) {
+            if (!mainActor.isEnemy()) {
+                mainActorAccuracyRate += 1; // 아군 오의는 기본 명중률 200%
+            }
+        } else if (processMoveType == MoveType.NORMAL_ATTACK) {
+            double normalAttackAccuracyDownRate = mainActor.getStatusDetails().getNormalAttackAccuracyDownRate(); // 기본값 1, 상한 하한 없음
+            mainActorAccuracyRate -= normalAttackAccuracyDownRate; // 추가 감소
+        }
+
+        // 회피율
+        double targetActorDodgeRate = targetActor.getStatus().getDodgeRate(); // 기본값 0.01 (또는 0.0), 상한 하한 없음
+
+        // 최종
+        // CHECK 반드시 명중, 반드시 빗나감 구현?
         double resultAccuracyRate = Math.max(mainActorAccuracyRate - targetActorDodgeRate, 0.0); // 하한 0
+
         log.info("[getAccuracyRate] mainActorName = {}, targetActorName = {}, accuracyRate = {}", mainActor.getName(), targetActor.getName(), resultAccuracyRate);
         return resultAccuracyRate;
     }
@@ -603,19 +681,48 @@ public class DamageCalcLogic {
     }
 
     /**
-     * 받는 데미지 고정 적용. 난수 적용 이후 적용 요망
+     * 공격 데미지 고정, 받는 데미지 고정 적용. 난수 적용 이후 적용 요망
      *
      * @param damageDto
      * @return
      */
     protected DamageDto applyDamageFix(DamageStatusDetails targetStatus, DamageDto damageDto) {
-        final int takenDamageFixPoint = targetStatus.getTakenDamageFixPoint();
-        if (takenDamageFixPoint <= 0) return damageDto; // 없으면 바로 반환
+        Integer takenDamageFixPoint = targetStatus.getTakenDamageFixPoint();
+        Integer takenElementDamageFixPoint = targetStatus.getTakenElementDamageFixPoint(damageDto.getElementType());
 
-        List<Integer> resultDamages = damageDto.getResultDamages().stream().map(damage -> Math.min(damage, takenDamageFixPoint)).toList();
-        List<List<Integer>> resultAdditionalDamages = damageDto.getResultAdditionalDamages().stream().map(additionalDamages -> additionalDamages.stream().map(additionalDamage -> Math.min(additionalDamage, takenDamageFixPoint)).toList()).toList();
+        // 피격 데미지 고정: takenDamageFixPoint / takenElementDamageFixPoint 둘 다 있으면 최소값, 하나면 해당 값
+        Integer effectiveTakenFix = null;
+        if (takenDamageFixPoint != null) effectiveTakenFix = takenDamageFixPoint;
+        if (takenElementDamageFixPoint != null)
+            effectiveTakenFix = effectiveTakenFix == null
+                    ? takenElementDamageFixPoint
+                    : Math.min(effectiveTakenFix, takenElementDamageFixPoint);
 
-        log.info("[applyDamageFix] takenDamageFixPoint = {}, damage = {}, resultDamages = {}, resultAdditionalDamages = {}", takenDamageFixPoint, damageDto.getDamage(), resultDamages, resultAdditionalDamages);
+        // 최종 고정값 결정
+        final int resultFixPoint;
+        Integer damageFixPoint = targetStatus.getDamageFixPoint();
+        if (damageFixPoint != null) {
+            // 공격 데미지 고정 기반, 피격 데미지 고정이 있으면 두 값 중 최소
+            // CHECK 공격데미지 고정의 경우, 기본적으로 '적의 데미지를 0으로 만듦' 효과구현을 위해 사용
+            resultFixPoint = effectiveTakenFix != null
+                    ? Math.min(damageFixPoint, effectiveTakenFix)
+                    : damageFixPoint;
+        } else if (effectiveTakenFix != null) {
+            // 피격 데미지 고정만 있는 경우
+            resultFixPoint = effectiveTakenFix;
+        } else {
+            // 둘다 없으면 처리없이 반환
+            return damageDto;
+        }
+
+        List<Integer> resultDamages = damageDto.getResultDamages().stream().map(damage -> Math.min(damage, resultFixPoint)).toList();
+        List<List<Integer>> resultAdditionalDamages = damageDto.getResultAdditionalDamages().stream().map(additionalDamages -> additionalDamages.stream().map(additionalDamage -> Math.min(additionalDamage, resultFixPoint)).toList()).toList();
+
+        log.info("[applyDamageFix] damageFixPoint={}, takenDamageFixPoint={}, takenElementDamageFixPoint={}, resultFixPoint={}, damages={}->{}, additionalDamages={}->{}",
+                damageFixPoint, takenDamageFixPoint, takenElementDamageFixPoint, resultFixPoint,
+                damageDto.getResultDamages(), resultDamages,
+                damageDto.getResultAdditionalDamages(), resultAdditionalDamages);
+
         return DamageDto.builder()
                 .elementType(damageDto.getElementType())
                 .moveDamageType(damageDto.getMoveDamageType())
@@ -631,12 +738,9 @@ public class DamageCalcLogic {
         private final Integer baseSoftCap; // 어빌리티 데미지의 경우 어빌리티의 배율을 곱해서 상한 계산
         private final Integer baseHardCap;
         private final Integer exDamageCap; // 어빌리티 데미지의 경우 대 데미지 제한은 타수 합산값에 적용됨
-        @Builder.Default
-        private final Double softCapApplyRate = 0.25;
-        @Builder.Default
-        private final Double hardCapApplyRate = 0.1;
-        @Builder.Default
-        private final Double exDamageCapApplyRate = 0.01;
+        private final Double softCapApplyRate;
+        private final Double hardCapApplyRate;
+        private final Double exDamageCapApplyRate;
     }
 
     @Getter

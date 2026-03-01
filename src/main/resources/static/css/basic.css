@@ -1,0 +1,136 @@
+/* 일반 페이지 기본 */
+
+/* bootstrap override */
+body .form-control {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* 기본 */
+body {
+    font-size: 10px;
+    background-color: #eee;
+}
+
+#container {
+    padding: 6px;
+}
+
+.name {
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.tile {
+    margin: 7px auto;
+    padding: 7px;
+    background-color: white;
+    box-shadow: 2px 2px 3px #ccc;
+    border-radius: 7px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px;
+    align-items: center;
+}
+
+.page-header h1{
+    display: inline-block;
+    font-size: 19px;
+    font-weight: bold;
+    margin: 0;
+    padding-left: 0.5rem;
+}
+
+.page-header button {
+    border: none;
+}
+
+.modal .text-lightblue {
+    color: lightblue; /* ◆ 강조 */
+}
+
+
+/* 모달 */
+.modal {
+    max-width: 660px;
+}
+
+.modal-dialog {
+    margin-left: 10px !important;
+}
+
+/* 파티 */
+
+.party-container {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.base-character-info-wrapper {
+    width: 100%;
+}
+
+.base-character-info-wrapper::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.base-character-info-wrapper .base-character-info {
+    float: left;
+    width: 23%;
+    height: 150px;
+    margin-right: 2%;
+    overflow: hidden;
+}
+
+.base-character-info-wrapper .base-character-info:nth-child(4n) {
+    margin-right: 0;
+}
+
+.base-character-portrait {
+    height: 115px;
+    overflow: hidden;
+    border-bottom: solid 2px cyan;
+}
+
+.base-character-portrait img {
+    width: 100%;
+}
+
+.base-character-name {
+    font-size: 12px;
+    text-align: center;
+}
+
+.summon-info-wrapper {
+    margin-top: 5px;
+    width: 100%;
+}
+
+.summon-info-wrapper::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.summon-info-wrapper .summon-info {
+    float: left;
+    width: 23%;
+    height: 150px;
+    margin-right: 2%;
+    overflow: hidden;
+}
+
+.summon-portrait {
+    height: 115px;
+    overflow: hidden;
+    border-bottom: solid 2px orangered;
+}
+
+.summon-portrait img {
+    width: 100%;
+}

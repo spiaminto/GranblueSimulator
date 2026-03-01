@@ -25,7 +25,7 @@ public class StatusModifier {
 
     public void setBaseStatusEffect(BaseStatusEffect baseStatusEffect) {
         this.baseStatusEffect = baseStatusEffect;
-        baseStatusEffect.getStatusModifiers().put(this.type, this);
+        baseStatusEffect.getModifiers().put(this.type, this);
     }
 
     /**

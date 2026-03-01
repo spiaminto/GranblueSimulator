@@ -1,0 +1,66 @@
+/* 모든 페이지 공통 */
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+body::-webkit-scrollbar {
+    display: none; /* 스크롤바 숨기기 */
+}
+
+
+#container {
+    position: relative;
+    width: 330px;
+    min-height: 600px;
+    overflow-x: hidden;
+
+    -ms-overflow-style: none;
+}
+
+#container::-webkit-scrollbar{
+    display:none;
+}
+
+
+/* 요소 사이즈 ======================================================================================================== */
+body .btn-xsm {
+    /* button 적용 후에 적용할것 */
+    padding: 4px 5px;
+    font-size: 11px;
+}
+
+body .btn-xxsm {
+    /* button 적용 후에 적용할것 */
+    padding: 3px 2px;
+    font-size: 10px;
+}
+
+body .font-m {
+    font-size: 10px; !important;
+}
+
+body .font-lg {
+    font-size: 12px; !important;
+}
+
+body .font-xl {
+    font-size: 14px; !important;
+}
+
+body .title-sm {
+    padding-left: 4px;
+    font-size: 13px; !important;
+    font-weight: bold;
+}
+
+body .title-md {
+    padding-left: 4px;
+    font-size: 15px; !important;
+    font-weight: bold;
+}
+
+body .title-lg {
+    padding-left: 5px;
+    font-size: 17px; !important;
+    font-weight: bold;
+}

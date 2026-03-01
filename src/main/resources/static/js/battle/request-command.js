@@ -1,3 +1,19 @@
+// function requestInitialInfos() {
+//     let memberId = $('#memberInfo').data('member-id');
+//     console.log('[requestInitialInfos] memberId = ', memberId);
+//     return $.ajax({
+//         url: '/api/moves?memberId=' + memberId,
+//         type: 'GET',
+//     }).then(function (responses) {
+//         console.log('resp = ', responses);
+//         // responses.json().then(json => {
+//         //     console.log('json = ', json);
+//         // })
+//     }).catch(function (error) {
+//         console.error(error);
+//     })
+// }
+
 function requestMembersInfo() {
     let roomId = $('#roomInfo').data('room-id');
     console.log('[requestMembersInfo] roomId = ', roomId);
@@ -15,6 +31,100 @@ function requestMembersInfo() {
             console.log(error);
         }
     })
+}
+
+function requestChat() {
+    let roomId = $('#roomInfo').data('room-id');
+    let lastChatId = gameStateManager.getState('lastChatId');
+    let chatIdParam = lastChatId ? `?lastId=${lastChatId}` : '';
+    $.ajax({
+        url: `/api/rooms/${roomId}/chats${chatIdParam}`,
+        type: 'GET',
+        success: function (response) {
+            console.log('[requestChat] response = ', response);
+            if (response.length === 0) {
+                if (gameStateManager.getState('chatMessages') === null) {
+                    gameStateManager.setState('chatMessages', []); // 첫로드 초기화 null -> []
+                }
+                return;
+            }
+            lastChatId = response[response.length - 1].id;
+            gameStateManager.setState('lastChatId', lastChatId);
+            gameStateManager.setState('chatMessages', response);
+        },
+        error: function (error) {
+            console.warn('[requestChat] error', error);
+        }
+    });
+}
+
+function requestSendChat(type, payload) {
+    let roomId = $('#roomInfo').data('room-id');
+
+    // 채팅 시간제한 검증
+    const now = Date.now();
+    const lastChatTime = gameStateManager.getState('lastChatTime') || 0;
+    if (now - lastChatTime < 3000) return;
+    gameStateManager.setState('lastChatTime', now, {force: true});
+
+    // UI 잠금
+    lockChatUIForCooldown();
+
+    $.ajax({
+        url: `/api/rooms/${roomId}/chats`,
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {'X-CSRF-TOKEN': $('#csrfToken').val()},
+        data: JSON.stringify(
+            type === 'TEXT'
+                ? {type: 'TEXT', content: payload}
+                : {type: 'STAMP', chatStamp: payload}
+        ),
+        success: function (response) {
+            console.log('[requestSendChat] response = ', response);
+            gameStateManager.setState('lastChatId', response.id);
+            gameStateManager.setState('chatMessages', [response]); // 단건도 배열로 통일
+
+            $('.chat-modal-button').click(); // 채팅 모달 닫기
+        },
+        error: function (error) {
+            console.warn('[requestSendChat] error', error);
+            let errorResp = error.responseJSON;
+            if (errorResp.code === 'CHAT_FAILED') {
+                alert(errorResp.message);
+            }
+        }
+    });
+}
+
+// 채팅 UI 잠금 
+function lockChatUIForCooldown() {
+    const cooldownMs = 3000;
+
+    // 폼요소
+    const $formElements = $('#chatSendBtn, #chatInput, #toggleStampBtn, .short-message-button');
+    $formElements.prop('disabled', true);
+    // 스탬프
+    const $stampItems = $('#stampPanel .stamp-item');
+    $stampItems.css({
+        'pointer-events': 'none',
+        'opacity': '0.4'          // 시각적으로 확인 가능하게
+    });
+
+    // placeholder 변경으로 남은 시간 인지
+    const $chatInput = $('#chatInput');
+    const originalPlaceholder = $chatInput.attr('placeholder');
+    $chatInput.attr('placeholder', '잠시 후 전송 가능합니다...');
+
+    // 3초 후 원상복구
+    setTimeout(() => {
+        $formElements.prop('disabled', false);
+        $stampItems.css({
+            'pointer-events': 'auto',
+            'opacity': '1'
+        });
+        $chatInput.attr('placeholder', originalPlaceholder);
+    }, cooldownMs);
 }
 
 function requestSync(isInit = false) {
@@ -38,8 +148,7 @@ function requestSync(isInit = false) {
         }
         return responses;
     }).catch(function (error) {
-        console.error(error)
-        let errorResponse = error.responseJSON;
+        console.error(error);
     })
 }
 
@@ -78,16 +187,23 @@ function requestMove(characterId, moveId, moveType) {
         error: function (error) {
             console.log(error);
             let errorObj = error.responseJSON;
-            if (!!errorObj.code) {
+            let errorCode = errorObj.code;
+            if (errorCode) {
                 alert(errorObj.message);
 
+                let doNextProcess = errorCode === 'MOVE_VALIDATION_CONDITION_FAILED'; // 조건 검증 실패
                 let $abilityRailItems = $('.ability-rail-wrapper .rail-item');
-                if (errorObj.code === 'MOVE_VALIDATION_CONDITION_FAILED') {
-                    $abilityRailItems.eq(0).remove() // 발동 조건 검증 실패한 경우 해당 어빌리티만 취소, 실행은 됫으니 executed = true
+                if (doNextProcess) {
+                    // 다음 처리를 이어가도록 복구
+                    $abilityRailItems.eq(0).remove() // 해당 커맨드만 취소, 다음 처리를 위해 executed = true 유지
                 } else {
+                    // 기타 처리 실패: 어빌리티 레일을 초기화
                     $abilityRailItems.removeClass('executed');
-                    $abilityRailItems.remove();
+                    $abilityRailItems.remove(); // mutationObserver 에서 오버레이등 필요처리 수행함
                 }
+
+                // 솬석 기존상태로 복구
+                gameStateManager.setState('usedSummon', gameStateManager.getState('usedSummon'), {force: true});
             }
         },
         complete: function () {
@@ -193,12 +309,24 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
         }),
         async: false,
         success: function (response) {
-            // console.log(response);
+            console.log(response);
             $('#chargeAttackActiveCheck').prop('checked', response.chargeAttackOn);
+            gameStateManager.setState('canChargeAttacks', response.canChargeAttacks);
+            gameStateManager.setState('chargeGauges', gameStateManager.getState('chargeGauges'), {force: true}); // canChargeAttacks 가 렌더러 연결 안되있어서 직접 갱신
             // 대기모션 갱신
-            player.getCharacters().forEach(actor => player.play(Player.playRequest(`actor-${actor.actorIndex}`, player.getCharacterWaitMotion(actor.actorIndex))));
-            if (response.chargeAttackOn === true)
+            player.renewCharacterWait();
+
+            if (response.chargeAttackOn === true) {
                 playSe(Sounds.ui.CHARGE_ATTACK_READY.src);
+
+                // 랜덤 한명 오의 준비 보이스 재생
+                let characters = player.actors.values().filter(actor => actor.isCharacter() && !actor.isLeaderCharacter && response.canChargeAttacks[actor.actorIndex]).toArray();
+                if (characters.length > 0) {
+                    let randomIndex = Math.floor(Math.random() * characters.length);
+                    characters[randomIndex].playVoice(Player.c_animations.ABILITY_WAIT);
+                }
+            }
+
         },
         error: function (error) {
             console.log(error);
@@ -236,7 +364,7 @@ function requestPotion(potionType, actorId) {
         },
         error: function (error) {
             console.error(error);
-            alert(response.responseText);
+            alert(error.responseText);
         }
     });
 }

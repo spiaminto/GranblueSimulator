@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -17,7 +18,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
   <!-- static -->
-  <link href="/css/battle/common.css" rel="stylesheet">
+  <link href="/css/common.css" rel="stylesheet">
+  <link href="/css/battle/basic.css" rel="stylesheet">
   <link href="/css/battle/battle-canvas.css" rel="stylesheet">
   <link href="/css/battle/damage.css" rel="stylesheet">
   <link href="/css/battle/modals.css" rel="stylesheet">
@@ -32,7 +34,8 @@
   <script src="/js/vendors/require.js"></script>
   <script src="/js/vendors/jquery.js"></script>
   <!--static-->
-  <script src="/js/battle/common.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/battle/util.js"></script>
   <script src="/js/battle/objects.js"></script>
   <script src="/js/battle/eventListeners.js"></script>
   <script src="/js/battle/request-command.js"></script>
@@ -48,14 +51,12 @@
   <script src="/js/gbfap/animation.js"></script>
   <script src="/js/gbfap/load-actor.js"></script>
   <script src="/js/GBFML/util.js"></script>
-  <script th:inline="javascript">
-      window.require_is_configured = false;
-      /*<![CDATA[*/
-      var assetInfos = /*[[${assetInfos}]]*/ {}; // from server
-      /*]]>*/
-  </script>
   <script>
-      // 페이지 로드시 한 번만
+      // 로컬 스토리지 초기화
+      if (localStorage.getItem('abilityStatusEffectInfoCheck') === null) localStorage.setItem('abilityStatusEffectInfoCheck', 'true');
+
+      // 모듈 로드
+      window.require_is_configured = false;
       if (!window.require_is_configured) {
           require.config({
               baseUrl: "",
@@ -79,28 +80,32 @@
               $(function () {
                   _ = underscore;
 
-                  // slick 로드
-                  $('#abilitySlider').slick({speed: 200, arrows: false});
-                  let $abilityPanels = $('.slick-slide:not(.slick-cloned) .ability-panel');
-                  let $arrangedAbilityPanels = [$(), $(), $(), $(), $()];
-                  $abilityPanels.get().map(abilityPanel => {
-                      let actorOrder = $(abilityPanel).attr('data-actor-order');
-                      $arrangedAbilityPanels[actorOrder] = $(abilityPanel);
-                  })
-                  window.abilityPanels = $arrangedAbilityPanels;
-
                   // 스케일 초기화
-                  let scale = window.innerWidth / 320;
+                  let scale = window.innerWidth / 330;
                   scale = scale > 2.0 ? 2.0 : scale;
                   console.log(`[scaleInit] innerWidth = ${window.innerWidth} scale = ${scale}`);
                   $('#container').css({'transform': `scale(${scale})`, 'transform-origin': 'top left'});
                   window.scale = scale;
 
-                  // 로딩 오버레이 이벤트 리스너 등록
+                  // slick 로드
+                  let $abilityPanels = $('#abilitySlider .ability-panel');
+                  $abilityPanels.get().forEach(abilityPanel => {
+                      $(abilityPanel).find('.other-move-info-button').attr('data-actor-index', $(abilityPanel).attr('data-actor-order'));
+                  })
+                  $('#abilitySlider').slick({speed: 200, arrows: false});
+
+                  // 게임 상태 초기화 및 로드
+                  initGameStatus().then(() => {
+                      // assets, player, actor 로드
+                      monkeypatch_createjs();
+                      window.require_is_configured = true;
+                      initActors();
+                  });
+
+                  // (상태 초기화 및 stage 로드 완료후) 로딩 오버레이 이벤트 리스너 등록
                   $('#loadingOverlay').one('actorLoadFinished', function () {
                       let $loadingOverlay = $(this);
                       let $fadeOverlay = $('#fadeOverlay');
-                      console.log('[actorLoadFinished]');
 
                       // touch to start 보이게, loading 제거
                       let $readyStartInfoWrapper = $(this).find('.ready-start-info-wrapper');
@@ -136,26 +141,18 @@
                               updateBgm(window.stage.processing.response);
                               player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_PHASE_1));
 
-                              doSync(); // 동기화 폴링
-
                               // 시작시 적 사망했을 경우 (또는 적 사망 새로고침)
                               if (stage.processing.response.moveType === MoveType.DEAD_DEFAULT) {
                                   let enemyDeadResponse = stage.processing.response;
                                   // hp 음수로 오는거 0 으로 변환
                                   let modedHps = [0, ...enemyDeadResponse.hps.slice(1)];
                                   let modedHpRates = [0, ...enemyDeadResponse.hpRates.slice(1)];
-                                  gameStateManager.setState('hps', modedHps);
-                                  gameStateManager.setState('hpRates', modedHpRates);
+                                  gameStateManager.setState('hps', modedHps, {force: true});
+                                  gameStateManager.setState('hpRates', modedHpRates, {force: true});
 
                                   setTimeout(() => processEnemyDead(enemyDeadResponse), 1500); // entry 끝나는거 고려
-                                  //
-                                  // // 적의 mainCjs 가 지정되야 처리가능
-                                  // let intervalTimer = window.setInterval(() => {
-                                  //     if (player && player.actors.get('actor-0').mainCjs != null) {
-                                  //         clearInterval(intervalTimer);
-                                  //         setTimeout(() => processEnemyDead(syncResponse), 1500); // entry 끝나는거 고려
-                                  //     }
-                                  // });
+                              } else {
+                                  doSync(); // 동기화 폴링 (적 사망시 동기화 안함)
                               }
 
                               // 시작시 아군 전원 사망했을 경우 (또는 아군 전원 사망 새로고침)
@@ -168,13 +165,6 @@
                       });
                   });
 
-                  // 게임 상태 초기화 및 로드
-                  initGameStatus().then(() => {
-                      // assets, player, actor 로드
-                      monkeypatch_createjs();
-                      window.require_is_configured = true;
-                      initActors();
-                  });
               });
           });
       }
@@ -218,7 +208,6 @@
           }
       })
   </script>
-  <link rel="stylesheet" href="../../static/css/battle/modals.css">
 </head>
 <body>
 
@@ -242,11 +231,11 @@
 
   <div id="battleCanvasTopMenu">
     <div class="top-menu-container d-flex justify-content-between align-items-center">
-      <button type="button" class="btn btn-xsm btn-outline-light sound-toggle-button">sound</button>
+      <button type="button" class="btn btn-outline-light sound-toggle-button">sound</button>
       <div class="turn-indicator"><span class="value"
                                         th:text="${memberInfo.currentTurn}">1</span><span> turn</span></div>
       <div class="remaining-time-indicator"><i class="bi bi-stopwatch me-1"></i><span class="value">00:00</span></div>
-      <button type="button" class="btn btn-xsm btn-outline-primary menu-modal-button" data-bs-toggle="modal"
+      <button type="button" class="btn btn-outline-primary menu-modal-button" data-bs-toggle="modal"
               data-bs-target="#menuModal">메뉴
       </button>
     </div>
@@ -286,15 +275,6 @@
       </div>
     </div>
 
-    <!--    <div class="enemy-info-container"-->
-    <!--         th:data-initial-form-order="${enemyInfo.getFormOrder()}"-->
-    <!--         th:data-initial-standby-motion="${enemyInfo.getOmen().motion}"-->
-    <!--         th:data-initial-omen-type="${enemyInfo.getOmen().type}"-->
-    <!--         th:data-initial-omen-remainValue="${enemyInfo.getOmen().remainValue}"-->
-    <!--         th:data-initial-omen-name="${enemyInfo.getOmen().getName()}"-->
-    <!--         th:data-initial-actor-id="${enemyInfo.getId()}"-->
-    <!--         th:data-initial-actor-name="${enemyInfo.getName()}"-->
-    <!--    >-->
     <div class="enemy-info-container"
          th:data-initial-actor-id="${enemyInfo.id}"
          th:data-initial-actor-name="${enemyInfo.name}"
@@ -308,26 +288,19 @@
         <div class="progress hp-bar" role="progressbar" aria-label="enemy hp bar" aria-valuenow="100"
              aria-valuemin="0"
              aria-valuemax="100">
-          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 100%"
+          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 50%"
                th:style="${'width: ' + enemyInfo.hpRate + '%'}">
           </div>
         </div>
       </div>
-      <div class="status-container enemy actor-0">
+      <div class="status-container enemy actor-0" data-actor-index="0">
         <div class="show-status-info-button-wrapper enemy">
-          <button class="btn btn-outline-light button-xsm">상세</button>
+          <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
         </div>
-        <!--        <div class="status" th:each="statusEffect : ${enemyInfo.statuses}"-->
-        <!--             th:data-status-type="${statusEffect.baseStatusEffect.type}">-->
-        <!--          <img class="status-icon" src="/static/assets/img/status/buff/status-defence-up.png"-->
-        <!--               th:src="${statusEffect.iconSrc}"/>-->
-        <!--          <div class="status-name d-none" th:text="${statusEffect.baseStatusEffect.name}">스테이터스 이름</div>-->
-        <!--          <div class="status-info-text d-none" th:text="${statusEffect.baseStatusEffect.statusText}">스테이터스 설명</div>-->
-        <!--          <div class="status-duration d-none" th:text="${statusEffect.duration}">스테이터스 효과턴</div>-->
-        <!--        </div>-->
       </div>
       <div class="d-flex">
         <div class="charge-turn-container enemy">
+          <div class="charge-turn-label">CT</div>
         </div>
         <div class="omen-container enemy omen-container-top">
           <div class="omen-text">
@@ -371,15 +344,18 @@
     </div>
 
     <div class="ability-back-button-wrapper">
-      <button class="ability-back-button btn btn-sm btn-outline-primary">
-        뒤로
-      </button>
+      <button class="ability-back-button btn btn-sm"></button>
     </div>
 
     <div class="turn-playing-indicator-wrapper">
       <img class="turn-playing-indicator party" src="/assets/img/ui/ui-player-turn.png">
       <img class="turn-playing-indicator enemy" src="/assets/img/ui/ui-enemy-turn.png">
     </div>
+
+    <!-- 채팅 오픈 버튼 -->
+    <button class="btn btn-sm chat-modal-button" data-bs-toggle="modal" data-bs-target="#chatModal"></button>
+    <!-- 채팅 팝업 -->
+    <div class="chat-popup-container"></div>
 
   </div><!-- #battleCanvas -->
 
@@ -388,7 +364,7 @@
     <div id="abilityRailContainer">
       <div class="ability-rail-wrapper">
         <div id="abilityRail">
-          <div class="rail-ability-dummy rail-ability-0"> <!-- 더미는 높이 유지용으로 만듦. -->
+          <div class="rail-ability-dummy rail-ability-0"> <!-- 높이 유지용 더미 -->
             <img src="/assets/img/ch/paladin/ability-1.png">
           </div>
         </div>
@@ -412,6 +388,7 @@
               <img src="/assets/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
               <div class="hp-gauge-wrapper">
                 <div class="hp-gauge">
+                  <div class="barrier-value"><span class="value"></span></div>
                   <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
                   <div class="progress" role="progressbar">
                     <div class="progress-bar bg-gradient" style="width: 50%"
@@ -423,11 +400,16 @@
               </div>
               <div class="charge-gauge-wrapper">
                 <div class="charge-gauge">
-                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
-                  </div>
                   <div class="progress" role="progressbar">
-                    <div class="progress-bar bg-warning bg-gradient" style="width: 50%"
+                    <div class="progress-bar" style="width: 50%"
                          th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="progress additional"
+                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
                   </div>
                 </div>
               </div>
@@ -465,34 +447,26 @@
         <div class="collapse collapse-horizontal" id="summonCollapse">
           <div class="summon-collapse">
             <div class="summon-list clearfix">
-              <div class="summon-list-item" th:each="summonInfo : ${summonInfos}"
-                   th:data-summon-id="${summonInfo.id}"
-                   th:data-move-id="${summonInfo.id}"
-                   th:data-order="${summonInfoStat.index}"
-                   th:data-name="${summonInfo.name}"
-                   th:data-info="${summonInfo.info}"
-                   th:data-icon-image-src="${summonInfo.iconImageSrc}"
-                   th:data-cooldown="${summonInfo.cooldown}"
-                   th:data-usable="${summonInfo.cooldown.equals(0)}">
-                <img src="/assets/img/summon/empty.jpg" th:src="${summonInfo.portraitImageSrc}">
-                <div class="summon-cooldown" th:text="${summonInfo.getCooldown() + ' 턴'}">00턴</div>
-                <div class="summon-overlay command-overlay"></div>
+              <!--
+              <div class="summon-list-item"
+                 data-move-id="${summon.id}"
+                 data-order="${summon.order}"
+                 >
+                <img src="${summon.portraitImageSrc || '/assets/img/summon/empty.jpg'}">
+                <div class="summon-cooldown ${cooldownClass}">${cooldownText}</div>
+                <div class="summon-overlay command-overlay ${overlayClass}" data-move-id="${summon.id}"></div>
               </div>
-              <!-- 더미 -->
-              <div class="summon-list-item empty" th:each="index : ${#numbers.sequence(0, 3 - summonInfos.size(), 1)}">
-                <img src="/assets/img/summon/empty.jpg">
-              </div>
-
+              -->
             </div>
           </div>
         </div>
       </div>
 
       <div class="ability-slider-slide-button-wrapper to-right">
-        <button class="btn button-xsm"><i class="bi bi-caret-right"></i></button>
+        <button class="btn btn-xxsm"><i class="bi bi-caret-right"></i></button>
       </div>
       <div class="ability-slider-slide-button-wrapper to-left">
-        <button class="btn button-xsm"><i class="bi bi-caret-left"></i></button>
+        <button class="btn btn-xxsm"><i class="bi bi-caret-left"></i></button>
       </div>
 
       <div id="abilitySlider">
@@ -505,6 +479,7 @@
                    th:src="${characterInfo.portraitSrc}">
               <div class="hp-gauge-wrapper">
                 <div class="hp-gauge">
+                  <div class="barrier-value"><span class="value"></span></div>
                   <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
                   <div class="progress" role="progressbar">
                     <div class="progress-bar bg-gradient" style="width: 50%"
@@ -515,17 +490,24 @@
               </div>
               <div class="charge-gauge-wrapper">
                 <div class="charge-gauge">
-                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">75</span>%
-                  </div>
                   <div class="progress" role="progressbar">
-                    <div class="progress-bar bg-warning bg-gradient" style="width: 100%"
+                    <div class="progress-bar" style="width: 50%"
                          th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="progress additional"
+                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
+                    <div class="progress-bar" style="width: 50%"
+                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
+                  </div>
+                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="panel-wrapper">
+              <button class="btn btn-outline-light btn-xxsm other-move-info-button">서포트,<br>오의 상세</button>
+
               <div class="charge-attack-wrapper">
                 <div class="charge-attack-info">
                 <span class="charge-attack-name fw-bold" th:text="${'[오의] ' + characterInfo.chargeAttack.name}">
@@ -539,33 +521,26 @@
               </div>
 
               <div class="ability-wrapper">
-                <div class="ability-icon" th:each="ability : ${characterInfo.abilities}"
-                     th:data-actor-id="${characterInfo.id}"
-                     th:data-actor-index="${characterInfo.order}"
-                     th:data-move-id="${ability.id}"
-                     th:data-order="${abilityStat.count}"
-                     th:data-name="${ability.name}"
-                     th:data-ability-type="${ability.abilityType}"
-                     th:data-info="${ability.info}"
-                     th:data-cooldown="${characterInfo.abilityCoolDowns.get(abilityStat.index)}"
-                     th:data-usable="${characterInfo.abilityCoolDowns.get(abilityStat.index).equals(0) && characterInfo.abilitySealeds.get(abilityStat.index) == false}"
-                >
-                  <img src="/assets/img/ch/paladin/ability-1.png"
-                       th:src="${ability.iconImageSrc}"/>
-                  <div class="ability-cooldown-text invisible">
-                    <span class="value" th:text="${characterInfo.abilityCoolDowns.get(abilityStat.index)}">00</span>턴
+                <!--
+                  <div class="ability-icon"
+                       data-move-id="${ability.id}"
+                       data-order="${ability.order}"
+                       >
+                      <img src="${ability.iconImageSrc || ''}" alt="abilityIcon"/>
+                      <div class="ability-cooldown-text ${cooldownText ? '' : 'invisible'}">
+                          <span class="value">${cooldownText ? cooldownText : '00'}</span>
+                      </div>
+                      <div class="ability-overlay command-overlay ${isReady ? '' : 'not-ready'}"></div>
                   </div>
-                  <div class="ability-overlay command-overlay"></div>
-                  <div class="ability-name" th:text="${ability.name}">어빌리티 이름</div>
-                  <div class="ability-info-text" th:text="${ability.info}">어빌리티 설명</div>
-                </div>
+                 -->
               </div>
 
             </div> <!-- .panel-wrapper -->
 
-            <div class="status-container party" th:classappend="${'actor-' + characterInfo.order}">
+            <div class="status-container party" th:classappend="${'actor-' + characterInfo.order}"
+                 th:data-actor-index="${characterInfo.order}">
               <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-light button-xsm">상세</button>
+                <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
               </div>
             </div>
 
@@ -619,7 +594,7 @@
       <div class="form-check form-switch charge-attack-check-wrapper">
         <input class="form-check-input" type="checkbox" role="switch" id="chargeAttackActiveCheck"
                th:checked="${memberInfo.isChargeAttackOn}">
-        <label class="form-check-label" for="chargeAttackActiveCheck">오의 발동</label>
+        <label class="form-check-label" for="chargeAttackActiveCheck">오의 사용</label>
       </div>
     </div>
 
@@ -637,9 +612,7 @@
     <!--    </div>-->
   </div>
 
-  <hr>
-
-  <div id="memberInfo" th:data-member-id="${memberInfo.id}">
+  <div id="memberInfo" class="d-none" th:data-member-id="${memberInfo.id}">
     <p th:text="${'멤버ID ' + memberInfo.id}"></p>
     <p id="roomInfo" th:data-room-id="${roomId}" th:data-room-created-at="${roomCreatedAt}"></p>
   </div>
@@ -656,8 +629,8 @@
           <div class="modal-body">
             <div class="test-menu-container m-1 p-1 border border-danger">
               <p>테스트메뉴</p>
-              <button class="btn btn-xsm btn-outline-success me-1" onclick="requestResetCooldown()">쿨타임 초기화</button>
-              <button id="testButton" class="btn btn-xsm btn-outline-success me-1"> 테스트 버튼</button>
+              <button class="btn btn-xsm btn-outline-success me-1" sec:authorize="hasRole('ROLE_ADMIN')" onclick="requestResetCooldown()">쿨타임 초기화</button>
+<!--              <button id="testButton" class="btn btn-xsm btn-outline-success me-1"> 테스트 버튼</button>-->
             </div>
           </div>
           <div class="modal-footer">
@@ -707,22 +680,22 @@
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-1"
                            value="1">
-                    <label class="form-check-label" for="potionTargetRadio-1">1</label>
+                    <label class="form-check-label" for="potionTargetRadio-1">1번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-2"
                            value="2">
-                    <label class="form-check-label" for="potionTargetRadio-2">2</label>
+                    <label class="form-check-label" for="potionTargetRadio-2">2번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-3"
                            value="3">
-                    <label class="form-check-label" for="potionTargetRadio-3">3</label>
+                    <label class="form-check-label" for="potionTargetRadio-3">3번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-4"
                            value="4">
-                    <label class="form-check-label" for="potionTargetRadio-4">4</label>
+                    <label class="form-check-label" for="potionTargetRadio-4">4번</label>
                   </div>
                 </div>
               </div>
@@ -741,31 +714,76 @@
     </div>
 
     <!-- 어빌리티 설명 모달 -->
-    <button type="button" class="btn btn-primary ability-info-modal-button inner-modal-open-button" data-bs-toggle="modal"
+    <button type="button" class="btn btn-primary ability-info-modal-button inner-modal-open-button"
+            data-bs-toggle="modal"
             data-bs-target="#abilityInfoModal">
       어빌리티 설명 모달 버튼
     </button>
     <div class="modal fade" id="abilityInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
          aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h4 class="modal-title ability-name fs-5" id="exampleModalLabel">어빌리티 이름</h4>
+            <!--            <h4 class="modal-title ability-name fs-5">커맨드 이름</h4>-->
           </div>
           <div class="modal-body">
-            <div class="ability-info-wrapper">
-              <div class="ability-info-icon-wrapper">
-                <img class="ability-info-icon" src="">
-              </div>
-              <div class="ability-info-text">
-              </div>
-            </div>
+            <!--            <div class="ability-info-wrapper">-->
+            <!--              <div class="ability-info-icon-wrapper">-->
+            <!--                <img class="ability-info-icon" src="">-->
+            <!--              </div>-->
+            <!--              <div class="ability-info-text">-->
+            <!--              </div>-->
+            <!--            </div>-->
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary btn-sm me-1 close-ability-info-modal-open-button" data-bs-dismiss="modal">
+            <div class="form-check form-switch">
+              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
+                     id="abilityStatusEffectInfoCheck">
+              <label class="form-check-label" for="abilityStatusEffectInfoCheck">효과 상세</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 close-ability-info-modal-button"
+                    data-bs-dismiss="modal">
               닫기
             </button>
-            <button type="button" class="btn btn-primary btn-sm use-ability-button">사용</button>
+            <button type="button" class="btn btn-outline-primary btn-sm use-ability-button">사용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--기타 행동 어빌리티 상세 모달-->
+    <button type="button" class="btn btn-primary other-move-info-modal-button inner-modal-open-button"
+            data-bs-toggle="modal"
+            data-bs-target="#otherMoveInfoModal">
+      기타 행동 설명 모달 버튼
+    </button>
+    <div class="modal fade" id="otherMoveInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+         aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <!--            <h4 class="modal-title ability-name fs-5">기타 행동</h4>-->
+          </div>
+          <div class="modal-body">
+            <!--            <div class="ability-info-wrapper">-->
+            <!--              <div class="ability-info-icon-wrapper">-->
+            <!--                <img class="ability-info-icon" src="">-->
+            <!--              </div>-->
+            <!--              <div class="ability-info-text">-->
+            <!--              </div>-->
+            <!--            </div>-->
+          </div>
+          <div class="modal-footer">
+            <!--            <button type="button" class="btn btn-outline-success show-status-info-button btn-sm me-2">효과 상세</button>-->
+            <div class="form-check form-switch">
+              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
+                     id="otherMoveStatusEffectInfoCheck">
+              <label class="form-check-label" for="otherMoveStatusEffectInfoCheck">효과 상세</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm close-ability-info-modal-button"
+                    data-bs-dismiss="modal">
+              닫기
+            </button>
           </div>
         </div>
       </div>
@@ -778,7 +796,7 @@
     </button>
     <div class="modal fade" id="statusInfoModal" tabindex="-1"
          aria-labelledby="statusInfoModal" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered .modal-dialog-scrollable">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
@@ -811,6 +829,46 @@
               닫기
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 채팅 모달 -->
+    <div class="modal fade" id="chatModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">채팅</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <!-- 이전 대화 스크롤 영역 -->
+          <div class="modal-body chat-message-container">
+          </div>
+
+          <!-- 숏 메시지 -->
+          <div id="shortMessagePanel">
+            <button class="btn btn-xxsm btn-outline-light short-message-button">방어효과 요청</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">회복효과 요청</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">클리어효과 요청</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">오의게이지 요청</button>
+          </div>
+
+          <!-- 스탬프 패널 (기본 숨김) -->
+          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6;">
+<!--          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6; flex-wrap:wrap; gap:6px;">-->
+            <img class="stamp-item" data-stamp-key="OK" src="/static/gbf/img/stamp/ok.png" style="width:52px;cursor:pointer;">
+            <img class="stamp-item" data-stamp-key="THANKS" src="/static/gbf/img/stamp/thanks.png" style="width:52px;cursor:pointer;">
+          </div>
+
+          <div class="modal-footer" style="gap:6px; flex-wrap:nowrap;">
+            <button id="toggleStampBtn" class="btn btn-outline-secondary btn-sm">스탬프</button>
+            <input type="text" id="chatInput" class="form-control form-control-sm"
+                   placeholder="메시지..." maxlength="100" style="flex:1;">
+            <button id="chatSendBtn" class="btn btn-primary btn-sm">전송</button>
+          </div>
+
         </div>
       </div>
     </div>

@@ -6,7 +6,8 @@ import lombok.Getter;
 public enum StatusEffectType {
     BUFF(5),
     DEBUFF(15),
-    
+
+    DISPLAY_PASSIVE(0), // 메타데이터로만 표시할 상태효과
     PASSIVE(0), // 표시하지 않을 상태효과 (서포트 어빌리티 패시브, 어빌리티 사용조건 잠금)
 
     ETC(999),
@@ -25,5 +26,6 @@ public enum StatusEffectType {
         return this == BUFF;
     }
 
-    public boolean isPresentable() {return this != PASSIVE ;} // 외부에 보여줄 효과
+    public boolean isDisplayable() {return this == BUFF || this == DEBUFF ;} // 부여효과로 직접 보여줄 효과
+    public boolean isMetadataDisplayable() {return this == BUFF || this == DEBUFF || this == DISPLAY_PASSIVE ;} // 메타데이터 확인시 보여줄 효과
 }

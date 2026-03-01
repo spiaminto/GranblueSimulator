@@ -1,27 +1,33 @@
 package com.gbf.granblue_simulator.battle.logic;
 
+import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
-import com.gbf.granblue_simulator.battle.repository.ActorRepository;
+import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ForMemberAbilityInfo;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
+import com.gbf.granblue_simulator.battle.logic.move.dto.SetEffectRequest;
+import com.gbf.granblue_simulator.battle.logic.move.mapper.CharacterLogicResultMapper;
+import com.gbf.granblue_simulator.battle.logic.move.mapper.EnemyLogicResultMapper;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
+import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
-import com.gbf.granblue_simulator.battle.domain.BattleContext;
-import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.battle.logic.actor.character.CharacterLogicResultMapper;
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ActorLogicResult;
-import com.gbf.granblue_simulator.battle.logic.actor.enemy.EnemyLogicResultMapper;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
-import com.gbf.granblue_simulator.metadata.repository.MoveRepository;
+import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,12 +40,11 @@ import java.util.stream.Collectors;
 @Transactional
 public class SyncLogic {
 
-    private final SetStatusLogic setStatusLogic;
-    private final CharacterLogicResultMapper characterLogicResultMapper;
     private final BattleContext battleContext;
+    private final CharacterLogicResultMapper characterLogicResultMapper;
     private final EnemyLogicResultMapper enemyLogicResultMapper;
-    private final MoveRepository moveRepository;
-    private final ActorRepository actorRepository;
+    private final SetStatusLogic setStatusLogic;
+    private final BaseMoveRepository baseMoveRepository;
 
     /**
      * 요청자의 현재 최신 상태를 반환, 동기화 자체는 '이전 참전자' 가 이미 동기화 해놓음. <br>
@@ -48,11 +53,11 @@ public class SyncLogic {
      *
      * @return 동기화 결과들 (참전자 버프 행동이 여러개인 경우, 여러개의 결과가 반환) mainActor = enemy
      */
-    public List<ActorLogicResult> processSync() {
+    public List<MoveLogicResult> processSync() {
         Member currentMember = battleContext.getMember();
         Actor enemy = battleContext.getEnemy();
         List<Actor> partyMembers = battleContext.getFrontCharacters();
-        List<ActorLogicResult> results = new ArrayList<>();
+        List<MoveLogicResult> results = new ArrayList<>();
 
         // mainActor 의 경우
         // 1. 일반 동기화: requestSync 를 통해 직접 요청이 오는경우 : 첫번째 아군, 아군 전원 사망시 적
@@ -60,7 +65,7 @@ public class SyncLogic {
 
         // 적이 죽으면, 즉시 사망결과 반환
         if (enemy.isAlreadyDead())
-            return List.of(enemyLogicResultMapper.toResult(enemy.getMove(MoveType.DEAD_DEFAULT)));
+            return List.of(enemyLogicResultMapper.toResult(ResultMapperRequest.from(Move.getTransientMove(enemy, MoveType.DEAD_DEFAULT))));
 
         // 적 추가 처리
         // 1. 종료된 시간제 스테이터스 효과 직접 삭제
@@ -68,21 +73,37 @@ public class SyncLogic {
 
         List<Member.PendingForAllMove> pendingForAllMoves = currentMember.getPendingForAllMoves();
         if (pendingForAllMoves.isEmpty()) {
-            results.add(characterLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.SYNC), null, null));
+            results.add(characterLogicResultMapper.toResult(ResultMapperRequest.from(Move.getTransientMove(battleContext.getMainActor(), MoveType.SYNC))));
         } else {
             // 참전자 버프 포함하는 move 처리
+            Actor beforeMainActor = battleContext.getMainActor();
+            battleContext.setCurrentMainActor(partyMembers.getFirst()); // 임시로 지정
+
             pendingForAllMoves.forEach(pendingForAllMove -> {
-                BaseMove move = moveRepository.findById(pendingForAllMove.getMoveId()).orElseThrow(() -> new IllegalArgumentException("[processSync] 참전자 버프 move 없음 moveId = " + pendingForAllMove.getMoveId() + " not found"));
-                List<BaseStatusEffect> forAllBaseEffects = move.getBaseStatusEffects().stream().filter(baseStatusEffect -> baseStatusEffect.getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS).toList();
-                SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(partyMembers.getFirst(), forAllBaseEffects, StatusEffectTargetType.PARTY_MEMBERS);
+                BaseMove move = baseMoveRepository.findById(pendingForAllMove.getMoveId()).orElseThrow(() -> new IllegalArgumentException("[processSync] 참전자 버프 move 없음 moveId = " + pendingForAllMove.getMoveId() + " not found"));
+                List<BaseStatusEffect> forAllBaseEffects = move.getBaseStatusEffects()
+                        .stream()
+                        .filter(baseStatusEffect -> baseStatusEffect.getTargetType() == StatusEffectTargetType.ALL_PARTY_MEMBERS)
+                        .toList();
+                SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.withSelectedTargets(forAllBaseEffects, battleContext.getFrontCharacters()));
 
                 String sourceUsername = pendingForAllMove.getSourceUsername();
                 String sourceMoveName = move.getName();
-                String moveName = sourceUsername + "_" + sourceMoveName;
 
-                results.add(characterLogicResultMapper.toResult(BaseMove.getTransientMove(MoveType.SYNC, moveName, move.getDefaultVisual()), null, setStatusEffectResult));
+                results.add(characterLogicResultMapper.toResult(ResultMapperRequest.builder()
+                        .move(Move.getTransientMove(battleContext.getMainActor(), MoveType.SYNC))
+                        .setStatusEffectResult(setStatusEffectResult)
+                        .forMemberAbilityInfo(ForMemberAbilityInfo.builder()
+                                .moveName(sourceMoveName)
+                                .sourceUsername(sourceUsername)
+                                .cjsName(move.getDefaultVisual().getCjsName())
+                                .isTargetedEnemy(move.getDefaultVisual().isTargetedEnemy())
+                                .build())
+                        .build()));
             });
+
             pendingForAllMoves.clear();
+            battleContext.setCurrentMainActor(beforeMainActor);
         }
 
         // 최신 상태 반환

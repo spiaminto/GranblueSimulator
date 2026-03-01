@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .expiredUrl("/?needLogin=true")
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/admin").hasRole("ADMIN")
                         .requestMatchers("/room/167/result").permitAll()
                         .requestMatchers("/room/**").authenticated()
                         .requestMatchers("/api/**").permitAll() // CHECK 나중에 잠글것
@@ -38,6 +39,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/?needLogin=true")
                         .loginProcessingUrl("/login-process")
+                        .usernameParameter("loginId")
                         .successHandler(customSuccessHandler) // JSON 으로 내려줌
                         .failureHandler(customFailureHandler) // JSON 으로 내려줌
                 )

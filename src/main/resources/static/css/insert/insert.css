@@ -1,5 +1,6 @@
 h1, h2, h3, h4, h5 {
     font-weight: bold;
+    margin-top: 0.5rem; !important;
 }
 
 input[type="text"] {
@@ -43,4 +44,10 @@ body {
 
 .submit-button {
     margin-top: 1rem;
+}
+
+.info-list-wrapper .info-list-item {
+    padding: 0.5rem;
+    padding-left: 1.5rem;
+    border-top: solid black 1px;
 }

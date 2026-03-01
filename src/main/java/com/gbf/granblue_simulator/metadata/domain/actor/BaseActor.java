@@ -1,31 +1,34 @@
 package com.gbf.granblue_simulator.metadata.domain.actor;
 
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
-import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.visual.ActorVisual;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@EqualsAndHashCode @ToString
-@Inheritance(strategy = InheritanceType.JOINED) @DiscriminatorColumn
+@EqualsAndHashCode
+@ToString
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn
 public abstract class BaseActor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(insertable = false, updatable = false)
     private String dtype;
-
-    @OneToMany(mappedBy = "baseActor") @MapKey(name = "type") @ToString.Exclude @EqualsAndHashCode.Exclude
-    private Map<MoveType, BaseMove> moves = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
     private ElementType elementType; // 속성
@@ -34,12 +37,24 @@ public abstract class BaseActor {
     private String nameEn; // 영어명
 
     @Accessors(fluent = true)
-    private boolean isLeaderCharacter; // 주인공 여부, Character 로 분리?
+    private boolean isLeaderCharacter; // 주인공 여부
 
     private String weaponId;
 
-    @OneToOne @JoinColumn(name = "default_visual_id")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "default_move", columnDefinition = "jsonb")
+    private MappedMove mappedMove;
+
+    @OneToOne
+    @JoinColumn(name = "default_visual_id")
     private ActorVisual defaultVisual;
+
+    @PostLoad
+    private void postLoad() {
+        if (this.mappedMove != null) {
+            this.mappedMove.postLoad();
+        }
+    }
 
     // base status
     private int atk;
@@ -66,11 +81,11 @@ public abstract class BaseActor {
 
     // TODO insert 관련 추가 수정필요
     public void initCharacterBaseStatus(boolean isLeaderCharacter) {
-        this.atk = 10000;
+        this.atk = 7000;
         this.maxHp = 20000;
-        this.def = 2.0;
-        this.doubleAttackRate = 0.25;
-        this.tripleAttackRate = 0.1;
+        this.def = 1.0;
+        this.doubleAttackRate = 0.3;
+        this.tripleAttackRate = 0.15;
         this.debuffResistRate = 0;
         this.debuffSuccessRate = 1.0;
         this.criticalRate = 0.0;
@@ -81,15 +96,49 @@ public abstract class BaseActor {
         this.dodgeRate = 0;
 
         if (isLeaderCharacter) { // 주인공 보정
-            this.atk = 15000;
+            this.atk = 10000;
             this.maxHp = 25000;
-            this.doubleAttackRate = 0.5;
-            this.tripleAttackRate = 0.25;
+            this.doubleAttackRate = 0.4;
+            this.tripleAttackRate = 0.2;
         }
     }
-    
+
     public void initEnemyBaseStatus() {
         // 적은 DB 에딧으로 대체
+    }
+
+    /**
+     * 기본 사용 매핑된 moveId 전부 반환 <br>
+     * 주로 BaseACtor -> Actor 변환시 Actor.moves 등록시 사용
+     */
+    public List<Long> getDefaultMoveIds() {
+        List<Long> ids = new ArrayList<>();
+        if (this.mappedMove != null) {
+            if (this.mappedMove.getNormalAttackId() != null) {
+                ids.add(this.mappedMove.getNormalAttackId());
+            }
+            if (this.mappedMove.getStandbyId() != null) {
+                ids.add(this.mappedMove.getStandbyId());
+            }
+            ids.addAll(this.mappedMove.getAbilityIds());
+            ids.addAll(this.mappedMove.getSupportAbilityIds());
+            ids.addAll(this.mappedMove.getChargeAttackIds());
+            ids.addAll(this.mappedMove.getChangingMoveIds());
+        }
+        return ids;
+    }
+
+    /**
+     * 등록된 모든 moveId 를 반환. <br>
+     * 캐릭터의 메타데이터 확인시, 특히 주인공은 모든 어빌리티/서포트 어빌리티 확인 필요
+     */
+    public List<Long> getAllMoveIds() {
+        Set<Long> allMoveIds = new LinkedHashSet<>(this.getDefaultMoveIds());  // 순서 유지
+        if (this.mappedMove != null) {
+            allMoveIds.addAll(this.mappedMove.getAllAbilityIds());
+            allMoveIds.addAll(this.mappedMove.getAllSupportAbilityIds());
+        }
+        return new ArrayList<>(allMoveIds);
     }
 
 

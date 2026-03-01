@@ -5,7 +5,6 @@ import lombok.Data;
 @Data
 public class UserEditRequest {
 
-    private Long userId;
-    private Long primaryPartyId;
+    private Long partyId;
 
 }

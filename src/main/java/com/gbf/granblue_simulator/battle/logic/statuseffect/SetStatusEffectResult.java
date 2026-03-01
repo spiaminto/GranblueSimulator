@@ -1,6 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.statuseffect;
 
-import com.gbf.granblue_simulator.battle.logic.actor.dto.ResultStatusEffectDto;
+import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ public class SetStatusEffectResult {
     public void merge(SetStatusEffectResult... others) {
         for (SetStatusEffectResult other : others) {
             log.info("[merge] other = {}", other);
-            if (other == null) continue;
+            if (other == null || this.equals(other)) continue;
             Map<Long, Result> otherResults = other.getResults();
             for (Long otherResultActorId : otherResults.keySet()) {
                 Result otherResult = otherResults.get(otherResultActorId);
@@ -48,16 +48,16 @@ public class SetStatusEffectResult {
     public static class Result {
         Long actorId;
         @Builder.Default
-        private List<ResultStatusEffectDto> addedStatusEffects = new ArrayList<>();
+        private List<StatusEffectDto> addedStatusEffects = new ArrayList<>();
         @Builder.Default
-        private List<ResultStatusEffectDto> removedStatusEffects = new ArrayList<>();
+        private List<StatusEffectDto> removedStatusEffects = new ArrayList<>();
         @Builder.Default
-        private List<ResultStatusEffectDto> levelDownedStatusEffects = new ArrayList<>(); // 레벨이 감소되도 표시 (added 에 넣을경우 후처리에서 added 로 간주됨)
+        private List<StatusEffectDto> levelDownedStatusEffects = new ArrayList<>(); // 레벨이 감소되도 표시 (added 에 넣을경우 후처리에서 added 로 간주됨)
         private Integer healValue; // nullable
         private Integer damageValue; // nullable, effectDamage
 
         public static Result emptyResult() {
-            return Result.builder().build();
+            return Result.builder().build(); // actorId == null
         }
 
         private Result copy() {
@@ -72,7 +72,7 @@ public class SetStatusEffectResult {
         }
 
         public Result merge(Result otherResult) {
-            if (otherResult == null) return this;
+            if (otherResult == null || otherResult.actorId == null) return this;
             this.getAddedStatusEffects().addAll(otherResult.getAddedStatusEffects());
             this.getRemovedStatusEffects().addAll(otherResult.getRemovedStatusEffects());
             this.getLevelDownedStatusEffects().addAll(otherResult.getLevelDownedStatusEffects());

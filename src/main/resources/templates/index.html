@@ -10,68 +10,92 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
-  <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" rel="stylesheet"/>
+
+  <link href="/static/css/basic.css" rel="stylesheet">
+  <link href="/static/css/common.css" rel="stylesheet">
+  <link href="/static/css/battle/modals.css" rel="stylesheet">
+
   <style>
 
-      #indexHeader {
-          padding: 15px;
+      /* 유저 정보 */
+      .user-info-container .user-info-wrapper {
+          padding: 5px;
+          font-size: 12px;
       }
 
-      #indexHeader a {
-          color: black;
-          text-decoration: none;
-      }
-
-      #indexHeader a:hover {
-          border-bottom: solid 1px;
-      }
-
-      h4 {
-          margin-top: 20px;
-      }
-
-      #userInfoBox {
-          padding: 10px;
-      }
-
-      #userInfoBox span {
+      .user-info-container .user-info-wrapper span {
           margin: 0 10px;
       }
 
-      .modal-body > label {
-          padding: 8px;
+      #loginForm {
+          font-size: 12px;
       }
 
-      .field-error {
+      #loginForm label {
+          padding: 6px;
+      }
+
+      #loginForm .field-error {
           color: red;
           border-color: red;
       }
 
-      #loginErrorMessage {
+      #loginForm #loginErrorMessage {
           padding: 8px;
       }
 
       /* room list*/
+      #roomList {
+          margin-top: 5px;
+      }
 
       .room-list-item {
-          padding: 10px;
+          display: flex;
+          flex-wrap: wrap;
+          background-color: rgba(200, 200, 200, 0.1);
+
+          padding: 8px 5px;
           cursor: pointer;
       }
 
       .room-list-item:hover {
-          background-color: #f1f1f1;
+          background-color: rgba(13, 110, 253, 0.1);
       }
 
-      .room-header {
+      .room-list-item .enemy-portrait {
+          width: 70px;
+          height: 70px;
+          overflow: hidden;
+          border-radius: 7px;
+          box-shadow: 2px 2px 3px lightgray;
+      }
+
+      .enemy-portrait img {
+          width: 250%;
+          position: relative;
+          left: -75%;
+          top: -20%;
+      }
+
+      .room-list-item .room-info {
+          padding: 2px 2px 2px 7px;
+          width: 220px;
+      }
+
+      .room-info .room-header {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 5px;
+          align-items: center;
+
+          margin-bottom: 3px;
+          background-color: #eee;
+          padding: 3px;
+          border-radius: 5px;
       }
 
       .room-header .room-member-count {
           margin-left: auto;
       }
-
 
       .hp-container {
           display: flex;
@@ -79,115 +103,79 @@
       }
 
       .hp-container .hp-bar {
-          width: 60%;
+          width: 85%;
+          height: 7px;
           background-color: grey;
       }
 
-      /*    파티 관련 */
-      .party-container {
-          width: 350px;
-          margin: 10px auto;
-      }
-
-      .party-wrapper {
+      .room-list-item .room-message-wrapper {
+          margin: 3px 0;
+          padding: 4px 6px;
           width: 100%;
-          border: 1px solid black;
-          padding: 5px;
-          margin-bottom: 5px;
+          background-color: white;
+          box-shadow: 2px 2px 3px #ccc;
+          border-radius: 7px;
+          font-size: 9px;
       }
 
-      .party-wrapper.primary {
-          background-color: rgba(255, 255, 0, 0.2);
+      /* 방 생성 모달 */
+      #createRoomModal #enemyList .enemy-portrait {
+          width: 50px;
+          height: 50px;
+          overflow: hidden;
+          border-radius: 7px;
+          box-shadow: 1px 1px 1px gray;
       }
 
-      .party-wrapper.primary .primary-indicator {
-          color: red;
-      }
-
-      .party-info-header {
+      #createRoomModal #enemyList .enemy-list-item {
           display: flex;
-          padding: 3px;
+          flex-wrap: wrap;
+          background-color: rgba(200, 200, 200, 0.1);
+
+          padding: 0 5px;
+      }
+
+      .enemy-list-item .enemy-info {
+          padding: 2px 2px 2px 7px;
+          width: 220px;
+      }
+
+      .enemy-info .enemy-header {
+          display: flex;
           justify-content: space-between;
+          align-items: center;
+
+          margin-bottom: 3px;
+          background-color: #eee;
+          padding: 3px;
+          border-radius: 5px;
       }
 
-
-      .party-body {
-          width: 100%;
+      #createRoomModal .create-room-input-wrapper {
+          padding: 5px;
       }
 
-      .baseCharacter-info-wrapper {
-          width: 100%;
+      #createRoomModal .enemy-info-button {
+          margin-left: 50px;
       }
 
-      .baseCharacter-info-wrapper::after {
-          content: "";
-          display: block;
-          clear: both;
-      }
-
-      .baseCharacter-info-wrapper .baseCharacter-info {
-          float: left;
-          width: 23%;
-          height: 160px;
-          margin-right: 2%;
-          border: 1px solid black;
-          overflow: hidden;
-      }
-
-      .baseCharacter-info-wrapper .baseCharacter-info:nth-child(4n) {
-          margin-right: 0;
-      }
-
-      .baseCharacter-portrait {
-          height: 130px;
-          overflow: hidden;
-      }
-
-      .baseCharacter-portrait img {
-          width: 100%;
-      }
-
-      .summon-info-wrapper {
-          margin-top: 5px;
-          width: 100%;
-      }
-
-      .summon-info-wrapper::after {
-          content: "";
-          display: block;
-          clear: both;
-      }
-
-      .summon-info-wrapper .summon-info {
-          float: left;
-          width: 23%;
-          height: 160px;
-          margin-right: 2%;
-          border: 1px solid black;
-          overflow: hidden;
-      }
-
-      .summon-portrait {
-          height: 130px;
-          overflow: hidden;
-      }
-
-      .summon-portrait img {
-          width: 100%;
+      .enter-room-message {
+          font-size: 12px;
+          padding: 3px;
       }
 
 
   </style>
   <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/static/js/basic.js"></script>
   <script>
-
       $(function () {
-          // for initial commit 'integration-modified-gbfap-demo'
 
-          // needLogin 이 true 이고, 로그인 정보패널이 없으면 로그인 모달을 띄움
           const params = new URLSearchParams(window.location.search);
-          if (params.has('needLogin') && params.get('needLogin') === 'true') {
-              // needLogin=true가 존재할 때 실행할 코드
+          if (params.has('showRegisterModal') && params.get('showRegisterModal') === 'true') { // showRegisterModal=true
+              document.getElementById('addUserBtn').click();
+          }
+          if (params.has('needLogin') && params.get('needLogin') === 'true') { // needLogin=true
               triggerLoginModal();
           }
 
@@ -237,6 +225,11 @@
           $('.room-list-item').on('click', function () {
               $('#enterRoomForm input[name="roomId"]').val($(this).attr('data-room-id'));
               $('#enterRoomModalTriggerBtn').click();
+          });
+
+          $('#enterTutorialButton').on('click', function () {
+              if (!confirm("튜토리얼을 시작합니다. 튜토리얼 진행상황은 계정에 저장되며 튜토리얼 내의 메뉴>초기화 를 통해 진행상황을 초기화 할 수 있습니다.")) return;
+              location.href = '/members/me/tutorial';
           })
 
 
@@ -244,235 +237,314 @@
   </script>
 </head>
 <body>
-<div class="container">
+<div id="container">
 
-  <h1 id="header"><a href="/">그랑블루 전투시뮬</a></h1>
+  <div class="page-header">
+    <h1>그랑블루 전투 시뮬레이터</h1>
+    <button class="btn btn-xsm btn-outline-secondary" onclick="location.href='/'"><i class="bi bi-house"></i></button>
+  </div>
 
-  <!-- 모달 트리거 -->
-  <button sec:authorize="isAnonymous()"
-          id="loginModalTriggerBtn" type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-          data-bs-target="#loginModal">
-    로그인
-  </button>
-  <button id="logoutBtn" sec:authorize="isAuthenticated()"
-          type="button" class="btn btn-outline-primary">
-    로그아웃
-  </button>
-  <form id="logoutForm" method="POST" action="/logout" style="display: none">
-    <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-  </form>
-
-  <button sec:authorize="isAnonymous()"
-          id="addUserBtn" type="button" class="btn btn-outline-primary" onclick="location.href = '/user/add'">
-    회원가입
-  </button>
-
-  <!-- Modal -->
-  <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-       aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="loginModalLabel">로그인</h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-
-        <form id="loginForm" action="/login-process" method="post">
-          <div class="modal-body">
-            <label for="username">유저명</label>
-            <input type="text" id="username" class="form-control" name="username" placeholder="유저명 입력"/>
-            <label for="password">비밀번호</label>
-            <input id="password" type="password" name="password" class="form-control" placeholder="비밀번호 입력">
-            <div class="login-error-message">
-              <p id="loginErrorMessage" class="field-error"></p>
-            </div>
-            <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-            <button type="submit" id="loginModalLoginBtn" class="btn btn-outline-primary">로그인</button>
-          </div>
-        </form>
-
+  <div class="user-info-container tile">
+    <div class="title-md">유저정보</div>
+    <div sec:authorize="isAnonymous()">
+      <span>로그인이 필요합니다</span>
+      <div class="d-flex justify-content-end gap-2">
+        <button sec:authorize="isAnonymous()"
+                id="loginModalTriggerBtn" type="button" class="btn btn-xsm btn-outline-primary" data-bs-toggle="modal"
+                data-bs-target="#loginModal">
+          로그인
+        </button>
+        <button sec:authorize="isAnonymous()"
+                id="addUserBtn" type="button" class="btn btn-xsm btn-outline-success"
+                data-bs-toggle="modal" data-bs-target="#registerModal">
+          회원가입
+        </button>
       </div>
     </div>
+    <div sec:authorize="isAuthenticated()" class="user-info-wrapper">
+      <span th:text="'닉네임 : ' + ${#authentication.name}"></span>
+      <span class="mark" th:text="'선택파티 : ' + ${partyInfo.name}"></span>
+    </div>
+
+    <!-- 모달 트리거 -->
+    <div class="d-flex justify-content-end gap-2">
+      <button id="logoutBtn" sec:authorize="isAuthenticated()"
+              type="button" class="btn btn-xsm btn-outline-primary">
+        로그아웃
+      </button>
+      <form id="logoutForm" method="POST" action="/logout" style="display: none">
+        <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+      </form>
+      <button id="createRoomModalTriggerBtn" type="button" class="btn btn-xsm btn-outline-primary"
+              sec:authorize="isAuthenticated()"
+              data-bs-toggle="modal" data-bs-target="#createRoomModal">
+        방 만들기
+      </button>
+      <button id="setPartyBtn" type="button" class="btn btn-xsm btn-outline-success"
+              sec:authorize="isAuthenticated()"
+              th:data-url="@{/users/{id}/parties(id=${#authentication.principal.user.id})}"
+              onclick="location.href=this.dataset.url">
+        파티 편성
+      </button>
+    </div>
+
   </div>
 
-  <hr>
-
-  <h4>유저정보</h4>
-  <div sec:authorize="isAnonymous()">
-    <span>로그인이 필요합니다.</span>
-  </div>
-  <div sec:authorize="isAuthenticated()" id="userInfoBox">
-    <span th:text="'유저명 : ' + ${#authentication.principal.user.username}"></span>
-    <span th:text="'닉네임 : ' + ${#authentication.name}"></span>
-    <span th:text="'선택파티 : ' + ${partyInfo.name}"></span>
-  </div>
-
-  <hr>
-
-  <!-- 모달 트리거 -->
-  <button id="createRoomModalTriggerBtn" type="button" class="btn btn-outline-primary"
-          sec:authorize="isAuthenticated()"
-          data-bs-toggle="modal" data-bs-target="#staticBackdrop">
-    방 만들기
-  </button>
-
-  <button id="setPartyBtn" type="button" class="btn btn-outline-primary"
-          sec:authorize="isAuthenticated()"
-          th:onclick="|location.href='@{/party(userId=${#authentication.principal.user.id})}'|"
-          onclick="location.href = ''">
-    파티 편성
-  </button>
-
-  <!-- Modal -->
-  <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-       aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="staticBackdropLabel">방 만들기</h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="room-list-container tile">
+    <div class="title-md">방 목록</div>
+    <ul id="roomList" class="list-group">
+      <li class="list-group-item room-list-item"
+          th:each="room : ${roomInfos}" th:data-room-id="${room.id}" data-roomId="1">
+        <div class="enemy-portrait">
+          <img src="" th:src="${room.enemyPortraitSrc}" alt="enemyPortrait">
         </div>
-        <form action="/room" method="post" th:object="${roomAddForm}" id="roomAddForm">
-          <div class="modal-body">
-            <label for="roomMessage">로비에 띄울 메시지</label>
+        <div class="room-info">
+          <div class="room-header">
+            <div class="name" th:text="${room.enemyName}"></div>
+            <span class="badge bg-primary rounded-pill room-member-count"
+                  th:text="${room.memberCount + '/' + room.maxMemberCount + '명 참가중'}">0 명 참가중</span>
+          </div>
+          <div>
+            <span><i class="bi bi-clock"></i> 남은시간: <span th:text="${room.remainingTime}"></span></span>
+          </div>
+          <div class="hp-container enemy mb-1">
+            <div class="value-hp me-1" th:text="${room.enemyHpRate + '%'}">79%</div>
+            <div class="progress hp-bar" role="progressbar">
+              <div class="progress-bar hp-bar-realtime bg-danger" style="width: 99%"
+                   th:style="${'width: ' + room.enemyHpRate + '%'}"></div>
+              <div class="hp-trigger hp-trigger-1"></div>
+            </div>
+          </div>
+          <div>
+            <span th:text="'방장: ' + ${room.ownerUsername}">방장 : 방장ID</span>
+          </div>
+        </div>
+        <div class="room-message-wrapper" th:if="${!#strings.isEmpty(room.info)}">
+          <span class="message" th:text="${room.info}">방 메시지</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 tile" sec:authorize="isAuthenticated()">
+    <button type="button" class="btn btn-xsm btn-outline-primary" onclick="location.href='/users/me/battle-history'">
+      전투이력
+    </button>
+  </div>
+
+
+</div> <!-- #container -->
+
+<!-- 로그인 -->
+<div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="staticBackdropLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h1 class="modal-title title-lg" id="loginModalLabel">로그인</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="loginForm" action="/login-process" method="post">
+        <div class="modal-body">
+          <label for="loginId">로그인 id</label>
+          <input type="text" id="loginId" class="form-control" name="loginId" placeholder="로그인id 입력"/>
+          <label for="password">비밀번호</label>
+          <input id="password" type="password" name="password" class="form-control" placeholder="비밀번호 입력">
+          <div class="login-error-message">
+            <p id="loginErrorMessage" class="field-error"></p>
+          </div>
+          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+          <button type="submit" id="loginModalLoginBtn" class="btn btn-sm btn-outline-primary">로그인</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- 회원가입 Modal (로그인 모달 아래에 추가) -->
+<div class="modal fade" id="registerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="registerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="registerModalLabel">회원가입</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form action="/user/register" method="post" th:object="${userRegisterForm}">
+        <div class="modal-body">
+
+          <!-- 에러 메시지 -->
+          <div th:if="${errorMessage}" class="alert alert-danger" role="alert">
+            <span th:text="${errorMessage}">에러 메시지</span>
+          </div>
+
+          <!-- 아이디 -->
+          <label for="registerUsername">아이디 (최대 8자)</label>
+          <input type="text"
+                 id="registerUsername"
+                 th:field="*{loginId}"
+                 class="form-control"
+                 placeholder="아이디 입력"
+                 maxlength="8"
+                 th:errorclass="is-invalid"/>
+          <div class="invalid-feedback" th:errors="*{loginId}">아이디 오류</div>
+
+          <!-- 닉네임 -->
+          <label for="registerNickname" class="mt-3">닉네임 (최대 8자)</label>
+          <input type="text"
+                 id="registerNickname"
+                 th:field="*{username}"
+                 class="form-control"
+                 placeholder="닉네임 입력"
+                 maxlength="8"
+                 th:errorclass="is-invalid"/>
+          <div class="invalid-feedback" th:errors="*{username}">닉네임 오류</div>
+
+          <!-- 비밀번호 -->
+          <label for="registerPassword" class="mt-3">비밀번호 (최대 16자)</label>
+          <input type="password"
+                 id="registerPassword"
+                 th:field="*{password}"
+                 class="form-control"
+                 placeholder="비밀번호 입력"
+                 maxlength="16"
+                 th:errorclass="is-invalid"/>
+          <div class="invalid-feedback" th:errors="*{password}">비밀번호 오류</div>
+
+          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+          <button type="submit" class="btn btn-outline-primary">가입하기</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<!-- 방 만들기 모달 -->
+<div class="modal fade" id="createRoomModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title title-lg">방 만들기</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/room" method="post" th:object="${roomAddForm}" id="roomAddForm">
+        <div class="modal-body">
+
+          <div class="choose-enemy-container">
+            <ul id="enemyList" class="list-group">
+              <li class="list-group-item enemy-list-item"
+                  th:each="enemyInfo : ${enemyInfos}" th:data-enemy-id="${enemyInfo.baseId}">
+                <div class="enemy-portrait">
+                  <img src="" th:src="${enemyInfo.portraitSrc}" alt="enemyPortrait">
+                </div>
+                <div class="enemy-info">
+                  <div class="enemy-header">
+                    <div class="name" th:text="${enemyInfo.name}"></div>
+                  </div>
+                  <div>
+                    <span style="color: white"><i class="bi bi-clock"></i> 제한시간: 30분 / 최대 3인</span>
+                    <button class="btn btn-xxsm btn-outline-success enemy-info-button"
+                            type="button"
+                            th:data-url="@{/base-enemies/{id}(id=${enemyInfo.baseId})}"
+                            onclick="location.href=this.dataset.url"> 적 상세
+                    </button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="create-room-input-wrapper">
+            <label for="roomMessage" class="font-lg mb-2">로비에 띄울 메시지</label>
             <input type="text" id="roomMessage" th:field="*{message}" class="form-control" name="name"
-                   placeholder="최대 16 자 까지 허용합니다." th:errorclass="is-invalid"/>
+                   placeholder="최대 30 자 까지 허용합니다." th:errorclass="is-invalid" maxlength="30"/>
             <div class="invalid-feedback" th:errors="*{message}"> 메시지 오류</div>
             <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-              <button type="submit" id="twentyGameStartBtn" class="btn btn-outline-primary">만들기</button>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-xsm btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
+            <button type="submit" id="createRoomSubmitButton" class="btn btn-xsm btn-primary">만들기</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 방 입장 Modal -->
+<button id="enterRoomModalTriggerBtn" type="button" class="btn btn-sm btn-outline-primary d-none"
+        sec:authorize="isAuthenticated()"
+        data-bs-toggle="modal" data-bs-target="#enterRoomModal">
+  입장
+</button>
+<div class="modal fade" id="enterRoomModal" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="enterRoomModalTitle" aria-hidden="true" sec:authorize="authenticated">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="enterRoomModalTitle">방 입장</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="enter-room-message">
+          <span th:text="${partyInfo.name + ' '}">파티 이름</span>
+          파티로 입장합니다. 파티는 편성에서 변경할 수 있습니다.
+        </div>
+        <div class="party-container">
+          <div class="party-wrapper" th:data-party-id="${partyInfo.id}">
+            <div class="party-body">
+              <div class="base-character-info-wrapper">
+                <div class="base-character-info" th:each="characterInfo : ${partyInfo.characterInfos}">
+                  <div class="base-character-portrait" th:data-character-id="${characterInfo.id}">
+                    <img src="/" th:src="${characterInfo.portraitSrc}">
+                  </div>
+                  <div class="base-character-name" th:text="${characterInfo.name}">캐릭이름</div>
+                </div>
+
+              </div>
+              <div class="summon-info-wrapper">
+                <div class="summon-info" th:each="summonInfo : ${partyInfo.summonInfos}">
+                  <div class="summon-portrait">
+                    <img src="/" th:src="${summonInfo.portraitSrc}">
+                  </div>
+                  <div class="base-character-name" th:text="${summonInfo.name}"> 솬석이름</div>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+        <form action="/room/join" method="post" id="enterRoomForm">
+          <input type="hidden" class="roomId" name="roomId"/>
+          <input type="hidden" class="userId" name="userId" th:value="${#authentication.principal.user.id}"/>
+          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+            <button type="submit" id="enterRoomBtn" class="btn btn-sm btn-outline-primary">입장</button>
           </div>
         </form>
       </div>
     </div>
   </div>
-
-  <h4>방 목록</h4>
-  <ul id="roomList" class="list-group">
-    <li class="list-group-item room-list-item"
-        th:each="room : ${roomInfos}" th:data-room-id="${room.id}" data-roomId="1">
-      <div class="room-header">
-        <span class="fw-bold" th:text="${room.info}">방 설명</span>
-        <span class="badge bg-primary rounded-pill room-member-count"
-              th:text="${room.memberCount} + ' 명 참가중'">0 명 참가중</span>
-        <span class="badge bg-primary rounded-pill room-list-item-is-playing"
-              th:text="'방장 : ' + ${room.ownerUsername}">방장 : 방장ID</span>
-      </div>
-      <div class="hp-container enemy">
-        <div class="enemy-name me-3">디아스포라</div>
-        <div class="value-hp me-3" th:text="${room.enemyHpRate + '%'}">79%</div>
-        <div class="progress hp-bar" role="progressbar" aria-label="Danger example" aria-valuenow="100"
-             aria-valuemin="0"
-             aria-valuemax="100" style="height: 10px">
-          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 79%"
-               th:style="${'width: ' + room.enemyHpRate + '%'}"></div>
-          <div class="hp-trigger hp-trigger-1"></div>
-        </div>
-      </div>
-
-    </li>
-  </ul>
-
-  <!-- 방 입장 Modal -->
-  <button id="enterRoomModalTriggerBtn" type="button" class="btn btn-outline-primary"
-          sec:authorize="isAuthenticated()"
-          data-bs-toggle="modal" data-bs-target="#enterRoomModal">
-    입장
-  </button>
-  <div class="modal fade" id="enterRoomModal" data-bs-keyboard="false" tabindex="-1"
-       aria-labelledby="enterRoomModalTitle" aria-hidden="true" sec:authorize="authenticated">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="enterRoomModalTitle">방 입장</h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div> 아래의 파티로 입장합니다. 파티는 편성에서 변경할 수 있습니다. </div>
-          <div class="party-container">
-            <div class="party-wrapper" th:data-party-id="${partyInfo.id}">
-              <div class="party-info">
-                <div class="party-info-header">
-                  <div class="party-name" th:text="${partyInfo.name}">파티 이름</div>
-                </div>
-              </div>
-              <div class="party-body">
-                <div class="baseCharacter-info-wrapper">
-                  <div class="baseCharacter-info" th:each="characterInfo : ${partyInfo.characterInfos}">
-                    <div class="baseCharacter-portrait" th:data-baseCharacter-id="${characterInfo.id}">
-                      <img src="/static/assets/img/gl/ch-empty.jpg" th:src="${characterInfo.portraitSrc}">
-                    </div>
-                    <div class="baseCharacter-name" th:text="${characterInfo.name}"> 캐릭이름</div>
-                  </div>
-
-
-<!--                  <div class="baseCharacter-info">-->
-<!--                    <div class="baseCharacter-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-<!--                  <div class="baseCharacter-info">-->
-<!--                    <div class="baseCharacter-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-<!--                  <div class="baseCharacter-info">-->
-<!--                    <div class="baseCharacter-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/ch/paladin/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-
-                </div>
-                <div class="summon-info-wrapper" th:each="summonInfo : ${partyInfo.summonInfos}">
-                  <div class="summon-info">
-                    <div class="summon-portrait">
-                      <img src="/static/assets/img/gl/ch-empty.jpg" th:src="${summonInfo.portraitSrc}">
-                    </div>
-                    <div class="baseCharacter-name" th:text="${summonInfo.name}"> 솬석이름</div>
-                  </div>
-
-<!--                  <div class="summon-info">-->
-<!--                    <div class="summon-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-<!--                  <div class="summon-info">-->
-<!--                    <div class="summon-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-<!--                  <div class="summon-info">-->
-<!--                    <div class="summon-portrait">-->
-<!--                      <img src="/static/moveVisuals/img/summon/zeus/battle-portrait.jpg">-->
-<!--                    </div>-->
-<!--                  </div>-->
-
-                </div>
-              </div>
-            </div>
-          </div>
-          <form action="/room/join" method="post" id="enterRoomForm">
-            <input type="hidden" class="roomId" name="roomId"/>
-            <input type="hidden" class="userId" name="userId" th:value="${#authentication.principal.user.id}"/>
-            <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-              <button type="submit" id="enterRoomBtn" class="btn btn-outline-primary">입장</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
 </div>
+
+<div id="alertMessage" class="d-none" th:text="${alertMessage}"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>

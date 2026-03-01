@@ -4,7 +4,7 @@ window.lib = window.lib || {}; // javascript storage
 class Loader {
     constructor() {
         this.manifest_cache = {}; // manifest storage
-        this.toLoadScripts = new Map(); // prevent duplicated load request
+        this.toLoadScripts = {}; // prevent duplicated load request
     }
 
     reset() {
@@ -13,7 +13,12 @@ class Loader {
         this.manifest_cache = {};
     }
 
-    loadAnimation(actor) {
+    async loadEffectAnimation(cjsName) {
+        if (!cjsName) return Promise.resolve();
+        return this.loadManifests(null, [cjsName]);
+    }
+
+    loadActorAnimations(actor) {
         let manifest_list = [];
         let animation = actor.animation;
         manifest_list = manifest_list.concat(animation.manifests); // get manifests
@@ -22,16 +27,16 @@ class Loader {
             let file_list = Array.from(new Set(manifest_list));
             // start the download
             this.loadManifests(actor, file_list);
+            // 작업 완료 확인 불필요
         }
     }
 
     loadManifests(actor, file_list) {
         let to_load = file_list.concat([]);
-        to_load = to_load.filter(file => !this.toLoadScripts.has(file));
-        to_load.forEach(file => this.toLoadScripts.set(file, {loaded : false}));
+        to_load = to_load.filter(file => !this.toLoadScripts[file]?.loaded);
+        to_load.forEach(file => this.toLoadScripts[file] = {loaded: false});
         // console.log('[loadManifests] actor = ' + actor.id + 'to_load.length = ', to_load.length + '\n to_load = ', ...to_load);
 
-        // if (to_load.length == 0) throw new Error("No manifests to load");
         if (to_load.length === 0) {
             console.warn("No manifests to load");
             this.loadSpriteSheets(actor, []);
@@ -57,7 +62,7 @@ class Loader {
                 // CHECK 왜 있는지 모르겟음 없애도 정상동작
                 // window.lib[file_name].prototype.playFunc = function (callback) { createjs.Tween.get().wait(1).call(callback); };
                 // window.lib[file_name].prototype.playFunc = Loader.playFunc;
-                loader.toLoadScripts.get(file_name).loaded = true;
+                loader.toLoadScripts[file_name].loaded = true;
             }
         });
         load_queue.on("error", function (event) {
@@ -107,34 +112,41 @@ class Loader {
             );
         }
         // wait for both deferred to end
-        $.when(cjs_deferred, manifest_deferred).always(function () {
+        return $.when(cjs_deferred, manifest_deferred).then(function () {
             if (error_flag) throw new Error("Error loading manifests, check before messages");
 
             // hot fix the main character weapon
             // we replace the "weapon.png" files by "WEAPON_ID.png"
-            const animation = actor.animation;
-            if (animation.isLeaderCharacter && animation.weapon) {
-                // only do it for the first weapon
-                let is_melee = animation.cjs.includes("_me_");
-                for (let i = 0; i < spritesheets.length; ++i) {
-                    if (spritesheets[i].type === createjs.Types.IMAGE) {
-                        if (is_melee) {
-                            switch (spritesheets[i].id) {
-                                case "weapon_l":
-                                    spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + "_1.png";
-                                    break;
-                                case "weapon_r":
-                                    spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + "_2.png";
-                                    break;
+            if (!!actor) {
+                const animation = actor.animation;
+                if (animation.isLeaderCharacter && animation.weapon) {
+                    // only do it for the first weapon
+                    let is_melee = animation.cjs.includes("_me_");
+                    for (let i = 0; i < spritesheets.length; ++i) {
+                        if (spritesheets[i].type === createjs.Types.IMAGE) {
+                            if (is_melee) {
+                                switch (spritesheets[i].id) {
+                                    case "weapon_l":
+                                        spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + "_1.png";
+                                        break;
+                                    case "weapon_r":
+                                        spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + "_2.png";
+                                        break;
+                                }
+                            } else if (spritesheets[i].id == "weapon") {
+                                spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + ".png";
                             }
-                        } else if (spritesheets[i].id == "weapon") {
-                            spritesheets[i].src = Game.imgUri + "/sp/cjs/" + animation.weapon + ".png";
                         }
                     }
                 }
             }
+
             // loader the spritesheets
-            loader.loadSpriteSheets(actor, spritesheets);
+            return loader.loadSpriteSheets(actor, spritesheets);
+
+        }).fail(function (err) {
+            console.error("[loadManifests] error = ", err);
+            // throw err;
         });
     }
 
@@ -147,7 +159,7 @@ class Loader {
         }
         // prepare weapon textures
         var weapon_dupe_table = {};
-        if (actor.weaponTextures.length > 0) {
+        if (!!actor && actor.weaponTextures.length > 0) {
             let is_melee = actor.animation.cjs.includes("_me_");
             let loading_weapons = {};
             // init loading weapons with first texture
@@ -240,6 +252,8 @@ class Loader {
         // set events
         load_queue.on("complete", function () {
             queue_deferred.resolve();
+
+            !!actor && actor.initToPlayer();
         });
         load_queue.on("fileload", function (event) {
             if (event.item) {
@@ -247,6 +261,12 @@ class Loader {
                 var id = event.item.id;
                 if (id && event.item.type === createjs.Types.IMAGE) {
                     window.images[id] = event.result;
+                    // console.log();
+                    // if (event.item.id.includes('nsp') && event.item.id.includes('_a')) {
+                    //     let nsp = new lib[event.item.id.substring(0, event.item.id.lastIndexOf('_'))];
+                    //     cjsStage.addChild(nsp);
+                    //     setTimeout(() => cjsStage.removeChild(nsp), 600);
+                    // }
                 }
             }
         });
@@ -264,8 +284,9 @@ class Loader {
             for (const [dupe, orig] of Object.entries(weapon_dupe_table)) {
                 window.images[dupe] = window.images[orig];
             }
-            actor.initToPlayer();
         });
+
+        return queue_deferred.promise();
     }
 
     static playFunc(callback) {

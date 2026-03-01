@@ -16,6 +16,7 @@ public enum MoveDamageType {
     BLOCK,  // 블록됨
     CUT,    // 컷됨
     BLOCK_CUT, // 블록 + 컷됨 (블록이 확률형이라 별도로 표시)
+    INEFFECTIVE, // 무효화됨
 
     // MISS, // MISS 는 데미지 하나하나에 처리해야 하기때문에 여기서 하지 않음.
     ;
