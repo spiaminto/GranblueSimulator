@@ -3,8 +3,10 @@
 ## Overview
 This is a personal project created to enjoy Granblue Fantasy — a web game operated by Cygames — together with friends.
 The UI is implemented in Korean. Character and enemy logic has been simplified for friends who are new to the game, so ability effects may differ from the original.
-Below is a test play video of the Hexachromatic Hierarch raid.
-[![Video Thumbnail](https://img.youtube.com/vi/dlt7KhFqHXA/0.jpg)](https://www.youtube.com/watch?v=dlt7KhFqHXA)
+Below is a test play video of the Hexachromatic Hierarch raid.  
+▶ Click the thumbnail to watch on YouTube.  
+
+[![Video Thumbnail](https://img.youtube.com/vi/dlt7KhFqHXA/maxresdefault.jpg)](https://www.youtube.com/watch?v=dlt7KhFqHXA)
 
 ## About This Repository
 This repository was created primarily for archiving purposes and will not be actively maintained.
