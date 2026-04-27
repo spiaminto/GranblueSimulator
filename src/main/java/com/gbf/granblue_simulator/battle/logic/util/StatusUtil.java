@@ -1,11 +1,12 @@
 package com.gbf.granblue_simulator.battle.logic.util;
 
+import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifier;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
-import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,18 @@ public final class StatusUtil {
         return move.getBaseStatusEffects().stream()
                 .filter(status -> status.getName().contains(name))
                 .findFirst();
+    }
+
+    /**
+     * 파라미터로 받은 names 에 해당하는 효과를 모두 반환 <br>
+     *
+     * @return names 중 하나를 이름으로 갖는 모든 StatusEffect 리스트
+     */
+    public static List<StatusEffect> getEffectsByNames(Actor actor, String... names) {
+        Set<String> nameSet = Set.of(names);
+        return actor.getStatusEffects().stream()
+                .filter(statusEffect -> nameSet.contains(statusEffect.getBaseStatusEffect().getName()))
+                .toList();
     }
 
     /**
@@ -201,16 +214,22 @@ public final class StatusUtil {
                 .findFirst();
     }
 
-    /**
-     * 주어진 actor 의 stackable StatusEffect 중 targetType, name 이 같은 효과 반환 (동일항 효과) <br>
+    /**ㅐ
+     * 주어진 actor 의 StatusEffect 중 targetType, name 이 같은 효과 반환 (동일항 효과) <br>
      *
-     * @param targetBaseEffect 찾을 기본 상태효과 (누적 또는 레벨식)
+     * @param targetBaseEffect 찾을 기본 상태효과
      */
-    public static Optional<StatusEffect> getSameStackableBasicEffectsByName(Actor actor, BaseStatusEffect targetBaseEffect) {
+    public static Optional<StatusEffect> getSameBasicEffectsByName(Actor actor, BaseStatusEffect targetBaseEffect) {
+        StatusModifier targetModifier = targetBaseEffect.getFirstModifier();
         return actor.getStatusEffects().stream()
                 .filter(statusEffect -> !statusEffect.getBaseStatusEffect().isUniqueFrame()) // 기본 상태 효과
-                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getTargetType().isAllMemberTarget() == targetBaseEffect.getTargetType().isAllMemberTarget()) // 참전자 / 개인 효과 구분
+                .filter(statusEffect -> statusEffect.getBaseStatusEffect().getDurationType() == targetBaseEffect.getDurationType()) // 턴제(개인), 리필제, 시간제(참전자) 구분
                 .filter(statusEffect -> statusEffect.getBaseStatusEffect().getName().equals(targetBaseEffect.getName())) // 이름기반 매칭
+                .filter(statusEffect -> targetBaseEffect.getMaxLevel() <= 0
+                        || ( // CHECK stackable 기본 상태효과 일때, initValue(누적 값)이 다른경우 일단 별도적용
+                        statusEffect.getModifier(targetModifier.getType()) != null
+                                && statusEffect.getModifier(targetModifier.getType()).getInitValue() == targetModifier.getInitValue())
+                )
                 .findFirst();
     }
 
@@ -356,6 +375,7 @@ public final class StatusUtil {
                 min = val;
             }
         }
+
         return Math.max(min, 0.0);
     }
 

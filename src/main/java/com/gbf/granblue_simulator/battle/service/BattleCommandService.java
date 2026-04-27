@@ -2,92 +2,165 @@ package com.gbf.granblue_simulator.battle.service;
 
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.Member;
+import com.gbf.granblue_simulator.battle.domain.PotionType;
 import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
+import com.gbf.granblue_simulator.battle.exception.MoveProcessingException;
 import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
 import com.gbf.granblue_simulator.battle.logic.BattleLogic;
 import com.gbf.granblue_simulator.battle.logic.SyncLogic;
 import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
 import com.gbf.granblue_simulator.battle.repository.ActorRepository;
-import com.gbf.granblue_simulator.battle.repository.MoveRepository;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.metadata.domain.move.MotionType;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.orm.jpa.JpaSystemException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
-@Transactional
 /**
  * 커맨드 (사용자 입력) 을 처리부로 넘기는 서비스 <br>
  * 임의로 아래와 같이 커맨드를 정의 <br>
  * 커맨드: 공격(턴 진행), 어빌리티 사용, 페이탈 체인, 소환석 <br>
  * 서브커맨드: 가드, 포션 <br>
  */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
 public class BattleCommandService {
 
     private final BattleContext battleContext;
     private final BattleLogic battleLogic;
     private final SyncLogic syncLogic;
-    private final ActorRepository actorRepository;
-    private final MoveRepository moveRepository;
+
+    private final RoomService roomService;
+    private final StatusService statusService;
+    private final MoveService moveService;
+
+    private final ActorRepository actorRepository; // 락 용
+    private final MemberService memberService;
+
+    private final EntityManager entityManager;
 
     /**
      * 방 생성 또는 입장시 실행
      */
-    @Transactional(timeout = 1)
-    public List<MoveLogicResult> startBattle() {
+    @Retryable(
+            retryFor = {JpaSystemException.class, org.hibernate.TransactionException.class},
+            maxAttempts = 2,
+            backoff = @Backoff(delay = 0)
+    )
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> startBattle(BattleCommandRequest request) {
+        initializeContext(request);
         Member currentMember = battleContext.getMember();
 
+        RoomStatus roomStatus = currentMember.getRoom().getRoomStatus();
+        if (!roomStatus.isHidden() && (roomStatus != RoomStatus.ACTIVE && roomStatus != RoomStatus.CLEARED)) {
+            throw new MoveProcessingException("더이상 전투중인 방이 아닙니다. 결과화면으로 이동합니다.", "BATTLE_FINISHED"); // 보험
+        }
+
         // 기존 적이 있을 경우 동기화
-        getActorLock(); // 락 걸고 동기화
         currentMember.getRoom().getMembers().stream()
-                .filter(roomMember -> !roomMember.equals(currentMember))
+                .filter(roomMember -> !roomMember.getActors().isEmpty() && !roomMember.equals(currentMember))
                 .findFirst().ifPresent(syncLogic::syncEnemy); // referenceMember.enemy 로 내 enemy 를 즉시 동기화
 
-        List<MoveLogicResult> startBattleResults = battleLogic.startBattle();
+        List<MoveLogicResult> startBattleResults = battleLogic.processBattleStart();
         currentMember.increaseTurn();
 
         if (currentMember.getRoom().getRoomStatus() == RoomStatus.TUTORIAL) {
-            this.applyTutorial();
+            this.startTutorial();
         }
 
         return startBattleResults;
     }
 
-    private void applyTutorial() {
+    /**
+     * 튜토리얼 시작시, 일부 캐릭터와 상황을 튜토리얼에 맞게 조정
+     */
+    private void startTutorial() {
+        battleContext.getMember().updateFatalChainGauge(85); // FC
         battleContext.getFrontCharacters().forEach(character -> {
             // 오의 게이지
-            character.updateChargeGauge(60);
+            character.updateChargeGauge(50);
 
             // 쿨타임
-            if (character.getBaseActor().getId().equals(60000L)) {
-                // 팔라딘
-                character.getFirstMove(MoveType.FIRST_ABILITY).updateCooldown(4);
-                character.getFirstMove(MoveType.THIRD_ABILITY).updateCooldown(1);
-            } else if (character.getBaseActor().getId().equals(70500L)) {
-                // 야치마
-                character.getFirstMove(MoveType.THIRD_ABILITY).updateCooldown(5);
+            if (character.getBaseActor().getId().equals(60100L)) {
+                // 검호
+                character.updateAbilityCooldowns(5, MoveType.FIRST_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY);
             } else if (character.getBaseActor().getId().equals(70900L)) {
                 // 하제리라
-                character.getFirstMove(MoveType.THIRD_ABILITY).updateCooldown(1);
-                character.getFirstMove(MoveType.FOURTH_ABILITY).updateCooldown(1);
+                character.updateAbilityCooldowns(5, MoveType.FIRST_ABILITY, MoveType.SECOND_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY);
             } else if (character.getBaseActor().getId().equals(71300L)) {
                 // 와무듀스
-                character.getFirstMove(MoveType.FIRST_ABILITY).updateCooldown(9999); // 사용불가
-                character.getFirstMove(MoveType.SECOND_ABILITY).updateCooldown(3);
+                character.updateAbilityCooldowns(5, MoveType.FIRST_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY);
+                character.updateAbilityCooldowns(2, MoveType.SECOND_ABILITY);
+            } else if (character.getBaseActor().getId().equals(71000L)) {
+                // 실비아
+                character.updateAbilityCooldowns(5, MoveType.FIRST_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY, MoveType.FOURTH_ABILITY);
             }
         });
+    }
+
+    /**
+     * 튜토리얼 진행시, 새로고침을 통해 진행도가 뒤로 돌아가는경우 필요한 조정 진행
+     */
+    public void adjustTutorial(BattleCommandRequest request) {
+        initializeContext(request);
+
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        if (leaderCharacter == null) throw new MoveProcessingException("튜토리얼 초기화가 필요합니다.");
+
+        Member member = battleContext.getMember();
+        int currentTurn = battleContext.getCurrentTurn();
+
+        Actor enemy = battleContext.getEnemy();
+        if (enemy.getHpRateInt() < 50 && currentTurn < 6) {
+            enemy.updateHp((int) (enemy.getMaxHp() * 0.5));
+        }
+
+        switch (currentTurn) {
+            case 1:
+                leaderCharacter.updateChargeGauge(70);
+                leaderCharacter.getFirstMove(MoveType.SECOND_ABILITY).updateCooldown(0);
+                break;
+            case 2:
+                break;
+            case 3:
+                Actor wamdus = battleContext.getFrontCharacters().stream().filter(character -> character.getBaseActor().getId().equals(71300L)).findFirst().orElseThrow(() -> new MoveProcessingException("튜토리얼 초기화가 필요합니다."));
+                wamdus.getFirstMove(MoveType.SECOND_ABILITY).updateCooldown(0);
+                break;
+            case 4:
+                leaderCharacter.getFirstMove(MoveType.FIRST_SUMMON).updateCooldown(0);
+                member.updateUsedSummon(false);
+                member.getRoom().updateUnionSummonId(leaderCharacter.getFirstMove(MoveType.SECOND_SUMMON).getId());
+                break;
+            case 5:
+                battleContext.getFrontCharacters().forEach(character -> character.changeGuard(false));
+                break;
+            case 6:
+                member.updateFatalChainGauge(100);
+                member.updateAllPotionCount(2);
+                break;
+            default:
+                // nothing
+        }
     }
 
     /**
@@ -95,11 +168,20 @@ public class BattleCommandService {
      *
      * @return
      */
-    @Transactional(timeout = 1)
-    public List<MoveLogicResult> progressTurn() {
+    @Retryable(
+            retryFor = {JpaSystemException.class, org.hibernate.TransactionException.class},
+            maxAttempts = 2,
+            backoff = @Backoff(delay = 0)
+    )
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> progressTurn(BattleCommandRequest request) {
+        initializeContext(request);
+
+        if (battleContext.getFrontCharacters().isEmpty()) throw new MoveValidationException("캐릭터가 전원 사망하였습니다.", true);
+        if (battleContext.getEnemy().isAlreadyDead()) throw new MoveValidationException("적이 이미 사망하였습니다.", true);
+        preProcessCommand();
+
         List<MoveLogicResult> progressTurnResults = new ArrayList<>();
-        // 락 획득
-        getActorLock();
         // 동기화
         progressTurnResults.addAll(syncLogic.processSync());
         // 아군 전체가 공격행동
@@ -107,11 +189,7 @@ public class BattleCommandService {
         // 적이 공격행동
         progressTurnResults.addAll(battleLogic.processEnemyStrike());
         // 턴 종료 처리
-        if (!battleContext.getFrontCharacters().isEmpty()) {
-            progressTurnResults.addAll(battleLogic.processTurnEnd());
-            // CHECK 나중에 부활기능이 추가될경우, 쿨다운을 위시한 부분을 전처리 해줘야함
-        }
-
+        progressTurnResults.addAll(battleLogic.processTurnEnd());
         // 턴 증가
         battleContext.getMember().increaseTurn();
         // 커맨드 후처리
@@ -122,25 +200,33 @@ public class BattleCommandService {
     }
 
     /**
-     * 커맨드 "어빌리티 사용"
+     * 커맨드 "어빌리티 사용" 진입점
      *
-     * @param moveId
-     * @return
      */
-    @Transactional(timeout = 1)
-    public List<MoveLogicResult> ability(Long moveId) {
-        Move ability = moveRepository.findById(moveId).orElseThrow(() -> new MoveValidationException("해당 행동이 존재하지 않음 moveId = " + moveId));
+    @Retryable(
+            retryFor = {JpaSystemException.class, org.hibernate.TransactionException.class},
+            maxAttempts = 2,
+            backoff = @Backoff(delay = 0)
+    )
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> ability(BattleCommandRequest request) {
+        initializeContext(request);
+
+        if (battleContext.getFrontCharacters().isEmpty()) throw new MoveValidationException("캐릭터가 전원 사망하였습니다.", true);
+        if (battleContext.getEnemy().isAlreadyDead()) throw new MoveValidationException("적이 이미 사망하였습니다.", true);
+        preProcessCommand();
+
+        Long moveId = request.getCommandMoveId();
+
+        Move ability = moveService.findById(moveId).orElseThrow(() -> new MoveValidationException("해당 행동이 존재하지 않음 moveId = " + moveId));
         Actor mainCharacter = battleContext.getMainActor();
         // 검증
         if (ability.getCooldown() > 0)
-            throw new MoveValidationException("어빌리티 쿨다운 중, actor = " + mainCharacter.getName() + ", ability = " + ability.getBaseMove().getName());
+            throw new MoveValidationException("쿨타임이 진행중입니다.", true);
         if (mainCharacter.getAbilitySealed(ability.getType()))
-            throw new MoveValidationException("어빌리티 봉인 중,  actor = " + mainCharacter.getName() + ", ability = " + ability.getBaseMove().getName());
+            throw new MoveValidationException("어빌리티가 봉인되어 사용할 수 없습니다.", true);
 
         List<MoveLogicResult> results = new ArrayList<>();
-
-        // 락 획득
-        getActorLock();
 
         // 동기화
         List<MoveLogicResult> syncResults = syncLogic.processSync();
@@ -153,24 +239,32 @@ public class BattleCommandService {
         // 후처리
         postProcessCommand(results);
 
-        results.forEach(result -> log.info("[ability] Result: {}", result));
+        results.forEach(result -> log.debug("[ability] Result: {}", result));
         return results;
     }
 
     /**
-     * 커맨드 '페이탈 체인'
+     * 커맨드 '페이탈 체인' 진입점
      *
      * @return
      */
-    @Transactional(timeout = 1)
-    public List<MoveLogicResult> fatalChain() {
+    @Retryable(
+            retryFor = {JpaSystemException.class, org.hibernate.TransactionException.class},
+            maxAttempts = 2,
+            backoff = @Backoff(delay = 0)
+    )
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> fatalChain(BattleCommandRequest request) {
+        initializeContext(request);
+
+        if (battleContext.getFrontCharacters().isEmpty()) throw new MoveValidationException("캐릭터가 전원 사망하였습니다.", true);
+        if (battleContext.getEnemy().isAlreadyDead()) throw new MoveValidationException("적이 이미 사망하였습니다.", true);
+        preProcessCommand();
+
         Member member = battleContext.getMember();
-//        if (member.getFatalChainGauge() <= 100) throw new MoveValidationException("페이탈 체인 게이지 부족, gauge = " + member.getFatalChainGauge());
+        if (member.getFatalChainGauge() < 100) throw new MoveValidationException("페이탈 체인 게이지가 부족하여 사용할 수 없습니다.");
 
         List<MoveLogicResult> results = new ArrayList<>();
-
-        // 락 획득
-        getActorLock();
 
         // 동기화
         List<MoveLogicResult> syncResults = syncLogic.processSync();
@@ -183,71 +277,175 @@ public class BattleCommandService {
         // 후처리
         postProcessCommand(results);
 
-        results.forEach(result -> log.info("[fatalChain] Result: {}", result));
+        results.forEach(result -> log.debug("[fatalChain] Result: {}", result));
         return results;
     }
 
     /**
      * 커맨드 "소환석 사용" 진입점
      *
-     * @param summonId
-     * @param doUnionSummon
-     * @return
      */
-    @Transactional(timeout = 1)
-    public List<MoveLogicResult> summon(Long summonId, boolean doUnionSummon) {
+    @Retryable(
+            retryFor = {JpaSystemException.class, org.hibernate.TransactionException.class},
+            maxAttempts = 2,
+            backoff = @Backoff(delay = 0)
+    )
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> summon(BattleCommandRequest request) {
+        initializeContext(request);
+
+        if (battleContext.getFrontCharacters().isEmpty()) throw new MoveValidationException("캐릭터가 전원 사망하였습니다.", true);
+        if (battleContext.getEnemy().isAlreadyDead()) throw new MoveValidationException("적이 이미 사망하였습니다.", true);
         Actor leaderCharacter = battleContext.getLeaderCharacter();
         if (leaderCharacter.isAlreadyDead()) throw new MoveValidationException("주인공이 사망하면 소환석을 사용할수 없습니다.", true);
         if (leaderCharacter.getMember().usedSummon()) throw new MoveValidationException("이미 이번 턴에 소환석을 사용했습니다.", true);
-        Move summonMove = moveRepository.findById(summonId).orElseThrow(() -> new IllegalArgumentException("없는 소환석"));
-        List<MoveLogicResult> results = new ArrayList<>();
 
-        // 락 획득
-        getActorLock();
+        preProcessCommand();
+
+        Move summonMove = moveService.findById(request.getSummonId()).orElseThrow(() -> new IllegalArgumentException("없는 소환석"));
+        List<MoveLogicResult> results = new ArrayList<>();
 
         // 동기화
         results.addAll(syncLogic.processSync());
 
         // 실행
-        results.addAll(battleLogic.processSummon(summonMove, doUnionSummon));
+        results.addAll(battleLogic.processSummon(summonMove, request.isUnionSummon()));
 
         // 후처리
         postProcessCommand(results);
 
-        results.forEach(result -> log.info("[summon] Result: {}", result));
+        results.forEach(result -> log.debug("[summon] Result: {}", result));
         return results;
     }
 
     /**
-     * 서브 커맨드 "가드" 진입점 및 처리
+     * 서브 커맨드 "가드" 진입점<br>
+     * 현재 상태효과 관련 필드를 건드리지 않아 1차캐시 초기화 없이 컨텍스트 초기화 후 사용.
      *
-     * @param targetType
+     * @param targetType 가드 타겟타입
      * @return List boolean guardStates
      */
-    public List<Boolean> guard(StatusEffectTargetType targetType) {
+    @Transactional(timeout = 2)
+    public List<Boolean> guard(Member member, Long mainActorId, StatusEffectTargetType targetType) {
+        battleContext.init(member, mainActorId);
+
+        if (member.getRoom().isFinished()) throw new MoveProcessingException("이미 종료된 전투입니다.", "BATTLE_FINISHED");
 
         List<Boolean> guardStates = battleLogic.processGuard(targetType);
         return guardStates;
     }
 
     /**
-     * 서브 커맨드 "포션사용" 진입점 및 처리
-     * 현재 포션사용은 언데드, 강압 효과 등 스테이터스 효과 관계없이 무조건 회복하도록 설정됨.
+     * 서브 커맨드 "포션사용" 진입점
      *
-     * @param targetType SELF, PARTY_MEMBERS
-     * @return
      */
-    public PotionResult potion(StatusEffectTargetType targetType) {
+    @Transactional(timeout = 2)
+    public PotionResult potion(Long memberId, PotionType potionType, Long targetActorId) {
+        initializeContext(BattleCommandRequest.builder().memberId(memberId).build());
 
-        PotionResult potionResult = battleLogic.processPotion(targetType);
+        Member member = battleContext.getMember();
+        if (member.getRoom().isFinished()) throw new MoveProcessingException("이미 종료된 전투입니다.", "BATTLE_FINISHED");
+        if (potionType != PotionType.ALL_POTION) {
+            if (targetActorId == null || targetActorId <= 0) throw new MoveValidationException("포션 대상이 잘못되었습니다.", true);
+            battleContext.getAllCharacters().stream().filter(character -> character.getId().equals(targetActorId)).findFirst().orElseThrow(() -> new MoveValidationException("포션 대상이 없습니다.", true));
+        }
+
+        int potionCount = potionType == PotionType.POTION ? member.getPotionCount()
+                : potionType == PotionType.ALL_POTION ? member.getAllPotionCount()
+                  : potionType == PotionType.ELIXIR ? member.getElixirCount()
+                    : -1;
+        if (potionCount <= 0) throw new MoveValidationException("포션 갯수가 부족합니다.", true);
+
+        PotionResult potionResult = battleLogic.processPotion(potionType, targetActorId);
         return potionResult;
     }
 
-    public List<MoveLogicResult> sync() {
+    /**
+     * 동기화 요청 진입점
+     */
+    @Transactional(timeout = 2)
+    public List<MoveLogicResult> sync(BattleCommandRequest request) {
+
+        initializeContext(request);
+
+        RoomStatus roomStatus = battleContext.getMember().getRoom().getRoomStatus();
+        if (!roomStatus.isHidden()
+                && (roomStatus != RoomStatus.ACTIVE && roomStatus != RoomStatus.CLEARED)) {
+            throw new MoveProcessingException("더이상 전투중인 방이 아닙니다. 결과화면으로 이동합니다.", "BATTLE_FINISHED");
+        }
+
         return syncLogic.processSync();
     }
 
     /**
+     * 오의 사용 ON / OFF 진입점
+     *
+     * @param isChargeAttackOn 요청 상태 (true: ON, false: OFF)
+     */
+    public List<Boolean> toggleChargeAttack(Member member, boolean isChargeAttackOn) {
+        battleContext.init(member, null);
+        statusService.initStatusForRead(battleContext.getAllActors());
+        member.updateChargeAttackOn(isChargeAttackOn);
+        return member.getActors().stream().sorted(Comparator.comparing(Actor::getCurrentOrder)).map(Actor::canCharacterChargeAttack).toList();
+    }
+
+    /**
+     * 각 커맨드 진입시 전처리
+     */
+    protected void preProcessCommand() {
+        Member member = battleContext.getMember();
+
+        // 방 상태 검증
+        boolean isRoomTimeout = member.getRoom().getCreatedAt().plusMinutes(45).isBefore(LocalDateTime.now());
+        if (member.getRoom().isFinished() || isRoomTimeout) {
+            if (member.getRoom().getEndedAt() == null) {
+                roomService.timeoutRoom(member.getRoom().getId()); // 방어용
+            }
+            throw new MoveProcessingException("이미 종료된 전투입니다.", "BATTLE_FINISHED");
+        }
+
+        // 행동 쿨다운 검증
+        LocalDateTime lastMoveTime = member.getLastMoveTime();
+        double moveCooldown = member.getMoveCooldown();
+        if (lastMoveTime == null) return;
+
+        long cooldownMs = (long) (moveCooldown * 1000);
+        long elapsed = Duration.between(lastMoveTime, LocalDateTime.now()).toMillis();
+        long remaining = cooldownMs - elapsed;
+        remaining = remaining <= 2000 ? 0 : remaining / 2; // 2초 내외는 허용, 초과시 보수적으로 잡힌 값 보정
+        if (remaining > 0) {
+            throw new MoveValidationException("이전 처리 대기중입니다.", true);
+        }
+
+    }
+
+    public void initializeContext(BattleCommandRequest request) {
+        Member memberBeforeLock = request.getMember();
+        if (memberBeforeLock == null) {
+            if (request.getMemberId() == null)
+                throw new IllegalArgumentException("락용 멤버 조회 에러, 식별자 없음 request = " + request);
+            memberBeforeLock = memberService.findById(request.getMemberId()).orElseThrow(() -> new IllegalArgumentException("락용 멤버조회 에러 memberId = " + request.getMemberId()));
+        }
+
+        // 해당 방의 모든 Actor 에 대해 락 획득
+        List<Long> actorIds = actorRepository.findActorIdsByRoomId(memberBeforeLock.getRoom().getId());
+        actorRepository.lockActors(actorIds);
+
+        // entityManager.flush() // CHECK flush 여부는 추이를 지켜보며 결정
+        entityManager.clear(); // 정합성을 위해 1차캐시 전부 초기화
+
+        // 정보 재조회 후 컨텍스트 초기화
+        Member member = memberService.findFreshWithActorsById(memberBeforeLock.getId()).orElseThrow(() -> new IllegalArgumentException("컨텍스트용 멤버조회 에러 memberId = " + request.getMemberId()));
+        battleContext.init(member, request.getMainActorId(), request.getCommandMoveId());
+
+        battleContext.getAllActors().
+
+                forEach(statusService::syncStatus);
+    }
+
+    /**
+     * 각 커맨드 처리 후 후처리
+     *
      * @param results 커맨드 수행 결과: 공격, 어빌리티사용, 페이탈체인, 소환석 ( 서브커맨드 제외 )
      */
     protected void postProcessCommand(List<MoveLogicResult> results) {
@@ -257,7 +455,7 @@ public class BattleCommandService {
         syncLogic.syncEnemy(member);
 
         // 행동 쿨다운 설정
-        int resultMoveCooldown = calcMemberMoveCooldown(results);
+        double resultMoveCooldown = calcMemberMoveCooldown(results);
         member.updateLastMovedTimeNow();
         member.updateMoveCooldown(resultMoveCooldown);
 
@@ -267,28 +465,41 @@ public class BattleCommandService {
         member.addHonor(honor);
     }
 
-    protected int calcMemberMoveCooldown(List<MoveLogicResult> results) {
-        int resultMoveCooldown = 1;
+    protected double calcMemberMoveCooldown(List<MoveLogicResult> results) {
+        double resultMoveCooldown = 0;
         for (MoveLogicResult result : results) {
-            if (result.getMainActor().isEnemy()) {
-                resultMoveCooldown += 5; // 적은 행동당 5초로 고정
-            }
-            int moveCoolDown = switch (result.getMove().getType().getParentType()) {
-                case ATTACK -> 3;
-                case ABILITY -> 2;
-                case SUPPORT_ABILITY -> 1;
-                case CHARGE_ATTACK -> 4;
-                case SUMMON -> 4;
-                case FATAL_CHAIN -> 4;
-                default -> {
+            switch (result.getMove().getType().getParentType()) {
+                case ATTACK:
+                    resultMoveCooldown += result.getNormalAttackCount() * 0.3;
+                    break;
+                case ABILITY:
+                    resultMoveCooldown += 1.5;
+                    break;
+                case SUPPORT_ABILITY:
+                    double modifier = result.getMove().getBaseMove().getMotionType() == MotionType.NONE ? 1.0 : 2.0;
+                    resultMoveCooldown += modifier;
+                    break;
+                case CHARGE_ATTACK:
+                    resultMoveCooldown += 2.0;
+                    break;
+                case SUMMON:
+                    resultMoveCooldown += 5.0;
+                    break;
+                case FATAL_CHAIN:
+                    resultMoveCooldown += 2.0;
+                    break;
+                case STANDBY:
+                    resultMoveCooldown += 1.0;
+                    break;
+                default:
 //                    log.warn("[calcMemberMoveCooldown] default case, moveType = {}, result = {}", result.getMove().getType(), result);
-                    yield 1;
-                }
-            };
+            }
 //            log.info("[calcMemberMoveCooldown] moveType = {}, moveCoolDown = {}", result.getMoveType(), moveCoolDown);
-            resultMoveCooldown += moveCoolDown;
         }
         log.info("[calcMemberMoveCooldown] resultMoveCooldown = {}", resultMoveCooldown);
+
+        // TEST ======================
+        // resultMoveCooldown = 0;
         return resultMoveCooldown;
     }
 
@@ -297,9 +508,17 @@ public class BattleCommandService {
      */
     private final Map<String, Integer> additionalHonorMovenameMap = Map.of(
             "팔랑크스", 1,
-            "미제라블 미스트", 1
+            "미제라블 미스트", 1,
+            "젯 투 젯", 1,
+            "사기향상", 1
     );
 
+
+    /**
+     * 커맨드 실행에 대한 공헌도 계산 후 반환
+     *
+     * @return 공헌도
+     */
     protected int calcHonor(List<MoveLogicResult> results) {
         int totalHonor = 0;
         Actor enemy = battleContext.getEnemy();
@@ -343,23 +562,23 @@ public class BattleCommandService {
 
             result.updateHonor(resultHonor);
             totalHonor += resultHonor;
-            log.info("[calcHonor] moveName = {}, resultHonor = {}, totalHonor = {}", baseMove.getName(), resultHonor, totalHonor);
+            log.debug("[calcHonor] moveName = {}, resultHonor = {}, totalHonor = {}", baseMove.getName(), resultHonor, totalHonor);
         }
 
         return totalHonor;
     }
 
-    /**
-     * Actor 에 대한 락을 획득 <br>
-     * 갱신유실을 막기 위해 커맨드 처리 시작시 설정한다.
-     */
-    protected void getActorLock() {
-        List<Long> enemyActorIds = battleContext.getMember().getRoom().getMembers().stream()
-                .flatMap(member -> member.getActors().stream().filter(Actor::isEnemy).map(Actor::getId))
-                .sorted() // 락 순서 일관되게 정렬
-                .toList();
-        actorRepository.lockActors(enemyActorIds);
-    }
+// TEST ========================================================================================================================
 
+    public void resetCooldowns(BattleCommandRequest request) {
+
+        initializeContext(request);
+
+        battleContext.getFrontCharacters().forEach(partyMember -> partyMember.updateAbilityCooldowns(0, MoveType.FIRST_ABILITY, MoveType.SECOND_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY));
+        battleContext.getFrontCharacters().forEach(Actor::resetAbilityUseCount);
+
+        Actor leaderCharacter = battleContext.getLeaderCharacter();
+        leaderCharacter.getSummons().forEach(summonMove -> summonMove.updateCooldown(0));
+    }
 
 }

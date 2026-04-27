@@ -175,8 +175,8 @@
       <option value="DARK">암속성</option>
       <option value="PLAIN">무속성</option>
     </select>
-    <div>damageRate: 데미지 배율 [4.5] [12.5]</div>
-    <input class="form-control mb-2" type="number" name="damageRate" step="0.01" value="4.5">
+    <div>damageRate: 데미지 배율 [6.5] [13.5]</div>
+    <input class="form-control mb-2" type="number" name="damageRate" step="0.01" value="6.5">
     <div>로직 id [nsp_3040569000]</div>
     <input class="form-control mb-2 logic-id charge-attack" type="text" name="logicId" required>
 
@@ -233,7 +233,7 @@
       <option value="HEAL">회복 어빌리티</option>
     </select>
     <div>elementType</div>
-    <select class="form-select" size="2" name="elementType" required>
+    <select class="form-select" size="3" name="elementType" required>
       <option value="FIRE">화속성</option>
       <option value="WATER">수속성</option>
       <option value="EARTH">토속성</option>
@@ -304,6 +304,8 @@
         <option value="TURN_END_OMEN">턴 종료 후 전조 발동중</option>
         <option value="TURN_FINISH">턴 종료 최종</option>
       </optgroup>
+
+      <option value="NONE">없음</option>
     </select>
 
     <div>트리거 페이즈 / 상태효과 -> 어빌리티 / 우선 -> 기본 -> 나중</div>
@@ -314,6 +316,7 @@
       <option value="ABILITY_PRE">어빌리티 우선</option>
       <option value="STATUS_POST">상태효과 나중</option>
       <option value="ABILITY_POST">어빌리티 나중</option>
+      <option value="NONE">없음</option>
     </select>
     <div>트래킹 컨디션 , 로 타입, \n 으로 value 구분</div>
     <div>[HIT_COUNT_BY_ENEMY, 3 \n PASSED_TURN_COUNT, 1 \n ...]</div>
@@ -523,7 +526,7 @@
   <div>isResistible: [필중 = false]</div>
   <input class="form-control mb-2" type="text" name="statuses[0].isResistible" value="true">
 
-  <div>isUniqueFrame: [고유항 = true]</div>
+  <div>uniqueFrame: [고유항 = true]</div>
   <input class="form-control mb-2" type="text" name="statuses[0].isUniqueFrame" value="false">
 
   <div>conditionalModifier: [레벨에 비례해 효과 적용 = true]</div>

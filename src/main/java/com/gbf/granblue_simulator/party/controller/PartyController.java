@@ -45,7 +45,7 @@ public class PartyController {
     @GetMapping("/users/{userId}/parties")
     public String party(@PathVariable Long userId, Model model) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("없는 유저"));
-        List<Party> parties = user.getParties();
+        List<Party> parties = user.getAvailableParty();
         List<PartyInfo> partyInfos = parties.stream()
                 .sorted(Comparator.comparing(Party::getId))
                 .map(party -> PartyInfo.builder()
@@ -53,7 +53,7 @@ public class PartyController {
                         .name(party.getName())
                         .info(party.getInfoText())
                         .characterInfos(
-                                party.getCharacterIds().stream()
+                                party.getUserCharacterIds().stream()
                                         .map(characterId -> {
                                             UserCharacter userCharacter = user.getUserCharacters().get(characterId);
                                             BaseCharacter baseCharacter = userCharacter.getBaseCharacter();
@@ -91,12 +91,20 @@ public class PartyController {
                                    @RequestParam(required = false) Long fromCharacterId,
                                    Model model,
                                    @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        //CHECK 나중에 수정
-        userId = principalDetails != null ? principalDetails.getId() : 1L;
+
+        if (!principalDetails.getUser().getId().equals(userId)) throw new IllegalStateException("유효하지 않은 요청입니다.");
 
         UserCharacter userCharacter = userCharacterService.findById(characterId);
+        User user = userCharacter.getUser();
+        boolean isAvailableCharacter = user.getAvailableParty().stream()
+                .flatMap(party -> party.getUserCharacterIds().stream())
+                .anyMatch(userCharacterId -> userCharacterId.equals(userCharacter.getId()));
+        if (!isAvailableCharacter) throw new IllegalStateException("유효하지 않은 요청입니다.");
+
+        boolean isAdmin = principalDetails.getUser().getRole().equals("ROLE_ADMIN");
+
         BaseCharacter baseCharacter = userCharacter.getBaseCharacter();
-        Map<MoveType, List<BaseMove>> baseMoveMap = baseMoveService.findAllByIdsToMap(baseCharacter.getAllMoveIds());
+        Map<MoveType, List<BaseMove>> baseMoveMap = baseMoveService.findAllByIdsToMap(baseCharacter.getDefaultAndAllMoveIds());
 
         List<BaseMove> baseAbilities = baseMoveMap.get(MoveType.ABILITY);
         List<BaseMove> baseSupportAbilities = baseMoveMap.get(MoveType.SUPPORT_ABILITY);
@@ -115,22 +123,39 @@ public class PartyController {
             });
         }
 
+        // 변화어빌리티
+        List<Long> changingMoveIds = baseCharacter.getMappedMove().getChangingMoveIds();
+        List<MoveInfo> changingMoveInfos = new ArrayList<>();
+        if (!changingMoveIds.isEmpty()) {
+            baseMoveService.findAllByIds(changingMoveIds).forEach(move -> changingMoveInfos.add(MoveInfo.from(move)));
+        }
+
         UserCharacterInfo characterInfo = UserCharacterInfo.builder()
                 .id(characterId)
                 .name(baseCharacter.getName())
                 .isLeaderCharacter(userCharacter.isLeaderCharacter())
                 .portraitSrc(baseCharacter.getDefaultVisual().getPortraitImageSrc())
-                .chargeAttack(MoveInfo.from(baseMoveMap.get(MoveType.CHARGE_ATTACK).getFirst()))
-                .abilities(baseAbilities.stream().map(MoveInfo::from).toList())
+                .chargeAttack(isAdmin
+                        ? MoveInfo.fromWithModifier(baseMoveMap.get(MoveType.CHARGE_ATTACK).getFirst())
+                        : MoveInfo.from(baseMoveMap.get(MoveType.CHARGE_ATTACK).getFirst())
+                )
+                .abilities(isAdmin
+                        ? baseAbilities.stream().map(MoveInfo::fromWithModifier).toList()
+                        : baseAbilities.stream().map(MoveInfo::from).toList()
+                )
                 .abilityStatuses(abilityStatuses)
-                .supportAbilities(baseMoveMap.get(MoveType.SUPPORT_ABILITY).stream().map(MoveInfo::from).toList())
+                .supportAbilities(isAdmin
+                        ? baseMoveMap.get(MoveType.SUPPORT_ABILITY).stream().map(MoveInfo::fromWithModifier).toList()
+                        : baseMoveMap.get(MoveType.SUPPORT_ABILITY).stream().map(MoveInfo::from).toList()
+                )
                 .supportAbilityStatuses(supportAbilityStatuses)
+                .changingMoves(changingMoveInfos)
                 .elementType(baseCharacter.getElementType().getPresentName())
                 .atk(baseCharacter.getAtk())
                 .hp(baseCharacter.getMaxHp())
                 .def(baseCharacter.getDef())
-                .doubleAttackRate((int) (baseCharacter.getDoubleAttackRate() * 100))
-                .tripleAttackRate((int) (baseCharacter.getTripleAttackRate() * 100))
+                .doubleAttackRate(baseCharacter.getDoubleAttackRateString())
+                .tripleAttackRate(baseCharacter.getTripleAttackRateString())
                 .build();
 
         model.addAttribute("characterInfo", characterInfo);
@@ -145,7 +170,7 @@ public class PartyController {
         return "characterInfo";
     }
 
-    @GetMapping("/users/{userId}/characters")
+    // @GetMapping("/users/{userId}/characters")
     public String getUserCharacters(@PathVariable Long userId,
                                     @RequestParam Long partyId,
                                     @RequestParam(required = false) Long fromCharacterId,
@@ -173,7 +198,7 @@ public class PartyController {
         return viewName;
     }
 
-    @PatchMapping("/users/{userId}/parties/{partyId}")
+    // @PatchMapping("/users/{userId}/parties/{partyId}")
     public String postUserParties(@PathVariable Long userId,
                                   @PathVariable Long partyId,
                                   @RequestParam Long fromCharacterId,
@@ -185,7 +210,7 @@ public class PartyController {
         User user = party.getUser();
         if (!user.getId().equals(userId)) throw new IllegalArgumentException("잘못된 접근");
 
-        List<Long> characterIds = party.getCharacterIds();
+        List<Long> characterIds = party.getUserCharacterIds();
         int fromIndex = characterIds.indexOf(fromCharacterId);
         int toIndex = characterIds.indexOf(toCharacterId);
 
@@ -211,15 +236,16 @@ public class PartyController {
                             @ModelAttribute UserEditRequest request,
                             @AuthenticationPrincipal PrincipalDetails principal) {
         log.info("[patchUser] request = {}", request);
-        // ...userId 검증
-        Long primaryPartyId = request.getPartyId();
-        User findUser = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("없는 유저"));
-        findUser.updatePrimaryPartyId(primaryPartyId);
 
+        Long primaryPartyId = request.getPartyId();
+        User findUser = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("유효하지 않은 접근입니다."));
+        if (principal == null || !principal.getUser().getId().equals(findUser.getId()))  throw new IllegalStateException("유효하지 않은 접근입니다.");
+
+        findUser.updatePrimaryPartyId(primaryPartyId);
         return "redirect:/users/" + userId + "/parties";
     }
 
-    @PatchMapping("/users/{userId}/characters/{characterId}")
+    // @PatchMapping("/users/{userId}/characters/{characterId}")
     @Transactional
     public String updateAbilityStatus(
             @PathVariable Long userId,
@@ -239,7 +265,8 @@ public class PartyController {
 
         UserCharacterMove userCharacterMove = abilities.get(form.getMoveId());
         if (userCharacterMove == null) throw new IllegalStateException("어빌리티가 매핑된 어빌리티에 없음");
-        if (userCharacterMove.getStatus() == UserCharacterMoveStatus.DEFAULT) throw new IllegalArgumentException("기본 어빌리티는 변경할수 없습니다.");
+        if (userCharacterMove.getStatus() == UserCharacterMoveStatus.DEFAULT)
+            throw new IllegalArgumentException("기본 어빌리티는 변경할수 없습니다.");
 
         // 어빌리티를 IN_USE로 변경 시 개수 체크
         if (targetStatus == UserCharacterMoveStatus.IN_USE && userCharacterMove.getMoveType() != MoveType.SUPPORT_ABILITY) {

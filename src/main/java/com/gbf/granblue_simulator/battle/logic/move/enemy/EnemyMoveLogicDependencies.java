@@ -11,6 +11,7 @@ import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import com.gbf.granblue_simulator.battle.service.MoveService;
 import com.gbf.granblue_simulator.metadata.service.BaseActorService;
+import com.gbf.granblue_simulator.metadata.service.BaseEnemyService;
 import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class EnemyMoveLogicDependencies {
     private final BaseMoveService baseMoveService;
     private final BattleLogService battleLogService;
     private final BaseActorService baseActorService;
+    private final BaseEnemyService baseEnemyService;
 
     private final EnemyLogicResultMapper resultMapper;
 }

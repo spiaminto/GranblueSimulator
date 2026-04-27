@@ -8,9 +8,15 @@ public class BattleResultMemberInfo {
     private String username;
     private int totalTurns;
     private String totalTime;
+
     private String enemyHp;
-    private int totalDamage;
-    private String formattedTotalDamage;
+    private String enemyHpRate;
+
+    private String dealtDamage;
+    private String totalDamage;
     private double totalDamageRate;
+
     private String totalHonor;
+
+    private String leaderActorIconSrc;
 }

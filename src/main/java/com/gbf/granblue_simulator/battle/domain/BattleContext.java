@@ -1,7 +1,11 @@
 package com.gbf.granblue_simulator.battle.domain;
 
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import lombok.*;
+import com.gbf.granblue_simulator.battle.exception.MoveProcessingException;
+import com.gbf.granblue_simulator.battle.service.StatusService;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
@@ -21,11 +25,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @Getter
 @ToString
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@RequiredArgsConstructor
 @Component
 @Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS) // 싱글톤에서 프록시로 접근, 자동 GC
 public class BattleContext {
+
+    private final StatusService statusService;
 
     private Member member;
 
@@ -34,7 +39,7 @@ public class BattleContext {
 
     private Actor enemy;
 
-    private List<Actor> allCharacters;
+    private List<Actor> allCharacters; // 사망, 서브 포함 아군 캐릭터 전체
     private List<Actor> frontCharacters; // valid front
     private List<Actor> subCharacters; // valid sub
 
@@ -45,7 +50,7 @@ public class BattleContext {
      */
     private List<Actor> currentFieldActors; // enemy and valid front
 
-    private Long commandAbilityId; // 요청 커맨드 어빌리티 id, 없으면 -1
+    private Long commandAbilityId; // 요청 커맨드 어빌리티 Move.id, 없으면 -1
 
     /**
      * mainCharacter (행동주체, 캐릭터) 설정 <br>
@@ -73,12 +78,12 @@ public class BattleContext {
         List<Actor> allCharacters = new ArrayList<>();
         List<Actor> frontCharacters = new ArrayList<>();
         List<Actor> subCharacters = new ArrayList<>();
-        allActors.forEach(actor -> actor.getStatus().syncStatus());
         for (Actor actor : allActors) {
             if (actor.getCurrentOrder() == 0) {
                 this.enemy = actor;
             } else {
                 allCharacters.add(actor);
+
                 if (actor.getCurrentOrder() > 0 && actor.getCurrentOrder() <= 4) frontCharacters.add(actor);
                 else subCharacters.add(actor);
 
@@ -92,11 +97,11 @@ public class BattleContext {
         this.subCharacters = List.copyOf(subCharacters);
 
         if (requestMainActorId == null) {
-            // requestMainActorId 가 지정되지 않는 경우, 첫번째 캐릭터, 혹은 적 을 임시로 set (SYNC)
+            // requestMainActorId 가 지정되지 않는 경우, 첫번째 캐릭터, 혹은 적 을 임시로 set (SYNC,POTION)
             this.mainActor = !frontCharacters.isEmpty() ? frontCharacters.getFirst() : enemy;
         } else if (this.requestMainActor == null) {
             // requestMainActorId는 있는데 못찾음
-            throw new IllegalArgumentException("[init] requestMainActorId provided but not found, requestMainActorId = " + requestMainActorId);
+            throw new MoveProcessingException("[init] requestMainActorId provided but not found, requestMainActorId = " + requestMainActorId);
         } else {
             this.mainActor = this.requestMainActor;
         }
@@ -125,6 +130,10 @@ public class BattleContext {
                 .filter(actor -> actor != deadActor)
                 .toList();
 
+        List<Actor> allCharacters = new ArrayList<>(this.allCharacters);
+        allCharacters.sort(Comparator.comparing(Actor::getCurrentOrder)); // currentOrder 로 재정렬
+        this.allCharacters = List.copyOf(allCharacters);
+
         // 서브 캐릭터는 즉시 집어넣는게 아니고, 턴 종료 처리 직후 별도의 타이밍에 집어넣어야함.
 //        Actor firstSubCharacter = this.getSubCharacters().stream().findFirst()
 //                .map(firstSubMember -> {
@@ -136,6 +145,13 @@ public class BattleContext {
 //            this.frontCharacters.set(firstSubCharacter.getCurrentOrder() - 1, firstSubCharacter);
 //        }
 
+        syncCurrentFieldActors();
+    }
+
+    public void reviveCharacter(Actor reviveCharacter) {
+        this.frontCharacters = allCharacters.stream()
+                .filter(actor -> actor.getCurrentOrder() <= 4)
+                .toList();
         syncCurrentFieldActors();
     }
 

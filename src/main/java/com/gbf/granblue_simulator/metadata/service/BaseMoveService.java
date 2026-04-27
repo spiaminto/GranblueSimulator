@@ -50,4 +50,8 @@ public class BaseMoveService {
         return repository.findByLogicId(logicId).orElseThrow(() -> new IllegalArgumentException("[findByLogicId] logicId = " + logicId + " not found"));
     }
 
+    public List<BaseMove> findAllByMoveType(MoveType moveType) {
+        return repository.findAllByType(moveType);
+    }
+
 }

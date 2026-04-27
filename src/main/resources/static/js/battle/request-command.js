@@ -1,22 +1,6 @@
-// function requestInitialInfos() {
-//     let memberId = $('#memberInfo').data('member-id');
-//     console.log('[requestInitialInfos] memberId = ', memberId);
-//     return $.ajax({
-//         url: '/api/moves?memberId=' + memberId,
-//         type: 'GET',
-//     }).then(function (responses) {
-//         console.log('resp = ', responses);
-//         // responses.json().then(json => {
-//         //     console.log('json = ', json);
-//         // })
-//     }).catch(function (error) {
-//         console.error(error);
-//     })
-// }
-
 function requestMembersInfo() {
     let roomId = $('#roomInfo').data('room-id');
-    console.log('[requestMembersInfo] roomId = ', roomId);
+    // console.log('[requestMembersInfo] roomId = ', roomId);
     $.ajax({
         url: `/api/room/${roomId}/members`,
         type: 'GET',
@@ -24,11 +8,15 @@ function requestMembersInfo() {
             // 'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         success: function (response) {
-            console.log(response);
+            // console.log(`[requestMembersInfo] response = ${response}`);
+            let beforeInfos = gameStateManager.getState('memberInfos');
+            if (response && beforeInfos && response.length > beforeInfos.length) {
+                playSe(Sounds.ui.MEMBER_ENTER.src);
+            }
             gameStateManager.setState('memberInfos', response);
         },
         error: function (error) {
-            console.log(error);
+            console.error(`[requestMembersInfo] error = ${error}`);
         }
     })
 }
@@ -41,7 +29,7 @@ function requestChat() {
         url: `/api/rooms/${roomId}/chats${chatIdParam}`,
         type: 'GET',
         success: function (response) {
-            console.log('[requestChat] response = ', response);
+            // console.log('[requestChat] response = ', response);
             if (response.length === 0) {
                 if (gameStateManager.getState('chatMessages') === null) {
                     gameStateManager.setState('chatMessages', []); // 첫로드 초기화 null -> []
@@ -53,7 +41,7 @@ function requestChat() {
             gameStateManager.setState('chatMessages', response);
         },
         error: function (error) {
-            console.warn('[requestChat] error', error);
+            console.error('[requestChat] error', error);
         }
     });
 }
@@ -81,14 +69,14 @@ function requestSendChat(type, payload) {
                 : {type: 'STAMP', chatStamp: payload}
         ),
         success: function (response) {
-            console.log('[requestSendChat] response = ', response);
+            // console.log('[requestSendChat] response = ', response);
             gameStateManager.setState('lastChatId', response.id);
             gameStateManager.setState('chatMessages', [response]); // 단건도 배열로 통일
 
             $('.chat-modal-button').click(); // 채팅 모달 닫기
         },
         error: function (error) {
-            console.warn('[requestSendChat] error', error);
+            // console.error('[requestSendChat] error', error);
             let errorResp = error.responseJSON;
             if (errorResp.code === 'CHAT_FAILED') {
                 alert(errorResp.message);
@@ -127,43 +115,79 @@ function lockChatUIForCooldown() {
     }, cooldownMs);
 }
 
+window.isSyncing = false;
+
 function requestSync(isInit = false) {
-    stopSync();
-    let memberId = $('#memberInfo').data('member-id');
-    console.log('[requestSync] memberId = ', memberId);
+    if (isSyncing) return;  // 진행 중이면 skip
+    window.isSyncing = true;
+
+    // console.log('[requestSync] timerId = ', window.syncTimerId);
+
+    let roomId = $('#roomInfo').data('room-id');
     return $.ajax({
-        url: '/api/sync',
+        url: `/api/rooms/${roomId}/members/me/sync`,
         type: 'POST',
         contentType: 'application/json',
         headers: {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
-        data: JSON.stringify({
-            memberId: memberId,
-        })
-    }).then(function (responses) {
+        data: JSON.stringify({}),
+    }).then(function (response) {
         if (!isInit) {
-            processResponseMoves(responses);
-            doSync();
+            let syncResponses = response.syncResponses;
+            processResponseMoves(syncResponses, 'sync');
         }
-        return responses;
+        return response;
     }).catch(function (error) {
-        console.error(error);
-    })
+        let errorObj = error.responseJSON;
+        console.error(`[requestSync] error = ${errorObj}`);
+        if (!!errorObj.code) {
+            alert(errorObj.message);
+
+            if (errorObj.code === 'BATTLE_FINISHED') {
+                // 첫동기화때 대응을 위해 페이지 변경
+                if (isInit) {
+                    let roomId = $('#roomInfo').attr('data-room-id');
+                    location.href = `/room/${roomId}/result`;
+                    return;
+                }
+            }
+
+            if (window.tutorialManager?.active) {
+                window.tutorialManager.retry(); // 튜토리얼 진행중 복구
+            }
+
+            // 어빌리티 레일 전부 취소
+            $('.ability-rail-wrapper .rail-item').remove();
+            // 공격버튼 취소
+            onAttackButtonClicked();
+
+            if (errorObj.code === 'BATTLE_FINISHED') {
+                processQuestTimeout();
+            }
+        } else {
+            alert("동기화 처리중 에러가 발생했습니다. 페이지를 새로고침 합니다.");
+            location.reload();
+        }
+    }).always(function () {
+        window.isSyncing = false;
+    });
 }
 
 function requestMove(characterId, moveId, moveType) {
-    let memberId = $('#memberInfo').data('member-id');
-    let apiUrl =
-        moveType === 'ABILITY' ? '/api/ability'
-            : moveType === 'FATAL_CHAIN' ? '/api/fatal-chain'
-                : moveType === 'SUMMON' ? '/api/summon' : null;
-    if (!apiUrl) {
+    let command = moveType === 'ABILITY' ? 'ability'
+        : moveType === 'FATAL_CHAIN' ? 'fatal-chain'
+            : moveType === 'SUMMON' ? 'summon' : null;
+    if (!command) {
         alert('커맨드 에러, 새로고침 해주세요. 커맨드 = ' + moveType);
         return;
     }
 
-    console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' memberId = ', memberId, ' moveType = ', moveType, ' apiUrl = ', apiUrl);
+    let roomId = $('#roomInfo').data('room-id');
+    let apiUrl = `/api/rooms/${roomId}/members/me/${command}`;
+
+    // console.log('[requestMove] moveId = ', moveId, ' characterId = ', characterId, ' roomId = ', roomId, ' moveType = ', moveType, ' apiUrl = ', apiUrl);
+
     waitingProcess(true);
     $.ajax({
         url: apiUrl,
@@ -173,7 +197,6 @@ function requestMove(characterId, moveId, moveType) {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         data: JSON.stringify({
-            memberId: memberId,
             characterId: characterId,
             moveId: moveId,
             // 옵션들
@@ -185,11 +208,15 @@ function requestMove(characterId, moveId, moveType) {
             processResponseMoves(response, 'move');
         },
         error: function (error) {
-            console.log(error);
+            console.error(`[requestMove] error = ${error}`);
             let errorObj = error.responseJSON;
             let errorCode = errorObj.code;
             if (errorCode) {
                 alert(errorObj.message);
+
+                if (window.tutorialManager?.active) {
+                    window.tutorialManager.retry(); // 튜토리얼 진행중 복구
+                }
 
                 let doNextProcess = errorCode === 'MOVE_VALIDATION_CONDITION_FAILED'; // 조건 검증 실패
                 let $abilityRailItems = $('.ability-rail-wrapper .rail-item');
@@ -204,6 +231,13 @@ function requestMove(characterId, moveId, moveType) {
 
                 // 솬석 기존상태로 복구
                 gameStateManager.setState('usedSummon', gameStateManager.getState('usedSummon'), {force: true});
+
+                if (errorObj.code === 'BATTLE_FINISHED') {
+                    processQuestTimeout();
+                }
+            } else {
+                alert("서버 처리중 에러가 발생했습니다. 페이지를 새로고침 합니다.");
+                location.reload();
             }
         },
         complete: function () {
@@ -213,37 +247,49 @@ function requestMove(characterId, moveId, moveType) {
 }
 
 function requestTurnProgress() {
-    let memberId = $('#memberInfo').data('member-id');
     let roomId = $('#roomInfo').data('room-id');
 
     waitingProcess(true);
     $.ajax({
-        url: '/api/turn-progress',
+        url: `/api/rooms/${roomId}/members/me/turn-progress`,
         type: 'POST',
         contentType: 'application/json',
         headers: {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
-        data: JSON.stringify({
-            memberId: memberId,
-            roomId: roomId
-        }),
         // async: false,
         success: function (response) {
             let responseResults = response;
             // console.log(responseResults);
+
+            if (window.tutorialManager?.active) {
+                window.tutorialManager.saveProgress(window.tutorialManager.idx + 1); // 다음스탭으로 미리저장
+            }
+
             processResponseMoves(responseResults, 'turn');
         },
         error: function (error) {
-            console.log(error);
+            console.error(`[requestTurnProgress] error = ${error}`);
             let errorObj = error.responseJSON;
             if (!!errorObj.code) {
                 alert(errorObj.message);
+
+                if (window.tutorialManager?.active) {
+                    window.tutorialManager.retry(); // 튜토리얼 진행중 복구
+                }
 
                 // 어빌리티 레일 전부 취소
                 $('.ability-rail-wrapper .rail-item').remove();
                 // 공격버튼 취소
                 onAttackButtonClicked();
+
+                if (errorObj.code === 'BATTLE_FINISHED') {
+                    processQuestTimeout();
+                }
+
+            } else {
+                alert("서버 처리중 에러가 발생했습니다. 페이지를 새로고침 합니다.");
+                location.reload();
             }
         },
         complete: function () {
@@ -258,31 +304,42 @@ function requestTurnProgress() {
  * @param type 가드타입 (SELF, PARTY_MEMBERS)
  */
 function requestGuard(charOrder, type) {
-    console.log('[requestGuard] charOrder = ', charOrder, ' type = ', type);
+    // console.log('[requestGuard] charOrder = ', charOrder, ' type = ', type);
     let characterId = $('#partyCommandContainer .battle-portrait').eq(charOrder - 1).data('actor-id');
-    let memberId = $('#memberInfo').data('member-id');
+    if (!characterId) {
+        alert("가드할 캐릭터가 없습니다.");
+        return;
+    }
+
     let roomId = $('#roomInfo').data('room-id');
     $.ajax({
-        url: '/api/guard',
+        url: `/api/rooms/${roomId}/members/me/guard`,
         type: 'POST',
         contentType: 'application/json',
         headers: {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         data: JSON.stringify({
+            targetType: type,
             characterId: characterId,
             actorOrder: charOrder,
-            memberId: memberId,
-            roomId: roomId,
-            targetType: type
         }),
         async: false,
         success: function (response) {
-            console.log('[requestGuard]', response);
+            // console.log('[requestGuard] response = ', response);
+
+            stopSync();
+            doSync(true); // 즉시 동기화 실행 (가드로 인한 적 데미지등 상태변경분 즉시 반영필요)
+
             processGuard(response);
         },
         error: function (error) {
-            console.log(error);
+            console.error(`[requestGuard] error = ${error}`);
+            let errorObj = error.responseJSON;
+            let errorCode = errorObj.code;
+            if (errorCode) {
+                alert(errorObj.message);
+            }
         }
     });
 }
@@ -292,24 +349,23 @@ function requestGuard(charOrder, type) {
  * @param chargeAttackActiveChecked
  */
 function requestToggleChargeAttack(chargeAttackActiveChecked) {
-    console.log(`[requestToggleChargeAttack] chargeAttackActiveChecked = ${chargeAttackActiveChecked}`);
+    // console.log(`[requestToggleChargeAttack] chargeAttackActiveChecked = ${chargeAttackActiveChecked}`);
     playSe(Sounds.ui.BEEP.src);
 
     let roomId = $('#roomInfo').data('room-id');
     $.ajax({
-        url: '/api/toggle-charge-attack',
+        url: `/api/rooms/${roomId}/members/me/toggle-charge-attack`,
         type: 'POST',
         contentType: 'application/json',
         headers: {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         data: JSON.stringify({
-            roomId: roomId,
             chargeAttackOn: chargeAttackActiveChecked
         }),
         async: false,
         success: function (response) {
-            console.log(response);
+            // console.log(`[requestToggleChargeAttack] response = ${response}`);
             $('#chargeAttackActiveCheck').prop('checked', response.chargeAttackOn);
             gameStateManager.setState('canChargeAttacks', response.canChargeAttacks);
             gameStateManager.setState('chargeGauges', gameStateManager.getState('chargeGauges'), {force: true}); // canChargeAttacks 가 렌더러 연결 안되있어서 직접 갱신
@@ -329,7 +385,12 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
 
         },
         error: function (error) {
-            console.log(error);
+            console.error(`[requestToggleChargeAttack] error = ${error}`);
+            let errorObj = error.responseJSON;
+            let errorCode = errorObj.code;
+            if (errorCode) {
+                alert(errorObj.message);
+            }
         }
     });
 }
@@ -338,33 +399,36 @@ function requestToggleChargeAttack(chargeAttackActiveChecked) {
  * 포션 요청
  * @param potionType
  * @param actorId
+ * @param targetActorId
  */
-function requestPotion(potionType, actorId) {
-    console.log('[requestPotion] actorId = ', actorId, ' potionType = ', potionType);
-    let memberId = $('#memberInfo').data('member-id');
+function requestPotion(potionType, targetActorId) {
+    // console.log('[requestPotion] potionType = ', potionType, ' targetActorId = ', targetActorId);
+    let roomId = $('#roomInfo').data('room-id');
     $.ajax({
-        url: '/api/use-potion',
+        url: `/api/rooms/${roomId}/members/me/use-potion`,
         type: 'POST',
         contentType: 'application/json',
         headers: {
             'X-CSRF-TOKEN': $('#csrfToken').val()
         },
         data: JSON.stringify({
-            actorId: actorId,
-            memberId: memberId,
-            potionType: potionType // 영원히 바뀔일 없으니 single, all, elixir 로 고정
+            targetActorId: targetActorId,
+            potionType: potionType.toUpperCase() // POTION, ALL_POTION, ELIXIR
         }),
         async: false,
         success: function (response) {
-            $('#usePotionButton')
-                .attr('data-potion-type', '')
-                .prop('disabled', true);
-
+            // console.log('[requestPotion] response = ', response);
             setTimeout(() => processPotion(response), 500); // 모달 닫히는 시간 고려
         },
         error: function (error) {
-            console.error(error);
-            alert(error.responseText);
+            console.error(`[requestPotion] error = ${error}`);
+            let errorObj = error.responseJSON;
+            if (!!errorObj.code) {
+                alert(errorObj.message);
+
+                // 어빌리티 레일 전부 취소
+                $('.ability-rail-wrapper .rail-item').remove();
+            }
         }
     });
 }
@@ -372,7 +436,7 @@ function requestPotion(potionType, actorId) {
 // test ==============================================================================================================
 function requestResetCooldown() {
     let memberId = $('#memberInfo').data('member-id');
-    console.log('[requestRestCooldown] memberId = ', memberId);
+    // console.log('[requestRestCooldown] memberId = ', memberId);
     $.ajax({
         url: '/test/reset-cooldowns',
         type: 'POST',
@@ -388,7 +452,7 @@ function requestResetCooldown() {
             processResponseMoves(response);
         },
         error: function (error) {
-            console.log(error);
+            // console.log(error);
         }
     });
 }

@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -67,17 +68,18 @@ public abstract class Actor {
     @ToString.Exclude
     private Status status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     @ToString.Exclude
     private Member member;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_actor_id")
     @ToString.Exclude
+    @Getter(value = AccessLevel.NONE) // 지정한 getter 사용을 통해 반드시 lazy load
     private BaseActor baseActor;
 
-    @OneToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_visual_id")
     @ToString.Exclude
     private ActorVisual actorVisual;
@@ -101,6 +103,13 @@ public abstract class Actor {
     @PostLoad
     protected void postLoad() {
         initMoveMap();
+    }
+
+    /**
+     * lazyLoad 를 통해 초기화된 BaseActor 반환
+     */
+    public BaseActor getBaseActor() {
+        return (BaseActor) Hibernate.unproxy(this.baseActor);
     }
 
     // INIT, MAPPING =====================================================================================
@@ -248,7 +257,8 @@ public abstract class Actor {
     /**
      * 로직에서 HP 를 업데이트 <br>
      * 음수값을 허용하기 때문에 데미지 로직에서는 반드시 MIN 0 으로 변경하여 업데이트 요망 <br>
-     * 음수값은 특수상황에서 사용 [사망시 Integer.MIN] [Actor 엔티티 첫 생성시 -1]
+     * 음수값은 특수상황에서 사용 [사망시 Integer.MIN] [Actor 엔티티 첫 생성시 -1] <br>
+     * 캐릭터 강제전멸 등도 여기서 사용
      *
      * @param hp
      */

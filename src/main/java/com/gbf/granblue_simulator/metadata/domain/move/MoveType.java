@@ -19,6 +19,11 @@ public enum MoveType {
         STANDBY_E(STANDBY, "standby-e"),
         STANDBY_F(STANDBY, "standby-f"),
         STANDBY_G(STANDBY, "standby-g"),
+        STANDBY_H(STANDBY, "standby-h"),
+        STANDBY_I(STANDBY, "standby-i"),
+        STANDBY_J(STANDBY, "standby-j"),
+        STANDBY_K(STANDBY, "standby-k"),
+        STANDBY_L(STANDBY, "standby-l"),
 
     ATTACK(ROOT, "attack"),
         NORMAL_ATTACK(ATTACK, "normal-attack"),
@@ -51,6 +56,11 @@ public enum MoveType {
         CHARGE_ATTACK_E(CHARGE_ATTACK, "charge-attack-e", 5),
         CHARGE_ATTACK_F(CHARGE_ATTACK, "charge-attack-f", 6),
         CHARGE_ATTACK_G(CHARGE_ATTACK, "charge-attack-g", 7),
+        CHARGE_ATTACK_H(CHARGE_ATTACK, "charge-attack-h", 8),
+        CHARGE_ATTACK_I(CHARGE_ATTACK, "charge-attack-i", 9),
+        CHARGE_ATTACK_J(CHARGE_ATTACK, "charge-attack-j", 10),
+        CHARGE_ATTACK_K(CHARGE_ATTACK, "charge-attack-k", 11),
+        CHARGE_ATTACK_L(CHARGE_ATTACK, "charge-attack-l", 12),
 
     DEAD(ROOT, "dead"),
         DEAD_DEFAULT(DEAD, "dead"),
@@ -89,14 +99,14 @@ public enum MoveType {
     ));
     public static final Set<MoveType> SUPPORT_ABILITIES = Collections.unmodifiableSet(EnumSet.of(
             TRIGGERED_ABILITY, // 999
-            FIRST_SUPPORT_ABILITY, SECOND_SUPPORT_ABILITY, THIRD_SUPPORT_ABILITY, FOURTH_SUPPORT_ABILITY,
-            FIFTH_SUPPORT_ABILITY, SIXTH_SUPPORT_ABILITY, SEVENTH_SUPPORT_ABILITY, EIGHTH_SUPPORT_ABILITY,
-            NINTH_SUPPORT_ABILITY, TENTH_SUPPORT_ABILITY
+            FIRST_SUPPORT_ABILITY, SECOND_SUPPORT_ABILITY, THIRD_SUPPORT_ABILITY, FOURTH_SUPPORT_ABILITY, FIFTH_SUPPORT_ABILITY,
+            SIXTH_SUPPORT_ABILITY, SEVENTH_SUPPORT_ABILITY, EIGHTH_SUPPORT_ABILITY, NINTH_SUPPORT_ABILITY, TENTH_SUPPORT_ABILITY
     ));
     public static final Set<MoveType> CHARGE_ATTACKS = Collections.unmodifiableSet(EnumSet.of(
             CHARGE_ATTACK_DEFAULT,
-            CHARGE_ATTACK_A, CHARGE_ATTACK_B, CHARGE_ATTACK_C, CHARGE_ATTACK_D,
-            CHARGE_ATTACK_E, CHARGE_ATTACK_F, CHARGE_ATTACK_G
+            CHARGE_ATTACK_A, CHARGE_ATTACK_B, CHARGE_ATTACK_C, CHARGE_ATTACK_D, CHARGE_ATTACK_E,
+            CHARGE_ATTACK_F, CHARGE_ATTACK_G, CHARGE_ATTACK_H, CHARGE_ATTACK_I, CHARGE_ATTACK_J,
+            CHARGE_ATTACK_K, CHARGE_ATTACK_L
     ));
     public static final Set<MoveType> SUMMONS = Collections.unmodifiableSet(EnumSet.of(
             FIRST_SUMMON, SECOND_SUMMON, THIRD_SUMMON, FOURTH_SUMMON, FIFTH_SUMMON
@@ -125,6 +135,11 @@ public enum MoveType {
             case STANDBY_E -> MoveType.CHARGE_ATTACK_E;
             case STANDBY_F -> MoveType.CHARGE_ATTACK_F;
             case STANDBY_G -> MoveType.CHARGE_ATTACK_G;
+            case STANDBY_H -> MoveType.CHARGE_ATTACK_H;
+            case STANDBY_I -> MoveType.CHARGE_ATTACK_I;
+            case STANDBY_J -> MoveType.CHARGE_ATTACK_J;
+            case STANDBY_K -> MoveType.CHARGE_ATTACK_K;
+            case STANDBY_L -> MoveType.CHARGE_ATTACK_L;
             default -> NONE;
         };
     }
@@ -135,7 +150,7 @@ public enum MoveType {
     }
 
     /**
-     * 어빌리티 & 서포트 어빌리티 인지 판별
+     * 어빌리티 & 서포트 어빌리티(트리거 어빌리티) 인지 판별
      * @return 어빌리티, 서포트 어빌리티면 true
      */
     public boolean isAbilities() {

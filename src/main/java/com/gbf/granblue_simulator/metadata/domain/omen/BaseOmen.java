@@ -8,6 +8,7 @@ import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Type;
+import org.springframework.core.annotation.Order;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,9 +46,11 @@ public class BaseOmen {
     private List<Integer> triggerHps = new ArrayList<>(); // HP트리거와 차지어택이 의 경우 현재 ENEMY 의 HP 가 이 값보다 작은경우 발동
 
     @OneToMany(mappedBy = "omen")
+    @OrderBy("id ASC")
     private List<OmenCancelCond> omenCancelConds = new ArrayList<>();
 
-    @ManyToOne @JoinColumn(name = "base_enemy_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "base_enemy_id")
     private BaseEnemy enemy;
 
 }

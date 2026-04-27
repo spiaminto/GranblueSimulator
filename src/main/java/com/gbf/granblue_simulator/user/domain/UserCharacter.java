@@ -48,7 +48,8 @@ public class UserCharacter {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
-    @OneToOne
+
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_character_id")
     private BaseCharacter baseCharacter;
 
@@ -72,10 +73,10 @@ public class UserCharacter {
     public List<Long> getBattleMoveIds() {
         if (!this.isLeaderCharacter()) return this.baseCharacter.getDefaultMoveIds();
 
-        return this.baseCharacter.getAllMoveIds().stream()
+        return this.baseCharacter.getDefaultAndAllMoveIds().stream()
                 .filter(moveId -> {
                     UserCharacterMove userCharacterMove = this.abilities.get(moveId);
-                    return userCharacterMove == null || userCharacterMove.getStatus() == UserCharacterMoveStatus.IN_USE;
+                    return userCharacterMove == null || userCharacterMove.getStatus() == UserCharacterMoveStatus.IN_USE || userCharacterMove.getStatus() == UserCharacterMoveStatus.DEFAULT;
                 })
                 .toList();
     }
@@ -94,7 +95,8 @@ public class UserCharacter {
                 .chargeAttackIds(defaultMappedMove.getChargeAttackIds())
                 .normalAttackId(defaultMappedMove.getNormalAttackId())
                 .abilityIds(this.abilities.entrySet().stream()
-                        .filter(entry -> entry.getValue().getMoveType() == MoveType.ABILITY && entry.getValue().getStatus() == UserCharacterMoveStatus.IN_USE)
+                        .filter(entry -> entry.getValue().getMoveType() == MoveType.ABILITY
+                                && (entry.getValue().getStatus() == UserCharacterMoveStatus.IN_USE || entry.getValue().getStatus() == UserCharacterMoveStatus.DEFAULT))
                         .map(Map.Entry::getKey).toList())
                 .supportAbilityIds(this.abilities.entrySet().stream()
                         .filter(entry -> entry.getValue().getMoveType() == MoveType.SUPPORT_ABILITY && entry.getValue().getStatus() == UserCharacterMoveStatus.IN_USE)

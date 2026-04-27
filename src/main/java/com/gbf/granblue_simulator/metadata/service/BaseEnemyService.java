@@ -20,8 +20,9 @@ public class BaseEnemyService {
         return repository.findById(id);
     }
 
-    public List<BaseEnemy> findFirstFormEnemies() {
-        return repository.findAllByFormOrder(1);
+    public List<BaseEnemy> findByRootNameEn(String rootNameEn) {
+        return repository.findByRootNameEn(rootNameEn);
     }
+
 
 }

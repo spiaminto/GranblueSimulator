@@ -49,7 +49,7 @@ public class ChargeGaugeLogic {
     }
 
     /**
-     * 캐릭터의 오의 후 오의 게이지 갱신
+     * 캐릭터의 오의 후 오의 게이지 갱신　(상태효과 보다 먼저 갱신)
      */
     public void afterChargeAttack() {
         Actor mainActor = battleContext.getMainActor();
@@ -76,10 +76,12 @@ public class ChargeGaugeLogic {
     public void afterEnemyAttack(List<Actor> targets, List<Integer> damages) {
         Enemy enemy = (Enemy) battleContext.getEnemy();
 
+        // CHECK 일반공격 후에만 +1 (특수기 사용시 오르지 않음)
         if (enemy.getOmen() != null && enemy.getOmen().getBaseOmen().getOmenType() == OmenType.CHARGE_ATTACK) {
             setChargeGauge(enemy, 0); // 적의 CT 특수기 -> 0으로 초기화
-        } else {
-            modifyChargeGauge(enemy, baseEnemyAttackGaugePoint); // 적의 나머지 특수기, 일반공격 -> add
+        } else if (enemy.getOmen() == null) {
+            // 전조 발생중 아님 -> 일반공격, +1
+            modifyChargeGauge(enemy, baseEnemyAttackGaugePoint);
         }
 
         if (targets != null) {

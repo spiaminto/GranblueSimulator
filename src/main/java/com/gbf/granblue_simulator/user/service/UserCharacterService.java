@@ -28,6 +28,9 @@ public class UserCharacterService {
         return repository.findByUserIdAndBaseCharacterId(userId, baseCharacterId);
     }
 
-    ;
+    public void deleteAll(List<UserCharacter> userCharacters) {
+        repository.deleteAll(userCharacters);
+    }
+
 
 }

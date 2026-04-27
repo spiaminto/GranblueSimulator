@@ -20,7 +20,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.NumberUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -393,7 +392,9 @@ public class InsertController {
     @GetMapping("/basic-status-effects")
     public ResponseEntity<Map<String, Object>> getBasicStatusEffects() {
         List<StatusEffectDto> statusEffects = baseStatusEffectRepository.findAll().stream()
-                .filter(baseStatusEffect -> !baseStatusEffect.isUniqueFrame() && baseStatusEffect.isDisplayable() && baseStatusEffect.getId() >= 60000)
+                .filter(baseStatusEffect -> !baseStatusEffect.isUniqueFrame()
+                        && (baseStatusEffect.isDisplayable() || baseStatusEffect.getName().equals("디스펠"))
+                        && baseStatusEffect.getId() >= 60000)
                 .collect(Collectors.toMap(
                         BaseStatusEffect::getName,
                         StatusEffectDto::of,

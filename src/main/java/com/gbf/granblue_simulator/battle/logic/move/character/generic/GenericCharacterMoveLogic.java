@@ -12,12 +12,11 @@ import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.util.TrackingConditionUtil;
 import com.gbf.granblue_simulator.battle.service.MoveService;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.TrackingCondition;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.BaseStatusEffectRepository;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -36,16 +35,15 @@ public class GenericCharacterMoveLogic extends DefaultCharacterMoveLogic {
     protected void registerLogics() {
         // 로직명은 임시값. 별도로 관리 예정
         moveLogicRegistry.register("generic_counter", this::counter);
-        
+
         // 보류
         // moveLogicRegistry.register("generic_level_down_status_effect", this::levelDownStatusEffect);
         // moveLogicRegistry.register("generic_apply_status_effect", this::applyStatusEffect);
     }
-
     // 힐, 흡수, 카운터 등 각종 공용 Move 위치
 
     // [REACT_ENEMY] 카운터
-    public MoveLogicResult counter(MoveLogicRequest request) {
+    protected MoveLogicResult counter(MoveLogicRequest request) {
         Move move = request.getMove();
         MoveLogicResult otherResult = request.getOtherResult();
         Actor self = move.getActor();
@@ -62,26 +60,6 @@ public class GenericCharacterMoveLogic extends DefaultCharacterMoveLogic {
                     return resultMapper.emptyResult();
                 });
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // 보류된 Generic Move ================================================================================================================================

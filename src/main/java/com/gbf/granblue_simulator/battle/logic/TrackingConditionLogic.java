@@ -3,7 +3,6 @@ package com.gbf.granblue_simulator.battle.logic;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
-import com.gbf.granblue_simulator.battle.logic.move.MoveLogicRequest;
 import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.util.TrackingConditionUtil;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
@@ -37,10 +36,12 @@ public class TrackingConditionLogic {
 
                     deltaValue = switch (key) {
                         case HIT_COUNT_BY_ENEMY -> hitCountByEnemy(logicResult, actor);
-                        case HIT_COUNT_BY_CHARACTER -> hitCountByCharacter(logicResult);
+                        case HIT_COUNT_BY_CHARACTER, HIT_COUNT_BY_CHARACTER_ACC -> hitCountByCharacter(logicResult);
+                        case TRIPLE_ATTACK_COUNT_BY_CHARACTER -> tripleAttackCountByCharacter(logicResult);
+                        case TRIPLE_ATTACK_COUNT -> tripleAttackCount(logicResult, actor);
                         case PASSED_TURN_COUNT -> passedTurnCount(logicResult);
-                        case TRIPLE_ATTACK_COUNT -> tripleAttackCount(logicResult);
                         case TAKEN_HEAL_EFFECT_COUNT -> takenHealEffectCount(logicResult, actor);
+                        case CHARGE_ATTACK_COUNT_BY_CHARACTER_ACC -> chargeAttackCountByCharacterAcc(logicResult);
                         default ->
                                 throw new IllegalArgumentException("[updateCommonConditions] invalid TrackingCondition, key = " + key.name());
                     };
@@ -80,12 +81,23 @@ public class TrackingConditionLogic {
         return logicResult.getMove().getType() == MoveType.TURN_FINISH ? 1 : 0;
     }
 
-    private int tripleAttackCount(MoveLogicResult logicResult) {
+    private int tripleAttackCount(MoveLogicResult logicResult, Actor actor) {
+        return logicResult.getMainActor().getId().equals(actor.getId()) && logicResult.getNormalAttackCount() >= 3 ? 1 : 0;
+    }
+
+    private int tripleAttackCountByCharacter(MoveLogicResult logicResult) {
         return !logicResult.getMainActor().isEnemy() && logicResult.getNormalAttackCount() >= 3 ? 1 : 0;
     }
 
     private int takenHealEffectCount(MoveLogicResult logicResult, Actor actor) {
         Integer heal = logicResult.getSnapshots().get(actor.getId()).getHeal();
         return heal != null && heal > 0 ? 1 : 0;
+    }
+
+    private int chargeAttackCountByCharacterAcc(MoveLogicResult logicResult) {
+        if (logicResult.getMainActor().isCharacter() && logicResult.getMove().getBaseMove().getType() == MoveType.CHARGE_ATTACK) {
+            return 1;
+        }
+        return 0;
     }
 }

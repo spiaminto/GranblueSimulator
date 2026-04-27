@@ -1,11 +1,14 @@
 package com.gbf.granblue_simulator.user.service;
 
+import com.gbf.granblue_simulator.battle.service.MemberService;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseCharacter;
 import com.gbf.granblue_simulator.metadata.domain.actor.MappedMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.repository.BaseCharacterRepository;
 import com.gbf.granblue_simulator.metadata.service.BaseCharacterService;
+import com.gbf.granblue_simulator.party.domain.BaseParty;
 import com.gbf.granblue_simulator.party.domain.Party;
+import com.gbf.granblue_simulator.party.repository.BasePartyRepository;
 import com.gbf.granblue_simulator.party.repository.PartyRepository;
 import com.gbf.granblue_simulator.user.controller.UserRegisterForm;
 import com.gbf.granblue_simulator.user.domain.User;
@@ -14,10 +17,13 @@ import com.gbf.granblue_simulator.user.domain.UserCharacterMove;
 import com.gbf.granblue_simulator.user.domain.UserCharacterMoveStatus;
 import com.gbf.granblue_simulator.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.expression.Maps;
 
 import java.util.*;
 import java.util.function.Function;
@@ -35,6 +41,8 @@ public class UserService {
     private final UserCharacterService userCharacterService;
     private final PartyRepository partyRepository;
     private final BaseCharacterService baseCharacterService;
+    private final MemberService memberService;
+    private final BasePartyRepository basePartyRepository;
 
     public Optional<User> findById(Long userId) {
         return userRepository.findById(userId);
@@ -44,8 +52,16 @@ public class UserService {
         return userRepository.findByLoginId(username);
     }
 
+    public List<User> findAll() {
+        return userRepository.findAll();
+    }
+
     public boolean existsByLoginId(String loginId) {
         return userRepository.existsByLoginId(loginId);
+    }
+
+    public boolean existsByUsername(String username) {
+        return userRepository.existsByUsername(username);
     }
 
     public void createUserCharactersFromInsert(BaseCharacter insertedCharacter) {
@@ -101,6 +117,7 @@ public class UserService {
                 .username(form.getUsername())
                 .loginId(form.getLoginId())
                 .role("ROLE_USER")
+                .clearPoint(0)
                 .password(passwordEncoder.encode(form.getPassword()))
                 .build();
         userRepository.save(user);
@@ -156,43 +173,71 @@ public class UserService {
                         userCharacter -> userCharacter.getBaseCharacter().getId(),
                         Function.identity()
                 ));
-        // 일단 아래는 고정
-        List<UserCharacter> firstPartyUserCharacters = Stream.of(60000L, 70500L, 70600L, 70700L).map(userCharacterMap::get).toList();
-        List<UserCharacter> secondPartyUserCharacters = Stream.of(60100L, 70800L, 70900L, 71000L).map(userCharacterMap::get).toList();
-        List<UserCharacter> thirdPartyUserCharacters = Stream.of(60000L, 71100L, 71200L, 71300L).map(userCharacterMap::get).toList();
-        // summon 은 user 커스터마이즈 없이 메타데이터 그대로
-        List<Long> summonIds = List.of(40000L, 40100L, 40200L, 40201L);
-
-        List<Party> defaultParties = List.of(
+        List<Party> defaultParties = basePartyRepository.findAll().stream()
+                .sorted(Comparator.comparing(BaseParty::getId))
+                .map(baseParty ->
                 Party.builder()
                         .user(user)
-                        .name("파티 1")
-                        .infoText("파티 1번")
-                        .characterIds(firstPartyUserCharacters.stream().map(UserCharacter::getId).toList())
-                        .summonIds(summonIds)
-                        .build(),
-                Party.builder()
-                        .user(user)
-                        .name("파티 2")
-                        .infoText("파티 2번")
-                        .characterIds(secondPartyUserCharacters.stream().map(UserCharacter::getId).toList())
-                        .summonIds(summonIds)
-                        .build(),
-                Party.builder()
-                        .user(user)
-                        .name("파티 3")
-                        .infoText("파티 3번")
-                        .characterIds(thirdPartyUserCharacters.stream().map(UserCharacter::getId).toList())
-                        .summonIds(summonIds)
+                        .name(baseParty.getName())
+                        .infoText(baseParty.getInfo())
+                        .userCharacterIds(baseParty.getBaseCharacterIds().stream().map(baseCharacterId -> userCharacterMap.get(baseCharacterId).getId()).toList())
+                        .summonIds(baseParty.getSummonIds())
+                        .baseParty(baseParty)
                         .build()
-        );
+        ).toList();
+
         List<Party> savedDefaultParties = partyRepository.saveAll(defaultParties);
 
         user.updatePrimaryPartyId(savedDefaultParties.getFirst().getId());
     }
 
-    public void deleteUser(Long userId) {
+    @Builder
+    @Getter
+    private static class DefaultParty {
+        private String name;
+        private String infoText;
+        private List<Long> baseCharacterIds;
+        private Long mainSummonId;
+    }
 
+    private static final Map<Integer, DefaultParty> defaultPartyMap = Map.of(
+            1, DefaultParty.builder()
+                    .name("수속성 검호 파티")
+                    .infoText("")
+                    .baseCharacterIds(List.of(60100L, 71300L, 70900L, 71000L))
+                    .mainSummonId(40100L)
+                    .build(),
+            2, DefaultParty.builder()
+                    .name("수속성 파이터 파티")
+                    .infoText("")
+                    .baseCharacterIds(List.of(60500L, 70500L, 70800L, 70600L))
+                    .mainSummonId(40300L)
+                    .build(),
+            3, DefaultParty.builder()
+                    .name("토속성 라이징포스 파티")
+                    .infoText("")
+                    .baseCharacterIds(List.of(71400L, 71500L, 71600L, 71700L))
+                    .mainSummonId(42200L)
+                    .build(),
+            4, DefaultParty.builder()
+                    .name("토속성 버서커 파티")
+                    .infoText("")
+                    .baseCharacterIds(List.of(60300L, 71900L, 71800L, 72000L))
+                    .mainSummonId(40500L)
+                    .build()
+    );
+
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("유저가 없습니다."));
+
+        List<UserCharacter> userCharacters = user.getUserCharacters().values().stream().toList();
+        userCharacterService.deleteAll(userCharacters);
+
+        partyRepository.deleteAll(user.getAllParty());
+
+        user.getMembers().forEach(member -> memberService.deleteMember(member.getId()));
+
+        userRepository.delete(user);
     }
 
 }

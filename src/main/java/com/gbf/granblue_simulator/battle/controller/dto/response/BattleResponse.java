@@ -10,6 +10,7 @@ import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +61,9 @@ public class BattleResponse {
     private OmenResult omen;
     // 참전자 어빌리티
     private ForMemberAbilityInfo forMemberAbilityInfo;
+    // 변경된 Move 정보
+    private MoveInfo changedMoveInfo;
+    private Long deletedMoveId;
 
     // snapshot
     private int attackMultiHitCount;
@@ -92,6 +96,13 @@ public class BattleResponse {
     private List<Integer> summonCooldowns = new ArrayList<>();
     @Builder.Default
     private List<Integer> estimatedEnemyAtk = new ArrayList<>(); // 기준공격력 size 2, min / max
+    @Builder.Default
+    private List<Integer> enemyTriggerHps = new ArrayList<>(); // 초기로드떄만 사용
+    @Builder.Default
+    private List<Integer> doubleAttackRates = new ArrayList<>();
+    @Builder.Default
+    private List<Integer> tripleAttackRates = new ArrayList<>();
+
 
     private int resultHonor; // 내 행동 결과 공헌도
 
@@ -100,6 +111,9 @@ public class BattleResponse {
     private MoveInfo unionSummonInfo;
 
     private Boolean isEnemyFormChange; // 적 폼체인지 여부
+
+    private LocalDateTime lastMoveTime;
+    private double moveCooldown;
 
 }
 

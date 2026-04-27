@@ -11,8 +11,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
-    private String resourceRequestUrl = "/static/**"; // 브라우저에서 이미지 요청 url
-    private String resourceLocation = "classpath:/static/"; // static 로컬 요청 경로
+    private final String resourceRequestUrl = "/static/**"; // 브라우저에서 이미지 요청 url
+    private final String resourceLocation = "classpath:/static/"; // static 로컬 요청 경로
 
     /**
      * 브라우저에서 (로컬)이미지 요청시 url 을 로컬 요청으로 변경
@@ -34,6 +34,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/static/**",
+                        "/.well-known/appspecific/com.chrome.devtools.json",
                         "/gbf/**",
                         "/assets/**",
                         "/js/**",

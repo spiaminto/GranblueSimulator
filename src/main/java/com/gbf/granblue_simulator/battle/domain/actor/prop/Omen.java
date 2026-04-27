@@ -26,10 +26,12 @@ public class Omen {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne @JoinColumn(name = "base_omen_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "base_omen_id")
     private BaseOmen baseOmen;
 
-    @OneToOne @JoinColumn(name = "enemy_id") @ToString.Exclude
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "enemy_id") @ToString.Exclude
     private Enemy enemy;
 
     @Type(ListArrayType.class)
@@ -55,6 +57,14 @@ public class Omen {
         this.enemy = enemy;
         enemy.updateOmen(this);
         return this;
+    }
+
+    public void updateCancelConditionIndexes(List<Integer> indexes) {
+        this.cancelConditionIndexes = indexes;
+    }
+
+    public void updateRemainValues(List<Integer> values) {
+        this.remainValues = values;
     }
 
 }

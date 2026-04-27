@@ -1,19 +1,23 @@
 package com.gbf.granblue_simulator.metadata.domain.move;
 
+import lombok.Getter;
+
 public enum AbilityType {
 
-    ATTACK("공격 어빌리티"),
-    BUFF("강화 어빌리티"),
-    DEBUFF("약화 어빌리티"),
-    HEAL("회복 어빌리티"),
+    ATTACK("공격"),
+    BUFF("강화"),
+    DEBUFF("약화"),
+    HEAL("회복"),
 
     // FIELD, [구현 예정 없음]
 
     ;
 
-    private final String info;
-    AbilityType(String info) {
-        this.info = info;
+    @Getter
+    private final String displayName;
+
+    AbilityType(String displayName) {
+        this.displayName = displayName;
     }
 
 }

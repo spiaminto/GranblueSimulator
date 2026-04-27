@@ -4,7 +4,7 @@ $(function () {
     // 배틀화면에서, 모달을 #modalContainer 내부에서 정상작동시키기 위한 처리
     $('.modal').on('show.bs.modal', (event) => {
         const trigger = event.relatedTarget // 버튼 클릭으로 열렸을때, event.relatedTarget 로 트리거 요소 접근 가능
-        $('#modalContainer').css('z-index', '9999'); // 열리면 이쪽이 기존 컨테이너 대신 앞으로
+        $('#modalContainer').css('z-index', '999'); // 열리면 이쪽이 기존 컨테이너 대신 앞으로
         // backdrop 컨테이너 안으로 넣기
         requestAnimationFrame(() => $('#modalContainer').append($('body > .modal-backdrop')));
         // body에 붙는 기본 부작용(스크롤 잠금/패딩) 제거
@@ -14,7 +14,10 @@ $(function () {
         $('#modalContainer').append($('body > .modal-backdrop')); // 보험
     })
     $('.modal').on('hidden.bs.modal', (event) => {
-        $('#modalContainer').css('z-index', '-1'); // 닫히면 컨테이너 뒤로
+        if ($('.modal.show').length === 0) {
+            // 열린 모달이 없을경우 뒤로보냄
+            $('#modalContainer').css('z-index', '-1');
+        }
     })
 
     //사운드 버튼 ============================================================================================================
@@ -49,28 +52,39 @@ $(function () {
         $('.summon-display-button').click();
     });
 
+    $('.summon-display-button').on('click', function () {
+        $('.ability-back-button').show();
+    })
+
     //어빌리티 슬라이더 ====================================================================================================
     // 배틀 초상화 클릭 -> 어빌리티 슬라이더 오픈
-    $('.battle-portrait:not(.empty)').on('click', function () {
+    $('#container').on('click', '.battle-portrait:not(.empty)', function () {
         let battlePortraitIndex = $('.battle-portrait:not(.empty)').index(this);
         $('#abilitySlider').slick('slickGoTo', battlePortraitIndex, true, {speed: 0})
         // 요소 보이게
         $('#abilitySlider').css('z-index', '5');
         $('.ability-slider-slide-button-wrapper').show();
         $('.ability-back-button').show();
-    })
+    });
 
-    // 어빌리티 뒤로 버튼 -> 어빌리티 슬라이더 닫기
+    // 어빌리티 뒤로 버튼 -> 어빌리티 슬라이더, 소환석 display 닫기
     $('.ability-back-button').on('click', function () {
+        playSe(Sounds.ui.BUTTON_CLOSE.src);
+
+        // 소환석 collapse 가 열려있을경우 닫고 바로종료
+        if ($('#summonCollapse').hasClass('show')) {
+            $('.summon-display-button').click();
+            $(this).hide();
+            return;
+        }
+
+        // 어빌리티 슬라이더
         $('#abilitySlider .ability-panel').removeClass('active'); // 패널 마킹 삭제
-        clearInterval(statusShowHideInterval); // 스테이터스 끊어보여주기 인터벌 해제
         // 요소 숨김
         $('#abilitySlider').css('z-index', '-1');
         $('.ability-slider-slide-button-wrapper').hide();
         $(this).hide();
-
         player.renewCharacterWait();
-        playSe(Sounds.ui.BUTTON_CLOSE.src);
     });
 
     // 어빌리티 슬라이더 좌 우 버튼 클릭 이동
@@ -82,7 +96,12 @@ $(function () {
     // 어빌리티 슬라이더 열기 + 스와이프 전처리 이벤트
     $('#abilitySlider').on('beforeChange', function (event, slick, currentSlideIndex, nextSlideIndex) {
         if (player.locked) return; // 플레이어가 잠겻을 경우 전처리 없음, 잠겻어도 어빌리티 확인은 가능
-        console.debug('[#abilitySlider.beforeChange], currentSlideIndex = ', currentSlideIndex, ' nextSlideIndex = ', nextSlideIndex); // nextSlideIndex 가 active 됨. from - currentSlideIndex, to - nextSlideIndex
+        // console.debug('[#abilitySlider.beforeChange], currentSlideIndex = ', currentSlideIndex, ' nextSlideIndex = ', nextSlideIndex); // nextSlideIndex 가 active 됨. from - currentSlideIndex, to - nextSlideIndex
+
+        // 오의 팝오버 열려있다면, 닫기
+        $('.open-charge-attack-popover').each(function () {
+            bootstrap.Popover.getInstance(this)?.hide();
+        });
 
         let $abiltiyPanels = $('#abilitySlider .slick-slide:not(.slick-cloned) .ability-panel');
         let $fromAbilityPanel = $abiltiyPanels.eq(currentSlideIndex);
@@ -101,7 +120,7 @@ $(function () {
         } else {
             // 슬라이더 이동 있음
             let toActorOrder = Number($abiltiyPanels.eq(nextSlideIndex).attr('data-actor-order'));
-            console.debug('[#abilitySlider.beforeChange] toActorOrder', toActorOrder, 'fromActorOrder', fromActorOrder);
+            // console.debug('[#abilitySlider.beforeChange] toActorOrder', toActorOrder, 'fromActorOrder', fromActorOrder);
 
             player.renewCharacterWait();
 
@@ -111,19 +130,21 @@ $(function () {
     })
 
     // 어빌리티 슬라이더에서 어빌리티 아이콘 클릭
-    $('#abilitySlider .ability-icon').on('click', onAbilityIconClicked);
+    $('#abilitySlider').on('click', '.ability-icon', onAbilityIconClicked);
 
     // 어빌리티 커맨드에서 스테이터스 12개 이상인경우 끊어서 보여주기
     let statusShowHideInterval = null;
-    $('#abilitySlider').on('afterChange', function (event, slick, currentSlideIndex) {
-        // console.log('current', currentSlideIndex);
+    $('#abilitySlider').on('afterChange.statusHide', function (event, slick, currentSlideIndex) {
+        let $currentStatuses = $('.slick-active .status-container.party .status:not(.d-none)');
+        // 인터벌 및 애니메이션 큐 초기화
         clearInterval(statusShowHideInterval);
-        let $currentStatuses = $('.slick-active .status-container.party .status:not(.d-none)'); // 안보이는거 제외한 스테이터스
+        $currentStatuses.stop(true, true).show(0);
+
         if ($currentStatuses.length > 11) {
             let statusShowHideCallback = function () {
-                // console.log('interval', currentSlideIndex + 1);
-                let $frontStatues = $('.slick-active .status-container.party .status').slice(0, 11); // 갱신되면 다시찾아야됨
-                $frontStatues.show(0).delay(2000).hide(0);
+                // 갱신된 요소 확인 및 끊어보여주기 콜백
+                let $frontStatues = $('.slick-active .status-container.party .status').slice(0, 11);
+                $frontStatues.hide(0).delay(2000).show(0);
             }
             statusShowHideCallback();
             statusShowHideInterval = setInterval(statusShowHideCallback, 4000);
@@ -131,9 +152,13 @@ $(function () {
     });
 
     // 어빌리티 슬라이더에서 캐릭터에 부여된 상태효과 상세 확인
-    $('.show-status-info-button').on('click', function () {
+    $('#abilitySlider').on('click', '.show-status-info-button', function () {
         openBattleStatusInfo($(this).closest('.status-container').attr('data-actor-index'));
     });
+    // 적 효과 상세
+    $('.enemy-info-container, .omen-container-bottom').on('click', function () {
+        openBattleStatusInfo(0);
+    })
 
     // 커맨드 정보 모달에서 커맨드의 상태효과 상세 확인
     $('.show-status-effect-details-check').on('change', function (event) {
@@ -153,10 +178,13 @@ $(function () {
         processMoveClick(moveId);
     });
 
-    // 기타행동 (오의+서포트) 모달열기
-    $('.other-move-info-button').on('click', function () {
-        let actorIndex = $(this).attr('data-actor-index');
-        openOtherMoveInfoModal(actorIndex);
+    // 변화 어빌리티, 오의 있을때 메타데이터 모달 열기
+    $('#commandMetadataInfoModal').on('show.bs.modal', function (event) {
+        let $relatedButton = $(event.relatedTarget);
+        let nextMoveId = $relatedButton.attr('data-next-move-id');
+        let nextMove = gameStateManager.getState(`changingMove.${nextMoveId}`);
+        // console.log(`[#commandMetadataInfoModal] $relatedButton = ${event.relatedTarget}, nextMoveId = ${nextMoveId} nextMove = `, nextMove);
+        openCommandMetadataInfoModal(nextMove);
     });
 
     //가드 ==============================================================================================================
@@ -204,23 +232,33 @@ $(function () {
     });
 
     //포션 =============================================================================================================
+
+    // 모달 열릴때
+    $('#potionModal').on('show.bs.modal', function (event) {
+        $('#usePotionButton')
+            .attr('data-potion-type', '')
+            .prop('disabled', true); // 버튼 초기화
+
+        $('.potion-icon-container .potion-icon-wrapper').eq(0).click(); // 편의를 위해 첫번재 바로선택
+    })
+
     // 포션 아이콘 클릭
     $('.potion-icon-container .potion-icon-wrapper').on('click', function () {
         let potionType = $(this).attr('data-potion-type'); // single, all, elixir
         let potionInfo = '';
         let $potionTargetRadioContainer = $('.potion-detail-container .potion-target-radio-container');
         switch (potionType) {
-            case 'single':
+            case 'POTION':
                 potionInfo = '아군 캐릭터 1명의 체력을 절반 회복합니다.';
                 $potionTargetRadioContainer.show();
                 break;
-            case 'all' :
+            case 'ALL_POTION' :
                 potionInfo = '아군 캐릭터 전체의 체력을 절반 회복합니다.';
                 $potionTargetRadioContainer.hide();
                 break;
-            case 'elixir':
-                potionInfo = '미구현';
-                $potionTargetRadioContainer.hide();
+            case 'ELIXIR':
+                potionInfo = '사망한 캐릭터를 포함하여 아군 1명의 모든 약화효과를 해제하고, 체력을 전부 회복합니다.';
+                $potionTargetRadioContainer.show();
                 break;
             default:
                 console.warn('[.potion-icon-container .potion-icon-wrapper click event] potionType default case potionType =', potionType)
@@ -235,8 +273,8 @@ $(function () {
         let useButtonDisabled = false;
         let potionCount = stage.gGameStatus.potion.counts[$potionWrappers.index($(this))];
         let isPotionNotReady = $(this).find('.potion-overlay').is('.not-ready');
-        let isQuestCleared = stage.gGameStatus.isQuestCleared;
-        if (potionCount <= 0 || isPotionNotReady || isQuestCleared) useButtonDisabled = true;
+        let isQuestOver = gameStateManager.getState('isQuestCleared') || gameStateManager.getState('isQuestTimeout');
+        if (potionCount <= 0 || isPotionNotReady || isQuestOver) useButtonDisabled = true;
 
         $('#usePotionButton')
             .attr('data-potion-type', potionType)
@@ -245,12 +283,19 @@ $(function () {
 
     // 포션 사용 클릭
     $('#usePotionButton').on('click', function () {
-        if (player.locked) return;
+        if (!gameStateManager.getState('isQuestFailed') && player.locked) return; // 퀘스트 실패 (전멸시) 사용가능
+
         let potionType = $(this).attr('data-potion-type');
-        let potion = gameStateManager.getState('potion.' + potionType.toLowerCase());
-        let potionTargetCharOrder = potionType === 'single' ? $('.potion-target-radio-container input[name="potionTarget"]:checked').val() : -1;
-        potion.actorId = potionTargetCharOrder !== -1 ? gameStateManager.getState('actorIds.' + potionTargetCharOrder) : gameStateManager.getState('actorIds').find((id, index) => !!index && !!id);
+        let potion = gameStateManager.getState('potion.' + potionType);
+
+        // 올 포션이 아닌경우, 지정된 타겟 order, id 확인
+        let potionTargetCharOrder = potionType === 'ALL_POTION' ? -1
+            : $('.potion-target-radio-container input[name="potionTarget"]:checked').val();
+        let potionTargetCharId = gameStateManager.getState('allCharacterIds.' + Math.max(0, potionTargetCharOrder - 1));// 적 제외 id 라 -1
+        potion.targetActorId = potionTargetCharId || null;
+
         appendToAbilityRail(potion);
+
         $('#potionModal .close-button').click();
     })
 
@@ -264,10 +309,41 @@ $(function () {
     // 공격버튼 클릭
     $('#attackButton').on('click', onAttackButtonClicked);
 
+    // 볼륨 ==============================================================================================================
+    let $masterVolumeRange = $('.volume-range-container #masterVolumeRange');
+    let $masterVolumeRangeValue = $('.volume-range-container #masterVolumeRangeValue');
+    $masterVolumeRange.on('input', function () {
+        $masterVolumeRangeValue.text(this.value + '%');
+        window.audio.setVolume('master', Number(this.value) / 100);
+        localStorage.setItem('masterVolume', this.value);
+    });
+
+    let $voiceVolumeRange = $('.volume-range-container #voiceVolumeRange');
+    let $voiceVolumeRangeValue = $('.volume-range-container #voiceVolumeRangeValue');
+    $voiceVolumeRange.on('input', function () {
+        $voiceVolumeRangeValue.text(this.value + '%');
+        window.audio.setVolume('voice', Number(this.value) / 100);
+        localStorage.setItem('voiceVolume', this.value);
+    });
+
+    let $bgmVolumeRange = $('.volume-range-container #bgmVolumeRange');
+    let $bgmVolumeRangeValue = $('.volume-range-container #bgmVolumeRangeValue');
+    $bgmVolumeRange.on('input', function () {
+        $bgmVolumeRangeValue.text(this.value + '%');
+        window.audio.setVolume('bgm', Number(this.value) / 100);
+        localStorage.setItem('bgmVolume', this.value);
+    });
+
+
     //방 관련 ============================================================================================================
     // 방 나가기 이벤트 등록
     $('.exit-room-button').on('click', function () {
         if (!confirm("방에서 퇴장하면 클리어시 획득 가능한 아이템이나 공헌도를 모두 잃습니다")) return;
+        $('#exitRoomForm').submit();
+    });
+
+    $('#resetTutorialButton').on('click', function () {
+        if (!confirm("튜토리얼중 문제 발생시 우선 새로고침 후, 그래도 문제가 지속되면 확인을 눌러 방에서 퇴장합니다. 퇴장시 튜토리얼이 모두 초기화됩니다.")) return;
         $('#exitRoomForm').submit();
     })
 
@@ -293,7 +369,7 @@ $(function () {
         requestSendChat('STAMP', $(this).data('stamp-key'));
         $('#stampPanel').hide();
     });
-    
+
     // 숏메시지
     $('.short-message-button').on('click', function () {
         requestSendChat('TEXT', $(this).text());
@@ -302,7 +378,7 @@ $(function () {
     //기타 ===============================================================================================================
     // 어빌리티 레일 mutationObserver 등록
     const abilityRailMutationObserver = new MutationObserver((entries) =>
-        setTimeout(() => handleAbilityRailMutation(entries), stage.processing.response.hasEffect ? 1000 : 0)); // 참전자 버프 효과중이면 살짝 딜레이
+        setTimeout(() => handleAbilityRailMutation(entries), stage.response.processing.hasEffect ? 1000 : 0)); // 참전자 버프 효과중이면 살짝 딜레이
     abilityRailMutationObserver.observe(document.querySelector('#abilityRail'), {childList: true});
 
 });

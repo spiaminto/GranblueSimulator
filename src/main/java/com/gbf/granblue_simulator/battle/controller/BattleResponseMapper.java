@@ -4,9 +4,12 @@ import com.gbf.granblue_simulator.battle.controller.dto.info.MoveInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.response.BattleResponse;
 import com.gbf.granblue_simulator.battle.controller.dto.response.VisualInfo;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.domain.Room;
+import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
+import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.Status;
+import com.gbf.granblue_simulator.battle.logic.damage.DamageCalcLogic;
 import com.gbf.granblue_simulator.battle.logic.move.dto.ForMemberAbilityInfo;
 import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
@@ -16,7 +19,6 @@ import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.visual.EffectVisual;
-import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,16 +30,21 @@ import java.util.stream.Stream;
 
 @Slf4j
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 @Component
 public class BattleResponseMapper {
 
     private final BattleContext battleContext;
     private final MoveService moveService;
+    private final DamageCalcLogic damageCalcLogic;
 
     public List<BattleResponse> toBattleResponse(List<MoveLogicResult> results) {
-        results.forEach(result -> log.info("result = {}", result));
-        List<Integer> estimatedEnemyAtk = getEstimatedEnemyAtk();
+        if (battleContext.getMember() == null) {
+            log.error("[toBattleResponse] battleContext 가 초기화 되지 않았습니다. results = \n  {}", results.stream().map(MoveLogicResult::toString).collect(Collectors.joining("\n  ")));
+            throw new IllegalArgumentException("battleContext 가 초기화되지 않았습니다");
+        }
+        // results.forEach(result -> log.debug("result = {}", result));
+        List<Integer> estimatedEnemyAtk = getEstimatedEnemyDamage();
 
         return results.stream().map(result -> {
                     Actor mainActor = result.getMainActor();
@@ -65,6 +72,8 @@ public class BattleResponseMapper {
                     List<Integer> heals = new ArrayList<>(Collections.nCopies(5, null));
                     List<Integer> effectDamages = new ArrayList<>(Collections.nCopies(5, null));
                     List<Boolean> canChargeAttacks = new ArrayList<>(Collections.nCopies(5, false));
+                    List<Integer> doubleAttackRates = new ArrayList<>(Collections.nCopies(5, null));
+                    List<Integer> tripleAttackRates = new ArrayList<>(Collections.nCopies(5, null));
 
                     for (Map.Entry<Long, MoveLogicResult.Snapshot> entry : snapshots.entrySet()) {
                         MoveLogicResult.Snapshot snapshot = entry.getValue();
@@ -80,6 +89,9 @@ public class BattleResponseMapper {
                         currentStatusEffectsList.set(currentOrder, snapshot.getCurrentStatusEffects());
                         addedStatusEffectsList.set(currentOrder, snapshot.getAddedStatusEffects());
                         levelDownedStatusEffectsList.set(currentOrder, snapshot.getLevelDownedStatusEffects());
+                        doubleAttackRates.set(currentOrder, (int) (snapshot.getStatus().getDoubleAttackRate() * 100));
+                        tripleAttackRates.set(currentOrder, (int) (snapshot.getStatus().getTripleAttackRate() * 100));
+
                         if (result.getMove().getType() != MoveType.TURN_FINISH) { // 턴 진행으로 사라진 효과는 제외
                             removedStatusEffectsList.set(currentOrder, snapshot.getRemovedStatusEffects());
                         }
@@ -88,7 +100,7 @@ public class BattleResponseMapper {
 
                         if (result.getMainActor().getId().equals(snapshot.getActorId())) {
                             // mainActor 추가필드
-                            attackMultiHitCount = snapshot.getStatusDetails().getCalcedAttackMultiHitCount();
+                            attackMultiHitCount = result.getMultiHitCount();
                             mainActorOrder = currentOrder;
                         }
 
@@ -107,16 +119,20 @@ public class BattleResponseMapper {
 
                     MoveInfo unionSummonInfo = null;
                     if (move.getType() == MoveType.SYNC) {
-                        if (battleContext.getMember().getRoom().getUnionSummonId() != null) {
-                            unionSummonInfo = moveService.findById(battleContext.getMember().getRoom().getUnionSummonId())
+                        Room room = battleContext.getMember().getRoom();
+                        final boolean isTutorial = room.getRoomStatus() == RoomStatus.TUTORIAL;
+                        if (room.getUnionSummonId() != null) {
+                            unionSummonInfo = moveService.findById(room.getUnionSummonId())
                                     .map(unionSummonMove -> {
-                                        if (unionSummonMove.getActor().getId().equals(battleContext.getLeaderCharacter().getId()))  return null; // 내 소환은 합체소환 불가
+                                        if (unionSummonMove.getActor().getId().equals(battleContext.getLeaderCharacter().getId()) && !isTutorial)
+                                            return null; // 내 소환은 합체소환 불가 (튜토리얼 제외)
                                         BaseMove unionSummonBaseMove = unionSummonMove.getBaseMove();
                                         EffectVisual visual = unionSummonBaseMove.getDefaultVisual();
+                                        String summonMemberName = isTutorial ? "다른 참전자" : unionSummonMove.getActor().getMember().getUser().getUsername();
                                         return MoveInfo.builder()
                                                 .cjsName(visual.getCjsName())
                                                 .type(unionSummonBaseMove.getType().name())
-                                                .name(unionSummonBaseMove.getName() + " (소환: " + unionSummonMove.getActor().getMember().getUser().getUsername() + ")")
+                                                .name(unionSummonBaseMove.getName() + " ( " + summonMemberName + " )")
                                                 .info(unionSummonBaseMove.getInfo())
                                                 .portraitImageSrc(visual.getPortraitImageSrc())
                                                 .cutinImageSrc(visual.getCutinImageSrc())
@@ -137,6 +153,7 @@ public class BattleResponseMapper {
                         visualInfo = VisualInfo.builder()
                                 .moveCjsName(moveVisual.getCjsName())
                                 .isTargetedEnemy(moveVisual.isTargetedEnemy())
+                                .voiceLabel(moveVisual.getVoiceLabel())
                                 .build();
                     }
 
@@ -147,6 +164,17 @@ public class BattleResponseMapper {
                                 .moveCjsName(forMemberAbilityInfo.getCjsName())
                                 .isTargetedEnemy(forMemberAbilityInfo.getIsTargetedEnemy())
                                 .build();
+                    }
+
+                    // Move 변경
+                    Long changedMoveId = result.getChangedMoveId();
+                    MoveInfo changedMoveInfo = null;
+                    if (changedMoveId != null) {
+                        changedMoveInfo = result.getMainActor().getMoves().stream()
+                                .filter(actorMove -> actorMove.getId().equals(changedMoveId))
+                                .findAny()
+                                .map(MoveInfo::from)
+                                .orElse(null);
                     }
 
 
@@ -190,6 +218,8 @@ public class BattleResponseMapper {
                             .enemyMaxChargeGauge(enemyMaxChargeGauge)
                             .abilityCoolDowns(abilityCoolDowns)
                             .abilitySealeds(abilitySealeds)
+                            .doubleAttackRates(doubleAttackRates)
+                            .tripleAttackRates(tripleAttackRates)
                             .currentBattleStatusesList(currentStatusEffectsList)
 
                             .addedBattleStatusesList(addedStatusEffectsList)
@@ -204,6 +234,9 @@ public class BattleResponseMapper {
                             //honor
                             .resultHonor(result.getHonor())
 
+                            .changedMoveInfo(changedMoveInfo)
+                            .deletedMoveId(result.getDeletedMoveId())
+
                             // etc
                             .summonCooldowns(result.getSummonCooldowns())
                             .estimatedEnemyAtk(estimatedEnemyAtk)
@@ -213,39 +246,27 @@ public class BattleResponseMapper {
 
                             .build();
                 }
-        ).toList();
+        ).collect(Collectors.toList());
 
     }
 
-    /**
-     * 적의 '기준 공격력' 을 반환하기위한 메서드 <br>
-     * 기준공격력은, 아군의 방어력만 적용된, 최소한의 적 공격력 정보 <br>
-     * 원본 게임은 관련 정보를 전혀 보여주지 않지만, 최소한의 정보 제공을 위해 일단 임시로 만들어봄
-     *
-     * @return {최솟값, 최댓값}, 프론트 멤버가 없으면 빈 배열
-     */
-    public List<Integer> getEstimatedEnemyAtk() {
-        List<Actor> frontCharacters = battleContext.getFrontCharacters();
-        List<Integer> result = new ArrayList<>();
-        if (frontCharacters.isEmpty()) return result;
+    public List<Integer> getEstimatedEnemyDamage() {
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        if (partyMembers.isEmpty()) return Collections.emptyList();
 
-        Actor enemy = battleContext.getEnemy();
+        Enemy enemy = (Enemy) battleContext.getEnemy();
+        Move enemyMove = enemy.getOmen() != null ? enemy.getFirstMove(enemy.getOmen().getStandbyType().getChargeAttackType()) : enemy.getFirstMove(MoveType.NORMAL_ATTACK);
+        if (!(enemyMove.getType() == MoveType.NORMAL_ATTACK || enemyMove.getType().getParentType() == MoveType.CHARGE_ATTACK))
+            return Collections.emptyList();
+        List<Integer> estimateEnemyDamage = damageCalcLogic.getEstimateEnemyDamage(enemy, partyMembers, enemyMove);
 
-        int enemyAtk = enemy.getStatus().getAtk();
-        List<Double> sortedDefs = frontCharacters.stream()
-                .map(Actor::getStatus)
-                .map(Status::getDef)
-                .sorted(Comparator.reverseOrder())
-                .toList();
-        double minDef = sortedDefs.getFirst();
-        double maxDef = sortedDefs.getLast();
+        estimateEnemyDamage.sort(Comparator.naturalOrder());
 
-        int minEstimatedEnemyDamage = (int) (enemyAtk / minDef);
-        result.add(minEstimatedEnemyDamage);
-        int maxEstimatedEnemyDamage = (int) (enemyAtk / maxDef);
-        result.add(maxEstimatedEnemyDamage);
+        List<Integer> results = new ArrayList<>();
+        results.add(Math.max(0, estimateEnemyDamage.getFirst()));
+        if (estimateEnemyDamage.size() > 1) results.add(Math.max(0, estimateEnemyDamage.getLast()));
 
-        return result;
+        return results;
     }
 
 }

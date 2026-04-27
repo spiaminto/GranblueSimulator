@@ -59,6 +59,16 @@ public final class BattleInfoMapper {
 
 
     public static EnemyInfo toEnemyInfo(Enemy enemy) {
+        List<EnemyInfo.HpLayer> hpLayers = new ArrayList<>();
+        if (enemy.getBaseEnemy().getRootNameEn().equals("Hexachromatic")) {
+            // 일단 고정
+            hpLayers = List.of(
+                    new EnemyInfo.HpLayer("red", 40),
+                    new EnemyInfo.HpLayer("purple", 20),
+                    new EnemyInfo.HpLayer("blue", 20),
+                    new EnemyInfo.HpLayer("green", 20)
+                    );
+        }
         return EnemyInfo.builder()
                 .id(enemy.getId())
                 .name(enemy.getName())
@@ -70,6 +80,7 @@ public final class BattleInfoMapper {
                         .toList())
                 .hp(enemy.getHp())
                 .hpRate(enemy.getHpRateInt())
+                .hpLayers(hpLayers)
                 .currentChargeGauge(enemy.getChargeGauge())
                 .maxChargeGauge(Collections.nCopies(enemy.getMaxChargeGauge(), 1)) // 타임리프로 순회돌리려고 리스트로 넘김
                 .omen(null)

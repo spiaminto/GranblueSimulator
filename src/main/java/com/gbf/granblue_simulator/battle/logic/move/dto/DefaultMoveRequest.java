@@ -2,7 +2,6 @@ package com.gbf.granblue_simulator.battle.logic.move.dto;
 
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,7 +16,7 @@ public class DefaultMoveRequest {
     private final Integer modifiedHitCount;
     private final List<BaseStatusEffect> selectedBaseEffects; // 선택된 효과 없음 과 구분을 위해 null 로 초기화
 
-    private final int toEffectLevel; // 효과 레벨 올려서 적용
+    private final int plusLevel; // 효과 레벨 올려서 적용
     private final boolean isReactivatedChargeAttack; // 재발동한 오의
 
     /**

@@ -1,5 +1,6 @@
 async function processEnemyAttack(response) {
     let attackCount = response.normalAttackCount;
+    let attackMultiHitCount = response.attackMultiHitCount;
     if (attackCount === 0) throw new Error('[processEnemyAttack], attackCount = 0, moveType = ' + response.moveType.name);
     let attackPlayingPromise = null;
     let effectDuration = 0;
@@ -16,36 +17,34 @@ async function processEnemyAttack(response) {
         }
     }
 
-    let totalEndTime = effectDuration;
-    console.log("[processEnemyAttack] DONE total = " + totalEndTime);
+    let multiHitDelay = attackMultiHitCount > 1 ? 200 : 0; // 히트수 증가있을경우 보정
+    let totalEndTime = effectDuration + multiHitDelay;
+    // console.log("[processEnemyAttack] DONE total = " + totalEndTime);
 
     return wait(totalEndTime);
 }
 
 async function processEnemyAbility(response) {
-    // 적은 어빌리티 없음, 데미지/모션 붙은 서포트 어빌리티 없음 데미지 관련부분은 임시로 작성되어있는것임.
-
-    // 속도를 빠르게 하기위해 다음과 같이 설정 [N]: 대기시간 scale / 모션 + 이펙트 의 경우 일반적으로 이펙트가 긺, 긴쪽을 따라감
-    // 서포트 어빌리티 (ab_motion_effect_only + 이펙트 + 상태효과) : <모션[X] 이펙트[0.5]> 상태효과 [0.5] -> 모션 없는것임 (파워업, ctmax 같은거)
-    // 서포트 어빌리티 (모션 + 상태효과) : 모션[0.2] 상태효과[0.2] -> 가속, 모션 'none' 포함
-    // 폼 체인지 진행시: 모션[0.5] 상태효과[1.0] -> 위와 관계없이 특히 상태효과는 가속 x
     let hasDamage = response.damages.length > 0;
-    let isSupportAbility = response.moveType.getParentType() === MoveType.SUPPORT_ABILITY;
     let isEffectOnly = response.motion === Player.c_animations.ABILITY_EFFECT_ONLY;
-    let hasEffect = player.actors.get(`actor-${response.actorOrder}`).animation.abilities.hasOwnProperty(response.moveId);
-    let isFormChange = response.isEnemyFormChange;
 
-    // 효과있는경우만 인디케이터 갱신
+    let abilityCjsObj = player.actors.get(`actor-${response.actorOrder}`).animation.abilities[response.moveId];
+    let responseCjsObj = response?.visualInfo; // response 로 내려온 이펙트가 첫 로드시 로드되지 않은 이펙트인 경우 지정 (트리거 어빌리티, 변화 어빌리티 등)
+    let hasEffect = abilityCjsObj || responseCjsObj;
+
     if (hasEffect) {
+        // 효과있는경우만 인디케이터 갱신
         window.gameStateManager.setState('indicator.moveName', response.moveName);
     }
 
-    // 이펙트 재생
-    let motion = response.motion || 'none';
-    let animationDuration = await player.play(Player.playRequest('actor-0', motion, {
+    // 모션, 이펙트 처리
+    let animationDuration = await player.play(Player.playRequest('actor-' + response.actorOrder, response.motion, {
         abilityType: response.moveId,
+        cjsName: responseCjsObj?.moveCjsName,
+        isTargetedEnemy: responseCjsObj?.isTargetedEnemy,
     }));
-    let animationDurationScale = isFormChange ? 0.5 : !hasEffect ? 0.2 : isSupportAbility && isEffectOnly ? 0.5 : 1;
+
+    let animationDurationScale = hasEffect ? 1 : 0.25; // 이펙트가 없으면 단축
     if (!hasDamage) { // 데미지 처리가 없을시, 모션을 기다림
         await wait(animationDuration * animationDurationScale);
     }
@@ -55,16 +54,15 @@ async function processEnemyAbility(response) {
     if (response.damages.length > 0) damageDuration = await postProcessEnemyDamage(response, animationDuration); // durationScale 처리 보류
 
     // 스테이터스 처리
-    let statusEffectDelayScale = isFormChange ? 1.0 : !hasEffect ? 0.2 : isSupportAbility ? 0.5 : 1;
+    let statusEffectDelayScale = hasEffect ? 1 : 0.5; // 이펙트가 없으면 단축
     let statusEffectDuration = await processStatusEffect(response, statusEffectDelayScale);
 
     // 폼 체인지
     if (response.isEnemyFormChange) {
-        await processFormChange();
-        updateBgm(response); // 브금 갱신
+        await processFormChange(response);
     }
 
-    console.log('[processEnemyAbility] DONE animationDuration', animationDuration, ' damageDuration = ', damageDuration, ' statusEffectDuration = ', statusEffectDuration);
+    // console.log('[processEnemyAbility] DONE animationDuration', animationDuration, ' damageDuration = ', damageDuration, ' statusEffectDuration = ', statusEffectDuration);
     return animationDuration + damageDuration + statusEffectDuration;
 }
 
@@ -77,21 +75,30 @@ async function processEnemyChargeAttackPreEffect() {
 async function processEnemyChargeAttack(response) {
     await processEnemyChargeAttackPreEffect();
 
-    if (gameStateManager.getState('omen.type') === OmenType.HP_TRIGGER) {
-        // hp 트리거인 경우 트리거 갱신
-        gameStateManager.setState('enemyTriggerHps', gameStateManager.getState('enemyTriggerHps'), {force: true});
+    let currentOmen = gameStateManager.getState('omen');
+    if (currentOmen.type === OmenType.HP_TRIGGER) {
+        // HP 트리거 사용시, HP 트리거 제거 (response.omen 갱신보다 우선)
+        let triggerHps = gameStateManager.getState('enemyTriggerHps');
+        gameStateManager.setState('enemyTriggerHps', triggerHps.filter(hp => hp < currentOmen.lastTriggeredHp));
     }
-    gameStateManager.setState('omen', response.omen); // omen 먼저 갱신 (해제)
+    gameStateManager.setState('omen', response.omen); // omen 갱신 (해제)
 
     // 모션 처리
     let effectDuration = 0;
     let hasDamage = response.damages.length > 0;
-    effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
+    let designatedCjsObj = {};
+    if (Player.c_animations.isAbilityMotion(response.motion)) {
+        designatedCjsObj = response.visualInfo
+    }
+    effectDuration = await player.play(Player.playRequest('actor-0', response.motion, {
+        cjsName: designatedCjsObj?.moveCjsName,
+        isTargetedEnemy: designatedCjsObj?.isTargetedEnemy,
+    }));
 
     let enemyActor = player.actors.get('actor-0');
     let cjs = enemyActor.additionalCjs ? enemyActor.additionalCjs : enemyActor.mainCjs;
     let customDuration = (Constants.enemy[cjs.name].customDuration[response.motion] || 0) * Constants.defaultCjsInterval;
-    console.log('[processEnemyChargeAttack] cjs = ', cjs, ' customDuration = ', customDuration);
+    // console.log('[processEnemyChargeAttack] cjs = ', cjs, ' customDuration = ', customDuration);
 
     if (!hasDamage || customDuration) await wait(customDuration); // 데미지가 없거나, 모션 에 지정된 길이가 존재할경우 기다림 (지정되지 않은경우 데미지 처리를 동시에 진행)
     let damageDuration = effectDuration - customDuration; // 적 특수기 사용시, 데미지 표시전에 딜레이가 있는 경우 motionCustomDuration 이 지정되어있음. 빼서 사용
@@ -100,12 +107,12 @@ async function processEnemyChargeAttack(response) {
     if (hasDamage) await postProcessEnemyDamage(response, damageDuration);
 
     // 상태 갱신
-    gameStateManager.setState('chargeGauges', response.chargeGauges);
+    // gameStateManager.setState('chargeGauges', response.chargeGauges);
 
     // 스테이터스 처리
     let lastDelay = await processStatusEffect(response);
 
-    console.log('[processEnemyChargeAttack] DONE lastDelay = ', lastDelay, ' effectDuration =', effectDuration);
+    // console.log('[processEnemyChargeAttack] DONE lastDelay = ', lastDelay, ' effectDuration =', effectDuration);
     return effectDuration + lastDelay;
 }
 
@@ -115,14 +122,14 @@ async function processEnemyStandBy(response) {
     await wait(Constants.Delay.globalMoveDelay); // 전조 발동시, 약간의 딜레이 후 발동
 
     // 전조 갱신
-    await processOmen(response);
+    await processStatusEffect(response, 0.5);
 
     // 이펙트 재생
     effectDuration = await player.play(Player.playRequest('actor-0', response.omen.motion));
     effectDuration /= 2; // 24 프레임 정도만 실제 전조, 일단 반으로 나눠놓음.
 
     let totalEndTime = effectDuration;
-    console.log('[processEnemyStandBy] DONE, move = ', response.moveType.name, ' totalEndTime = ', totalEndTime);
+    // console.log('[processEnemyStandBy] DONE, move = ', response.moveType.name, ' totalEndTime = ', totalEndTime);
     return await wait(totalEndTime);
 }
 
@@ -135,11 +142,11 @@ async function processEnemyBreak(response) {
     let effectDuration = await player.play(Player.playRequest('actor-0', response.motion));
 
     let totalEndTime = effectDuration;
-    console.log('[processEnemyBreak] DONE move =', response.moveType);
+    // console.log('[processEnemyBreak] DONE move =', response.moveType);
     return await wait(totalEndTime);
 }
 
-async function processFormChange() {
+async function processFormChange(response) {
     // 상태변경
     let formChangeInfo = window.formChangeInfo;
     gameStateManager.setState('enemyActorName', formChangeInfo.enemyActorName);
@@ -153,11 +160,13 @@ async function processFormChange() {
     // 직전 폼의 폼체인지
     let formChangeDuration = await player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_FORM_CHANGE), true);
     // 추가 처리
-    player.setBackgroundImage(Constants.enemy[gameStateManager.getState('enemyMainCjsNames')[0]].backgroundImage);
-    // 다음 폼의 폼체인지 입장 (phase-4)
-    let formChangeEntryDuration = await player.play(Player.playRequest('actor-01', Player.c_animations.ENEMY_PHASE_4));
+    player.setBackgroundImage(Constants.raidBgUrl(gameStateManager.getState('enemyMainCjsNames')[0]));
+    // 다음 폼의 폼체인지 입장
+    let formChangeEntryMotion = formChangeInfo.enemyMainCjsNames[0] === 'enemy_7300843' ? Player.c_animations.ENEMY_PHASE_1 : Player.c_animations.ENEMY_PHASE_4; // 천원은 PHASE_1 사용
+    let formChangeEntryDuration = await player.play(Player.playRequest('actor-01', formChangeEntryMotion));
     // 기다리지 않고 일단 이전 적 투명도 0
     enemyActor.mainCjs.alpha = 0;
+    updateBgm(response); // 입장 애니메이션과 동시에 bgm 갱신
     await wait(formChangeEntryDuration);
 
     // 엔트리 종료 후 속성처리
@@ -178,7 +187,7 @@ async function processFormChange() {
     formChangeDurationSum += formChangeDuration + formChangeEntryDuration;
 
     let totalEndTime = formChangeDurationSum;
-    console.log('[processFormChange] DONE totalEndTime = ', totalEndTime);
+    // console.log('[processFormChange] DONE totalEndTime = ', totalEndTime);
     return totalEndTime;
 }
 
@@ -195,10 +204,10 @@ async function loadNextEnemyActor() {
             assetInfo = response.assetInfo;
             actorName = response.actorName;
             enemyFormOrder = Number(response.formOrder);
-            console.log('assetInfo', assetInfo);
+            // console.log('assetInfo', assetInfo);
         },
         error: function (response) {
-            console.log(response);
+            // console.log(response);
         }
     });
 
@@ -232,23 +241,30 @@ async function loadNextEnemyActor() {
     } // bgm 실시간 처리등의 이유로, processFormChange() 에서 직접 gameStateManager 갱신
 
 
-    console.log('enemyAnimation = ', enemyAnimation);
+    // console.log('[loadNextEnemyActor] next enemyAnimation = ', enemyAnimation);
 
     loadActor(enemyAnimation); // 스테이지에 로드
 
     return new Promise(resolve => {
-        let interval = setInterval(() => { // 스테이지에 로드되면 resolve
+        const interval = setInterval(() => {
             let found = cjsStage.enemyLayer.children.find(child => child.name === assetInfo.mainCjs);
             if (found) {
                 clearInterval(interval);
+                clearTimeout(timeout);
                 resolve();
             }
         }, 500);
+
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+            alert("적의 다음 에셋 로드에 실패하였습니다. 새로고침 합니다.");
+            location.reload();
+        }, 3000);
     });
 }
 
 async function processEnemyDead(response) {
-    console.log('[processEnemyDead resp = ', response);
+    // console.log('[processEnemyDead resp = ', response);
 
     // 상태 갱신 (hp 등, 타 플레이어에 의해 사망했을경우 내쪽 갱신해야됨)
     processStatusEffect(response);
@@ -297,6 +313,8 @@ async function postProcessEnemyDamage(response, damageDuration) {
     let perHitDuration = normalAttackCount > 0
         ? damageDuration / normalAttackCount // 일반공격시 1타가 사용할 길이
         : damageDuration / response.damages.length; // 어빌리티, 오의시 1타가 사용할 길이
+    let perHitDurationMin = isAllTarget ? 300 : 50; // 전체공격일때, 최소 75 * 4 + a 만큼 딜레이
+    perHitDuration = Math.max(perHitDuration, perHitDurationMin);
 
     // 후행동 공격데미지와 겹치지 않도록 미리 데미지 래퍼 추가
     let $enemyDamageWrappers = new Map();
@@ -309,9 +327,22 @@ async function postProcessEnemyDamage(response, damageDuration) {
     //  데미지 마다 반복 - 데미지삽입, 데미지표시, 피격이펙트 재생
     let lastDamageShowStartDelay = 0; // 마지막 데미지가 표시시작하는 딜레이
     response.damages.forEach(function (damage, index) {
-        let damageShowStartDelay = isAllTarget
-            ? perHitDuration * (Math.floor(index / uniqueTargetOrders.length)) + (index % uniqueTargetOrders.length * 100) // 전체공격시 1타 길이로 중복제거한 타겟수만큼 끊어서 시작 딜레이 설정 (123 / 123 / 123...), 타겟별로 100ms 씩 추가 딜레이
-            : perHitDuration * index; // 전체공격 아니면 index 만큼 1타 길이 사용
+        let damageShowStartDelay = perHitDuration * index; // 일반 랜덤타겟 N 히트 (또는 일반공격 1히트)
+        if (isAllTarget) {
+            // 전체공격
+            let damageCountPerMotion = uniqueTargetOrders.length; // 전체 공격은 기본적으로, 하나의 모션에 타겟 갯수만큼 데미지 발생
+            damageCountPerMotion = response.attackMultiHitCount > 1 ? damageCountPerMotion * response.attackMultiHitCount : damageCountPerMotion; // 히트수증가 또는 난격이 있을경우 해당 값 만큼 하나의 모션에 데미지 발생 (4인대상 전체 일반공격, 2히트 일때 공격 모션 1회당 데미지 8회 발생)
+            let perMotionDelay = perHitDuration * (Math.floor(index / damageCountPerMotion)); // 4인 대상 2히트 전체 일반공격시, 12345678 V 9101112...16 의 딜레이
+            let perOneDamageDelay = index % damageCountPerMotion * 75; // 데미지 한개당 딜레이
+            damageShowStartDelay = perMotionDelay + perOneDamageDelay;
+        } else if (response.attackMultiHitCount > 1) {
+            // 전체공격이 아닌 멀티히트 (일반공격 2히트 이상)
+            let damageCountPerMotion = response.attackMultiHitCount;
+            let perMotionDelay = perHitDuration * (Math.floor(index / damageCountPerMotion));
+            let perOneDamageDelay = index % damageCountPerMotion * 75;
+            damageShowStartDelay = perMotionDelay + perOneDamageDelay;
+        }
+
         let targetOrder = response.enemyAttackTargetOrders[index];
         let elementType = response.elementTypes[index];
         let damageType = response.damageTypes[index];
@@ -359,24 +390,24 @@ async function postProcessEnemyDamage(response, damageDuration) {
 
                 if (index === 0) {
                     // 첫번째 데미지 처리시, 데미지 보이스 출력 여부 설정
-                    let isFatalDamaged = gameStateManager.getState('isFatalDamaged'); // array, actorIndex
+                    let isFatalDamagedVoice = gameStateManager.getState('isFatalDamagedVoice'); // array, actorIndex
                     // 자신의 체력의 25% 이상의 데미지를 입음
                     hpDiffs.forEach((hpDiff, index) => {
                         if (index === 0) return;
                         let maxHp = beforeHps[index] / beforeHpRates[index] * 100;
                         if (hpDiff > maxHp * 0.25) {
-                            isFatalDamaged[index] = true;
+                            isFatalDamagedVoice[index] = true;
                         }
                     });
                     // 빈사 상태임
                     response.hpRates.forEach((hpRate, index) => {
                         if (index === 0) return;
                         if (hpRate <= 25) {
-                            isFatalDamaged[index] = true;
+                            isFatalDamagedVoice[index] = true;
                         }
                     })
-                    console.debug('postProcessEnemyDamage fatalDamaged = ', ...isFatalDamaged);
-                    gameStateManager.setState('isFatalDamaged', isFatalDamaged);
+                    // console.debug('postProcessEnemyDamage fatalDamagedVoice = ', ...isFatalDamagedVoice);
+                    gameStateManager.setState('isFatalDamagedVoiceVoice', isFatalDamagedVoice);
                 }
             }
             // 데미지 표시
@@ -395,7 +426,6 @@ async function postProcessEnemyDamage(response, damageDuration) {
     });
 
     return new Promise(resolve => setTimeout(() => {
-        gameStateManager.setState('isFatalDamaged', [false, false, false, false, false]);
         resolve();
     }, lastDamageShowStartDelay + Constants.Delay.damageShowToNext));
 }

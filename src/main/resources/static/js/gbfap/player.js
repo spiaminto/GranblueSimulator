@@ -1,7 +1,7 @@
 // function to create the player instance and initialize the html and stage
 function initPlayer() {
     if (window.player != null) {
-        console.debug('[initPlayer] player loaded, skip init')
+        // console.debug('[initPlayer] player loaded, skip init')
     } else {
         window.player = new Player();
         player.initCanvas();
@@ -56,7 +56,7 @@ class Player {
         // background
         let bg = add_to(fragment, "div", {id: ["canvasBackground"]});
         this.m_background = add_to(bg, "img", {id: ["canvasBackgroundImage"]});
-        this.m_background.src = Constants.enemy[gameStateManager.getState('enemyMainCjsNames')[0]].backgroundImage;
+        this.m_background.src = Constants.raidBgUrl(gameStateManager.getState('enemyMainCjsNames')[0]);
 
         this.m_html.appendChild(fragment);
     }
@@ -131,24 +131,27 @@ class Player {
      * @param {string} motion - 재생할 모션 이름
      * @param {Object} [options={}]
      * @param {string} [options.cjsName=''] - 직접 재생할 CJS 파일명
+     * @param {string} [options.voiceLabel='']- 직접 재생할 보이스 (변화 어빌리티 등)
      * @param {boolean} [options.isTargetedEnemy=false] - 적 타겟 여부 (CJS 직접 재생 시)
      * @param {string} [options.abilityType='NONE'] - 어빌리티 타입
      * @param {number} [options.attackMultiHitCount=0] - 난격 횟수
      * @param {boolean} [options.isLastAttack=false] - 마지막 공격 여부
      * @param {string[]} [options.cutInSrcs=[]] - 컷인 이미지 경로 배열
+     * @param {boolean} [options.isExclusive=false] - 화면 독점 여부
      *
      * @returns {Object}
      */
     static playRequest(actorId, motion, options = {}) {
-        let isExclusive = Player.c_animations.isExclusive(motion);
 
         const {
             cjsName = '',
             isTargetedEnemy = false,
+            voiceLabel = '',
             abilityType = 'NONE',
             attackMultiHitCount = 0,
             isLastAttack = false,
-            cutInSrcs = []
+            cutInSrcs = [],
+            isExclusive = Player.c_animations.isExclusive(motion),
         } = options;
 
         return {
@@ -162,7 +165,8 @@ class Player {
                 cutInSrcs,
 
                 cjsName,
-                isTargetedEnemy
+                isTargetedEnemy,
+                voiceLabel,
             }
         };
     }
@@ -206,7 +210,7 @@ class Player {
      * @return {Promise<Number>} 기준 request 의 duration 을 반환, duration 반환을 위해 await 로 연산 대기 필요
      */
     async playWithOthers(playRequest, otherPlayRequests, waitUntilFinished = false) {
-        console.debug('[playMotionsWithOthers] playRequest = ', playRequest, '\n otherPlayRequests = ', otherPlayRequests);
+        // console.debug('[playMotionsWithOthers] playRequest = ', playRequest, '\n otherPlayRequests = ', otherPlayRequests);
         otherPlayRequests.forEach((otherPlayRequest) => {
             this.actors.get(otherPlayRequest.actorId).play(otherPlayRequest, true); // actor.play()
         }); // 이쪽은 미리 synced 이벤트 처리
@@ -221,20 +225,20 @@ class Player {
      * @return {Promise<Number>} duration 을 반환, waitUntilFinished 상태에 따라 대기시간이 달라짐
      */
     async play(playRequest, waitUntilFinished = false, minusDelay = 0) {
-        console.log('[Player.play()] START playRequest = ', playRequest, ' time = ', new Date().toISOString());
+        // console.log('[Player.play()] START playRequest = ', playRequest, ' time = ', new Date().toISOString());
         if (playRequest.motion === Player.c_animations.NONE) return 0;
 
         if (playRequest.options.cjsName && !loader.toLoadScripts[playRequest.options.cjsName]) {
             let startAt = performance.now();
             await loader.loadEffectAnimation(playRequest.options.cjsName);
             let finishedAt = performance.now();
-            console.debug('[play] loaded cjs, load time = ', finishedAt - startAt);
+            // console.debug('[play] loaded cjs, load time = ', finishedAt - startAt);
             player.getGlobalActor().animation.windowEffects[playRequest.options.cjsName] = {}; // 기록용
         }
 
         let actor = this.actors.get(playRequest.actorId);
         let duration = actor.play(playRequest, false);
-        console.log('[Player.play()] END duration = ', duration, ' minusDelay = ', minusDelay, ' time = ', new Date().toISOString());
+        // console.log('[Player.play()] END duration = ', duration, ' minusDelay = ', minusDelay, ' time = ', new Date().toISOString());
 
         let delay = duration - minusDelay || 0;
         return waitUntilFinished ?
@@ -294,10 +298,12 @@ class Player {
     }
 
     removeActor(actorIndex) {
-        console.log('[removeActor] actorIndex = ', actorIndex);
+        // console.log('[removeActor] actorIndex = ', actorIndex);
         let removeActor = this.actors.get('actor-' + actorIndex);
-        removeActor.stageLayer.removeChild(removeActor.mainCjs); // 스테이지에서 삭제
-        removeActor.stageLayer = null;
+        if (removeActor.stageLayer) {
+            removeActor.stageLayer.removeChild(removeActor.mainCjs); // 스테이지에서 삭제
+            removeActor.stageLayer = null;
+        }
 
         this.actors.delete('actor-' + removeActor.actorIndex); // 최종삭제
     }
@@ -525,8 +531,12 @@ class Player {
                 case Player.c_animations.ABILITY_EFFECT_ONLY: // 어빌리티, 모션 X
                 case Player.c_animations.ABILITY_MOTION_DAMAGE:
                 case Player.c_animations.ABILITY_MOTION_WIN:
+                case Player.c_animations.ABILITY_MOTION_WIN_SKIP:
                 case Player.c_animations.ABILITY_MOTION_TO_STB:
                 case Player.c_animations.ABILITY_MOTION_ATTACK:
+                case Player.c_animations.ABILITY_MOTION_MORTAL_E:
+                case Player.c_animations.ABILITY_MOTION_ENEMY_PHASE_4:
+
 
                 case Player.c_animations.ABILITY_MOTION:
                 case Player.c_animations.ABILITY_MOTION_2:
@@ -564,6 +574,10 @@ class Player {
                     return Player.c_animations.TO_STB_WAIT;
                 case Player.c_animations.ABILITY_MOTION_ATTACK:
                     return Player.c_animations.ATTACK;
+                case Player.c_animations.ABILITY_MOTION_MORTAL_E:
+                    return Player.c_animations.MORTAL_E;
+                case Player.c_animations.ABILITY_MOTION_ENEMY_PHASE_4:
+                    return Player.c_animations.ENEMY_PHASE_4;
                 default:
                     return motion;
             }
@@ -711,8 +725,11 @@ class Player {
         // 어빌리티로 처리되는 타 모션
         ABILITY_MOTION_DAMAGE: "ab_motion_damage", // 디스펠, 장악
         ABILITY_MOTION_WIN: 'ab_motion_win',
+        ABILITY_MOTION_WIN_SKIP: 'ab_motion_win_skip',
         ABILITY_MOTION_TO_STB: 'ab_motion_setup',
         ABILITY_MOTION_ATTACK: 'ab_motion_attack',
+        ABILITY_MOTION_MORTAL_E: 'ab_motion_mortal_E', // 천원 루프레스 용
+        ABILITY_MOTION_ENEMY_PHASE_4: 'ab_motion_setin_4',
 
         // UI 로 처리되는 모션 (playingOption 에서 abilityType 으로 구분하므로 일단 이렇게 해놧음)
         ABILITY_UI: 'ab_motion_ui',

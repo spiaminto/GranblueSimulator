@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+</head>
+<body style="font-family:Arial, sans-serif;margin:0;padding:0;color:#333;">
+<div class="container"
+     style="box-sizing:border-box;width:100%;max-width:600px;margin:0 auto;padding:5px;border-radius:8px;box-shadow:0 0 10px rgba(0, 0, 0, 0.1);">
+  <h1 style="" th:text="${headerText}">제목</h1>
+  <div style="font-size: 20px; font-weight: bold; margin: 5px">문의 내용</div>
+  <div th:text="${text}">내용</div>
+</div>
+</body>
+</html>

@@ -45,6 +45,7 @@
     margin-top: 2px;
 
     pointer-events: auto;
+    cursor: pointer;
 }
 
 .hp-container.enemy .value-hp {
@@ -52,23 +53,64 @@
     width: 30px;
     font-size: 11px;
     align-content: center;
-    font-weight: 500;
+    font-weight: bold;
     text-indent: 2px;
+    letter-spacing: -0.5px;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
 }
 
 .hp-container.enemy .hp-bar {
     border: solid 1px grey;
     position: relative;
-    background-color: transparent;
+    background-color: #3a3a3a;
     height: 8px;
+    overflow: hidden;
 }
 
 .hp-container.enemy .progress .hp-trigger { /* 트리거 hp 강조 */
     position: absolute;
-    background-color: gold;
+    background-color: white;
     left: 74%;
     height: 10px;
-    width: 2px;
+    width: 1px;
+}
+
+.hp-bar {
+    position: relative;
+    overflow: hidden;
+}
+
+.hp-layer-fill.purple {
+    background-color: #a855f7 !important;
+}
+
+.hp-layer-fill.blue {
+    background-color: #3b82f6 !important;
+}
+
+.hp-layer-fill.green {
+    background-color: #15803d !important;
+}
+
+.hp-layer-fill.red {
+    background-color: #dc143c !important;
+}
+
+/* ghost만 absolute, 나머지는 Bootstrap stacked 그대로 */
+.hp-bar-ghost {
+    position: absolute;
+    top: 0;
+    left: 0;       /* 동적으로 설정 */
+    height: 100%;
+    width: 0;
+
+    background-color: #c8c8c8;
+    z-index: 10;
+    transition: width 0.3s ease 0.3s; /* left는 즉시, width만 transition */
+}
+
+.hp-bar-ghost.no-transition {
+    transition: none;
 }
 
 .status-container.enemy {
@@ -76,7 +118,8 @@
     position: absolute;
     top: 0;
     left: 30px;
-    width: 250px; /* 16 * 15 + 10*/
+    width: 256px; /* 16 * 16 */
+    overflow: hidden;
 }
 
 .status-container .show-status-info-button-wrapper.enemy {
@@ -92,6 +135,7 @@
 
 .status-container.enemy .status {
     width: 16px;
+    flex-shrink: 0;
 }
 
 .status-container.enemy .status img{
@@ -103,11 +147,12 @@
     padding: 0 3px;
     display: flex;
     align-items: center;
+    height: 18px;
 }
 
 .charge-turn-container .charge-turn-label {
     font-size: 12px;
-    color: goldenrod;
+    color: gold;
     text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
     font-weight: bold;
     width: 19px;
@@ -134,25 +179,28 @@
     margin-left: auto;
 }
 
-.omen-text {
+.omen-wrapper {
     color: black;
-    font-size: 8px;
-    font-weight: bold;
-    padding: 1px 5px;
-    margin-top: 1px;
-    border-radius: 5px;
+    font-size: 9px;
+    padding: 1px 5px 0.5px;
+    margin-top: 3px;
+    border-radius: 5px
 }
 
-.omen-text.charge-attack {
+.omen-wrapper.charge-attack {
     background-color: rgba(255, 243, 205, 0.8);
 }
 
-.omen-text.incant-attack {
+.omen-wrapper.incant-attack {
     background-color: rgba(255, 205, 243, 0.8);
 }
 
-.omen-text.hp-trigger{
+.omen-wrapper.hp-trigger{
     background-color: rgba(255, 255, 255, 0.8);
+}
+
+.omen-prefix {
+    font-weight: 600;
 }
 
 .omen-info {
@@ -161,7 +209,8 @@
 
 .omen-value {
     font-family: 'Lusitana', PretendardVariable, sans-serif;
-    font-size: 9px;
+    font-size: 10px;
+    font-weight: bold;
 }
 
 /* 로딩 ============================================================================================================== */
@@ -181,7 +230,7 @@
 .honor-container {
     width: 50%;
     position: absolute;
-    top: 18%;
+    top: 23%;
     left: -40%;
     z-index: 3; /* 2 인 canvas 보다 앞으로 */
     /*display: none;*/
@@ -206,7 +255,7 @@
 /* 턴 표시 ============================================================================================================*/
 .turn-indicator-container {
     position: absolute;
-    top: 40px;
+    top: 42px;
     left: 3px;
     z-index: 5;
 
@@ -225,13 +274,13 @@
     -webkit-text-stroke: 1px #55443e;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-size: 25px;
+    font-size: 30px;
     letter-spacing: -2px;
     font-weight: bold;
 }
 
 .turn-indicator-container .turn-indicator .value {
-    font-size: 35px;
+    font-size: 38px;
     letter-spacing: -1px;
 }
 
@@ -293,14 +342,14 @@
 .move-name-info-container {
     width: 100%;
     position: absolute;
-    top: 13%;
+    top: 15%;
     z-index: 3; /* 2 인 canvas 보다 앞으로 */
     display: none;
 }
 
 .move-name-info-container .move-name-info{
     width: 80%;
-    height: 30px;
+    height: 24px;
     margin: 0 auto;
     display: block;
     background: url("/assets/img/ui/ui-move-name.png") no-repeat;
@@ -310,8 +359,10 @@
 .move-name-info-text {
     display: block;
     text-align: center;
-    color: #DDD;
-    font-size: 0.9rem;
+    color: #EAEAEA;
+    font-size: 15px;
+    font-weight: 600;
+    text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
 }
 
 /* 적, 캐릭터 포지션 =================================================================================================== */
@@ -435,13 +486,15 @@
 #container .omen-container-bottom {
     position: absolute;
     left: 10%;
-    top: 82%; /* bottom 말고 top 오버라이딩 */
+    top: 80%; /* bottom 말고 top 오버라이딩 */
     z-index: 11;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
-.omen-container-bottom .omen-text {
-    font-size: 9px;
-    padding: 3px 5px;
+.omen-container-bottom .omen-wrapper {
+    font-size: 10px;
+    padding: 2px 5px 1px;
 }
 
 .omen-container:not(.activated) {
@@ -455,14 +508,15 @@
     bottom: 0px;
 
     pointer-events: auto;
+    cursor: pointer;
 }
 
 .ability-back-button {
     background-image: url(/static/assets/img/ui/ui-back.png);
     display: none;
     background-size: contain;
-    width: 60px;
-    height: 35px;
+    width: 65px;
+    height: 38px;
     background-repeat: no-repeat;
 }
 
@@ -508,6 +562,7 @@
     background-repeat: no-repeat;
 
     pointer-events: auto;
+    cursor: pointer;
 }
 
 

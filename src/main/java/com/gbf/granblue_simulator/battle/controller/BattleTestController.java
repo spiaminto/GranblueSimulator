@@ -1,6 +1,8 @@
 package com.gbf.granblue_simulator.battle.controller;
 
 
+import com.gbf.granblue_simulator.battle.service.BattleCommandRequest;
+import com.gbf.granblue_simulator.battle.service.MemberService;
 import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
 import com.gbf.granblue_simulator.battle.controller.dto.request.MoveRequest;
 import com.gbf.granblue_simulator.battle.controller.dto.response.BattleResponse;
@@ -23,6 +25,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Controller
 @RequiredArgsConstructor
@@ -30,6 +34,7 @@ import java.util.List;
 public class BattleTestController {
 
     private final MemberRepository memberRepository;
+    private final MemberService memberService;
     private final BattleContext battleContext;
     private final BattleCommandService battleCommandService;
     private final BattleResponseMapper responseMapper;
@@ -39,13 +44,12 @@ public class BattleTestController {
     /**
      * 테스트 페이지용 메서드
      */
-    @GetMapping("/battle")
+    // @GetMapping("/battle")
     @Transactional
     public String battlePage(Model model) {
 
         Long roomId = 211L;
-        Member findMember = memberRepository.findByRoomIdAndUserId(roomId, 2L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
-        battleContext.init(findMember, null);
+        Member findMember = memberService.findByRoomIdAndUserId(roomId, 2L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
 
         // model 에 정보추가
         battleController.setInfoAttributes(model, findMember);
@@ -60,24 +64,17 @@ public class BattleTestController {
 
     @PostMapping("/test/reset-cooldowns")
     public ResponseEntity<List<BattleResponse>> resetCooldowns(@AuthenticationPrincipal PrincipalDetails principalDetails,
-                                                               @RequestBody MoveRequest request) {
-        log.info("request: {}", request);
-        long memberId = request.getMemberId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-//        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
+                                                               @RequestBody Map<String, String> body) {
+        log.info("body = {} ", body);
+        Long memberId = Long.parseLong(body.get("memberId"));
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        if (!member.getUser().getRole().equals("ROLE_ADMIN")) throw new IllegalArgumentException("권한이 없습니다.");
 
-        battleContext.init(findMember, null);
-        battleContext.getFrontCharacters().forEach(partyMember -> partyMember.updateAbilityCooldowns(0, MoveType.FIRST_ABILITY, MoveType.SECOND_ABILITY, MoveType.THIRD_ABILITY, MoveType.FOURTH_ABILITY));
-        battleContext.getFrontCharacters().forEach(Actor::resetAbilityUseCount);
-        Actor leaderCharacter = battleContext.getLeaderCharacter();
-        leaderCharacter.getSummons().forEach(summonMove -> {
-            summonMove.updateCooldown(0);
-        });
-
-        List<MoveLogicResult> syncResults = battleCommandService.sync();
+        battleCommandService.resetCooldowns(BattleCommandRequest.of(memberId));
+        List<MoveLogicResult> syncResults = battleCommandService.sync(BattleCommandRequest.of(memberId));
         List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
 
-        log.info("syncResponse: {}", syncResponse);
+        log.debug("syncResponse: {}", syncResponse);
 
         return ResponseEntity.ok(syncResponse);
 

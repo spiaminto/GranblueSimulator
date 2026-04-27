@@ -23,7 +23,6 @@ import com.gbf.granblue_simulator.battle.service.MoveService;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -32,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByModifierType;
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.*;
@@ -75,7 +73,7 @@ public class DefaultCharacterMoveLogic {
 
     /**
      * 지정된 캐릭터의 move 를 실행. <br>
-     * 오의재발동시 CHARGE_ATTACK_DEFAULT, 턴 진행없이 공격 시 SINGLE_ATTACK 으로 진입
+     * 일반공격과 별도로 턴 진행없이 일반공격은 otherResult 에 이전 결과 넣어서 보내주기
      *
      * @param move
      * @return
@@ -113,7 +111,7 @@ public class DefaultCharacterMoveLogic {
             omenLogic.updateOmenByOtherResult(enemy, result);
 
             OmenResult processedOmenResult = enemy.getOmen() == null
-                    ? OmenResult.breakOmen(omenResult.getStandbyMoveType())
+                    ? OmenResult.breakOmen(omenResult)
                     : OmenResult.from(enemy);
             result.updateOmenResult(processedOmenResult);
         }
@@ -202,12 +200,12 @@ public class DefaultCharacterMoveLogic {
         // 데미지 계산
         DamageLogicResult damageLogicResult = damageLogic.processPartyDamage(chargeAttack, damageRate, baseMove.getHitCount());
 
-        // 스테이터스 적용
-        List<BaseStatusEffect> toApplyEffects = request.getSelectedBaseEffects() != null ? request.getSelectedBaseEffects() : baseMove.getBaseStatusEffects();
-        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder().baseStatusEffects(toApplyEffects).toLevel(request.getToEffectLevel()).build());
-
-        // 오의게이지 -> 게이지 증가를 나중에
+        // 오의 게이지 갱신 (상태효과보다 먼저)
         chargeGaugeLogic.afterChargeAttack();
+
+        // 상태효과 적용
+        List<BaseStatusEffect> toApplyEffects = request.getSelectedBaseEffects() != null ? request.getSelectedBaseEffects() : baseMove.getBaseStatusEffects();
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder().baseStatusEffects(toApplyEffects).targetLevel(request.getPlusLevel()).build());
 
         return DefaultMoveLogicResult.builder().resultMove(chargeAttack).damageLogicResult(damageLogicResult).setStatusEffectResult(setStatusEffectResult).build();
     }
@@ -239,12 +237,12 @@ public class DefaultCharacterMoveLogic {
 
         // 스테이터스 적용
         List<BaseStatusEffect> toApplyEffects = request.getSelectedBaseEffects() != null ? request.getSelectedBaseEffects() : baseMove.getBaseStatusEffects();
-        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder().baseStatusEffects(toApplyEffects).toLevel(request.getToEffectLevel()).build());
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder().baseStatusEffects(toApplyEffects).targetLevel(request.getPlusLevel()).build());
 
         // 쿨다운, 사용횟수 설정 (커맨드 수행시에만 설정)
         if (abilityType.getParentType() == MoveType.ABILITY && ability.getId().equals(battleContext.getCommandAbilityId())) {
             ability.increaseUseCount();
-            if (ability.getUseCount() >= ability.getActor().getStatusDetails().getMaxAbilityUseCount()) {
+            if (ability.getCurrentTurnUseCount() >= ability.getActor().getStatusDetails().getMaxAbilityUseCount()) {
                 ability.updateCooldown(ability.getBaseMove().getCoolDown());
             }
         }
@@ -278,17 +276,6 @@ public class DefaultCharacterMoveLogic {
             chargeGaugeLogic.afterNormalAttack(hitCount);
         }
         return damageLogicResult;
-    }
-
-    protected SetStatusEffectResult processSetStatusEffect(Move move) {
-        return processSetStatusEffect(move.getBaseMove().getBaseStatusEffects(), 0);
-    }
-
-    protected SetStatusEffectResult processSetStatusEffect(List<BaseStatusEffect> toApplyEffects, int toLevel) {
-        return setStatusLogic.setStatusEffect(SetEffectRequest.builder()
-                .baseStatusEffects(toApplyEffects)
-                .toLevel(toLevel)
-                .build());
     }
 
     /**
@@ -361,6 +348,8 @@ public class DefaultCharacterMoveLogic {
             mainActor.updateCurrentOrder(deadActorCurrentOrder + 100);
             // 체력 변경
             mainActor.updateHp(Integer.MIN_VALUE);
+            // 가드해제
+            mainActor.changeGuard(false);
             // 컨텍스트 갱신
             battleContext.frontCharacterDead(mainActor);
             // 결과 반환

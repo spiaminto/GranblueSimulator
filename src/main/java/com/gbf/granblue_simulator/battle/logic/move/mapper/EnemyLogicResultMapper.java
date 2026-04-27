@@ -99,7 +99,8 @@ public class EnemyLogicResultMapper {
                                             .fatalChainGauge(fatalChainGauge)
                                             .currentStatusEffects(actor.getStatusEffects().stream()
                                                     .map(StatusEffectDto::of)
-                                                    .sorted(Comparator.comparing(StatusEffectDto::getDisplayPriority).reversed().thenComparing(StatusEffectDto::getCreatedAt))
+                                                    .sorted(Comparator.comparing(StatusEffectDto::getDisplayPriority).reversed()
+                                                            .thenComparing(StatusEffectDto::getUpdatedAt)) // 디스펠, 클리어할때 updatedAt 기준으로 하므로 updatedAt 기준 정렬
                                                     .toList())
                                             .abilityCooldowns(new ArrayList<>(actor.getAbilityCooldowns()))
                                             .abilityUseCounts(new ArrayList<>(actor.getAbilityUseCounts()))
@@ -132,6 +133,7 @@ public class EnemyLogicResultMapper {
                 .damageTypes(damageLogicResult.getDamageTypes())
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .normalAttackCount(damageLogicResult.getNormalAttackCount())
+                .multiHitCount(damageLogicResult.getAttackMultiHitCount())
                 .enemyAttackTargets(attackTargets)
 
                 // 전조
@@ -140,7 +142,6 @@ public class EnemyLogicResultMapper {
                 // from logic
                 .executeChargeAttack(false) // 적은 오의 재발동 없음
                 .executeAttackTargetType(null) // 적은 턴 진행없이 일반공격 없음
-                .isUnionSummon(false)
                 .isEnemyFormChange(executeOptions.isEnemyFormChange())
 
                 .snapshots(snapShots)

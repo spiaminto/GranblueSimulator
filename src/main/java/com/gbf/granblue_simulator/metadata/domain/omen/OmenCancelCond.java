@@ -21,7 +21,8 @@ public class OmenCancelCond {
     private String info; // 해제조건표시용 (보스 체력 아래에 표시될 텍스트)
     private Integer initValue; // 해제 조건 초기값
 
-    @ManyToOne @JoinColumn(name = "omen_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "omen_id")
     private BaseOmen omen;
 
     public void setOmen(BaseOmen omen) {

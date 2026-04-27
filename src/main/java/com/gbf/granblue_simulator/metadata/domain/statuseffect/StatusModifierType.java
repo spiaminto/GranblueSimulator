@@ -73,6 +73,8 @@ public enum StatusModifierType {
     DEF_UP, // [상승배율]
     DEF_DOWN, // [감소배율]
 
+    DEF_UP_GARRISON("견수, 최대량 [0.0 ~ ]"),
+
     // 별항 [주로 적]
     DEF_DOWN_FORFEIT("방어력 감소 하한을 무시하고 감소할 배율(상실효과) [0.0 ~ 0.10]"),
 
@@ -94,7 +96,9 @@ public enum StatusModifierType {
     TAKEN_DAMAGE_CUT_DARK, // [데미지컷 배율]
 
     // 피격 데미지 무효 [캐릭터만]
-    TAKEN_DAMAGE_INEFFECTIVE, // [1: N회, 2: 턴제] -> 항 하나 공유, 턴제가 반드시 덮어쓰며 횟수제는 영속&& 리필제 효과로 지정
+    TAKEN_DAMAGE_INEFFECTIVE("피격데미지 무효, 항 하나 공유, 영속 리필제 [1:N회, 2:턴제 (우선순위)]"),
+    // 무적 [적만]
+    TAKEN_DAMAGE_INEFFECTIVE_FROM("적의 무적. 체력 비율 toInt [1.0 ~ 100.0]"),
 
     // 피격 데미지 상승
     TAKEN_SUPPLEMENTAL_DAMAGE_DOWN, // 피격데미지 감소 [상승수치]
@@ -158,10 +162,10 @@ public enum StatusModifierType {
 
     // 공격 행동관련
     // MULTI_STRIKE, // 다회공격 [공격횟수]
-    DOUBLE_STRIKE, // 재공격 [2]
-    TRIPLE_STRIKE, // 3회공격 [3]
-    QUADRUPLE_STRIKE, // 4회공격 [4]
-    PLUS_STRIKE, // 공격횟수 증가 [1]
+    DOUBLE_STRIKE("2회공격, [2]"),
+    TRIPLE_STRIKE("3회공격, [3]"),
+    QUADRUPLE_STRIKE("4회공격, [4]"),
+    PLUS_STRIKE("공격횟수 증가, 증가 횟수 [1 ~ ]"),
 
     STRIKE_SEALED, // 공격행동 불가 [행동방해율 0.0 ~ 1.0] , < 장악, 수면 >
     SUBJUGATED, // 장악 [1]
@@ -171,14 +175,15 @@ public enum StatusModifierType {
     CRITICAL_DAMAGE_UP, // [상승배율]
 
     // 추격 [추격배율]
-    ADDITIONAL_DAMAGE_A, // 추격 Ability 항
-    ADDITIONAL_DAMAGE_C, // 추격 ChargeAttack 항
-    ADDITIONAL_DAMAGE_S, // 추격 SupportAbility 항
-    ADDITIONAL_DAMAGE_U, // 추격 Unique(별)항
-    ADDITIONAL_DAMAGE_W, // 추격 Weapon 항
+    ADDITIONAL_DAMAGE_N("추가데미지(일반)"), // Normal
+    ADDITIONAL_DAMAGE_U("추가데미지(특수)"), // Unique
+    ADDITIONAL_DAMAGE_M("참전자 추가데미지"), // Member
+    ADDITIONAL_DAMAGE_S("추가데미지 (소환, 별도표시) "), // Summon
+    ADDITIONAL_DAMAGE_W("미사용 (허사항)"), // Weapon
 
     // 난격 [횟수 2 ~ 6] random_attack, flurry, attack_multi_hit 중 고민중
-    ATTACK_MULTI_HIT,
+    ATTACK_MULTI_HIT("난격 [2~ ]"),
+    ATTACK_MULTI_HIT_PLUS("일반공격 히트수 증가, [1 ~]"),
 
     // 명중률 [가산배율]
     HIT_ACCURACY_UP,
@@ -227,10 +232,11 @@ public enum StatusModifierType {
 
     // 방어 특수
     IMMORTAL("불사신, 횟수는 레벨 리필로 조정 [1]"), // 불사신 효과 [버틸 횟수 1 고정]
+    REFLECT("리플렉트, 회당데미지 [1000 ~ ]"),
 
     // 적대심, 감싸기
     SUBSTITUTE("감싸기(전체). 일반 감싸기는 적대심으로. [1]"),
-    HOSTILITY_UP("적대심 업: 0 (1.0배, 25%) / 50 (1.5배, 33%) / 100 (2.0배, 40%) / 200 (3배, 50%) / 800 (9배, 75%) / 10000 (99.01%) [0 ~ 10000]"),
+    HOSTILITY_UP("적대심 업: 0 (1.0배, 25%) / 50 (1.5배, 33%) / 100 (2.0배, 40%) / 200 (3배, 50%) / 300 (4배, 57.1%) / 800 (9배, 75%) / 10000 (99.01%) [0 ~ 10000]"),
     HOSTILITY_DOWN("적대심 다운: 0 (1.0배, 25%)/ 25 (0.75배, 20%) / 50 (0.5배, 14.3%) / 75 (0.25배, 7.7%) / 100 (0%) [0 ~ 100]"),
 
     // 체력
@@ -268,7 +274,8 @@ public enum StatusModifierType {
     ACT_SHORTEN_SUMMON_COOLDOWN("소환석 쿨다운 단축, 단축턴 [1 ~]"),
     ACT_EXTEND_SUMMON_COOLDOWN("소환석 쿨다운 연장, 연장턴 [1 ~]"),
     ACT_SHORTEN_DEBUFF_DURATION("약화효과단축 단축턴 [1 ~]"),
-
+    ACT_UNIQUE("기타 즉효 후 바로 삭제되는 효과 (ex 1번 어빌리티 쿨타임 초기화 등)"),
+    ACT_UNIQUE_SHOW("기타 즉효후 바로 삭제되는 효과 중에서 프론트로 보여줄 효과 (ex 공격 가능 등)"),
 
     // 후처리를 동반하는 Modifier ===================================================================
 
@@ -302,7 +309,8 @@ public enum StatusModifierType {
             ACT_FATAL_CHAIN_GAUGE_UP, ACT_FATAL_CHAIN_GAUGE_DOWN,
             ACT_HEAL, ACT_RATE_HEAL, ACT_DAMAGE, ACT_RATE_DAMAGE,
             ACT_SHORTEN_ABILITY_COOLDOWN, ACT_SHORTEN_SUMMON_COOLDOWN, ACT_EXTEND_ABILITY_COOLDOWN, ACT_EXTEND_SUMMON_COOLDOWN,
-            ACT_SHORTEN_DEBUFF_DURATION
+            ACT_SHORTEN_DEBUFF_DURATION,
+            ACT_UNIQUE, ACT_UNIQUE_SHOW
     ));
 
 
@@ -317,36 +325,6 @@ public enum StatusModifierType {
         return IMMEDIATE_MODIFIERS.contains(this);
     }
 
-
-    /**
-     * 효과를 합산하지 않고 덮어씌우는 이펙트의 경우 true 로 반환
-     * 추격, 베리어, 감싸기
-     * value 가 큰쪽이 우선되며, value 다음으로 duration 이 긴쪽이 우선된다.
-     *
-     * @return 효과를 덮어씌우는 경우 true
-     */
-    public boolean isCoveringEffect() {
-        return this == ADDITIONAL_DAMAGE_A ||
-                this == ADDITIONAL_DAMAGE_C ||
-                this == ADDITIONAL_DAMAGE_S ||
-                this == ADDITIONAL_DAMAGE_U ||
-                this == ADDITIONAL_DAMAGE_W ||
-                this == SUBSTITUTE
-                ;
-    }
-
-    /**
-     * 추격인경우 true 반환
-     *
-     * @return
-     */
-    public boolean isAdditionalDamage() {
-        return this == ADDITIONAL_DAMAGE_A ||
-                this == ADDITIONAL_DAMAGE_C ||
-                this == ADDITIONAL_DAMAGE_S ||
-                this == ADDITIONAL_DAMAGE_U ||
-                this == ADDITIONAL_DAMAGE_W;
-    }
 
     public boolean isNone() {
         return this == NONE;

@@ -5,6 +5,7 @@ import com.gbf.granblue_simulator.battle.logic.system.dto.OmenResult;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Builder
@@ -18,10 +19,16 @@ public class EnemyInfo {
     private Integer hpRate;
     private Integer currentChargeGauge;
     private List<Integer> maxChargeGauge; // each 반복을 위해 카운트 크기의 배열
+    @Builder.Default
+    private List<HpLayer> hpLayers = new ArrayList<>();
 
     private OmenResult omen;
 
     // 메타데이터
     private String portraitSrc;
     private Long baseId;
+
+    public record HpLayer(String colorClass, int layerSize) {}
+
 }
+

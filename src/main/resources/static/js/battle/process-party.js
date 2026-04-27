@@ -102,7 +102,7 @@ async function processAttack(response) {
     //  상태갱신
     let statusEffectDelay = await processStatusEffect(response);
     let totalEndTime = damageDelay + statusEffectDelay;
-    console.log("[processAttack] DONE totalEndTime = " + totalEndTime);
+    // console.log("[processAttack] DONE totalEndTime = " + totalEndTime);
 
     return totalEndTime;
 }
@@ -110,39 +110,32 @@ async function processAttack(response) {
 async function processAbility(response) {
     let startTime = performance.now();
 
-    // 속도를 빠르게 하기위해 다음과 같이 설정 [N]: 대기시간 scale / 모션 + 이펙트 의 경우 일반적으로 이펙트가 긺, 긴쪽을 따라감
-    // 어빌리티 : <모션[1] 이펙트[1]> 데미지[1] 상태효과[1]
-    // 서포트 어빌리티 또는 턴 진행중 일반 어빌리티 (모션 + 이펙트 + 데미지 + 상태효과) : <모션[X] 이펙트[0.5]> 데미지[0.75] 상태효과[0.5]
-    // 서포트 어빌리티 (모션 + 이펙트 + 상태효과) : <모션[X] 이펙트[0.5]> 상태효과[0.5]
-    // 서포트 어빌리티 (ab_motion_effect_only + 이펙트 + 상태효과) : <모션[X] 이펙트[0.5]> 상태효과 [0.5] -> 모션 없는것임
-    // 서포트 어빌리티 (모션 + 상태효과) : 모션[0.05] 상태효과[0.05] -> 사실상 스킵
-
     let hasDamage = response.damages.length > 0;
-    let isSupportAbility = response.moveType.getParentType() === MoveType.SUPPORT_ABILITY;
-    let hasEffect = player.actors.get(`actor-${response.actorOrder}`).animation.abilities.hasOwnProperty(response.moveId);
-    let turnProgressing = player.locked;
-    hasEffect = Player.c_animations.isAttack(response.motion) ? true : hasEffect; // 공격모션(이펙트)인 경우도 있음
+    let abilityCjsObj = player.actors.get(`actor-${response.actorOrder}`).animation.abilities[response.moveId];
+    let responseCjsObj = response?.visualInfo; // response 로 내려온 이펙트가 첫 로드시 로드되지 않은 이펙트인 경우 지정 (트리거 어빌리티, 변화 어빌리티 등)
+    let hasEffect = abilityCjsObj || responseCjsObj || Player.c_animations.isAttack(response.motion) // 공격모션인경우 포함
+    let turnProgressing = player.locked; // 턴 진행중 자동발동
 
-    // 효과 있는경우만 인디케이터 갱신
     if (hasEffect) {
+        // 효과 있는경우만 인디케이터 갱신
         window.gameStateManager.setState('indicator.moveName', response.moveName);
     }
 
     // 모션, 이펙트 처리
-    let cjsName = !hasEffect && response.visualInfo ? response.visualInfo.moveCjsName : null; // response 로 내려온 이펙트가 첫 로드시 로드되지 않은 이펙트인 경우 지정 (트리거 어빌리티, 변화 어빌리티 등)
-    let isTargetedEnemy = cjsName ? response.visualInfo.isTargetedEnemy : null;
     let animationDuration = await player.play(Player.playRequest('actor-' + response.actorOrder, response.motion, {
         abilityType: response.moveId,
-        cjsName: cjsName,
-        isTargetedEnemy: isTargetedEnemy
-    })); // 기본적으로 긴 이펙트쪽의 duration 을 반환
-    let animationDurationScale = !hasEffect ? 0.05 : isSupportAbility ? 0.5 : 0.75;
+        cjsName: responseCjsObj?.moveCjsName, // abilityCjsObj 로 못찾은경우 이쪽 사용
+        isTargetedEnemy: responseCjsObj?.isTargetedEnemy,
+        voiceLabel: responseCjsObj?.voiceLabel,
+    }));
+
+    let animationDurationScale = hasEffect ? 0.8 : 0.25;
     if (!hasDamage) { // 데미지 처리가 없을시, 모션을 기다림
         await wait(animationDuration * animationDurationScale);
     }
 
     // 데미지 처리
-    let damageDurationScale = isSupportAbility || turnProgressing ? 0.75 : 1;
+    let damageDurationScale = turnProgressing ? 0.5 : 0.8;
     let damageDelay = 0;
     if (hasDamage) {
         let damageShowClass = response.damages.length > 2 ? 'multiple-ability-damage-show' : 'ability-damage-show'
@@ -150,19 +143,19 @@ async function processAbility(response) {
     }
 
     // 상태효과 처리
-    let statusEffectDelayScale = !hasEffect ? 0.025 : (isSupportAbility || turnProgressing) ? 0.5 : 1;
+    let statusEffectDelayScale = !hasEffect ? 0.2 : turnProgressing ? 0.5 : 1;
     let statusDelay = await processStatusEffect(response, statusEffectDelayScale);
 
     let leftOverMotionDelay = animationDuration - (damageDelay + statusDelay);
-    console.log('[processAbility] animationDuration = ', animationDuration + ' leftOverMotionDelay = ', leftOverMotionDelay);
-    if (hasEffect && leftOverMotionDelay > 0) {
-        // 만약, 후처리 딜레이가 이펙트 딜레이보다 짧을경우 보정
+    // console.log('[processAbility] animationDuration = ', animationDuration + ' leftOverMotionDelay = ', leftOverMotionDelay, ' hasDamage = ', hasDamage);
+    if (hasDamage && hasEffect && leftOverMotionDelay > 0) {
+        // 데미지가 있어 모션을 기다리지 않았고, 후처리 딜레이가 이펙트 딜레이보다 짧을경우 보정
         await wait(leftOverMotionDelay);
     }
 
     let endTime = performance.now();
     let totalDelay = endTime - startTime;
-    console.log('[processAbility] DONE name = ', response.moveName, ' animationDuration = ', animationDuration, ' animationDurationScale = ', animationDurationScale, ' damageDelay = ', damageDelay, ' statusDelay = ', statusDelay, ' totalDelay = ', totalDelay);
+    // console.log('[processAbility] DONE name = ', response.moveName, ' animationDuration = ', animationDuration, ' animationDurationScale = ', animationDurationScale, ' damageDelay = ', damageDelay, ' statusDelay = ', statusDelay, ' totalDelay = ', totalDelay);
     return totalDelay;
 }
 
@@ -174,7 +167,7 @@ async function processChargeAttack(response) {
     await postProcessPartyDamage(response, 'party-charge-attack-damage-show');
     // 상태효과 처리
     let totalEndTime = await processStatusEffect(response);
-    console.log('[processChargeAttack] DONE totalTime', totalEndTime);
+    // console.log('[processChargeAttack] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
@@ -187,11 +180,12 @@ async function processSummon(response, unionSummonResponse) {
     if (hasUnionSummon && !isUnionSummon) {
         // 합체소환 컷인
         let unionSummonInfo = gameStateManager.getState('unionSummonInfo');
-        let unionSummonCutinSrc = unionSummonInfo.cutinImageSrc;
+        let unionSummonCutinSrc = unionSummonInfo?.cutinImageSrc || '';
         let summonInfo = Object.values(gameStateManager.getState('summon')).find(summon => summon.id === response.moveId);
         let currentSummonCutinSrc = summonInfo ? summonInfo.cutinImageSrc : '';
         let cutinSrcs = [currentSummonCutinSrc, unionSummonCutinSrc];
         const promises = cutinSrcs.map((url) => {
+            if (!url) return Promise.resolve();
             return new Promise((resolve, reject) => {
                 const image = new Image();
                 image.src = url;
@@ -201,7 +195,8 @@ async function processSummon(response, unionSummonResponse) {
         });
         await Promise.all(promises);
 
-        window.gameStateManager.setState('raid_union_summon_name', response.moveName);
+        let unionSummonName = response.moveName + ' + ' + (unionSummonInfo?.name || '').split('(')[0]; // '바루나 + 루시퍼', unionSummonInfo.name = '루시퍼 (다른참전자)'
+        window.gameStateManager.setState('raid_union_summon_name', unionSummonName);
         await player.play(Player.playRequest(player.getGlobalActor().actorId, Player.c_animations.ABILITY_UI, {
             abilityType: BASE_ABILITY.UI.UNION_SUMMON_CUTIN.name,
             cutInSrcs: cutinSrcs
@@ -212,9 +207,9 @@ async function processSummon(response, unionSummonResponse) {
     if (!isUnionSummon) {
         // 본소환
         await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON), true);
-        await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.WINDOW_EFFECT, {cjsName: summonCjsName + '_attack'}), true);
+        await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON_ATTACK, {cjsName: summonCjsName + '_attack'}), true);
     }
-    await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.WINDOW_EFFECT, {cjsName: summonCjsName + '_damage'}), true, 300);
+    await player.play(Player.playRequest(leaderActor.actorId, Player.c_animations.SUMMON_DAMAGE, {cjsName: summonCjsName + '_damage'}), true, 300);
 
     let damageShowClass = response.damages.length > 2 ? 'multiple-ability-damage-show' : 'ability-damage-show'
     await postProcessPartyDamage(response, damageShowClass);
@@ -223,7 +218,7 @@ async function processSummon(response, unionSummonResponse) {
     let totalEndTime = await processStatusEffect(response, delayScale);
 
     gameStateManager.setState('unionSummonInfo', null);
-    console.log('[processSummon] DONE totalTime', totalEndTime);
+    // console.log('[processSummon] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
@@ -246,12 +241,12 @@ async function processFatalChain(response) {
     await postProcessPartyDamage(response, 'party-attack-damage-show');
 
     let totalEndTime = await processStatusEffect(response);
-    console.log('[processFatalChain] DONE totalTime', totalEndTime);
+    // console.log('[processFatalChain] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
 async function processCharacterDead(response) {
-    console.log('[processCharacterDead] resp = ', response);
+    // console.log('[processCharacterDead] resp = ', response);
     // actorOrder 가 사망 처리된 순서로 넘어옴에 주의
     let actorOrder = response.actorOrder - 100;
     let deadActorId = gameStateManager.getState('actorIds')[actorOrder];
@@ -271,7 +266,7 @@ async function processCharacterDead(response) {
                 .attr('src', '/static/assets/img/gl/ch-empty.jpg')
                 .attr('data-seq', actorOrder))); // 이거 어따쓰는건지?
     let $deadBattlePortrait = $('.battle-portrait').eq(actorOrder - 1); // empty 까지 포함해야 제대로 순서구해짐
-    console.log('[processCharacterDead] $deadBattlePortrait = ', $deadBattlePortrait, ' $emptyBattlePortrait = ', $emptyBattlePortrait)
+    // console.log('[processCharacterDead] $deadBattlePortrait = ', $deadBattlePortrait, ' $emptyBattlePortrait = ', $emptyBattlePortrait)
     $deadBattlePortrait.before($emptyBattlePortrait);
     $deadBattlePortrait.remove();
 
@@ -283,8 +278,11 @@ async function processCharacterDead(response) {
     // player.actor 삭제
     player.removeActor(actorOrder);
 
-    // 가드 표시 있으면 삭제
+    // 가드 삭제
     $('#actorContainer .guard-status').eq(actorOrder - 1).removeClass('guard-on-processing');
+    let guardStatuses = gameStateManager.getState('guardStates');
+    guardStatuses[actorOrder] = false;
+    gameStateManager.setState('guardStates', guardStatuses);
 
     // 상태 갱신
     if (gameStateManager.getState('leaderActorId') === deadActorId) {
@@ -301,9 +299,18 @@ async function processCharacterDead(response) {
         gameStateManager.setState('isQuestFailed', true); // rejoin -> 미구현
     }
 
-
-    console.log('[processCharacterDead] DONE move = ', response.moveType.name, 'isQuestFailed = ', gameStateManager.getState('isQuestFailed'));
+    // console.log('[processCharacterDead] DONE move = ', response.moveType.name, 'isQuestFailed = ', gameStateManager.getState('isQuestFailed'));
     return preDelay + effectDuration;
+}
+
+// 아예 전투가 실패로 끝났을시
+function processQuestTimeout(response) {
+    player.lockPlayer(true);
+    gameStateManager.setState('isQuestTimeout', true, {force: true});
+    $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-next.png').css({'left': '15%', 'width': '100%'});
+    updateBgm(response, {stopBgm: true});
+    player.play(Player.playRequest('global', Player.c_animations.ABILITY_UI, {abilityType: 'QUEST_FAILED'}), true);
+    stopSync();
 }
 
 /**
@@ -320,29 +327,133 @@ function processGuard(response) {
 
 /**
  * 포션 처리
- * @param response
+ * @param potionResponse
  */
-async function processPotion(response) {
-    console.log('[processPotion] response = ', response);
+async function processPotion(potionResponse) {
+
+    let assetInfo = potionResponse.assetInfo || null;
+    let characterInfo = potionResponse.characterInfo || null;
+    let actorIndex = potionResponse.actorIndex; // 올 포션일때 null
+
+    if (characterInfo) { //사망 캐릭터 복구
+        // 상태복구
+        let actorIds = gameStateManager.getState('actorIds');
+        actorIds[actorIndex] = characterInfo.id;
+        gameStateManager.setState('actorIds', actorIds);
+        let isLeaderCharacter = assetInfo.isLeaderCharacter;
+        if (isLeaderCharacter) {
+            gameStateManager.setState('leaderActorId', characterInfo.id);
+        }
+
+        // 메타데이터 actorIndex 복구 (setState 는 아래에서 별도로 트리거)
+        let allMoves = [
+            ...Object.values(stage.gGameStatus.ability),
+            ...[...Object.values(stage.gGameStatus.supportAbility)].flatMap(array => array),
+            ...Object.values(stage.gGameStatus.chargeAttack),
+            ...Object.values(stage.gGameStatus.summon),
+            stage.gGameStatus.fatalChain,
+            ...Object.values(stage.gGameStatus.changingMove),];
+        allMoves.forEach(move => {
+            if (move.actorId && move.actorId === characterInfo.id) {
+                move.actorIndex = actorIndex;
+            }
+        });
+
+        // 사망한 캐릭터 부활시
+        await loadCharacterAnimation(assetInfo, actorIndex);
+        player.actors.get(`actor-${actorIndex}`).playVoice(Player.c_animations.CHARA_IN);
+
+        // portrait 복구
+        renderBattlePortrait(characterInfo);
+
+        // 어빌리티 패널 복구
+        renderAbilityPanel(characterInfo);
+
+        // Move 메타데이터 기반 요소 전체복구 (쿨타임 등은 Sync 로 복구)
+        gameStateManager.setState('chargeAttack', gameStateManager.getState('chargeAttack'), {force: true});
+        gameStateManager.setState('summon', gameStateManager.getState('summon'), {force: true});
+        gameStateManager.setState('summonCooldowns', gameStateManager.getState('summonCooldowns'), {force: true});
+        gameStateManager.setState('fatalChain', gameStateManager.getState('fatalChain'), {force: true});
+
+        gameStateManager.setState('ability', gameStateManager.getState('ability'), {force: true});
+        gameStateManager.setState('abiltyCooldowns', gameStateManager.getState('abiltyCooldowns'), {force: true});
+        gameStateManager.setState('abilitySealeds', gameStateManager.getState('abilitySealeds'), {force: true});
+
+        gameStateManager.setState('supportAbility', gameStateManager.getState('supportAbility'), {force: true});
+        gameStateManager.setState('changingMove', gameStateManager.getState('changingMove'), {force: true});
+
+        // popover 복구
+        initChargeAttackPopovers();
+
+        // 퀘스트 실패 -> 부활시
+        if (gameStateManager.getState('isQuestFailed')) {
+            gameStateManager.setState('isQuestFailed', false);
+
+            // 공격 상태 및 플레이어 상태 정상화
+            gameStateManager.setState('isAttackClicked', false);
+            player.lockPlayer(false);
+
+            // 소환 가능하도록 변경
+            gameStateManager.setState('usedSummon', false, {force: true});
+        }
+
+    }
 
     // 이펙트
-    let healDelay = processHealEffect(response.heals);
+    let healDelay = processHealEffect(potionResponse.heals);
     await wait(healDelay);
 
-    let potionCounts = [response.potionCount, response.allPotionCount, response.elixirCount];
+    let potionCounts = [potionResponse.potionCount, potionResponse.allPotionCount, potionResponse.elixirCount];
     window.gameStateManager.setState('potion.counts', potionCounts);
-    window.gameStateManager.setState('hps', response.hps);
-    window.gameStateManager.setState('hpRates', response.hpRates);
-
-    // 모션 갱신
-    player.getCharacters().forEach(actor => player.play(Player.playRequest(actor.actorId, player.getCharacterWaitMotion(actor.actorIndex))));
+    window.gameStateManager.setState('hps', potionResponse.hps);
+    window.gameStateManager.setState('hpRates', potionResponse.hpRates);
 
     // 레일에서 삭제
     $('.ability-rail-wrapper .rail-item').eq(0).remove();
 
     let totalEndTime = healDelay;
-    console.log('[processPotion] DONE totalTime', totalEndTime);
+    // console.log('[processPotion] DONE totalTime', totalEndTime);
+
+    // 즉시 동기화 요청 (보험)
+    doSync(true);
+
     return totalEndTime;
+}
+
+async function loadCharacterAnimation(assetInfo, actorIndex) {
+    let animation = new Animation('actor-' + actorIndex, {
+        cjs: assetInfo.mainCjs,
+        weapon: assetInfo.weaponId,
+        attacks: assetInfo.attackCjses,
+        abilities: assetInfo.abilityCjses,
+        specials: assetInfo.specialCjses,
+        additionalCjs: assetInfo.additionalMainCjs,
+        additionalSpecials: assetInfo.additionalSpecialCjses,
+        chargeAttackStartFrame: assetInfo.chargeAttackStartFrame,
+        summons: assetInfo.summonCjses,
+        isEnemy: assetInfo.isEnemy,
+        isLeaderCharacter: assetInfo.isLeaderCharacter,
+        isChargeAttackSkip: assetInfo.isChargeAttackSkip,
+        currentOrder: actorIndex,
+    });
+    loadActor(animation);
+
+    return new Promise(resolve => {
+        const interval = setInterval(() => {
+            let found = cjsStage.characterLayer.children.find(child => child.name === assetInfo.mainCjs);
+            if (found) {
+                clearInterval(interval);
+                clearTimeout(timeout); // 타임아웃도 정리
+                resolve();
+            }
+        }, 500);
+
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+            // alert("캐릭터 에셋 로드에 실패하였습니다. 새로고침 합니다.");
+            // location.reload();
+        }, 3000);
+    });
 }
 
 /**
@@ -360,7 +471,7 @@ async function postProcessPartyDamage(response, damageShowClass, delayScale = 1.
     let lastDelay = delays[delays.length - 1];
     // 적 모션
     let enemyDamageMotion = player.getEnemyDamageMotion();
-    console.log('[postProcessPartyDamage] $damageWrapper = ', $damageWrapper, ' delays = ', delays, ' damageShowClass = ', damageShowClass);
+    // console.log('[postProcessPartyDamage] $damageWrapper = ', $damageWrapper, ' delays = ', delays, ' damageShowClass = ', damageShowClass);
 
     // 데미지 요소마다
     $damageWrapper.find('.damage').get().reverse().forEach(function (element, index) {

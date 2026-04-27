@@ -30,15 +30,18 @@ public class Party {
     private User user;
 
     @Type(ListArrayType.class)
-    @Column(name = "actor_ids", columnDefinition = "bigint[]")
+    @Column(name = "user_character_ids", columnDefinition = "bigint[]")
     @Builder.Default
-    private List<Long> characterIds = new ArrayList<>();
+    private List<Long> userCharacterIds = new ArrayList<>();
 
     @Type(ListArrayType.class)
     @Column(name = "summon_ids", columnDefinition = "bigint[]")
     @Builder.Default
     private List<Long> summonIds = new ArrayList<>();
 
-    // 나중에 주인공 스킬 가변으로 변경시 List<Long> mainCharacterAbilityIds 등의 필드 추가
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "base_party_id")
+    @ToString.Exclude
+    private BaseParty baseParty;
 
 }

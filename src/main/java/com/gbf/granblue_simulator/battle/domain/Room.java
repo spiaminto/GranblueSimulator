@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.battle.domain;
 
+import com.gbf.granblue_simulator.metadata.domain.Raid;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -38,7 +39,13 @@ public class Room {
     @EqualsAndHashCode.Exclude
     private List<Member> members = new ArrayList<>(); // 방에 있는 유저들
 
-    private Long enemyBaseId; // 편의용 적 id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "raid_id")
+    private Raid raid;
+
+    // 폼
+    private Long currentEnemyBaseId;
+    private int currentFormOrder;
 
     private Long unionSummonId; // 대기중인 합체소환 id (Move.id)
 

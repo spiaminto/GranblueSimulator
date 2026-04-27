@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -15,12 +16,15 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     List<Room> findAllByIsHiddenIs(boolean hidden);
 
-    // Repository
+    List<Room> findByOwnerIdAndRoomStatus(Long ownerId, RoomStatus roomStatus);
+
+    List<Room> findAllByRoomStatus(RoomStatus roomStatus);
+
     @Modifying
     @Query("UPDATE Room r SET r.unionSummonId = :unionSummonId WHERE r.id = :roomId")
     void updateUnionSummonIdById(@Param("roomId") Long roomId, @Param("unionSummonId") Long unionSummonId);
 
-    List<Room> findByOwnerIdAndRoomStatus(Long ownerId, RoomStatus roomStatus);
-
-    List<Room> findAllByRoomStatus(RoomStatus roomStatus);
+    @Modifying
+    @Query("UPDATE Room r SET r.roomStatus = :status, r.endedAt = :endedAt WHERE r.id = :roomId")
+    void updateStatusAndEndedAtById(@Param("roomId") Long roomId, @Param("status") RoomStatus status, LocalDateTime endedAt);
 }

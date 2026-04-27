@@ -1,18 +1,22 @@
 package com.gbf.granblue_simulator.battle.logic.system;
 
+import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Omen;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.repository.MoveRepository;
 import com.gbf.granblue_simulator.battle.repository.OmenRepository;
 import com.gbf.granblue_simulator.battle.service.MoveService;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.BaseOmen;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenCancelCond;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectType;
-import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifier;
+import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModifierType;
 import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Component
 @Slf4j
@@ -33,18 +38,37 @@ public class OmenLogic {
     private final BaseMoveRepository baseMoveRepository;
     private final ChargeGaugeLogic chargeGaugeLogic;
     private final MoveService moveService;
+    private final BattleContext battleContext;
 
     /**
-     * 전조 발생 여부 판단 및 발생
+     * 전조 발생여부 판단 및 전조 발생
      *
-     * @param enemyActor
      * @return Move standby
      */
     public Optional<Move> triggerOmen(Actor enemyActor) {
+        return this.triggerOmen(enemyActor, null, null);
+    }
+
+    /**
+     * 직접 지정한 전조를 발생
+     *
+     * @return Move standby
+     */
+    public Optional<Move> triggerOmen(Actor enemyActor, BaseOmen selectedOmen) {
+        return this.triggerOmen(enemyActor, selectedOmen, null);
+    }
+
+    /**
+     * 직접 지정한 전조와 해제조건으로 전조 발생
+     *
+     * @param selectedOmen 발생시킬 전조, null 인경우 로직에 의해 발동
+     * @return Move standby
+     */
+    public Optional<Move> triggerOmen(Actor enemyActor, BaseOmen selectedOmen, List<Integer> selectedCancelCondIndexes) {
         Enemy enemy = (Enemy) enemyActor;
 
         // 1. 다음 전조를 결정
-        BaseOmen determinedOmen = determineOmen(enemy);
+        BaseOmen determinedOmen = selectedOmen != null ? selectedOmen : determineOmen(enemy);
         log.info("[triggerOmen] nextIncantStandbyType = {}, hpRate = {}, ct / max = {} / {}, determinedStandby: standbyOptional = {}", enemy.getNextIncantStandbyType(), enemy.getHpRateInt(), enemy.getChargeGauge(), enemy.getMaxChargeGauge(), determinedOmen);
         if (determinedOmen == null) return Optional.empty();
 
@@ -52,11 +76,17 @@ public class OmenLogic {
         List<OmenCancelCond> cancelConditions = determinedOmen.getOmenCancelConds();
         int cancelConditionSize = cancelConditions.size();
         Integer cancelConditionCount = determinedOmen.getCancelConditionCount();
-        List<Integer> cancelConditionIndexes = new Random().ints(0, cancelConditionSize).distinct()
-                .limit(cancelConditionCount)
-                .sorted()
-                .boxed().toList();
-        List<Integer> initValues = cancelConditionIndexes.stream().map(index -> cancelConditions.get(index).getInitValue()).collect(Collectors.toList()); // 초기값 수정 가능
+
+        List<Integer> cancelConditionIndexes;
+        if (selectedCancelCondIndexes != null) {
+            cancelConditionIndexes = selectedCancelCondIndexes;
+        } else {
+            List<Integer> cancelConditionIndexCandidates = IntStream.range(0, cancelConditionSize).boxed().collect(Collectors.toCollection(ArrayList::new));
+            Collections.shuffle(cancelConditionIndexCandidates);
+            cancelConditionIndexes = cancelConditionIndexCandidates.subList(0, cancelConditionCount).stream().sorted().toList();
+        }
+
+        List<Integer> initValues = cancelConditionIndexes.stream().map(index -> cancelConditions.get(index).getInitValue()).collect(Collectors.toList());
 
         // 2.1 전조 삽입
         Omen omen = Omen.builder()
@@ -75,11 +105,8 @@ public class OmenLogic {
         standbyMove.mapActor(enemyActor);
         moveRepository.save(standbyMove);
 
-        // 4. 후처리
-        // 4.1 이전 발동한 HP 트리거를 재발동하지 않기위한 필드. CHECK 찰나의 순간 대량으로 HP가 깎인경우 이 값이 의도대로 동작하지 않음
-        if (determinedOmen.getOmenType() == OmenType.HP_TRIGGER) {
-            enemy.updateLatestTriggeredHp(enemy.getHpRateInt());
-        }
+        // 4.2 타입 기록
+        enemy.updateLastStandbyType(standbyMove.getType());
 
         return Optional.of(standbyMove);
     }
@@ -103,7 +130,7 @@ public class OmenLogic {
         if (incantAttackOmen != null && incantAttackOmen.isTriggerPrimary())
             return incantAttackOmen;
 
-        // 2. HP 트리거
+        // 2. HP 트리거 (우선 + 일반)
         BaseOmen hpTriggerOmen = this.getValidHpTrigger(enemy);
         if (hpTriggerOmen != null) return hpTriggerOmen;
 
@@ -123,28 +150,46 @@ public class OmenLogic {
     /**
      * 현재 적의 체력 상태에서 트리거 되는 HP 트리거를 찾아 반환
      *
-     * @param enemy
      * @return Omen HpTrigger, 없으면 null
      */
-    protected BaseOmen getValidHpTrigger(Enemy enemy) {
+    public BaseOmen getValidHpTrigger(Enemy enemy) {
         double hpRate = enemy.getHpRateInt();
         double latestTriggeredHp = enemy.getLatestTriggeredHp();
 
-        return enemy.getBaseEnemy().getOmens().values().stream()
-                .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER) // HP_TRIGGER만
-                // triggerHps 중 "아직 발동하지 않았고, 현재 HP 이하"인 값이 하나라도 있으면 통과
-                .filter(omen ->
-                        omen.getTriggerHps().stream()
-                                .anyMatch(triggerHp -> hpRate <= triggerHp && triggerHp < latestTriggeredHp)
-                )
-                // 트리거 가능한 HP 중 가장 높은 값들 뽑은뒤, 그중 제일 작은값을 고름 
-                // hpRate 가 39, latestTriggeredHP 가 60 일때 {50, 40}(=40) 과 {60, 45, 30}(=45) 중 {50, 40} 을 고름
-                .min(Comparator.comparing(omen ->
-                        omen.getTriggerHps().stream()
-                                .filter(triggerHp -> triggerHp >= hpRate && triggerHp < latestTriggeredHp)
-                                .min(Integer::compareTo)
-                                .orElse(Integer.MAX_VALUE)
-                )).orElse(null);
+        List<BaseOmen> hpTriggerOmens = enemy.getBaseEnemy().getOmens().values().stream()
+                .filter(omen -> omen.getOmenType() == OmenType.HP_TRIGGER)
+                .toList();
+
+        record HpTrigger(BaseOmen omen, int triggerHp) {
+        } // triggerHp 기록용
+
+        // HP 트리거(우선): 유효한 트리거중 max 값 선택. 반드시 발동하는 HP 트리거
+        Optional<HpTrigger> primary = hpTriggerOmens.stream()
+                .filter(BaseOmen::isTriggerPrimary)
+                .flatMap(omen -> omen.getTriggerHps().stream()
+                        .filter(hp -> hpRate <= hp && hp < latestTriggeredHp)
+                        .max(Integer::compareTo)
+                        .map(hp -> new HpTrigger(omen, hp))
+                        .stream())
+                .max(Comparator.comparingInt(HpTrigger::triggerHp));
+
+        if (primary.isPresent()) {
+            enemy.updateLatestTriggeredHp(primary.get().triggerHp());
+            return primary.get().omen();
+        }
+
+        // HP 트리거(일반): 유효한 트리거중 min 값 선택. HP 트리거(우선) 발동시 체크하지 않으며, latestTriggeredHp 의 진행으로 인해 스킵될 수 있음.
+        Optional<HpTrigger> normal = hpTriggerOmens.stream()
+                .filter(omen -> !omen.isTriggerPrimary())
+                .flatMap(omen -> omen.getTriggerHps().stream()
+                        .filter(hp -> hpRate <= hp && hp < latestTriggeredHp)
+                        .min(Integer::compareTo)
+                        .map(hp -> new HpTrigger(omen, hp))
+                        .stream())
+                .min(Comparator.comparingInt(HpTrigger::triggerHp));
+
+        normal.ifPresent(result -> enemy.updateLatestTriggeredHp(result.triggerHp()));
+        return normal.map(HpTrigger::omen).orElse(null);
     }
 
     /**
@@ -161,6 +206,22 @@ public class OmenLogic {
                 .filter(omen -> hpRate <= omen.getTriggerHps().getFirst()) // CT기는 트리거 1개
                 .max(Comparator.comparing(omen -> omen.getTriggerHps().getFirst()))
                 .orElse(null);
+    }
+
+    /**
+     * 전조 해제조건을 임의 조건으로 변경, 이때 remainValues 는 초기값으로 설정됨.
+     */
+    public void updateOmenCancelCond(List<Integer> cancelConditionIndexes) {
+        Enemy enemy = (Enemy) battleContext.getEnemy();
+        Omen omen = enemy.getOmen();
+        if (omen == null) {
+            log.warn("[updateOmenCancelCond] omen is null, enemy = {}", enemy);
+            return;
+        }
+
+        omen.updateCancelConditionIndexes(new ArrayList<>(cancelConditionIndexes));
+        omen.updateRemainValues(cancelConditionIndexes.stream()
+                .map(index -> omen.getBaseOmen().getOmenCancelConds().get(index).getInitValue()).collect(Collectors.toList()));
     }
 
 
@@ -186,26 +247,26 @@ public class OmenLogic {
      * 주로 전조의 초기값을 갱신할때 사용
      * CHECK 야마토 구현시 1어빌, 바다가르기? 랑 트리제로 뒷면 구현때도 사용할거같음
      *
-     * @param enemy
-     * @param value
-     * @return
+     * @param value            변경할 값, remainValues 원소에 대응
+     * @param remainValueIndex 변경할 값의 index
+     * @return 수정된 값
      */
-    public int manualUpdateOmenValue(Enemy enemy, int value, int index) {
+    public int manualUpdateOmenValue(Enemy enemy, int value, int remainValueIndex) {
         if (value < 0) throw new IllegalArgumentException("[updateOmenValue] value < 0, value = " + value);
         Omen omen = enemy.getOmen();
         if (omen == null) throw new IllegalArgumentException("[updateOmenValue] omen is null");
         List<Integer> remainValues = omen.getRemainValues();
-        Integer remainValue = remainValues.get(index);
+        Integer remainValue = remainValues.get(remainValueIndex);
 
         // 값 갱신
-        remainValues.set(index, value);
-        Integer updatedValue = remainValues.get(index);
+        remainValues.set(remainValueIndex, value);
+        Integer updatedValue = remainValues.get(remainValueIndex);
 
         if (updatedValue <= 0) {
-            // 전조 연산 결과 값이 0 이하가 되면 해당 조건 index 삭제
+            // 전조 연산 결과 값이 0 이하가 되면 해당 조건 remainValueIndex 삭제
             List<Integer> cancelConditionIndexes = omen.getCancelConditionIndexes();
-            Integer removedConditionIndex = cancelConditionIndexes.remove(index);
-            remainValues.remove(index);
+            Integer removedConditionIndex = cancelConditionIndexes.remove(remainValueIndex); // index 로 삭제
+            remainValues.remove(remainValueIndex);
             log.info("[manualUpdateOmenValue] cancelConditionRemoved, cancelType = {}, remainValue = {}, modifierValue = {}", omen.getBaseOmen().getOmenCancelConds().get(removedConditionIndex), remainValue, value);
 
             if (cancelConditionIndexes.isEmpty()) {
@@ -224,64 +285,128 @@ public class OmenLogic {
      * ActorLogicResult 결과에 따라 적의 전조값을 갱신. 전조가 해제될경우 해당 전조를 삭제함. <br>
      * 결과는 enemy.getOmen() != null 로 확인
      *
-     * @param enemy
-     * @param otherResult
      */
     public void updateOmenByOtherResult(Enemy enemy, MoveLogicResult otherResult) {
         if (enemy.getOmen() == null) return;
 
         Omen omen = enemy.getOmen();
-        List<Integer> cancelConditionIndexes = omen.getCancelConditionIndexes();
         List<Integer> remainValues = omen.getRemainValues();
+        List<Integer> cancelConditionIndexes = omen.getCancelConditionIndexes();
+        // remainValues[i] 와 cancelConditionIndexes[i] 는 같은 baseOmen.cancelCond 에서 등록됨
 
-        for (int i = 0; i < cancelConditionIndexes.size(); i++) {
-            Integer cancelConditionIndex = cancelConditionIndexes.get(i); // remove(int index) 구분을 위해 Integer
-            Integer remainValue = omen.getRemainValues().get(i);// remove(int index) 구분을 위해 Integer
+        List<Integer> toRemoveIndexes = new ArrayList<>();
+
+        for (int remainValueIndex = 0; remainValueIndex < remainValues.size(); remainValueIndex++) {
+            Integer remainValue = remainValues.get(remainValueIndex);
+            Integer cancelConditionIndex = cancelConditionIndexes.get(remainValueIndex);
             OmenCancelCond omenCancelCond = omen.getBaseOmen().getOmenCancelConds().get(cancelConditionIndex);
+
             int resultValue = remainValue;
             int modifierValue = 0;
 
             switch (omenCancelCond.getType()) {
-                case HIT_COUNT -> {
-                    modifierValue = otherResult.getTotalHitCount();
-                    resultValue = Math.max(remainValue - modifierValue, 0);
-                }
                 case DAMAGE -> {
                     modifierValue = getDamageSum(otherResult.getDamages(), otherResult.getAdditionalDamages());
                     resultValue = Math.max(remainValue - modifierValue, 0);
                 }
+                case CHARGE_ATTACK_DAMAGE -> {
+                    if (otherResult.getMove().getType().getParentType() != MoveType.CHARGE_ATTACK) continue;
+                    modifierValue = getDamageSum(otherResult.getDamages(), otherResult.getAdditionalDamages());
+                    resultValue = Math.max(remainValue - modifierValue, 0);
+                }
+                case ABILITY_DAMAGE -> {
+                    if (!otherResult.getMove().getType().isAbilities()) continue;
+                    modifierValue = getDamageSum(otherResult.getDamages(), otherResult.getAdditionalDamages());
+                    resultValue = Math.max(remainValue - modifierValue, 0);
+                }
+
+                case HIT_COUNT -> {
+                    modifierValue = otherResult.getTotalHitCount();
+                    resultValue = Math.max(remainValue - modifierValue, 0);
+                }
+                case TWO_HUNDRED_THOUSAND_DAMAGE_COUNT -> {
+                    modifierValue = (int) otherResult.getDamages().stream().filter(damage -> damage >= 200000).count();
+                    resultValue = Math.max(remainValue - modifierValue, 0);
+
+                    int additionalModifierValue = otherResult.getAdditionalDamages().stream()
+                            .map(additionalDamage -> additionalDamage.stream()
+                                    .filter(value -> value >= 200000)
+                                    .count())
+                            .mapToInt(Long::intValue)
+                            .sum();
+                    resultValue = Math.max(resultValue - additionalModifierValue, 0);
+                }
+
+                case CHARGE_ATTACK_COUNT -> {
+                    if (otherResult.getMove().getType().getParentType() != MoveType.CHARGE_ATTACK) continue;
+                    resultValue = Math.max(remainValue - 1, 0);
+                }
+                case TRIPLE_ATTACK_COUNT -> {
+                    if (otherResult.getMove().getType().getParentType() != MoveType.ATTACK) continue;
+                    if (otherResult.getNormalAttackCount() < 3) continue;
+                    resultValue = Math.max(remainValue - 1, 0);
+                }
+
+                case DISPEL_COUNT -> {
+                    if (!otherResult.hasSnapshot(enemy.getId())) continue;
+                    modifierValue = otherResult.getMove().getBaseMove().getBaseStatusEffects().stream()
+                            .map(baseStatusEffect -> {
+                                StatusModifier dispelModifier = baseStatusEffect.getModifier(StatusModifierType.ACT_DISPEL);
+                                return dispelModifier != null ? dispelModifier.getInitValue() : 0;
+                            })
+                            .mapToInt(Double::intValue).sum();
+                    resultValue = Math.max(remainValue - modifierValue, 0);
+                }
                 case DEBUFF_COUNT -> {
-                    if (!otherResult.hasSnapshot(enemy.getId())) return;
+                    if (!otherResult.hasSnapshot(enemy.getId())) continue;
                     modifierValue = (int) otherResult.getSnapshots().get(enemy.getId()).getAddedStatusEffects().stream()
                             .filter(addedStatusEffect -> addedStatusEffect.getType() == StatusEffectType.DEBUFF)
                             .filter(addedStatusEffect -> !(addedStatusEffect.getName().equals("MISS") || addedStatusEffect.getName().equals("NO EFFECT")))
                             .count(); // int 로 변환해도 무리없음
                     resultValue = Math.max(remainValue - modifierValue, 0);
                 }
+
+                case USE_FATAL_CHAIN -> {
+                    if (otherResult.getMove().getType().getParentType() != MoveType.FATAL_CHAIN) continue;
+                    resultValue = Math.max(remainValue - 1, 0);
+                }
+                case USE_ABILITY_COUNT -> {
+                    if (otherResult.getMove().getType().getParentType() != MoveType.ABILITY) continue;
+                    if (!otherResult.getMove().getId().equals(battleContext.getCommandAbilityId())) continue;
+                    resultValue = Math.max(remainValue - 1, 0);
+                }
+
                 case IMPOSSIBLE -> {
                     // 해제불가, 아무것도 하지 않음
                 }
             }
-            log.info("[updateOmenByOtherResult] cancelConditionRemoved, remainValue = {}, modifierValue = {}, cancelType = {}", remainValue, modifierValue, omenCancelCond.getType());
 
+            // 연산 결과 set
             if (remainValue != resultValue) {
-                // 연산 결과 set
-                omen.getRemainValues().set(i, resultValue);
+                omen.getRemainValues().set(remainValueIndex, resultValue);
             }
-
+            // 전조 연산 결과 값이 0 이하가 되면 해당 조건 index 삭제예정 리스트에 추가
             if (resultValue <= 0) {
-                // 전조 연산 결과 값이 0 이하가 되면 해당 조건 index 삭제
-                cancelConditionIndexes.remove(cancelConditionIndex);
-                remainValues.remove(remainValue);
+                log.info("[updateOmenByOtherResult] cancelConditionRemoved, remainValue = {}, modifierValue = {}, cancelType = {}", remainValue, modifierValue, omenCancelCond.getType());
+                toRemoveIndexes.add(remainValueIndex);
             }
         }
 
+        // 해제된 전조 해제 조건 삭제
+        if (!toRemoveIndexes.isEmpty()) {
+            toRemoveIndexes.sort(Comparator.reverseOrder()); // 인덱스 밀림 방어 역순정렬
+            for (Integer toRemoveConditionIndex : toRemoveIndexes) {
+                // int 로 바꿔 인덱스로 삭제
+                cancelConditionIndexes.remove(toRemoveConditionIndex.intValue());
+                remainValues.remove(toRemoveConditionIndex.intValue());
+            }
+        }
+        // 모든 전조 해제 조건이 삭제되었을경우, 전조를 삭제
         if (cancelConditionIndexes.isEmpty()) {
-            // 모든 전조 해제 조건이 삭제되었을경우, 전조를 삭제
             this.clearCurrentOmen(enemy);
         }
 
-        log.info("[updateOmenByOtherResult] omen.remainValues = {}, enemy.id = {}, omen = {}", omen.getRemainValues(), enemy.getId(), omen);
+        log.info("[updateOmenByOtherResult] enemy.id = {}, omen.remainValues = {}, omen.cancelConditionIndexes = {}, omen = {}", enemy.getId(), omen.getRemainValues(), omen.getCancelConditionIndexes(), omen);
     }
 
     /**
@@ -327,6 +452,7 @@ public class OmenLogic {
      */
     public void removeCurrentOmen(Enemy enemy) {
         Omen omen = enemy.getOmen();
+        log.info("[removeCurrentOmen] omen = {}", omen);
 
         Move standbyMove = enemy.getFirstMove(omen.getStandbyType());
         moveRepository.delete(standbyMove);

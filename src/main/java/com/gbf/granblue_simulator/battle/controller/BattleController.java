@@ -1,31 +1,23 @@
 package com.gbf.granblue_simulator.battle.controller;
 
 import com.gbf.granblue_simulator.battle.controller.dto.info.*;
-import com.gbf.granblue_simulator.battle.controller.dto.request.*;
-import com.gbf.granblue_simulator.battle.controller.dto.response.*;
+import com.gbf.granblue_simulator.battle.controller.dto.request.ChatSendRequest;
+import com.gbf.granblue_simulator.battle.controller.dto.response.ChatResponse;
+import com.gbf.granblue_simulator.battle.controller.dto.response.MemberResponse;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
-import com.gbf.granblue_simulator.battle.exception.MoveValidationException;
-import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
-import com.gbf.granblue_simulator.battle.logic.system.dto.PotionResult;
-import com.gbf.granblue_simulator.battle.repository.MemberRepository;
-import com.gbf.granblue_simulator.battle.repository.RoomRepository;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ResultStatusDto;
 import com.gbf.granblue_simulator.battle.service.*;
+import com.gbf.granblue_simulator.metadata.domain.Raid;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
-import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
-import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
-import com.gbf.granblue_simulator.metadata.repository.BaseEnemyRepository;
-import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
 import com.gbf.granblue_simulator.metadata.service.BaseActorService;
-import com.gbf.granblue_simulator.party.domain.Party;
-import com.gbf.granblue_simulator.party.repository.PartyRepository;
+import com.gbf.granblue_simulator.metadata.service.BaseEnemyService;
+import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +34,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.gbf.granblue_simulator.battle.controller.BattleInfoMapper.*;
 
@@ -53,21 +43,20 @@ import static com.gbf.granblue_simulator.battle.controller.BattleInfoMapper.*;
 @Slf4j
 public class BattleController {
 
-    private final MemberRepository memberRepository;
-    private final BaseMoveRepository baseMoveRepository;
-    private final PartyRepository partyRepository;
-
     private final BattleContext battleContext;
     private final BattleLogService battleLogService;
     private final BattleCommandService battleCommandService;
 
-    private final BattleResponseMapper responseMapper;
-    private final BaseEnemyRepository baseEnemyRepository;
-    private final RoomRepository roomRepository;
     private final MemberService memberService;
-    private final RoomChatService roomChatService;
     private final RoomService roomService;
+    private final RoomChatService roomChatService;
+
     private final BaseActorService baseActorService;
+    private final BaseEnemyService baseEnemyService;
+    private final BaseMoveService baseMoveService;
+    private final StatusService statusService;
+
+    private final BattleResponseMapper responseMapper;
 
     @GetMapping("/members/me/tutorial")
     public String getTutorialRoom(@AuthenticationPrincipal PrincipalDetails principalDetails, Model model) {
@@ -77,17 +66,32 @@ public class BattleController {
         Member member;
         if (room.getMembers().isEmpty()) {
             member = memberService.enterTutorialRoom(room.getId(), userId);
-            battleContext.init(member, null);
-            List<MoveLogicResult> battleStartResults = battleCommandService.startBattle();
-            responseMapper.toBattleResponse(battleStartResults).forEach(response -> log.info("[getRoom] battleStartResponse: \n{}", response));
+            battleCommandService.startBattle(BattleCommandRequest.of(member.getId()));
         } else {
             member = room.getMembers().stream().filter(roomMember -> roomMember.getUser().getId().equals(userId)).toList().getFirst();
-            battleContext.init(member, null);
+            if (!member.isBattleStarted()) battleCommandService.startBattle(BattleCommandRequest.of(member.getId()));
+            battleCommandService.adjustTutorial(BattleCommandRequest.of(member.getId()));
         }
 
         setInfoAttributes(model, member);
+        model.addAttribute("tutorialIndex", member.getTutorialIndex());
 
-        return "battle/battleTutorial";
+        return "battle/battle";
+    }
+
+    public record TutorialSaveRequest(Integer tutorialIndex, Long roomId) {
+    }
+
+    @PostMapping("/members/me/tutorial/save")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> postTutorialSave(@AuthenticationPrincipal PrincipalDetails principalDetails, @RequestBody TutorialSaveRequest request) {
+        log.info("[postTutorialSave] request = {}", request);
+
+        Member member = memberService.findByRoomIdAndUserId(request.roomId(), principalDetails.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버 입니다."));
+        if (request.tutorialIndex() == null) throw new IllegalArgumentException("튜토리얼 저장 오류");
+        member.updateTutorialIndex(request.tutorialIndex());
+
+        return ResponseEntity.ok(Collections.singletonMap("success", true));
     }
 
     @GetMapping("/room/{roomId}")
@@ -96,7 +100,7 @@ public class BattleController {
                           Model model,
                           RedirectAttributes redirectAttributes) {
 
-        Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Member member = memberService.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalStateException("잘못된 접근입니다."));
         if (member.getRoom().getRoomStatus() != RoomStatus.ACTIVE || member.checkedResult()) {
             // 결과창으로 이동
             return "redirect:/room/" + roomId + "/result";
@@ -108,39 +112,25 @@ public class BattleController {
             return "redirect:/";
         }
 
-        battleContext.init(member, null);
-
-        if (member.getCurrentTurn() <= 0) {
-            // 첫입장
-            List<MoveLogicResult> battleStartResults = battleCommandService.startBattle();
-            responseMapper.toBattleResponse(battleStartResults).forEach(response -> log.info("[getRoom] battleStartResponse: \n{}", response));
-        }
-
         setInfoAttributes(model, member);
 
         return "battle/battle";
+
     }
 
     @GetMapping("/room/{roomId}/result")
     public String getRoomResult(@PathVariable Long roomId,
                                 @AuthenticationPrincipal PrincipalDetails principal, Model model) {
-
-        Member member = memberRepository.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        // CHECK 나중에 수정
-//        Member member = memberRepository.findByRoomIdAndUserId(roomId, 1L).orElseThrow(() -> new IllegalArgumentException("멤버를 찾을수 없음"));
+        Member member = memberService.findByRoomIdAndUserId(roomId, principal.getId()).orElseThrow(() -> new IllegalStateException("유효하지 않은 멤버입니다."));
 
         model.addAttribute("member", member);
         Room room = member.getRoom();
-        BaseActor enemy = baseActorService.findById(room.getEnemyBaseId()).orElseThrow(() -> new IllegalArgumentException("잘못된 적 정보입니다. id = " + room.getEnemyBaseId()));
-
-        if (!member.checkedResult()) {
-            member.updateCheckedResult(true);
-        }
+        Raid raid = room.getRaid();
 
         String formattedEndedAt = room.getEndedAt().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.KOREA));
         BattleResultInfo resultInfo = BattleResultInfo.builder()
-                .enemyName(enemy.getName())
-                .enemyPortraitSrc(enemy.getDefaultVisual().getPortraitImageSrc())
+                .raidName(raid.getName())
+                .enemyPortraitSrc(raid.getRaidImageSrc())
                 .endedAt(formattedEndedAt)
                 .enterUserCount(room.getEnterUserCount())
                 .build();
@@ -151,27 +141,55 @@ public class BattleController {
         int secondsPart = totalDuration.toSecondsPart();
         String totalTime = String.format("%02d:%02d", minutesPart, secondsPart);
 
+        Map<Long, Integer> damageSumByMemberId = room.getMembers().stream()
+                .collect(Collectors.toMap(
+                        Member::getId,
+                        battleLogService::getEnemyTakenDamageSumByMember
+                ));
+        final int roomTotalDamage = damageSumByMemberId.values().stream().mapToInt(Integer::intValue).sum();
+
+        ResultStatusDto lastEnemyStatus = battleLogService.getLastEnemyStatus(member);
+        String enemyHpString;
+        String enemyHpRateString;
+        if (lastEnemyStatus != null) {
+            int lastEnemyHp = Math.min(0, lastEnemyStatus.getHp());
+            enemyHpString = String.format("%,d", lastEnemyHp);
+            enemyHpRateString = (int) (((double) lastEnemyHp / lastEnemyStatus.getMaxHp()) * 10000) / 100 + "";
+        } else {
+            enemyHpString = "-";
+            enemyHpRateString = "-";
+        }
+
         List<BattleResultMemberInfo> resultMemberInfos = room.getMembers().stream()
                 .map(roomMember -> {
-                            int totalDamage = battleLogService.getEnemyTakenDamageSumByMember(roomMember);
+                            Integer memberDamage = damageSumByMemberId.getOrDefault(roomMember.getId(), 0);
+                            BaseActor leaderActor = baseActorService.findById(roomMember.getLeaderCharacterBaseId()).orElse(null);
+                            String leaderActorCharacterIconSrc = leaderActor != null ? leaderActor.getDefaultVisual().getCharacterIconImageSrc() : "";
                             return BattleResultMemberInfo.builder()
                                     .username(roomMember.getUser().getUsername())
-                                    .enemyHp(String.format("%,d", enemy.getMaxHp()))
+                                    .enemyHp(enemyHpString)
+                                    .enemyHpRate(enemyHpRateString)
                                     .totalTurns(roomMember.getCurrentTurn())
                                     .totalTime(totalTime)
-                                    .totalDamage(totalDamage)
-                                    .formattedTotalDamage(String.format("%,d", totalDamage))
-                                    .totalDamageRate((int) ((double) totalDamage / enemy.getMaxHp() * 100 * 100) / 100.0)
+                                    .totalDamage(String.format("%,d", roomTotalDamage))
+                                    .dealtDamage(String.format("%,d", memberDamage))
+                                    .totalDamageRate((int) ((double) memberDamage / roomTotalDamage * 100 * 100) / 100.0)
                                     .totalHonor(String.format("%,d", roomMember.getHonor()))
+                                    .leaderActorIconSrc(leaderActorCharacterIconSrc)
                                     .build();
                         }
-                ).sorted(Comparator.comparing(BattleResultMemberInfo::getTotalDamage).reversed())
+                ).sorted(Comparator.comparing(BattleResultMemberInfo::getTotalDamageRate).reversed())
                 .toList();
         model.addAttribute("memberInfos", resultMemberInfos);
 
         String findUsername = member.getUser().getUsername();
         BattleResultMemberInfo myInfo = resultMemberInfos.stream().filter(memberInfo -> memberInfo.getUsername().equals(findUsername)).findFirst().orElseThrow(() -> new IllegalArgumentException("there are no member.getUsername, username = " + findUsername));
         model.addAttribute("myInfo", myInfo);
+
+
+        // 클리어 포인트 상승
+        MemberService.RoomResultCheckResult roomResultCheckResult = memberService.checkRoomResult(member);// 클리어 포인트 상승
+        model.addAttribute("additionalInfoMessage", roomResultCheckResult.message()); // 관련 메시지
 
         return "battle/result";
     }
@@ -180,9 +198,8 @@ public class BattleController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getEnemySrcMap(@RequestParam Long memberId) {
         log.info("[getEnemySrcMap] memberId = {}", memberId);
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        battleContext.init(member, null);
-        Actor enemy = battleContext.getEnemy();
+        Member member = memberService.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Actor enemy = member.getActors().stream().filter(Actor::isEnemy).findFirst().orElseThrow(() -> new IllegalArgumentException("적 정보가 없습니다."));
         Enemy enemyConcrete = (Enemy) enemy;
 
         Map<String, Object> result = new HashMap<>();
@@ -201,7 +218,7 @@ public class BattleController {
         log.info("roomId = {}", roomId);
 
         // 기본적으로 멤버정보는 에러나도 진행에 문제는 없으므로 Exception throw 하지 않음
-        List<MemberResponse> memberResponses = roomRepository.findById(roomId).map(room ->
+        List<MemberResponse> memberResponses = roomService.findById(roomId).map(room ->
                 room.getMembers().stream()
                         .map(member -> {
                             Actor leaderActor = member.getActors().stream()
@@ -239,243 +256,6 @@ public class BattleController {
     }
 
 
-    @PostMapping("/api/sync")
-    @ResponseBody
-    public ResponseEntity<List<BattleResponse>> postSync(@RequestBody MoveRequest moveRequest,
-                                                         @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("[postSync] moveRequest: {}", moveRequest);
-        long memberId = moveRequest.getMemberId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-//        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
-
-        battleContext.init(findMember, null);
-        List<MoveLogicResult> syncResults = battleCommandService.sync();
-        List<BattleResponse> syncResponse = responseMapper.toBattleResponse(syncResults);
-
-//        log.info("syncResponse: {}", syncResponse);
-
-        return ResponseEntity.ok(syncResponse);
-    }
-
-
-    @PostMapping("/api/ability")
-    @ResponseBody
-    public ResponseEntity<List<BattleResponse>> postAbility(@RequestBody MoveRequest moveRequest,
-                                                            @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("[postAbility] moveRequest: {}", moveRequest);
-
-        long characterId = moveRequest.getCharacterId();
-        long memberId = moveRequest.getMemberId();
-        long moveId = moveRequest.getMoveId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-//        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
-
-        battleContext.init(findMember, characterId, moveId);
-        List<MoveLogicResult> results = battleCommandService.ability(moveId);
-
-        List<BattleResponse> responses = responseMapper.toBattleResponse(results);
-        responses.forEach(response -> log.info("[postAbility] response: {}", response));
-
-        return ResponseEntity.ok(responses);
-    }
-
-    @PostMapping("/api/fatal-chain")
-    @ResponseBody
-    public ResponseEntity<List<BattleResponse>> postFatalChain(@RequestBody MoveRequest moveRequest,
-                                                               @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("[postFatalChain] moveRequest: {}", moveRequest);
-
-        long characterId = moveRequest.getCharacterId();
-        long memberId = moveRequest.getMemberId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-//        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
-
-        battleContext.init(findMember, characterId);
-        List<MoveLogicResult> results = battleCommandService.fatalChain();
-
-        List<BattleResponse> responses = responseMapper.toBattleResponse(results);
-        responses.forEach(response -> log.info("[postFatalChain] response: {}", response));
-
-        return ResponseEntity.ok(responses);
-    }
-
-    @PostMapping("/api/summon")
-    @ResponseBody
-    public ResponseEntity<List<BattleResponse>> postSummon(@RequestBody MoveRequest request,
-                                                           @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("[postSummon] summonRequest: {}", request);
-
-        Long memberId = request.getMemberId();
-        Long summonId = request.getMoveId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-//        if (!Objects.equals(findMember.getUser().getId(), principalDetails.getId())) throw new IllegalArgumentException("잘못된 요청");
-
-        Actor leaderActor = findMember.getActors().stream().filter(actor -> actor.getBaseActor().isLeaderCharacter()).findFirst().orElseThrow(() -> new MoveValidationException("주인공 캐릭터가 없음"));
-
-        battleContext.init(findMember, leaderActor.getId());
-        List<MoveLogicResult> results = battleCommandService.summon(summonId, request.isDoUnionSummon());
-
-        List<BattleResponse> responses = responseMapper.toBattleResponse(results);
-
-        responses.forEach(response -> log.info("[postSummon] response: {}", response));
-
-        return ResponseEntity.ok(responses);
-    }
-
-    @PostMapping("/api/turn-progress")
-    @ResponseBody
-    public ResponseEntity<List<BattleResponse>> postTurnProgress(@RequestBody TurnProgressRequest turnProgressRequest) {
-        log.info("turnProgressRequest: {}", turnProgressRequest);
-        long memberId = turnProgressRequest.getMemberId();
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("멤버가 없음"));
-
-        battleContext.init(member, null);
-        List<MoveLogicResult> turnProgressResults = battleCommandService.progressTurn();
-
-        List<BattleResponse> responses = responseMapper.toBattleResponse(turnProgressResults);
-
-        responses.forEach(response -> log.info("response: {}", response));
-
-        return ResponseEntity.ok(responses);
-    }
-
-    @PostMapping("/api/guard")
-    @ResponseBody
-    public ResponseEntity<GuardResponse> postGuard(@RequestBody GuardRequest guardRequest,
-                                                   @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("guard request: {}", guardRequest);
-        long memberId = guardRequest.getMemberId();
-        long characterId = guardRequest.getCharacterId();
-
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        battleContext.init(member, characterId);
-
-        List<Boolean> guardStates = battleCommandService.guard(guardRequest.getTargetType());
-
-        boolean guardActivated = battleContext.getMainActor().isGuardOn(); // 메인 캐릭터 가드여부 따로 전달
-        GuardResponse guardResponse = GuardResponse.builder()
-                .isGuardActivated(guardActivated)
-                .guardStates(guardStates)
-                .build();
-        return ResponseEntity.ok(guardResponse);
-    }
-
-    @PostMapping("/api/toggle-charge-attack")
-    @ResponseBody
-    @Transactional
-    public ResponseEntity<ToggleChargeAttackResponse> postToggleChargeAttack(@RequestBody ToggleChargeAttackRequest request,
-                                                                             @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("chargeAttackOnRequest = {}", request);
-
-        // TODO 검증
-        Long userId = principalDetails == null ? 1L : principalDetails.getId();
-
-        Member member = memberRepository.findByRoomIdAndUserId(request.getRoomId(), userId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        member.updateChargeAttackOn(request.isChargeAttackOn());
-        battleContext.init(member, null); // statusDetails 초기화를 위해 필요함
-        List<Boolean> canChargeAttacks = member.getActors().stream().sorted(Comparator.comparing(Actor::getCurrentOrder)).map(Actor::canCharacterChargeAttack).toList();
-
-        ToggleChargeAttackResponse response = ToggleChargeAttackResponse.builder()
-                .chargeAttackOn(member.isChargeAttackOn())
-                .canChargeAttacks(canChargeAttacks)
-                .build();
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/api/use-potion")
-    @ResponseBody
-    public ResponseEntity<PotionResponse> postUsePotion(@RequestBody UsePotionRequest request,
-                                                        @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        log.info("usePotionRequest = {}", request);
-
-        // TODO 검증
-        Member member = memberRepository.findById(request.getMemberId()).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
-        Long mainActorId = request.getActorId();
-        String potionType = request.getPotionType();
-        StatusEffectTargetType potionTargetType = potionType.equals("single")
-                ? StatusEffectTargetType.SELF
-                : potionType.equals("all")
-                ? StatusEffectTargetType.PARTY_MEMBERS
-                : null;
-        if (potionTargetType == null) ResponseEntity.badRequest().build();
-        battleContext.init(member, mainActorId);
-
-        PotionResult potionResult = battleCommandService.potion(potionTargetType);
-
-        PotionResponse potionResponse = PotionResponse.builder()
-                .heals(potionResult.getHeals())
-                .hps(potionResult.getHps())
-                .hpRates(potionResult.getHpRates())
-                .potionCount(potionResult.getPotionCount())
-                .allPotionCount(potionResult.getAllPotionCount())
-                .build();
-        return ResponseEntity.ok(potionResponse);
-    }
-
-    @GetMapping("/api/rooms/{roomId}/members/me/battle-init")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> getInitData(@PathVariable Long roomId,
-                                                           @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        // 캐릭터 인포, leaderActorId
-        Member member = memberRepository.findByRoomIdAndUserId(roomId, principalDetails.getId()).orElseThrow(() -> new IllegalArgumentException("잘못된 멤버 요청입니다."));
-
-        Map<String, Object> result = new HashMap<>();
-
-        battleContext.init(member, null);
-
-        List<Actor> partyMembers = battleContext.getFrontCharacters();
-        Map<Integer, CharacterBattleInfo> characterInfo = partyMembers.stream()
-                .map(BattleInfoMapper::toCharacterInfo)
-                .collect(Collectors.toMap(CharacterBattleInfo::getOrder, Function.identity()));
-        result.put("characterInfo", characterInfo);
-
-        Actor leaderCharacter = battleContext.getLeaderCharacter();
-        Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getId() : null;
-        result.put("leaderActorId", leaderActorId);
-
-        // 적 인포
-        Enemy enemy = (Enemy) battleContext.getEnemy();
-        EnemyInfo enemyInfo = toEnemyInfo(enemy);
-        result.put("enemyInfo", enemyInfo);
-
-        // 적 hp 트리거
-        BaseEnemy baseEnemy = (BaseEnemy) enemy.getBaseActor();
-        String enemyRootNameEn = baseEnemy.getRootNameEn();
-        List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(enemyRootNameEn);
-        List<Integer> triggerHps = baseEnemies.stream()
-                .flatMap(base -> base.getOmens().values().stream())
-                .flatMap(baseOmen -> baseOmen.getOmenType() == OmenType.HP_TRIGGER
-                        ? baseOmen.getTriggerHps().stream() : Stream.empty())
-                .toList();
-        result.put("triggerHps", triggerHps);
-
-        // 소환석 인포
-        List<Move> summonMoves = leaderCharacter.getSummons();
-        List<MoveInfo> summonInfos = summonMoves.stream().map(MoveInfo::from).toList();
-        result.put("summonInfos", summonInfos);
-
-        // 페이탈 체인 인포
-        Long fatalChainMoveId = member.getFatalChainMoveId();
-        BaseMove fatalChainMove = baseMoveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
-        MoveInfo fatalChainInfo = MoveInfo.from(fatalChainMove);
-        result.put("fatalChainInfo", fatalChainInfo);
-
-        // 페이탈 체인 게이지
-        result.put("fatalChainGauge", member.getFatalChainGauge());
-
-        // 캐릭터 + 적 에셋 (소환석, 펭탈 체인 포함) AssetInfo.Asset 으로 변환
-        List<AssetInfo> assetInfos = toAssetInfo(battleContext.getCurrentFieldActors(), summonMoves);
-        result.put("assetInfos", assetInfos);
-        assetInfos.forEach(assetInfo -> log.info("assetInfo = {}", assetInfo));
-
-        // 기타
-        result.put("currentTurn", member.getCurrentTurn());
-        result.put("startTime", member.getRoom().getCreatedAt());
-        result.put("usedSummon", member.usedSummon());
-
-        return ResponseEntity.ok(result);
-    }
-
     /**
      * 초기 SSR 시 필요한 정보 model 에 set
      *
@@ -483,14 +263,18 @@ public class BattleController {
      * @param member
      */
     protected void setInfoAttributes(Model model, Member member) {
-        List<Actor> partyMembers = battleContext.getFrontCharacters();
-        log.info("frontCharacters = {}", partyMembers);
-        Actor enemyActor = battleContext.getEnemy();
-        log.info("enemy = {}", enemyActor);
-        Actor leaderCharacter = battleContext.getLeaderCharacter();
-        List<Actor> currentFieldActors = battleContext.getCurrentFieldActors();
 
-        Party party = partyRepository.findById(member.getPartyId()).orElseThrow(() -> new IllegalArgumentException("파티가 지정되있지 않습니다."));
+        if (battleContext.getMember() == null) {
+            battleContext.init(member, null); // 보험
+        }
+
+        List<Actor> partyMembers = battleContext.getFrontCharacters();
+        Actor enemyActor = battleContext.getEnemy();
+
+        // 보험
+        if (battleContext.getAllActors().stream().anyMatch(actor -> actor.getStatusDetails() == null)) {
+            battleContext.getAllActors().forEach(statusService::syncStatus);
+        }
 
         // 멤버
         MemberInfo memberInfo = MemberInfo.builder()
@@ -506,53 +290,17 @@ public class BattleController {
         model.addAttribute("roomId", room.getId());
         model.addAttribute("roomCreatedAt", roomCreatedAt);
 
-        // 캐릭터 인포, leaderActorId
-        Map<Integer, CharacterBattleInfo> battleCharacterInfoMap = partyMembers.stream()
-                .map(BattleInfoMapper::toCharacterInfo)
-                .collect(Collectors.toMap(CharacterBattleInfo::getOrder, Function.identity()));
-        model.addAttribute("battleCharacterInfoMap", battleCharacterInfoMap);
-        Long leaderActorId = !leaderCharacter.isAlreadyDead() ? leaderCharacter.getId() : null;
-        model.addAttribute("leaderActorId", leaderActorId);
-
-        // 적 인포
+        // 적 정보
         Enemy enemy = (Enemy) enemyActor;
         EnemyInfo enemyInfo = toEnemyInfo(enemy);
         model.addAttribute("enemyInfo", enemyInfo);
 
-        // 적 hp 트리거
-        BaseEnemy baseEnemy = (BaseEnemy) enemy.getBaseActor();
-        String enemyRootNameEn = baseEnemy.getRootNameEn();
-        List<BaseEnemy> baseEnemies = baseEnemyRepository.findByRootNameEn(enemyRootNameEn);
-        List<Integer> triggerHps = baseEnemies.stream()
-                .flatMap(base -> base.getOmens().values().stream())
-                .flatMap(baseOmen -> baseOmen.getOmenType() == OmenType.HP_TRIGGER
-                        ? baseOmen.getTriggerHps().stream() : Stream.empty())
-                .toList();
-
-//        List<Integer> triggerHps = baseEnemies.stream().map(BaseEnemy::getHpTriggers)
-//                .flatMap(Collection::stream)
-//                .toList();
-        model.addAttribute("triggerHps", triggerHps);
-
-        // 소환석 인포
-        List<Move> summonMoves = leaderCharacter.getSummons();
-        List<MoveInfo> summonInfos = summonMoves.stream().map(BattleInfoMapper::toSummonInfo).toList();
-        model.addAttribute("summonInfos", summonInfos);
-
-        // 페이탈 체인 인포
+        // 페이탈 체인 정보
         Long fatalChainMoveId = member.getFatalChainMoveId();
-        BaseMove fatalChainMove = baseMoveRepository.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
+        BaseMove fatalChainMove = baseMoveService.findById(fatalChainMoveId).orElseThrow(() -> new IllegalArgumentException("페이탈 체인 없음"));
         MoveInfo fatalChainInfo = toFatalChainInfo(fatalChainMove);
         model.addAttribute("fatalChainInfo", fatalChainInfo);
-
-        // 페이탈 체인 게이지
-        model.addAttribute("fatalChainGauge", member.getFatalChainGauge());
-
-        // 캐릭터 + 적 에셋 (소환석, 펭탈 체인 포함) AssetInfo.Asset 으로 변환
-        List<AssetInfo> assetInfos = toAssetInfo(currentFieldActors, summonMoves);
-
-        assetInfos.forEach(assetInfo -> log.info("assertInfo = {}", assetInfo));
-        model.addAttribute("assetInfos", assetInfos);
+        model.addAttribute("fatalChainGauge", member.getFatalChainGauge()); // 페이탈 체인 게이지
 
         // 가드상태
         List<Boolean> guardStates = new ArrayList<>(Collections.nCopies(5, false));
@@ -563,7 +311,7 @@ public class BattleController {
         PotionInfo potionInfo = PotionInfo.builder()
                 .potionCount(member.getPotionCount())
                 .allPotionCount(member.getAllPotionCount())
-                .elixirCount(0) // 미구현
+                .elixirCount(member.getElixirCount())
                 .build();
         model.addAttribute("potionInfo", potionInfo);
     }

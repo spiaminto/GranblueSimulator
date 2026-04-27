@@ -22,14 +22,14 @@ class MoveResponse {
         this.attackMultiHitCount = data.attackMultiHitCount;
         this.normalAttackCount = data.normalAttackCount;
 
-        this.enemyAttackTargetOrders = data.enemyAttackTargetIds.map(id => gameStateManager.getState('actorIds').indexOf(id));
+        this.enemyAttackTargetOrders = (data.enemyAttackTargetIds || []).map(id => gameStateManager.getState('actorIds').indexOf(id));
 
 
         // status result [적][아군][아군][아군][아군]
-        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)));
+        this.addedBattleStatusesList = (data.addedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s)).sort((a, b) => b.displayPriority - a.displayPriority));
         this.addedBuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'BUFF' || status.type === 'BUFF_FOR_ALL'));
         this.addedDebuffStatusesList = this.addedBattleStatusesList.map(addedBattleStatuses => addedBattleStatuses.filter(status => status.type === 'DEBUFF' || status.type === 'DEBUFF_FOR_ALL'));
-        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s, true)));
+        this.removedBattleStatusesList = (data.removedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s, true)).sort((a, b) => b.displayPriority - a.displayPriority));
         this.removedBuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'BUFF' || status.type === 'BUFF_FOR_ALL'));
         this.removedDebuffStatusesList = this.removedBattleStatusesList.map(removedStatuses => removedStatuses.filter(status => status.type === 'DEBUFF' || status.type === 'DEBUFF_FOR_ALL'));
         this.levelDownedBattleStatusesList = (data.levelDownedBattleStatusesList || []).map(statusList => statusList.map(s => new StatusDto(s))); // 얘는 버프, 디버프 구분없음
@@ -50,13 +50,18 @@ class MoveResponse {
         this.abilityCoolDowns = data.abilityCoolDowns || [];
         this.abilitySealeds = data.abilitySealeds || [];
         this.abilityUseCounts = data.abilityUseCounts || [];
+        this.doubleAttackRates = data.doubleAttackRates || [];
+        this.tripleAttackRates = data.tripleAttackRates || [];
         this.currentStatusEffectsList = data.currentBattleStatusesList.map(statuses => statuses.filter(s => s.type === 'BUFF' || s.type === 'DEBUFF').map(s => new StatusDto(s)));
-
         // visual
         this.visualInfo = data.visualInfo !== null ? new VisualInfo(data.visualInfo) : null;
 
         // honor
         this.resultHonor = data.resultHonor ?? 0;
+
+        // changedMove
+        this.changedMoveInfo = data.changedMoveInfo !== null ? new MoveInfo(data.changedMoveInfo) : null;
+        this.deletedMoveId = data.deletedMoveId ?? null;
 
         // etc
         this.summonCooldowns = data.summonCooldowns || [];
@@ -77,13 +82,15 @@ class MoveResponse {
 
 // JSON 배열을 MoveResponse 인스턴스 배열로 변환하는 함수
 function parseMoveResponseList(jsonArray) {
+    // console.log('[parseMoveResponseList] jsonArray = ', jsonArray);
     return jsonArray.map(item => new MoveResponse(item));
 }
 
-class VisualInfo{
-    constructor({moveCjsName, isTargetedEnemy}) {
+class VisualInfo {
+    constructor({moveCjsName, isTargetedEnemy, voiceLabel}) {
         this.moveCjsName = moveCjsName;
         this.isTargetedEnemy = !!isTargetedEnemy;
+        this.voiceLabel = voiceLabel;
     }
 }
 
@@ -96,7 +103,13 @@ class StatusDto {
                     statusText,
                     duration,
                     durationType,
-                    remainingDuration
+                    remainingDuration,
+                    level,
+                    maxLevel,
+                    removable,
+                    resistible,
+                    displayPriority,
+                    modifiers,
                 }, removed = false) {
         this.type = type;
         this.name = name;
@@ -105,28 +118,57 @@ class StatusDto {
         this.statusText = statusText;
         this.durationType = durationType;
         this.duration = duration;
-        this.remainingDuration =
-            durationType.includes('INFINITE') ? '영속'
-                : durationType.includes('TURN') ? remainingDuration + ' 턴'
-                    : durationType.includes('TIME') ? Math.floor(remainingDuration / 60) + ':' + (remainingDuration % 60).toString().padStart(2, '0') : '오류';
+        this.level = level;
+        this.maxLevel = maxLevel;
+        this.remainingDuration = remainingDuration;
         this.removed = removed; // 상태효과 해제처리시 사용
+
+        this.removable = !!removable;
+        this.resistible = !!resistible;
+
+        this.displayPriority = displayPriority || 0;
+        this.modifiers = modifiers || null;
+
+        if (this.resistible === false) {
+            this.statusText += ' - 필중'
+        }
+
     }
 }
 
 class OmenDto {
-    constructor({type, name, omenInfo, motion, chargeAttackInfo, standbyMoveType, omenBreak, omenCancelCond}) {
+    constructor({
+                    type,
+                    name,
+                    omenInfo,
+                    motion,
+                    chargeAttackInfo,
+                    standbyMoveType,
+                    omenBreak,
+                    lastTriggeredHp,
+                    omenCancelCond
+                }) {
         this.name = name;
-        this.info = omenInfo;
+        this.info = omenInfo || '';
         this.chargeAttackInfo = chargeAttackInfo;
         this.type = OmenType.byName(type);
         this.motion = motion;
         this.isBreak = omenBreak;
+        this.lastTriggeredHp = lastTriggeredHp;
         this.cancelConditions = (omenCancelCond || []).map(c => new OmenCancelCondition(c));
         this.standbyMoveType = MoveType.byName(standbyMoveType); // updateBgm 에서 사용
     }
 
     static empty() {
-        return new OmenDto({type: 'NONE', name: '', info: '', motion: null, standbyMoveType: null, isBreak: false, omenCancelCond: []});
+        return new OmenDto({
+            type: 'NONE',
+            name: '',
+            info: '',
+            motion: null,
+            standbyMoveType: null,
+            isBreak: false,
+            omenCancelCond: []
+        });
     }
 
     isEmpty() {
@@ -135,12 +177,12 @@ class OmenDto {
 }
 
 class OmenCancelCondition {
-    constructor({index, remainValue, info, updateTiming, cancelType}) {
+    constructor({index, remainValue, info, updateTiming, type}) {
         this.index = index;
         this.remainValue = remainValue;
         this.info = info;
         this.updateTiming = updateTiming;
-        this.cancelType = cancelType;
+        this.type = type;
     }
 }
 
@@ -154,34 +196,46 @@ class MoveInfo {
                     actorId,
                     actorIndex,
                     info,
+                    damageRate,
+                    hitCount,
                     cooldown,
                     maxCooldown,
                     iconImageSrc,
                     portraitImageSrc,
                     cutinImageSrc,
                     count,
-                    additionalType, // 추가타입 (포션타입, 어빌리티 타입)
+                    potionType, // 직접 지정필요
+                    abilityType,
+                    displayAbilityType,
                     cjsName,
                     statusEffects,
                     sealed,
+                    nextMoveId,
                 }) {
         this.type = type || '';
+        this.type === 'FATAL_CHAIN_DEFAULT' ? this.type = 'FATAL_CHAIN' : this.type;
+        this.damageRate = damageRate || 0;
+        this.hitCount = hitCount || 0;
         this.id = Number(id) || -1;
         this.name = name || '';
         this.order = Number(order) || -1;
         this.actorId = Number(actorId) || -1;
+        this.targetActorId = Number(actorId) || -1; // 포션사용 등 특수한 경우에 사용
         this.actorIndex = actorIndex || '';
         this.info = info || '';
         this.cooldown = cooldown !== null ? Number(cooldown) : -999; // 0, -1(재사용불가) 가능
-        this.maxCooldown = maxCooldown !== null  ? Number(maxCooldown) : -999; // 0, -1(재사용불가) 가능
+        this.maxCooldown = maxCooldown !== null ? Number(maxCooldown) : -999; // 0, -1(재사용불가) 가능
         this.iconImageSrc = iconImageSrc;
         this.portraitImageSrc = portraitImageSrc;
         this.cutinImageSrc = cutinImageSrc;
         this.sealed = sealed;
         // this.count = Number(count) || -1;
-        this.additionalType = additionalType || '';
+        this.potionType = potionType || '';
+        this.abilityType = abilityType || '';
+        this.displayAbilityType = displayAbilityType || '';
         this.cjsName = cjsName || '';
         this.statusEffects = (statusEffects || []).map(s => new StatusDto(s));
+        this.nextMoveId = nextMoveId || null;
     }
 }
 
@@ -189,48 +243,82 @@ class MoveInfo {
 
 const Constants = {
 
-    // 15
-    defaultMortalStartFrame: 15,
+    // 10
+    defaultMortalStartFrame: 10,
+
+    // cjs interval (createjs.Ticker.framerate = 30.303030303030305; // interval 33)
     // 31
     defaultCjsInterval: 31,
     // framerate = 32.2580...
-    // createjs.Ticker.framerate = 30.303030303030305; // interval 33
+    // 27
+    fastCjsInterval: 27,
+    // framerate = 37.03703703703704...
+
 
     enemy: {
         // key: cjsName (stage.gGameStatus.enemyMainCjsName)
-        "enemy_4300903" : { // diaspora1
+        "enemy_4300903": { // diaspora1
             backgroundImage: '/static/assets/bg/dia-1.jpg',
             customDuration: { // key: motion value: fps
-                'mortal_A' : 45, // 자괴인자
-                'mortal_B' : 37, // 경성방사
-                'mortal_C' : 40, // 긴급회복
+                'mortal_A': 45, // 자괴인자
+                'mortal_B': 37, // 경성방사
+                'mortal_C': 40, // 긴급회복
             } // motion mainCjs.motion 을 따라가서 그냥 고정
         },
-        "enemy_4300913" : { // diaspora2
+        "enemy_4300913": { // diaspora2
             backgroundImage: '/static/assets/bg/dia-2.jpg',
             customDuration: {
-                'mortal_A' : 46, // 인자붕괴
-                'mortal_B' : 25, // 이성임계
-                'mortal_C' : 90, // 허수몽핵
+                'mortal_A': 41, // 인자붕괴
+                'mortal_B': 25, // 이성임계
+                'mortal_C': 90, // 허수몽핵
             }
         },
-        "enemy_4300743" : { // diaspora2a
+        "enemy_4300743": { // diaspora2a
             customDuration: {
-                'additional_mortal_B' :33, // 경성방사
+                'additional_mortal_B': 33, // 경성방사
             }
-        }
+        },
+
+        "enemy_7300813": {
+            customDuration: {
+                // 'mortal_A' : 45, // 입장
+                'mortal_B': 50, // hp
+                'mortal_C': 30, // 화룡
+                'mortal_D': 55, // 풍룡
+            }
+        },
+
+        "enemy_7300823": {
+            customDuration: {
+                // 'mortal_A' : 45, // 입장
+                'mortal_B': 60, // hp
+                'mortal_C': 70, // 토룡
+                'mortal_D': 20, // 수룡
+            }
+        },
+
+        "enemy_7300833": {
+            customDuration: {
+                // 'mortal_A' : 45, // 입장
+                'mortal_B': 216, // hp
+                'mortal_C': 80, // 암룡
+                'mortal_D': 30, // 광룡
+            }
+        },
+
+        "enemy_7300843": {
+            customDuration: {
+                'mortal_A': 150, // 리베라티오
+                'mortal_B': 25, // 엑세레이저 5
+                'mortal_C': 10, // 아트로피아 2
+                'mortal_D': 40, // 루체아 1
+                'ab_motion_mortal_E': 35, // 루프레스
+            }
+        },
+
     },
 
-    // summon: {
-    //     // id
-    //     summon_2040080000_02: {
-    //         name: '제우스',
-    //         info: '적에게 2배 빛속성 데미지 2회, 공격력 다운, 방어력 다운, 아군 전체의 오의 게이지 상승량 증가',
-    //         cjs: 'summon_2040080000_02',
-    //         portraitSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/raid_normal/2040080000_03.jpg',
-    //         cutinSrc: 'https://prd-game-a1-granbluefantasy.akamaized.net/assets/img/sp/assets/summon/cutin/2040080000_03.jpg',
-    //     }
-    // },
+    raidBgUrl: (cjsName) => `/static/gbf/img/raid_bg/${cjsName}.jpg`,
 
     Delay: {
         // 1200 데미지표시 ~ 데미지 삭제까지 딜레이 (데미지 표시시간 최대치)
@@ -241,6 +329,8 @@ const Constants = {
         statusShowToNext: 100,
         // 200 processXXMove 일반 딜레이
         globalMoveDelay: 200,
+        // 300 커맨드 실행 딜레이
+        commandExecuteDelay: 300,
     },
 }
 Object.freeze(Constants);
@@ -256,6 +346,12 @@ const MoveType = {
     STANDBY_E: {name: 'STANDBY_E', parentType: 'STANDBY', className: 'standby-e'},
     STANDBY_F: {name: 'STANDBY_F', parentType: 'STANDBY', className: 'standby-f'},
     STANDBY_G: {name: 'STANDBY_G', parentType: 'STANDBY', className: 'standby-g'},
+    STANDBY_H: {name: 'STANDBY_H', parentType: 'STANDBY', className: 'standby-h'},
+    STANDBY_I: {name: 'STANDBY_I', parentType: 'STANDBY', className: 'standby-i'},
+    STANDBY_J: {name: 'STANDBY_J', parentType: 'STANDBY', className: 'standby-j'},
+    STANDBY_K: {name: 'STANDBY_K', parentType: 'STANDBY', className: 'standby-k'},
+    STANDBY_L: {name: 'STANDBY_L', parentType: 'STANDBY', className: 'standby-l'},
+
     ATTACK: {name: 'ATTACK', parentType: 'ROOT', className: 'attack'},
     NORMAL_ATTACK: {name: 'NORMAL_ATTACK', parentType: 'ATTACK', className: 'normal_attack'},
     ABILITY: {name: 'ABILITY', parentType: 'ROOT', className: 'ability'},
@@ -328,6 +424,11 @@ const MoveType = {
     CHARGE_ATTACK_E: {name: 'CHARGE_ATTACK_E', parentType: 'CHARGE_ATTACK', className: 'charge-attack-e'},
     CHARGE_ATTACK_F: {name: 'CHARGE_ATTACK_F', parentType: 'CHARGE_ATTACK', className: 'charge-attack-f'},
     CHARGE_ATTACK_G: {name: 'CHARGE_ATTACK_G', parentType: 'CHARGE_ATTACK', className: 'charge-attack-g'},
+    CHARGE_ATTACK_H: {name: 'CHARGE_ATTACK_H', parentType: 'CHARGE_ATTACK', className: 'charge-attack-h'},
+    CHARGE_ATTACK_I: {name: 'CHARGE_ATTACK_I', parentType: 'CHARGE_ATTACK', className: 'charge-attack-i'},
+    CHARGE_ATTACK_J: {name: 'CHARGE_ATTACK_J', parentType: 'CHARGE_ATTACK', className: 'charge-attack-j'},
+    CHARGE_ATTACK_K: {name: 'CHARGE_ATTACK_K', parentType: 'CHARGE_ATTACK', className: 'charge-attack-k'},
+    CHARGE_ATTACK_L: {name: 'CHARGE_ATTACK_L', parentType: 'CHARGE_ATTACK', className: 'charge-attack-l'},
 
     SUMMON: {name: 'SUMMON', parentType: 'ROOT', className: 'summon'},
     SUMMON_DEFAULT: {name: 'SUMMON_DEFAULT', parentType: 'SUMMON', className: 'summon-default'},
@@ -335,6 +436,7 @@ const MoveType = {
     SECOND_SUMMON: {name: 'SECOND_SUMMON', parentType: 'SUMMON', className: 'second-summon'},
     THIRD_SUMMON: {name: 'THIRD_SUMMON', parentType: 'SUMMON', className: 'third-summon'},
     FOURTH_SUMMON: {name: 'FOURTH_SUMMON', parentType: 'SUMMON', className: 'fourth-summon'},
+    FIFTH_SUMMON: {name: 'FIFTH_SUMMON', parentType: 'SUMMON', className: 'fifth-summon'},
     UNION_SUMMON: {name: 'UNION_SUMMON', parentType: 'SUMMON', className: 'union-summon'},
 
     DEAD: {name: 'DEAD', parentType: 'ROOT', className: 'dead'},
@@ -434,7 +536,7 @@ MoveType.getMoveType = function getMoveType(moveType, moveType1, moveType2, move
 
 const OmenType = {
     NONE: {name: 'NONE', info: '없음', className: 'none'},
-    CHARGE_ATTACK: {name: 'CHARGE_ATTACK', info: '차지어택', className: 'charge-attack'}, // CT기
+    CHARGE_ATTACK: {name: 'CHARGE_ATTACK', info: 'CT기', className: 'charge-attack'}, // CT기
     INCANT_ATTACK: {name: 'INCANT_ATTACK', info: '영창기', className: 'incant-attack'},
     HP_TRIGGER: {name: 'HP_TRIGGER', info: 'HP트리거', className: 'hp-trigger'},
 }

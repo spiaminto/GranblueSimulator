@@ -6,6 +6,7 @@ import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
+import com.gbf.granblue_simulator.battle.exception.MoveProcessingException;
 import com.gbf.granblue_simulator.battle.logic.move.dto.ForMemberAbilityInfo;
 import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
@@ -14,6 +15,7 @@ import com.gbf.granblue_simulator.battle.logic.move.mapper.CharacterLogicResultM
 import com.gbf.granblue_simulator.battle.logic.move.mapper.EnemyLogicResultMapper;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
+import com.gbf.granblue_simulator.battle.service.RoomService;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +48,7 @@ public class SyncLogic {
     private final EnemyLogicResultMapper enemyLogicResultMapper;
     private final SetStatusLogic setStatusLogic;
     private final BaseMoveRepository baseMoveRepository;
+    private final RoomService roomService;
 
     /**
      * 요청자의 현재 최신 상태를 반환, 동기화 자체는 '이전 참전자' 가 이미 동기화 해놓음. <br>
@@ -66,6 +70,12 @@ public class SyncLogic {
         // 적이 죽으면, 즉시 사망결과 반환
         if (enemy.isAlreadyDead())
             return List.of(enemyLogicResultMapper.toResult(ResultMapperRequest.from(Move.getTransientMove(enemy, MoveType.DEAD_DEFAULT))));
+        // 시간 종료
+        Room room = battleContext.getMember().getRoom();
+        if (room.isFinished() || room.getCreatedAt().plusMinutes(45).isBefore(LocalDateTime.now())) {
+            roomService.timeoutRoom(room.getId());
+            throw new MoveProcessingException("이미 종료된 전투입니다.", "BATTLE_FINISHED");
+        }
 
         // 적 추가 처리
         // 1. 종료된 시간제 스테이터스 효과 직접 삭제
@@ -74,7 +84,7 @@ public class SyncLogic {
         List<Member.PendingForAllMove> pendingForAllMoves = currentMember.getPendingForAllMoves();
         if (pendingForAllMoves.isEmpty()) {
             results.add(characterLogicResultMapper.toResult(ResultMapperRequest.from(Move.getTransientMove(battleContext.getMainActor(), MoveType.SYNC))));
-        } else {
+        } else if (!partyMembers.isEmpty()){
             // 참전자 버프 포함하는 move 처리
             Actor beforeMainActor = battleContext.getMainActor();
             battleContext.setCurrentMainActor(partyMembers.getFirst()); // 임시로 지정
@@ -90,16 +100,17 @@ public class SyncLogic {
                 String sourceUsername = pendingForAllMove.getSourceUsername();
                 String sourceMoveName = move.getName();
 
-                results.add(characterLogicResultMapper.toResult(ResultMapperRequest.builder()
+                MoveLogicResult result = characterLogicResultMapper.toResult(ResultMapperRequest.builder()
                         .move(Move.getTransientMove(battleContext.getMainActor(), MoveType.SYNC))
                         .setStatusEffectResult(setStatusEffectResult)
-                        .forMemberAbilityInfo(ForMemberAbilityInfo.builder()
-                                .moveName(sourceMoveName)
-                                .sourceUsername(sourceUsername)
-                                .cjsName(move.getDefaultVisual().getCjsName())
-                                .isTargetedEnemy(move.getDefaultVisual().isTargetedEnemy())
-                                .build())
-                        .build()));
+                        .build());
+                result.updateForMemberAbilityInfo(ForMemberAbilityInfo.builder()
+                        .moveName(sourceMoveName)
+                        .sourceUsername(sourceUsername)
+                        .cjsName(move.getDefaultVisual().getCjsName())
+                        .isTargetedEnemy(move.getDefaultVisual().isTargetedEnemy())
+                        .build());
+                results.add(result);
             });
 
             pendingForAllMoves.clear();
@@ -117,9 +128,7 @@ public class SyncLogic {
      * @param referenceMember 동기화 기준 멤버
      */
     public void syncEnemy(Member referenceMember) {
-        log.info("[syncEnemy] referenceMember: {}", referenceMember);
-        log.info("room = {}", referenceMember.getRoom());
-        log.info("room.members = {}", referenceMember.getRoom().getMembers());
+        log.debug("[syncEnemy] \n referenceMember: {} \n room = {} \n members = {}", referenceMember, referenceMember.getRoom(), referenceMember.getRoom().getMembers().stream().map(Member::toString).collect(Collectors.joining("\n  ")));
 
         // 1. 동기화 대상 확인
         List<Actor> targetEnemies = referenceMember.getRoom().getMembers().stream()
@@ -127,7 +136,6 @@ public class SyncLogic {
                 .flatMap(member -> member.getActors().stream().filter(Actor::isEnemy))
                 .toList();
         if (targetEnemies.isEmpty()) return; // 없으면 바로 종료
-//        actorRepository.lockActorsAndStatuses(targetEnemies.stream().map(Actor::getId).sorted().toList()); // 락
 
         // 2. 동기화 기준
         Actor referenceEnemy = referenceMember.getActors().stream().filter(Actor::isEnemy).findFirst().orElseThrow(() -> new IllegalArgumentException("[syncEnemy] referenceEnemy null, referenceMember = " + referenceMember));

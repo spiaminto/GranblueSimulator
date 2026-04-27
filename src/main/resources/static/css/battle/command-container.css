@@ -21,7 +21,7 @@
     width: 65%;
     overflow: hidden;
 
-    box-shadow: inset 0 0 6px 1px rgba(99,159,168,0.5);
+    box-shadow: inset 0 0 6px 1px rgba(99, 159, 168, 0.5);
     border: 1px solid #639fa8;
     border-radius: 5px;
 }
@@ -37,7 +37,7 @@
     flex: 0 0 auto;
 }
 
-.rail-item img, .rail-ability-dummy img  {
+.rail-item img, .rail-ability-dummy img {
     width: 100%;
     vertical-align: sub;
 }
@@ -62,18 +62,20 @@
 }
 
 #attackButton {
-    width: 100%;
+    width: 120%;
     position: absolute;
-    height: 100%;
+    height: 122%;
     z-index: 1;
     opacity: 0;
+    left: -11px;
+    top: -3px;
 }
 
 /* 기본 portrait + 표시 ================================================================================================ */
 #partyCommandContainer {
-    height: 122px; /* 110 + 4 + 4 */
+    height: 127px;
     position: relative;
-    padding: 4px 10px;
+    padding: 4px 8px;
 
     display: flex;
 }
@@ -81,13 +83,13 @@
 .battle-member-wrapper {
     display: flex;
     width: 230px;
-    height: 110px;
+    height: 120px;
 }
 
 .battle-portrait {
-    width: 56px;
+    width: 59px;
     position: relative;
-    height: 114px;
+    height: 120px;
     margin-right: 3px;
     align-self: flex-start;
 }
@@ -96,17 +98,54 @@
     height: 100%;
 }
 
+.battle-portrait .status-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-height: 32px;
+    padding: 0 0 0 1px;
+    overflow: hidden;
+
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.battle-portrait .status-container.extend {
+    max-height: 64px;
+}
+
+.battle-portrait .status-container .status {
+    width: 16px;
+    height: 16px;
+    margin-right: -2px;
+    display: inline-block;
+
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.battle-portrait .status-container .status:nth-child(n+5):nth-child(-n+8),
+.battle-portrait .status-container .status:nth-child(n+13):nth-child(-n+16) {
+    margin-top: -2px; /* 5 ~ 8번만 */
+}
+
+.battle-portrait .status-container .status img {
+    width: 100%;
+}
+
 .hp-gauge-wrapper {
     position: absolute;
-    width: 95%;
+    width: 97%;
     padding: 3px;
-    top: 83px;
+    top: 88px;
     left: 0;
 }
 
-.hp-gauge .progress{
+.hp-gauge .progress {
     height: 5px;
     border: solid 1px black;
+    background-color: #3a3a3a
 }
 
 
@@ -117,18 +156,29 @@
 .hp-gauge-value {
     position: absolute;
     right: 0;
-    bottom: 0px;
+    bottom: 0;
     font-weight: bold;
     font-size: 0.9rem;
     text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
     color: white;
 }
 
+.hp-gauge-wrapper.hide::after { /* hp-gauge-value 기준으로 하면 숫자 자릿수에 따라 크기변화 -> 위치변화 때문에 wrapper 기준 */
+    background: url(/static/assets/img/ui/ui-halation.png) no-repeat;
+    background-size: contain;
+    display: block;
+    content: '';
+    position: absolute;
+    width: 75px;
+    height: 30px;
+    top: -16px;
+    left: -9px;
+}
 
 .barrier-value {
     position: absolute;
     right: 0;
-    bottom: 12px;
+    bottom: 11px;
     font-weight: bold;
     font-size: 0.8rem;
     text-shadow: -0.5px 0 darkblue, 0 0.5px darkblue, 0.5px 0 darkblue, 0 -0.5px darkblue;
@@ -139,7 +189,7 @@
     position: absolute;
     width: 95%;
     padding: 3px;
-    top: 95px;
+    top: 102px;
     left: 0;
 }
 
@@ -172,6 +222,7 @@
 .charge-gauge .progress.additional {
     background-color: transparent;
 }
+
 .charge-gauge.active .progress.additional {
     box-shadow: 0 0 4px 1px #f86966;
 }
@@ -200,15 +251,15 @@
     height: 11px;
     position: absolute;
     width: 100%;
-    bottom: 0;
-    padding: 1px 3px;
+    bottom: -2px;
+    padding: 0 3px;
     display: flex;
     justify-content: space-evenly;
 }
 
 .ability-usable-indicator {
     width: 7px;
-    height: 7px;
+    height: 6px;
     background-color: #0d1111;
     border-radius: 0.1rem;
     border: solid 1px #4e6c73;
@@ -243,20 +294,23 @@
 .summon-button-wrapper {
     position: relative;
     width: 56px;
-    height: 114px;
+    height: 120px;
     margin-left: auto;
     justify-items: flex-end;
 }
 
 #partyCommandContainer .summon-button-overlay {
     z-index: 1; /* #abilitySlider = 5 */
+
+    left: -2px;
+    width: 103%;
 }
 
 .summon-portrait {
-    height: 114px;
+    height: 120px;
 }
 
-.summon-portrait img{
+.summon-portrait img {
     height: 100%;
 }
 
@@ -271,11 +325,11 @@
 
 .summon-display-wrapper {
     position: absolute;
-    width: 240px;
+    width: 310px;
 }
 
 .summon-collapse {
-    width: 240px;
+    width: 315px; /* 고정넓이 필요 */
 }
 
 .summon-list {
@@ -286,8 +340,8 @@
 
 .summon-list-item {
     float: left;
-    width: 56px;
-    height: 114px;
+    width: 59px;
+    height: 120px;
     margin-right: 3px;
     position: relative;
 }
@@ -302,7 +356,7 @@
     right: 5%;
     color: white;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 15px;
     text-shadow: -0.5px 0 black, 0 0.5px black, 0.5px 0 black, 0 -0.5px black;
     text-align: end;
     line-height: 15px;
@@ -340,7 +394,7 @@
 
 /* advanced 커맨드 (가드 + 페이탈 체인) ============================================================================== */
 .advanced-command-container {
-    padding: 0 8px;
+    padding: 0 6px;
 }
 
 .advanced-command-container::after {
@@ -350,14 +404,14 @@
 }
 
 .advanced-command-container .guard-button-wrapper {
-    width: 230px;
+    width: 240px;
     display: flex;
     float: left;
     margin-left: 4px;
 }
 
 .guard-button-wrapper .guard-button {
-    width: 54px;
+    width: 56px;
     text-align: center;
     margin-left: 4px;
 }
@@ -367,12 +421,12 @@
 }
 
 .guard-button img {
-    width: 90%;
+    width: 85%;
     vertical-align: sub;
 }
 
-.fatal-chain-gauge-wrapper{
-    width: 65px;
+.fatal-chain-gauge-wrapper {
+    width: 60px;
     float: right;
     display: flex;
     align-items: center;
@@ -412,7 +466,7 @@
 .sub-command-container {
     color: white;
     display: flex;
-    padding: 7px 10px;
+    padding: 10px 10px 5px;
     height: 35px;
     font-size: 12px;
     align-items: center;
@@ -445,6 +499,25 @@
 
 .charge-attack-check-wrapper {
     margin-left: 4px;
+}
+
+.charge-attack-check-wrapper input:checked {
+    background-color: var(--bs-warning);
+    border-color: var(--bs-warning);
+
+}
+
+#resetTutorialButton {
+    display: none;
+    position: absolute;
+    right: 5px;
+
+    padding-left: 5px;
+    font-size: 11px;
+    line-height: 12px;
+    padding-right: 5px;
+
+    z-index: 1010; /* 튜토리얼 오버레이들 ~1005 */
 }
 
 /* 멤버 정보 ========================================================================================================== */

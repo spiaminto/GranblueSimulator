@@ -2,6 +2,7 @@ package com.gbf.granblue_simulator.user.domain;
 
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.party.domain.Party;
+import com.gbf.granblue_simulator.party.domain.PartyStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -16,10 +17,13 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
 public class User {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String loginId;
@@ -28,22 +32,47 @@ public class User {
 
     private String role;
 
-    @OneToMany(mappedBy = "user") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Member> members = new ArrayList<>(); // 양방향 나중에 지울 예정
 
-    @OneToMany(mappedBy = "user") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
     private List<Party> parties = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user") @MapKey(name = "id") @Builder.Default @ToString.Exclude @EqualsAndHashCode.Exclude
+    @OneToMany(mappedBy = "user")
+    @MapKey(name = "id")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Map<Long, UserCharacter> userCharacters = new LinkedHashMap<>();
 
     private Long primaryPartyId; // 현재 선택중인 파티 id
 
+    private Integer clearPoint;
+
     @CreationTimestamp
     private LocalDateTime lastChatTime; // 마지막 채팅 시간
 
+    public List<Party> getAvailableParty() {
+        return this.parties.stream().filter(party -> party.getBaseParty() == null || party.getBaseParty().getStatus() == PartyStatus.ACTIVE).toList();
+    }
+
+    public List<Party> getAllParty() {
+        return this.parties;
+    }
+
     public void updatePrimaryPartyId(Long primaryPartyId) {
         this.primaryPartyId = primaryPartyId;
+    }
+
+    public void updateClearPoint(Integer clearPoint) {
+        this.clearPoint = clearPoint;
     }
 
     public void updateLastChatTime(LocalDateTime lastChatTime) {

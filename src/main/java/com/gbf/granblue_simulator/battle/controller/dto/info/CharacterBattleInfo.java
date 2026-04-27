@@ -27,6 +27,7 @@ public class CharacterBattleInfo {
     private MoveInfo chargeAttack;
     private List<MoveInfo> abilities;
     private List<MoveInfo> supportAbilities;
+    private List<MoveInfo> changeMoves;
     private List<StatusEffectDto> statuses;
 
     private List<Integer> abilityCoolDowns;

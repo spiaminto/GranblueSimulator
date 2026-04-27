@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const innerWidth = window.innerWidth;
-    const scale = Math.min(innerWidth / 330, 2.0);
+
+    let displayScale = localStorage.getItem('displayScale');
+    let displayScaleNumber = Number(displayScale);
+    let scale = 1;
+    if (displayScaleNumber && displayScaleNumber > 0) {
+        scale = displayScaleNumber;
+    } else if (displayScale === 'auto') {
+        scale = Math.min(window.innerWidth / 330, 2.0);
+    } else {
+        localStorage.setItem('displayScale', 'auto');
+        scale = Math.min(window.innerWidth / 330, 2.0);
+    }
+    scale = scale > 2.0 ? 2.0 : scale;
 
     const container = document.querySelector('#container');
     container.style.transform = `scale(${scale})`;
@@ -14,9 +25,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setTimeout(() => {
         let alertMessage = document.querySelector('#alertMessage');
-        alertMessage = alertMessage ? alertMessage.textContent : null;
+        alertMessage = alertMessage?.textContent || null;
         if (alertMessage) {
             alert(alertMessage);
+        }
+    }, 200);
+
+    setTimeout(() => {
+        let errorMessage = document.querySelector('#errorMessage');
+        errorMessage = errorMessage?.textContent || null;
+        if (errorMessage) {
+            alert(errorMessage);
         }
     }, 200);
 

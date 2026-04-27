@@ -3,15 +3,30 @@ function renderPotionCount(newVal, oldVal) {
     let $potionWrappers = $('.potion-icon-wrapper');
     potionCounts.forEach(function (count, index) {
         let $potionWrapper = $potionWrappers.eq(index);
-        $potionWrapper.find('.count').text(count);
+        $potionWrapper.find('.count').text(count + '개');
         if (count <= 0) $potionWrapper.find('.potion-overlay').addClass('not-ready');
+    })
+}
+
+function renderHalation(newVal, oldVal) {
+    // console.debug('[renderHalation] newVal = ', newVal, ' oldVal = ', oldVal);
+    let isHalation = newVal;
+    isHalation.forEach((isHalation, actorIndex) => {
+        if (actorIndex === 0) return;
+        if (isHalation) {
+            $(`.battle-portrait.actor-${actorIndex} .hp-gauge-wrapper`).addClass('hide');
+            $(`.ability-panel.actor-${actorIndex} .hp-gauge-wrapper`).addClass('hide');
+        } else {
+            $(`.battle-portrait.actor-${actorIndex} .hp-gauge-wrapper`).removeClass('hide');
+            $(`.ability-panel.actor-${actorIndex} .hp-gauge-wrapper`).removeClass('hide');
+        }
     })
 }
 
 window.renderHpInterval = [null, null, null, null, null];
 
 function renderHp(newVal, oldVal) {
-    console.log('[renderHp] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderHp] newVal = ', newVal, ' oldVal = ', oldVal);
     let hps = newVal;
     hps.forEach((hp, actorIndex) => {
         if (actorIndex === 0) return; // 적 스킵
@@ -22,8 +37,8 @@ function renderHp(newVal, oldVal) {
         let oldHp = oldVal[actorIndex];
         let hpDiff = hp - oldHp;
         if (hpDiff === 0) {
-            $portraitHpGaugeValue.text(hp);
-            $abilityPanelHpGaugeValue.text(hp);
+            $portraitHpGaugeValue.text(Math.max(hp, 0) || 0);
+            $abilityPanelHpGaugeValue.text(Math.max(hp, 0) || 0);
             return;
         }
 
@@ -34,39 +49,65 @@ function renderHp(newVal, oldVal) {
 
         window.clearInterval(window.renderHpInterval[actorIndex]);
         window.renderHpInterval[actorIndex] = window.setInterval(() => {
-            currentHp += intervalHp;
+            currentHp = Math.max(currentHp + intervalHp, 0) || 0; // NaN 대비
             intervalCount++;
             $portraitHpGaugeValue.text(Math.floor(currentHp));
             $abilityPanelHpGaugeValue.text(Math.floor(currentHp));
-            if (intervalCount >= 40) {
+            if (intervalCount >= 39) {
                 window.clearInterval(window.renderHpInterval[actorIndex]);
                 window.renderHpInterval[actorIndex] = null;
 
-                $portraitHpGaugeValue.text(hp);
-                $abilityPanelHpGaugeValue.text(hp);
+                $portraitHpGaugeValue.text(Math.max(hp, 0));
+                $abilityPanelHpGaugeValue.text(Math.max(hp, 0));
             }
         }, 25);
     });
 }
 
 function renderHpRate(newVal, oldVal) {
-    console.debug('[renderHpRate] newVal = ', newVal, ' oldVal = ', oldVal);
-    let hpRates = newVal;
-    hpRates.forEach((hpRate, actorIndex) => {
-        // 적
+    // console.debug('[renderHpRate] newVal = ', newVal, ' oldVal = ', oldVal);
+
+    newVal.forEach((hpRate, actorIndex) => {
         if (actorIndex === 0) {
-            $('.enemy-info-container .hp-container .value-hp').text(hpRate + '%');
-            $('.enemy-info-container .hp-container .progress-bar').css('width', hpRate + '%');
+            const $hpContainer = $('.enemy-info-container .hp-container');
+            const $hpBar = $hpContainer.find('.hp-bar');
+            const oldRate = oldVal ? oldVal[actorIndex] : hpRate;
+            const isLayeredHpBar = $hpContainer.attr('data-is-layered-hp-bar');
+
+            // % 수치 갱신
+            $hpContainer.find('.value-hp').text(hpRate + '%');
+
+            if (isLayeredHpBar === 'true') {
+                $hpBar.find('.hp-layer').css('display', '');
+
+                // 각 레이어의 data-layer-size 기반으로 너비 계산
+                let lowerBound = 0;
+                $hpBar.find('.hp-layer-container').each(function () {
+                    const layerSize = parseFloat($(this).attr('data-layer-size'));
+                    const upperBound = lowerBound + layerSize;
+                    const filled = Math.min(layerSize, Math.max(0, hpRate - lowerBound));
+                    const widthPercent = (filled / layerSize) * 100;
+
+                    $(this).find('.hp-layer-fill').css('width', widthPercent + '%');
+                    lowerBound = upperBound;
+                });
+
+            } else {
+                $hpBar.find('.hp-layer-fill').css('width', hpRate + '%');
+            }
+
+            updateGhost($hpBar, oldRate, hpRate, hpRate < oldRate);
             return;
         }
+
         // 캐릭터
-        let $commandHpBar = $(`.battle-portrait.actor-${actorIndex} .hp-gauge .progress-bar`);
+        const $commandHpBar = $(`.battle-portrait.actor-${actorIndex} .hp-gauge .progress-bar`);
+        const $abilityPanelHpBar = $(`.ability-panel.actor-${actorIndex} .hp-gauge .progress-bar`);
+
         $commandHpBar.css('width', hpRate + '%');
-        let $abilityPanelHpBar = $(`.ability-panel.actor-${actorIndex} .hp-gauge .progress-bar`);
         $abilityPanelHpBar.css('width', hpRate + '%');
 
-        // 캐릭터 - 배경색
-        if (hpRate <= 25) { // 빈사상태
+        if (hpRate <= 25) {
             $commandHpBar.addClass('bg-danger');
             $abilityPanelHpBar.addClass('bg-danger');
         } else {
@@ -76,23 +117,54 @@ function renderHpRate(newVal, oldVal) {
     });
 }
 
+function updateGhost($hpBar, oldRate, newRate, isDamage) {
+    const $ghost = $hpBar.find('.hp-bar-ghost'); // 기본적으로 transition 이 지정되어있음
+
+    if (isDamage) {
+        // 데미지 구간만 표시: newRate 위치에서 시작, width = 데미지량
+        const damageWidth = oldRate - newRate;
+        $ghost.addClass('no-transition');
+        $ghost.css({left: newRate + '%', width: damageWidth + '%'});
+
+        requestAnimationFrame(() => {
+            $ghost.removeClass('no-transition');
+            $ghost.css('width', '0%'); // 트랜지션 재적용 후 감소시킴
+        });
+
+    } else {
+        // 회복: ghost 즉시 숨김
+        $ghost.addClass('no-transition');
+        $ghost.css({left: '0%', width: '0%'}); // 트랜지션 없이 즉시 증가시킴
+
+        requestAnimationFrame(() => {
+            $ghost.removeClass('no-transition');
+        });
+    }
+}
+
 window.renderBarrierInterval = [null, null, null, null, null];
 
 function renderBarriers(newVal, oldVal) {
-    console.debug('[renderBarrier] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderBarrier] newVal = ', newVal, ' oldVal = ', oldVal);
     let barriers = newVal;
     barriers.forEach((barrier, actorIndex) => {
         if (actorIndex === 0) return;
         let oldBarrier = oldVal[actorIndex];
-        if (oldBarrier === 0 && barrier === 0) return;
 
         let $portraitBarrierValue = $(`.battle-portrait.actor-${actorIndex} .barrier-value .value`);
         let $abilityBarrierValue = $(`.ability-panel.actor-${actorIndex} .barrier-value .value`);
 
         let barrierDiff = barrier - oldBarrier;
-        if (barrierDiff === 0) {
-            $portraitBarrierValue.text(barrier);
-            $abilityBarrierValue.text(barrier);
+        if (!barrierDiff) {
+            if (!oldBarrier) {
+                // 이전 베리어가 무효값 && 베리어 차이도 무효값 -> ''
+                $portraitBarrierValue.text('');
+                $abilityBarrierValue.text('');
+            } else {
+                // 이전베리어가 유효값, 베리어 차이가 무효값 (0포함) -> 유지
+                $portraitBarrierValue.text(barrier);
+                $abilityBarrierValue.text(barrier);
+            }
             return;
         }
 
@@ -103,11 +175,11 @@ function renderBarriers(newVal, oldVal) {
 
         window.clearInterval(window.renderBarrierInterval[actorIndex]);
         window.renderBarrierInterval[actorIndex] = window.setInterval(() => {
-            currentBarrier += intervalValue;
+            currentBarrier = Math.max(intervalValue + intervalValue, 0) || 0;
             intervalCount++;
             $portraitBarrierValue.text(Math.floor(currentBarrier));
             $abilityBarrierValue.text(Math.floor(currentBarrier));
-            if (intervalCount >= 40) {
+            if (intervalCount >= 39) {
                 window.clearInterval(window.renderBarrierInterval[actorIndex]);
                 window.renderBarrierInterval[actorIndex] = null;
 
@@ -125,22 +197,27 @@ function renderBarriers(newVal, oldVal) {
 }
 
 function renderEnemyTriggerHps(newVal, oldVal) {
-    console.debug('[renderEnemyTriggerHps] newVal = ', newVal, ' oldVal = ', oldVal);
-    let triggerHps = newVal;
-    let currentEnemyHpRate = gameStateManager.getState('hpRates')[0];
+    // console.debug('[renderEnemyTriggerHps] newVal = ', newVal, ' oldVal = ', oldVal);
+    let triggerHps = newVal; // 오름차순 정렬되어 전달
 
     let $hpBar = $('.hp-container.enemy .hp-bar');
     $hpBar.find('.hp-trigger').remove();
 
-    let $hpTrigger = $(`<div class="hp-trigger"></div>`);
-    triggerHps.forEach((hpRate, actorIndex) => {
-        if (hpRate > currentEnemyHpRate) return;
-        $hpBar.append($hpTrigger.clone().css('left', hpRate + '%'));
+    triggerHps.forEach((hpRate, index) => {
+        let $hpTrigger = $(`<div class="hp-trigger"></div>`).css('left', hpRate + '%');
+        if (index >= triggerHps.length - 1) {
+            if (gameStateManager.getState('omen')?.type === OmenType.HP_TRIGGER) {
+                applyGlow($hpTrigger, {spread: 2, blur: 7});
+            } else {
+                applyGlow($hpTrigger, {spread: 1, blur: 3});
+            }
+        }
+        $hpBar.append($hpTrigger);
     })
 }
 
 function renderEnemyMaxChargeGauge(newVal, oldVal) {
-    console.debug('[renderEnemyMaxChargeGauge] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderEnemyMaxChargeGauge] newVal = ', newVal, ' oldVal = ', oldVal);
     if (newVal <= 0) console.error('[renderEnemyMaxChargeGauge] new chargeGauge <= 0, chargeGauge = ', newVal);
     if (oldVal === undefined) oldVal = 0; // 첫 초기화시 undefined, 이후는 오류
     let diff = Math.abs(newVal - oldVal);
@@ -155,7 +232,7 @@ function renderEnemyMaxChargeGauge(newVal, oldVal) {
 }
 
 function renderChargeGauge(newVal, oldVal) {
-    console.debug('[renderChargeGauge] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderChargeGauge] newVal = ', newVal, ' oldVal = ', oldVal);
     let chargeGauges = newVal;
     let canChargeAttacks = gameStateManager.getState('canChargeAttacks');
     let chargeAttackActivated = $('#chargeAttackActiveCheck').prop('checked');
@@ -196,7 +273,7 @@ function renderChargeGauge(newVal, oldVal) {
 }
 
 function renderFatalChainGauge(newVal, oldVal) {
-    console.debug('[renderFatalChainGauge] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderFatalChainGauge] newVal = ', newVal, ' oldVal = ', oldVal);
     let fatalChainGauge = newVal;
     $('.fatal-chain-gauge-value').find('.value').text(fatalChainGauge);
     $('.fatal-chain-gauge .progress-bar').css('width', fatalChainGauge + '%');
@@ -207,7 +284,7 @@ function renderFatalChainGauge(newVal, oldVal) {
  * @param newVal abilityCooldowns 또는 abilitySealeds
  */
 function renderAbilityCoolDowns(newVal) {
-    console.debug('[renderAbilityCoolDowns] abilities = ', newVal);
+    // console.debug('[renderAbilityCoolDowns] abilities = ', newVal);
     const allAbilities = gameStateManager.getState('ability');
 
     let abilitySealeds = gameStateManager.getState('abilitySealeds');
@@ -228,7 +305,8 @@ function renderAbilityCoolDowns(newVal) {
 
             $abilityIcons.each(function () {
                 const $abilityIcon = $(this);
-                const $cooldownTextEl = $abilityIcon.find('.ability-cooldown-text');
+                const $cooldownText = $abilityIcon.find('.ability-cooldown-text');
+                const $cooldownValue = $abilityIcon.find('.ability-cooldown-text .value');
                 const $abilityOverlay = $abilityIcon.find('.ability-overlay');
 
                 // none-usable이면 쿨다운 무시
@@ -236,33 +314,21 @@ function renderAbilityCoolDowns(newVal) {
 
                 if (cooldown > 999) {
                     // cooldown > 999: 재사용 불가
-                    $abilityIcon.attr({
-                        // 'data-cooldown': cooldown,
-                        // 'data-usable': false
-                    });
-                    $cooldownTextEl.text('x').css('visibility', 'hidden');
-                    $cooldownTextEl.removeClass('invisible');
+                    $cooldownText.addClass('invisible');
+                    $cooldownValue.text('00'); // 레이아웃 유지
                     $abilityOverlay.addClass('none-usable');
                 } else if (cooldown > 0) {
                     // 쿨다운 중
-                    $abilityIcon.attr({
-                        // 'data-cooldown': cooldown,
-                        // 'data-usable': false
-                    });
-                    $cooldownTextEl.text(`${cooldown}턴`);
-                    $cooldownTextEl.removeClass('invisible');
+                    $cooldownText.removeClass('invisible');
+                    $cooldownValue.text(`${cooldown}`);
                     $abilityOverlay.removeClass('none-usable').addClass('not-ready');
                 } else {
                     // 사용 가능
-                    $abilityIcon.attr({
-                        // 'data-cooldown': cooldown,
-                        // 'data-usable': true
-                    });
-                    $cooldownTextEl.addClass('invisible');
-                    $cooldownTextEl.text('00'); // 레이아웃 유지
+                    $cooldownText.addClass('invisible');
+                    $cooldownValue.text('00'); // 레이아웃 유지
                     $abilityOverlay.removeClass('not-ready none-usable');
                 }
-                
+
                 // abilitySealed 일때, 쿨타임을 무시하고 none-usable 추가
                 let abilitySealed = abilitySealeds[actorIndex][index];
                 if (abilitySealed) {
@@ -285,7 +351,8 @@ function updateAbilityIndicator(actorIndex, index, ability, cooldown) {
     if ($indicator.length === 0) return;
 
     const sealed = gameStateManager.getState(`abilitySealeds.${actorIndex}.${index}`);
-    const abilityType = ability.additionalType.toLowerCase();
+    const abilityType = ability.abilityType.toLowerCase();
+
 
     if (cooldown <= 0 && !sealed) {
         $indicator.addClass(abilityType);
@@ -295,7 +362,7 @@ function updateAbilityIndicator(actorIndex, index, ability, cooldown) {
 }
 
 function renderAbilitySealeds(newVal, oldVal) {
-    console.debug('[renderAbilitySealeds] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderAbilitySealeds] newVal = ', newVal, ' oldVal = ', oldVal);
     newVal.forEach(function (abilitySealeds, actorIndex) {
         let $abilityPanels = $(`#abilitySlider .ability-panel.actor-${actorIndex}`); // slick-cloned 까지 전부 렌더링해야 스와이프할때 자연스러움
         $abilityPanels.get().forEach(abilityPanel => {
@@ -318,7 +385,7 @@ function renderAbilitySealeds(newVal, oldVal) {
  * @param newVal - summonCooldowns 또는 usedSummon
  */
 function renderSummonCooldowns(newVal, oldVal) {
-    console.debug('[renderSummonCooldowns] newVal =', newVal, 'oldVal =', oldVal);
+    // console.debug('[renderSummonCooldowns] newVal =', newVal, 'oldVal =', oldVal);
     const $summons = $('#partyCommandContainer .summon-display-wrapper .summon-list-item:not(.empty)');
 
     gameStateManager.getState('summonCooldowns').forEach((cooldown, index) => {
@@ -362,7 +429,7 @@ function renderSummonCooldowns(newVal, oldVal) {
 }
 
 function renderUnionSummonChance(newVal, oldVal) {
-    console.debug('[renderUnionSummonChance newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderUnionSummonChance newVal = ', newVal, ' oldVal = ', oldVal);
     let unionSummonInfo = newVal;
     if (unionSummonInfo === null) return;
 
@@ -380,7 +447,7 @@ function renderUnionSummonChance(newVal, oldVal) {
  * @param newVal leaderId
  */
 function renderSummonButton(newVal, oldVal) {
-    console.debug('[renderSummonButton] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderSummonButton] newVal = ', newVal, ' oldVal = ', oldVal);
     let leaderActorId = gameStateManager.getState('leaderActorId'); // number or null
     if (leaderActorId) {
         // 주인공이 살아있을때만 소환가능
@@ -390,40 +457,109 @@ function renderSummonButton(newVal, oldVal) {
     }
 }
 
+window.characterPortraitStatusShowHideInterval = [];
+
 function renderCurrentStatusEffectsIcons(newVal, oldVal) {
-    console.debug('[renderCurrentStatusEffects] newVal =', newVal, ' oldVal = ', oldVal);
-    // 스테이터스 아이콘 갱신 (어빌리티 이펙트 직후 즉시 갱신)
+    // console.debug('[renderCurrentStatusEffects] newVal =', newVal, ' oldVal = ', oldVal);
     newVal.forEach(function (currentStatusEffects, actorIndex) {
-        let $statusContainer = $('.status-container.actor-' + actorIndex);
+
         let $fragment = $('<div>');
         currentStatusEffects.forEach(function (status, index) {
             let beforeStatus = currentStatusEffects[index - 1];
-            // 어빌리티 패널에 갱신된 스테이터스 추가
-            let displayClassName = index > 0 && (beforeStatus.name === status.name || beforeStatus.iconSrc === status.iconSrc) ? 'd-none' : ''; // 이전과 이름이나 아이콘이 같다면, 안보이게 설정
+            let displayClassName = index > 0 && (beforeStatus.name === status.name && beforeStatus.iconSrc === status.iconSrc) ? 'd-none' : '';
             let $statusInfo = $(`
                 <div class="status ${displayClassName}" data-status-type="${status.type}">
                   <img src="${status.iconSrc}" class="status-icon${status.iconSrc.length < 1 ? ' none-icon' : ''}" alt="${status.name} icon">
-                  <div class="status-name d-none">${status.name}</div>
-                  <div class="status-info-text d-none">${status.statusText}</div>
-                  <div class="status-duration d-none" data-duration-type="${status.durationType}">${status.remainingDuration}</div>
-                </div>`)
+                </div>`);
             $fragment.append($statusInfo);
-        })
-        $statusContainer.find('.status').remove(); // 스테이터스 비움
-        $statusContainer.append(...$fragment.find('.status'));
+        });
+
+        // 어빌리티레일 + 초상화 - 상태효과 아이콘
+        let $statusContainers = $('.status-container.actor-' + actorIndex); // .slick-cloned 로 복제된 컨테이너까지 들어옴
+        $statusContainers.each(function () {
+            let $newContainer = $(this).clone(true);
+            $newContainer.find('.status').remove();
+            $newContainer.append($fragment.find('.status').clone()); // fragment 복제 필수
+            $(this).replaceWith($newContainer);
+        });
+
+        // 상태효과 아이콘 갯수 초과시 끊어서 보여주기
+        if (actorIndex === 0) {
+            // 적 HP 바 위쪽 아이콘
+            let $enemyStatusEffects = $('.status-container.enemy .status');
+            // 인터벌 및 애니메이션큐 초기화
+            clearInterval(window.enemyStatusShowHideInterval);
+            $enemyStatusEffects.stop(true, true).show(0);
+
+            if ($enemyStatusEffects.length > 16) {
+                let statusShowHideCallback = function () {
+                    let $frontStatuses = $('.status-container.enemy .status').slice(0, 16);
+                    $frontStatuses.hide(0).delay(2000).show(0);
+                }
+                statusShowHideCallback();
+                window.enemyStatusShowHideInterval = setInterval(statusShowHideCallback, 4000);
+            } else {
+                $enemyStatusEffects.show(0);
+            }
+
+        } else {
+            // 캐릭터 - 초상화
+            let $actorStatusEffects = $(`.battle-portrait .status-container.actor-${actorIndex} .status`);
+
+            clearInterval(window.characterPortraitStatusShowHideInterval[actorIndex]);
+            $actorStatusEffects.stop(true, true).show(0);
+
+            if ($actorStatusEffects.length > 8) {
+                let statusShowHideCallback = function () {
+                    let $statusContainer = $(`.battle-portrait .status-container.actor-${actorIndex}`);
+                    let isBackStatusCountExceeded = $actorStatusEffects.length - 8 > 8;
+                    let sliceCount = isBackStatusCountExceeded ? 16 : 8;
+                    let $frontStatuses = $actorStatusEffects.slice(0, sliceCount);
+                    $frontStatuses
+                        .hide(0, function () {
+                            $statusContainer.removeClass('extend');
+                        })
+                        .delay(2000)
+                        .show(0, function () {
+                            if (isBackStatusCountExceeded) {
+                                $statusContainer.addClass('extend');
+                            }
+                        });
+                }
+                statusShowHideCallback();
+                window.characterPortraitStatusShowHideInterval[actorIndex] = setInterval(statusShowHideCallback, 4000);
+            } else {
+                $actorStatusEffects.show(0);
+            }
+
+            // 캐릭터 - 어빌리티 슬라이더 상태효과 아이콘: 별도 #abilitySlider.afterChange.statusHide 트리거
+            if ($('.slick-active .status-container.actor-' + actorIndex).length > 0) {
+                $('#abilitySlider').trigger('afterChange.statusHide');
+            }
+        }
     });
 }
 
 function renderMoveNameIndicator(newVal, oldVal) {
-    console.debug('[renderMoveNameIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
-    let moveName = newVal;
-    $('.move-name-info-container')
-        .find('.move-name-info-text').text(moveName).end()
-        .fadeIn(100).delay(800).fadeOut(100);
+    // console.debug('[renderMoveNameIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+
+    const $container = $('.move-name-info-container');
+    // 새 행 생성 후 컨테이너에 추가
+    const $newRow = $(`
+      <div class="move-name-info" style="display:none;">
+        <span class="move-name-info-text"></span>
+      </div>`);
+    $newRow.find('.move-name-info-text').text(newVal);
+    $container.append($newRow).show();
+
+    // 개별 행 단위로 fade-in -> 대기 -> fade-out
+    $newRow.fadeIn(100).delay(1300).fadeOut(100, function () {
+        $(this).remove()
+    });
 }
 
 function renderMoveResultHonorIndicator(newVal, oldVal) {
-    console.debug('[renderMoveResultHonorIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderMoveResultHonorIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
     let honor = newVal;
     if (honor === 0) return;
     $('.honor-container')
@@ -432,56 +568,69 @@ function renderMoveResultHonorIndicator(newVal, oldVal) {
 }
 
 function renderOmen(newVal, oldVal) {
-    console.debug('[renderOmen] newVal = ', newVal, ' oldVal = ', oldVal); // {OmenDto} stage.gGameStatus.omen
+    // console.debug('[renderOmen] newVal = ', newVal, ' oldVal = ', oldVal); // {OmenDto} stage.gGameStatus.omen
     let omen = newVal;
-    // 전조 발동 또는 진행중
-    if (!omen.isEmpty()) {
-        // 상단 컨테이너
-        let $cancelConditions = [];
-        omen.cancelConditions.forEach((cancelCondition, index) => {
-            let isImpossibleCancelCondition = cancelCondition.cancelType === 'IMPOSSIBLE';
-            let $omen = $(
-                `<div class="omen-text ${omen.type.className}">
-                  <span class="omen-prefix">${cancelCondition.info}</span>
-                  <span class="omen-value">${isImpossibleCancelCondition ? '' : ' : ' + cancelCondition.remainValue}</span>
-                </div>`
-            );
-            let oldCondition = oldVal.cancelConditions[index];
-            if (!!oldCondition && oldCondition.remainValue !== cancelCondition.remainValue) {
-                $omen.find('.omen-value').css('color', 'white').animate({opacity: 1}, 300, function () {
-                    $(this).css('color', 'black')
-                });
-            }
-            $cancelConditions.push($omen);
-        });
-        $('.omen-container-top').addClass('activated').empty().append(...$cancelConditions);
 
-        // 하단 컨테이너
-        $('.omen-container-bottom.enemy')
-            .addClass('activated')
-            .html($(
-                `<div class="omen-text ${omen.type.className}">
-                  <span class="omen-prefix">${omen.name}</span>
-                </div>`
-            ));
-
-        // CT기 CT 턴 액티브
-        if (omen.type === OmenType.CHARGE_ATTACK) {
-            $('.charge-turn-container.enemy .charge-turn').addClass('active');
-        }
-
-    } else {
-        // 전조 브레이크 / 해제
-        // 전조 컨테이너 deactivate
+    // 전조 해제 / 브레이크
+    if (omen.isEmpty() || omen.isBreak) {
         $('.omen-container-top').removeClass('activated');
         $('.omen-container-bottom.enemy').removeClass('activated');
-        // CT 턴 액티브 해제
-        $('.charge-turn-container.enemy .charge-turn').removeClass('active');
+        $('.charge-turn-container.enemy .charge-turn').each(function (index, element) {
+            removeGlow($(element).removeClass('active')); // CT 턴 액티브 해제
+        });
+        return;
+    }
+
+    //전조 발동 또는 진행중
+    // 상단 컨테이너
+    let $cancelConditions = [];
+    omen.cancelConditions.forEach((cancelCondition, index) => {
+        let isImpossibleCancelCondition = cancelCondition.type === 'IMPOSSIBLE';
+        let remainValueString = cancelCondition.remainValue > 10000 ? cancelCondition.remainValue.toLocaleString('ko-KR') : cancelCondition.remainValue.toString();
+        let $omen = $(
+            `<div class="omen-wrapper ${omen.type.className}">
+                  <i class="bi bi-check2-circle icon-bold text-dark-blue"></i>
+                  <span class="omen-prefix ">${cancelCondition.info}</span>
+                  <span class="omen-value">${isImpossibleCancelCondition ? '' : ' : ' + remainValueString}</span>
+                </div>`
+        );
+        let oldCondition = oldVal.cancelConditions[index];
+        if (!!oldCondition && oldCondition.remainValue !== cancelCondition.remainValue) {
+            $omen.find('.omen-value').css('color', 'white').animate({opacity: 1}, 300, function () {
+                $(this).css('color', 'black')
+            });
+        }
+        $cancelConditions.push($omen);
+    });
+    $('.omen-container-top').addClass('activated').empty().append(...$cancelConditions);
+
+    let omenBackgroundColor = getComputedStyle($cancelConditions[0].get(0)).backgroundColor;
+    $cancelConditions.forEach(($omen, index) => {
+        applyGlow($omen, {color: omenBackgroundColor, blur: 4, spread: 2})
+    });
+
+    // 하단 컨테이너
+    let $bottomOmenContainer = $('.omen-container-bottom.enemy');
+    $bottomOmenContainer
+        .addClass('activated')
+        .html($(
+            `<div class="omen-wrapper ${omen.type.className}">
+                  <div class="omen-prefix">${omen.type.info}: ${omen.name}</div>
+                </div>`
+        ));
+    applyGlow($bottomOmenContainer.find('.omen-wrapper'), {color: omenBackgroundColor, blur: 4, spread: 2})
+
+    // CT기 CT 턴 액티브
+    if (omen.type === OmenType.CHARGE_ATTACK) {
+        $('.charge-turn-container.enemy .charge-turn').each(function (index, element) {
+            applyGlow($(element).addClass('active'), {color: 'rgba(255, 243, 205, 0.8)', spread: 3, blur: 4});
+        })
+
     }
 }
 
 function renderGuards(newVal, oldVal) {
-    console.debug('[renderGuards] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderGuards] newVal = ', newVal, ' oldVal = ', oldVal);
     let guardStates = newVal;
     guardStates.forEach(function (guardState, actorOrder) {
         if (guardState) {
@@ -495,15 +644,16 @@ function renderGuards(newVal, oldVal) {
 }
 
 function renderAttackButton(newVal, oldVal) {
-    console.debug('[renderAttackButton] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderAttackButton] newVal = ', newVal, ' oldVal = ', oldVal);
     let isAttackClicked = gameStateManager.getState('isAttackClicked');
     let isQuestCleared = gameStateManager.getState('isQuestCleared');
     let isQuestFailed = gameStateManager.getState('isQuestFailed');
 
     if (isQuestCleared) {
-        $('#attackButtonWrapper img')
-            .attr('src', '/static/assets/img/ui/ui-next.png')
-            .css({'left': '15%', 'width': '100%'})
+        $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-next.png').css({
+            'left': '15%',
+            'width': '100%'
+        })
     } else if (isQuestFailed) {
         $('#attackButtonWrapper img').attr('src', '/static/assets/img/ui/ui-rejoin.png');
     } else if (isAttackClicked) {
@@ -514,7 +664,7 @@ function renderAttackButton(newVal, oldVal) {
 }
 
 function renderMemberInfoContainer(newVal, oldVal) {
-    console.debug('[renderMemberInfoContainer] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderMemberInfoContainer] newVal = ', newVal, ' oldVal = ', oldVal);
     let memberInfos = newVal;
     let $memberInfoWrappers = [];
     memberInfos.forEach(function (memberInfo, index) {
@@ -537,7 +687,7 @@ function renderMemberInfoContainer(newVal, oldVal) {
 }
 
 function renderChatMessages(newVal, oldVal) {
-    console.debug('[renderChatMessages] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderChatMessages] newVal = ', newVal, ' oldVal = ', oldVal);
     let newChats = newVal;
     let $chatMessageContainer = $('.chat-message-container');
     const isScrolledToBottom = $chatMessageContainer[0].scrollHeight - $chatMessageContainer.scrollTop() <= $chatMessageContainer.outerHeight() + 20; // 유저 스크롤 여부 미리 확인
@@ -595,16 +745,16 @@ function renderChatMessages(newVal, oldVal) {
 }
 
 function renderTurnIndicator(newVal, oldVal) {
-    console.debug('[renderTurnIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+    // console.debug('[renderTurnIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
     let currentTurn = newVal;
     $('.turn-indicator .value').text(currentTurn); // topMenu + battleCanvas
     $('#battleCanvas .turn-indicator-container').addClass('show').on('transitionend', function () {
-        setTimeout(() => $(this).removeClass('show'), 1500)
+        setTimeout(() => $(this).removeClass('show'), 2000)
     });
 }
 
 function renderRemainingTimeIndicator(newVal, oldVal) {
-    // console.debug('[renderRemainingTimeIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
+    // // console.debug('[renderRemainingTimeIndicator] newVal = ', newVal, ' oldVal = ', oldVal);
     let remainingTime = newVal;
     $('.remaining-time-indicator .value').text(remainingTime);
 }
@@ -615,7 +765,7 @@ function renderRemainingTimeIndicator(newVal, oldVal) {
  * 전체 어빌리티 초기 렌더링
  */
 function renderAllAbilities(abilities) {
-    console.debug('[renderAllAbilities] abilities = ', abilities);
+    // console.debug('[renderAllAbilities] abilities = ', abilities);
     // 기존 어빌리티 초기화
     $(`.slick-slide:not(.slick-cloned) .ability-wrapper`).empty();
 
@@ -647,9 +797,13 @@ function renderSingleAbility(abilityId, ability) {
         if ($siblings.length === 0) {
             $abilityWrapper.append($abilityIcon);
         } else {
-            const $target = $siblings.filter((index, sibling) => parseInt($(sibling).attr('data-order')) > ability.order).first();
-            // order 앞 순서 있으면 뒤에, 없으면 맨 앞에 삽입
-            $target.length > 0 ? $target.before($abilityIcon) : $abilityWrapper.append($abilityIcon);
+            const $target = $siblings.filter((index, sibling) => parseInt($(sibling).attr('data-order')) >= ability.order).first();
+            if ($target.length === 0) {
+                $abilityWrapper.append($abilityIcon); // 없으면 wrapper 에 (맨앞)
+            } else {
+                $target.before($abilityIcon);
+                if ($target.attr('data-order') == ability.order) $target.remove(); // order 같으면 기존 아이콘 삭제
+            }
         }
     }
     syncSlickClones(ability.actorIndex);
@@ -682,6 +836,7 @@ function createAbilityElement(ability) {
             <img src="${ability.iconImageSrc || ''}" alt="abilityIcon"/>
             <div class="ability-cooldown-text ${cooldownText ? '' : 'invisible'}">
                 <span class="value">${cooldownText ? cooldownText : '00'}</span>
+                턴
             </div>
             <div class="ability-overlay command-overlay ${isReady ? '' : 'not-ready'}" data-move-id="${ability.id}"></div>
         </div>
@@ -698,7 +853,7 @@ function createAbilityElement(ability) {
  * @param abilities
  */
 function renderAllAbilityIndicators(abilities) {
-    console.debug('[renderAllAbilityIndicators] abilities = ', abilities);
+    // console.debug('[renderAllAbilityIndicators] abilities = ', abilities);
 
     for (let actorIndex = 1; actorIndex <= 4; actorIndex++) {
         const $indicators = $(`.battle-member-wrapper .battle-portrait.actor-${actorIndex} .ability-usable-indicator-wrapper .ability-usable-indicator`);
@@ -718,7 +873,7 @@ function renderAllAbilityIndicators(abilities) {
 
             // 사용 가능여부 표시
             const abilitySealed = ability.sealed || false;
-            const abilityType = ability.additionalType.toLowerCase();
+            const abilityType = ability.abilityType.toLowerCase();
             if (ability.cooldown <= 0 && !abilitySealed) {
                 $indicator.addClass(abilityType);
             } else {
@@ -728,12 +883,121 @@ function renderAllAbilityIndicators(abilities) {
     }
 }
 
+function renderAllChargeAttacks(chargeAttacks) {
+    /*
+    {
+    "type": "CHARGE_ATTACK",
+    "id": 9305,
+    "name": "영준호걸",
+    "order": 1,
+    "actorId": 2630,
+    "actorIndex": 1,
+    "info": "[데미지]4.5배[/데미지]3턴간 아군 전체에 재생 효과, 스트렝스 효과",
+    "cooldown": 0,
+    "maxCooldown": 0,
+    "iconImageSrc": "",
+    "portraitImageSrc": "",
+    "cutinImageSrc": "",
+    "abilityType": "",
+    "cjsName": "",
+    "statusEffects": [
+        {
+            "type": "BUFF",
+            "name": "재생",
+            "iconSrc": "/static/gbf/img/status/status_1002.png",
+            "effectText": "재생",
+            "statusText": "턴 종료시 체력을 2000 회복",
+            "durationType": "TURN",
+            "duration": 3,
+            "level": 0,
+            "maxLevel": 0,
+            "remainingDuration": 3,
+            "removed": false,
+            "removable": true,
+            "resistible": true
+        },
+        {
+            "type": "BUFF",
+            "name": "스트렝스",
+            "iconSrc": "/static/gbf/img/status/status_1240.png",
+            "effectText": "스트렝스",
+            "statusText": "자신의 현재 체력의 비율에 비례하여 공격력이 최대 20% 증가",
+            "durationType": "TURN",
+            "duration": 3,
+            "level": 0,
+            "maxLevel": 0,
+            "remainingDuration": 3,
+            "removed": false,
+            "removable": true,
+            "resistible": true
+        }
+    ]
+}
+     */
+    Object.values(chargeAttacks).forEach(chargeAttack => {
+        let iconHtmls = chargeAttack.statusEffects.length > 0
+            ? chargeAttack.statusEffects.map(statusEffect => $('<img class="status-icon">').attr('src', statusEffect.iconSrc).get(0).outerHTML).join('\n')
+            : '';
+
+        $(`.ability-panel.actor-${chargeAttack.actorIndex} .charge-attack-wrapper .move-popover-label.charge-attack`).remove();
+
+        let $popoverLabel = $(`
+            <div class="move-popover-label charge-attack">
+                <span class="header">오의: </span>
+                <span>${chargeAttack.name}</span><i class="ms-1 me-1 bi bi-question-circle"></i>
+                ${iconHtmls}
+            </div>
+        `);
+
+        let $popoverButton = $(`
+            <button class="open-move-popover charge-attack"></button>
+        `);
+        $popoverButton.attr('data-actor-id', chargeAttack.actorId);
+        $popoverButton.attr('data-move-type', chargeAttack.type);
+        $popoverButton.attr('data-move-order', 0);
+
+        $popoverLabel.find('.header').after($popoverButton); // 오의: <- 뒤에 버튼 붙임 (위치 고정)
+        $popoverLabel.on('click', function (event) {
+            event.stopPropagation(); // 라벨로 대신클릭 (width = 1)
+            $(this).find('.open-move-popover').click();
+        });
+
+        $(`.ability-panel.actor-${chargeAttack.actorIndex} .charge-attack-wrapper`).append($popoverLabel);
+    });
+}
+
+function renderAllSupportAbilities(supportAbilityObj) {
+    // console.debug('[renderAllSupportAbilities] supportAbilityObj = ', supportAbilityObj);
+
+    Object.values(supportAbilityObj).forEach(supportAbilities => {
+        if (supportAbilities.length === 0) return;
+
+        let actorIndex = supportAbilities[0].actorIndex;
+        $(`.ability-panel.actor-${actorIndex} .support-ability-wrapper .open-move-popover.support-ability`).remove();
+
+        supportAbilities.forEach((supportAbility) => {
+
+            let iconSrc = supportAbility.statusEffects.length > 0 ? supportAbility.statusEffects[0].iconSrc : '';
+            let $popoverButton = $(`
+            <button class="btn btn-xxsm btn-outline-light open-move-popover support-ability support-ability-${supportAbility.order}">
+              <span>서포트 ${supportAbility.order}</span>
+              <img class="status-icon" src=${iconSrc}>
+            </button>
+        `);
+            $popoverButton.attr('data-actor-id', supportAbility.actorId);
+            $popoverButton.attr('data-move-type', supportAbility.type);
+            $popoverButton.attr('data-move-order', supportAbility.order);
+            $(`.ability-panel.actor-${supportAbility.actorIndex} .support-ability-wrapper`).append($popoverButton);
+        });
+    })
+}
+
 /**
  * 전체 소환석 초기 렌더링
  * @param {Object} summons - summon 객체 (id를 key로)
  */
 function renderAllSummons(summons) {
-    console.debug('[renderAllSummons] summons = ', summons);
+    // console.debug('[renderAllSummons] summons = ', summons);
     const $summonList = $('#partyCommandContainer .summon-display-wrapper .summon-list');
     $summonList.empty();
 
@@ -746,8 +1010,8 @@ function renderAllSummons(summons) {
         $summonList.append($summonElement);
     });
 
-    // 더미 추가 (최대 4개까지 빈 칸 채우기)
-    const emptyCount = 4 - leaderSummons.length;
+    // 더미 추가
+    const emptyCount = 5 - leaderSummons.length;
     for (let i = 0; i < emptyCount; i++) {
         $summonList.append(`
             <div class="summon-list-item empty">
@@ -782,7 +1046,6 @@ function createSummonElement(summon) {
 
     // 클릭 이벤트
     $summon.on('click', function () {
-        if (player.locked) return;
         let summon = gameStateManager.getState(`summon.${$(this).attr('data-move-id')}`);
         openCommandInfoModal(summon);
     });

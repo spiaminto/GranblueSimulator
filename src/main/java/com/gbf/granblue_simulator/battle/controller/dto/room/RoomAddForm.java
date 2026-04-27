@@ -7,4 +7,5 @@ import lombok.Data;
 @Builder
 public class RoomAddForm {
     private String message;
+    private Long raidId;
 }

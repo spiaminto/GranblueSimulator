@@ -3,24 +3,20 @@ package com.gbf.granblue_simulator.battle.logic.move.character;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.logic.move.MoveLogicRequest;
-import com.gbf.granblue_simulator.battle.logic.move.dto.DefaultMoveRequest;
-import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
-import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
-import com.gbf.granblue_simulator.battle.logic.move.dto.SetEffectRequest;
+import com.gbf.granblue_simulator.battle.logic.move.dto.*;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
+import com.gbf.granblue_simulator.battle.logic.util.TrackingConditionUtil;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
+import com.gbf.granblue_simulator.metadata.domain.move.TrackingCondition;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusEffectTargetType;
 import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByName;
-import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getLevelByName;
 
 @Component
 @Transactional
@@ -43,8 +39,7 @@ public class YachimaLogic extends DefaultCharacterMoveLogic {
         moveLogicRegistry.register(abilityKey(gid, 3), this::thirdAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 1), this::firstSupportAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 2), this::secondSupportAbility);
-        moveLogicRegistry.register(supportAbilityKey(gid, 3), this::thirdSupportAbility);
-        moveLogicRegistry.register(supportAbilityKey(gid, 4), this::fourthSupportAbility);
+        moveLogicRegistry.register(triggerAbilityKey(gid, 1), this::firstTriggerAbility);
     }
 
     protected MoveLogicResult normalAttack(MoveLogicRequest request) {
@@ -52,23 +47,24 @@ public class YachimaLogic extends DefaultCharacterMoveLogic {
         return resultMapper.fromDefaultResult(defaultAttack(attack));
     }
 
+    // 자신의 첫번째 어빌리티 자동발동
     protected MoveLogicResult chargeAttack(MoveLogicRequest request) {
-        // Double damageRate = checkCondition.hasEffect(request.getMove().getActor(), "레코데이션 싱크").isPresent() ? 12.5 : null;
         return resultMapper.fromDefaultResult(defaultChargeAttack(request.getMove()));
     }
 
-    // [REACT_SELF]
+    // [REACT_SELF] 적의 공격력, 방어력 감소(누적)
+    // ◆레코데이션 싱크 효과중, 약화효과 부여횟수 2배
     protected MoveLogicResult firstAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         Actor self = ability.getActor();
-        if (checkCondition.triggered(request) // 트리거 되었을때, 레코데이션 싱크 효과없으면 발동하지 않음
-                && (!checkCondition.isMoveParentType(request.getOtherResult(), MoveType.CHARGE_ATTACK) || checkCondition.hasEffect(self, "레코데이션 싱크").isEmpty())) {
-            return resultMapper.emptyResult();
-        }
+        if (checkCondition.triggered(request) && !checkCondition.isMoveParentType(request.getOtherResult(), MoveType.CHARGE_ATTACK)) return resultMapper.emptyResult();
 
-        // 알파레벨에 비례해 히트수 증가
-        int hitCount = ability.getBaseMove().getHitCount() + getLevelByName(self, "알파");
-        return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.withHitCount(ability, hitCount)));
+        List<BaseStatusEffect> toApplyEffects = new ArrayList<>(ability.getBaseMove().getBaseStatusEffects());
+        toApplyEffects.addAll(checkCondition.hasEffect(self, "레코데이션 싱크")
+                .map(effect -> ability.getBaseMove().getBaseStatusEffects())
+                .orElse(Collections.emptyList()));
+
+        return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.withSelectedBaseStatusEffects(ability, toApplyEffects)));
     }
 
     protected MoveLogicResult secondAbility(MoveLogicRequest request) {
@@ -81,10 +77,12 @@ public class YachimaLogic extends DefaultCharacterMoveLogic {
         StatusEffectTargetType applyEffectTargetType = checkCondition.hasEffect(self, "레코데이션 싱크").isPresent()
                 ? StatusEffectTargetType.PARTY_MEMBERS : StatusEffectTargetType.SELF; // 상태효과, 턴진행 없이 통상공격 실행 타겟
 
-        defaultAbility(DefaultMoveRequest.withSelectedBaseStatusEffects(ability, Collections.emptyList()));// 빈 상태효과 전달, 상태효과는 직접적용
-        // 타겟에 맞게 상태효과 직접 적용
+        // 타겟에 맞게 상태효과 적용
         List<Actor> statusEffectTargets = applyEffectTargetType == StatusEffectTargetType.SELF ? List.of(self) : battleContext.getFrontCharacters();
         SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(SetEffectRequest.withSelectedTargets(ability.getBaseMove().getBaseStatusEffects(), statusEffectTargets));
+
+        // 기본 어빌리티 수행 (상태효과는 빈 리스트)
+        defaultAbility(DefaultMoveRequest.withSelectedBaseStatusEffects(ability, Collections.emptyList()));
 
         return resultMapper.toResult(ResultMapperRequest.builder()
                 .move(ability)
@@ -94,52 +92,55 @@ public class YachimaLogic extends DefaultCharacterMoveLogic {
                 .build());
     }
 
-    // 자신이 트리플 어택시 사포아비1 적용 (알파레벨 증가) [REACT_SELF]
+    // [REACT_CHARACTER] 아군 전체가 적에게 누적 100회 데미지를 입힐때 마다 자신의 알파레벨 1 상승
     protected MoveLogicResult firstSupportAbility(MoveLogicRequest request) {
-        return checkCondition.isNormalAttackAndAttackCountIs(request.getOtherResult(), 3) && !checkCondition.isEffectMaxLevel(request.getMove().getActor(), "알파")
-                ? resultMapper.fromDefaultResult(defaultAbility(request.getMove()))
-                : resultMapper.emptyResult(); // 자신의 알파레벨이 만렙이면 스킵
+        Move ability = request.getMove();
+        Actor self = ability.getActor();
+        if (checkCondition.hasEffectLevel(self, "알파", 4).isPresent()) return resultMapper.emptyResult();
+
+        int currentValue = TrackingConditionUtil.getInt(ability.getConditionTracker(), TrackingCondition.HIT_COUNT_BY_CHARACTER_ACC);
+        int threshold = TrackingConditionUtil.getInt(ability.getBaseMove().getConditionTracker(), TrackingCondition.HIT_COUNT_BY_CHARACTER_ACC);
+        if (currentValue < threshold) return resultMapper.emptyResult();
+
+        TrackingConditionUtil.subtractCondition(ability.getConditionTracker(), TrackingCondition.HIT_COUNT_BY_CHARACTER_ACC, threshold);
+        return resultMapper.fromDefaultResult(defaultAbility(ability));
     }
 
-    // 자신이 적에게 공격받을시 델타레벨 증가 [ENEMY_STRIKE_END]
+    // 턴 종료시 알파 레벨이 4 일때, 효과를 전체화 [/]자신에게 레코데이션 싱크 효과, 3번째 어빌리티 쿨타임 초기화
     protected MoveLogicResult secondSupportAbility(MoveLogicRequest request) {
-        return checkCondition.isTargetedByEnemy(request.getOtherResult(), request.getMove().getActor()) && !checkCondition.isEffectMaxLevel(request.getMove().getActor(), "델타")
-                ? resultMapper.fromDefaultResult(defaultAbility(request.getMove()))
-                : resultMapper.emptyResult();
-    }
-
-    // 자신이 알파레벨, 델타레벨 최대치인경우 턴 종료시 레코데이션 싱크 효과, 알파 델타를 아군 전체에 적용 [TURN_END]
-    protected MoveLogicResult thirdSupportAbility(MoveLogicRequest request) {
         Actor self = request.getMove().getActor();
         if (checkCondition.hasEffect(self, "레코데이션 싱크").isPresent()
-                || !checkCondition.isEffectMaxLevel(self, "알파")
-                || !checkCondition.isEffectMaxLevel(self, "델타")) {
+                || !checkCondition.isEffectMaxLevel(self, "알파")) {
             return resultMapper.emptyResult();
         }
 
-        // 자신을 포함한 아군 전체에게 알파, 델타 효과 재적용 (타겟 아군 전체로 변경)
-        List<BaseMove> supportAbilities = baseMoveService.findByLogicIds(supportAbilityKey(gid, 1), supportAbilityKey(gid, 2));
-        List<BaseStatusEffect> baseEffects = supportAbilities.stream()
-                .flatMap(move -> move.getBaseStatusEffects().stream())
-                .filter(effect -> effect.getName().equals("알파") || effect.getName().equals("델타"))
-                .toList();
-        setStatusLogic.setStatusEffect(SetEffectRequest.withSelectedTargets(baseEffects, battleContext.getFrontCharacters())); // 이쪽결과는 이펙트 표시 x
+        // 자신을 포함한 아군 전체에게 알파, 효과 재적용 (타겟 아군 전체로 변경)
+        List<BaseStatusEffect> firstSupportAbilityStatusEffects = baseMoveService.findByLogicId(supportAbilityKey(gid, 1)).getBaseStatusEffects();
 
-        // 재적용 된 알파, 델타 레벨 4로 변경 및 스탯 갱신
-        battleContext.getFrontCharacters().forEach(partyMember -> setStatusLogic.addStatusEffectsLevel(
-                partyMember, 3,
-                getEffectByName(partyMember, "알파").orElse(null),
-                getEffectByName(partyMember, "델타").orElse(null)));
+        SetStatusEffectResult setAlphaResult = setStatusLogic.setStatusEffect(SetEffectRequest
+                .builder()
+                .selectedTargets(battleContext.getFrontCharacters())
+                .baseStatusEffects(firstSupportAbilityStatusEffects)
+                .targetLevel(4)
+                .build());
+
+        DefaultMoveLogicResult defaultMoveLogicResult = defaultAbility(request.getMove()); // 자신에게 레코데이션 싱크 적용
+        defaultMoveLogicResult.getSetStatusEffectResult().merge(setAlphaResult);
 
         // 자신의 3어빌 쿨타임 0으로 감소
         self.getFirstMove(MoveType.THIRD_ABILITY).updateCooldown(0);
+
+        // 트리거어빌리티 추가
+        saveTriggeredMove(List.of(self), triggerAbilityKey(gid, 1));
+
         // 레코데이션 싱크 적용
-        return resultMapper.fromDefaultResult(defaultAbility(request.getMove()));
+        return resultMapper.fromDefaultResult(defaultMoveLogicResult);
     }
 
     // 자신이 레코데이션 싱크 효과중 통상공격 후 5배 데미지 3회, 방어력 다운 [REACT_SELF]
-    protected MoveLogicResult fourthSupportAbility(MoveLogicRequest request) {
-        return checkCondition.isMoveParentType(request.getOtherResult(), MoveType.ATTACK) && checkCondition.hasEffect(request.getMove().getActor(), "레코데이션 싱크").isPresent()
+    protected MoveLogicResult firstTriggerAbility(MoveLogicRequest request) {
+        return checkCondition.isMoveParentType(request.getOtherResult(), MoveType.ATTACK)
+                && checkCondition.hasEffect(request.getMove().getActor(), "레코데이션 싱크").isPresent()
                 ? resultMapper.fromDefaultResult(defaultAbility(request.getMove()))
                 : resultMapper.emptyResult();
     }

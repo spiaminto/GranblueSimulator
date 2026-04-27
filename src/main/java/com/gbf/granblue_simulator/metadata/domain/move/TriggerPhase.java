@@ -1,5 +1,7 @@
 package com.gbf.granblue_simulator.metadata.domain.move;
 
+import lombok.Getter;
+
 /**
  * Move 의 반응 시점 내에서 처리할 순서 페이즈. ReactionLogic 에서 반응 시점별 정렬시 사용
  */
@@ -29,10 +31,11 @@ public enum TriggerPhase {
     NONE(999) // null
     ;
 
-    final int phase;
+    @Getter
+    final int order;
 
     TriggerPhase(int i) {
-        this.phase = i;
+        this.order = i;
     }
 
     public boolean isNone() {

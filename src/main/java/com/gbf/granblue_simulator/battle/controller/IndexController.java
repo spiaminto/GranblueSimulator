@@ -1,25 +1,25 @@
 package com.gbf.granblue_simulator.battle.controller;
 
-import com.gbf.granblue_simulator.battle.controller.dto.info.EnemyInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.info.MoveInfo;
+import com.gbf.granblue_simulator.battle.controller.dto.info.RaidInfo;
 import com.gbf.granblue_simulator.battle.controller.dto.room.EnterRoomForm;
 import com.gbf.granblue_simulator.battle.controller.dto.room.ExitRoomForm;
 import com.gbf.granblue_simulator.battle.controller.dto.room.RoomAddForm;
 import com.gbf.granblue_simulator.battle.controller.dto.room.RoomInfo;
 import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
+import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
-import com.gbf.granblue_simulator.battle.repository.MemberRepository;
 import com.gbf.granblue_simulator.battle.service.MemberService;
 import com.gbf.granblue_simulator.battle.service.RoomService;
-import com.gbf.granblue_simulator.metadata.domain.actor.BaseActor;
+import com.gbf.granblue_simulator.metadata.domain.Raid;
+import com.gbf.granblue_simulator.metadata.domain.RaidType;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.omen.BaseOmen;
 import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
-import com.gbf.granblue_simulator.metadata.repository.BaseOmenRepository;
-import com.gbf.granblue_simulator.metadata.service.BaseActorService;
+import com.gbf.granblue_simulator.metadata.repository.RaidRepository;
 import com.gbf.granblue_simulator.metadata.service.BaseEnemyService;
 import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import com.gbf.granblue_simulator.party.controller.dto.BaseEnemyInfo;
@@ -33,6 +33,8 @@ import com.gbf.granblue_simulator.user.domain.User;
 import com.gbf.granblue_simulator.user.domain.UserCharacter;
 import com.gbf.granblue_simulator.user.service.UserService;
 import com.gbf.granblue_simulator.web.auth.PrincipalDetails;
+import com.gbf.granblue_simulator.web.mail.GmailSender;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,73 +59,86 @@ import java.util.stream.Collectors;
 public class IndexController {
 
     private final RoomService roomService;
-    private final MemberRepository memberRepository;
     private final BaseMoveRepository baseMoveRepository;
     private final PartyRepository partyRepository;
     private final MemberService memberService;
     private final UserService userService;
-    private final BaseActorService baseActorService;
     private final BaseEnemyService baseEnemyService;
     private final BaseMoveService baseMoveService;
-    private final BaseOmenRepository baseOmenRepository;
+    private final RaidRepository raidRepository;
+
+    private final GmailSender gmailSender;
 
     @RequestMapping("/")
-    public String index(@ModelAttribute("roomAddForm") RoomAddForm roomAddForm, Model model,
+    public String index(@ModelAttribute("roomAddForm") RoomAddForm roomAddForm,
+                        Model model,
+                        HttpSession session,
                         @AuthenticationPrincipal PrincipalDetails principal) {
+        final boolean isLoggedIn = principal != null;
+
+        // 에러 핸들 메시지
+        String error = (String) session.getAttribute("errorMessage");
+        if (error != null) {
+            model.addAttribute("errorMessage", error);
+            session.removeAttribute("errorMessage"); // 1회성으로만 사용할것
+        }
 
         List<Room> rooms = roomService.findActiveRooms();
         List<RoomInfo> roomInfos = rooms.stream()
                 .filter(room -> !room.getMembers().isEmpty()) // 멤버 입장 안되서 에러나면 패스
                 .sorted(Comparator.comparing(Room::getCreatedAt))
                 .map(room -> {
-                            int enemyHpRate = -1;
-                            String enemyPortraitSrc = "";
-                            String enemyName = "";
-                            Optional<Actor> enemyOptional = room.getMembers().stream()
-                                    .filter(member -> !member.getActors().isEmpty())
-                                    .findFirst()
-                                    .flatMap(member -> member.getActors().stream()
-                                            .filter(Actor::isEnemy)
-                                            .findFirst());
-                            if (enemyOptional.isPresent()) {
-                                Actor enemy = enemyOptional.get();
-                                enemyHpRate = enemy.getHpRateInt();
-                                enemyPortraitSrc = enemy.getActorVisual().getPortraitImageSrc();
-                                enemyName = enemy.getName();
-                            }
-                            LocalDateTime roomCreatedAt = room.getCreatedAt();
-                            long remainingSeconds = 1800L - Duration.between(roomCreatedAt, LocalDateTime.now()).getSeconds();
-                            String remainingTimeString = "00:00";
-                            if (remainingSeconds > 0) {
-                                long remainingMinutes = remainingSeconds / 60;
-                                remainingTimeString = remainingMinutes + ":" + remainingSeconds % 60;
-                            }
-                            return RoomInfo.builder()
-                                    .id(room.getId())
-                                    .info(room.getInfo())
-                                    .roomStatus(room.getRoomStatus())
-                                    .ownerUsername(room.getOwnerUsername())
-                                    .memberCount(room.getMembers().size())
-                                    .maxMemberCount(room.getMaxUserCount())
-                                    .enemyHpRate(enemyHpRate)
-                                    .enemyPortraitSrc(enemyPortraitSrc)
-                                    .enemyName(enemyName)
-                                    .remainingTime(remainingTimeString)
-                                    .build();
-                        }
-                ).toList();
+                    int enemyHpRate = -1;
+                    String enemyPortraitSrc = room.getRaid().getRaidImageSrc();
+                    String enemyName = room.getRaid().getName();
+                    Optional<Actor> enemyOptional = room.getMembers().stream()
+                            .filter(member -> !member.getActors().isEmpty())
+                            .findFirst()
+                            .flatMap(member -> member.getActors().stream()
+                                    .filter(Actor::isEnemy)
+                                    .findFirst());
+                    if (enemyOptional.isPresent()) {
+                        Actor enemy = enemyOptional.get();
+                        enemyHpRate = enemy.getHpRateInt();
+                    }
+                    LocalDateTime roomCreatedAt = room.getCreatedAt();
+                    long remainingSeconds = 2700L - Duration.between(roomCreatedAt, LocalDateTime.now()).getSeconds();
+                    String remainingTimeString = "00:00";
+                    if (remainingSeconds > 0) {
+                        long remainingMinutes = remainingSeconds / 60;
+                        remainingTimeString = remainingMinutes + ":" + remainingSeconds % 60;
+                    }
+                    Boolean isMember = isLoggedIn && room.getMembers().stream().anyMatch(member -> principal.getUser().getId().equals(member.getUser().getId()));
+
+                    return RoomInfo.builder()
+                            .id(room.getId())
+                            .info(room.getInfo())
+                            .roomStatus(room.getRoomStatus())
+                            .ownerUsername(room.getOwnerUsername())
+                            .memberCount(room.getMembers().size())
+                            .maxMemberCount(room.getMaxUserCount())
+                            .enemyHpRate(enemyHpRate)
+                            .enemyPortraitSrc(enemyPortraitSrc)
+                            .enemyName(enemyName)
+                            .remainingTime(remainingTimeString)
+                            .isMember(isMember)
+                            .build();
+                })
+                .sorted(Comparator.comparingInt(roomInfo -> roomInfo.getIsMember() ? 0 : 1)) // 참전중인 방 우선
+                .toList();
         model.addAttribute("roomInfos", roomInfos);
 
         if (principal != null) {
-            Long primaryPartyId = principal.getUser().getPrimaryPartyId();
+            User user = userService.findById(principal.getUser().getId()).orElseThrow(() -> new IllegalStateException("없는 유저"));
+            Long primaryPartyId = user.getPrimaryPartyId();
             Party party = partyRepository.findById(primaryPartyId).orElseThrow(() -> new IllegalArgumentException("선택된 파티 없음"));
-            log.info("partyIds = {}", party.getCharacterIds());
+            log.debug("[index] partyIds = {}", party.getUserCharacterIds());
             PartyInfo partyInfo = PartyInfo.builder()
                     .id(party.getId())
                     .name(party.getName())
                     .info(party.getInfoText())
                     .characterInfos(
-                            party.getCharacterIds().stream()
+                            party.getUserCharacterIds().stream()
                                     .map(characterId -> {
                                         UserCharacter character = party.getUser().getUserCharacters().get(characterId);
                                         return UserCharacterInfo.builder()
@@ -136,18 +151,21 @@ public class IndexController {
                     )
                     .summonInfos(
                             baseMoveRepository.findAllById(party.getSummonIds()).stream()
-                                    .map(move ->
-                                            PartySummonInfo.builder()
-                                                    .id(move.getId())
-                                                    .name(move.getName())
-                                                    .info(move.getInfo())
-                                                    .cooldown(move.getCoolDown())
-                                                    .portraitSrc(move.getDefaultVisual().getPortraitImageSrc())
-                                                    .build()
+                                    .map(move -> PartySummonInfo.builder()
+                                            .id(move.getId())
+                                            .name(move.getName())
+                                            .info(move.getInfo())
+                                            .cooldown(move.getCoolDown())
+                                            .portraitSrc(move.getDefaultVisual().getPortraitImageSrc())
+                                            .build()
                                     ).toList()
                     )
                     .build();
             model.addAttribute("partyInfo", partyInfo);
+
+            user.getMembers().stream().filter(member -> member.getRoom().isFinished() && !member.checkedResult()).findAny().ifPresent(member -> {
+                model.addAttribute("resultChecked", false);
+            });
         }
 
         // 회원가입 폼 추가
@@ -155,15 +173,18 @@ public class IndexController {
             model.addAttribute("userRegisterForm", new UserRegisterForm());
         }
 
-        // 방만들기 적 추가
-        List<EnemyInfo> baseEnemiesInfo = baseEnemyService.findFirstFormEnemies().stream()
-                .map(baseEnemy -> EnemyInfo.builder()
-                        .baseId(baseEnemy.getId())
-                        .name(baseEnemy.getName())
-                        .portraitSrc(baseEnemy.getDefaultVisual().getPortraitImageSrc())
+        // 방만들기 레이드 추가
+        List<Raid> raids = raidRepository.findAllByType(RaidType.MULTI);
+        List<RaidInfo> raidInfos = raids.stream()
+                .map(raid -> RaidInfo.builder()
+                        .id(raid.getId())
+                        .type(raid.getType())
+                        .name(raid.getName())
+                        .info(raid.getInfo())
+                        .raidImageSrc(raid.getRaidImageSrc())
                         .build())
                 .toList();
-        model.addAttribute("enemyInfos", baseEnemiesInfo);
+        model.addAttribute("raidInfos", raidInfos);
 
         return "index";
     }
@@ -173,11 +194,12 @@ public class IndexController {
                           @AuthenticationPrincipal PrincipalDetails principalDetails,
                           RedirectAttributes redirectAttributes) {
         if (principalDetails == null) {
+            redirectAttributes.addFlashAttribute("alertMessage", "유저 오류입니다.");
             return "redirect:/";
         }
 
         // 방 작성
-        Room savedRoom = roomService.addRoom(principalDetails.getId(), roomAddForm.getMessage());
+        Room savedRoom = roomService.addRoom(principalDetails.getId(), roomAddForm.getRaidId(), roomAddForm.getMessage());
 
         // 멤버 추가
         memberService.enterRoom(savedRoom.getId(), principalDetails.getId());
@@ -190,7 +212,7 @@ public class IndexController {
     public String exitRoom(@ModelAttribute ExitRoomForm form,
                            @AuthenticationPrincipal PrincipalDetails principal) {
         Long memberId = form.getMemberId();
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
+        Member member = memberService.findById(memberId).orElseThrow(() -> new IllegalArgumentException("없는 멤버"));
         Long userId = principal.getId();
         if (!member.getUser().getId().equals(userId)) {
             return "redirect:/";
@@ -204,16 +226,26 @@ public class IndexController {
     @PostMapping("/room/join")
     @Transactional
     public String joinRoom(@ModelAttribute EnterRoomForm form,
-                           @AuthenticationPrincipal PrincipalDetails principal, Model model) {
+                           @AuthenticationPrincipal PrincipalDetails principal,
+                           RedirectAttributes redirectAttributes) {
         log.info("[joinRoom] enterRoomForm = {}", form);
         if (principal == null || !principal.getId().equals(form.getUserId())) {
+            redirectAttributes.addFlashAttribute("alertMessage", "유저 오류입니다.");
             return "redirect:/";
         }
         Long userId = principal.getId();
         Long roomId = form.getRoomId();
 
-        Member member = memberRepository.findByRoomIdAndUserId(roomId, userId).orElse(null);
+        Member member = memberService.findByRoomIdAndUserId(roomId, userId).orElse(null);
         if (member == null) {
+            User user = userService.findById(userId).orElseThrow(() -> new IllegalStateException("잘못된 유저입니다."));
+            long enteringRoomCount = user.getMembers().stream()
+                    .filter(userMember -> userMember.getRoom().getRoomStatus() == RoomStatus.ACTIVE)
+                    .count();
+            if (enteringRoomCount >= 2) {
+                redirectAttributes.addFlashAttribute("alertMessage", "참전 가능한 방의 갯수는 최대 2개 입니다.");
+                return "redirect:/";
+            }
             // 멤버 추가 시작
             memberService.enterRoom(roomId, userId);
         }
@@ -223,51 +255,53 @@ public class IndexController {
 
     @GetMapping("/users/me/battle-history")
     @Transactional
-    public String history(@AuthenticationPrincipal PrincipalDetails principal, Model model) {
+    public String getHistory(@AuthenticationPrincipal PrincipalDetails principal, Model model) {
         if (principal == null) {
             return "redirect:/";
         }
         Long userId = principal.getUser().getId();
         User user = userService.findById(userId).orElseThrow(() -> new IllegalArgumentException("없는 유저 입니다. userId = " + userId));
-        List<Room> rooms = user.getMembers().stream()
-                .map(Member::getRoom)
-                .filter(Room::isFinished)
-                .toList();
-        List<RoomInfo> roomInfos = rooms.stream()
-                .filter(room -> !room.getMembers().isEmpty()) // 멤버 입장 안되서 에러나면 패스
-                .sorted(Comparator.comparing(Room::getCreatedAt))
-                .map(room -> {
-                            BaseActor baseEnemy = baseActorService.findById(room.getEnemyBaseId()).orElseThrow(() -> new IllegalArgumentException("적이 없습니다. id = " + room.getEnemyBaseId()));
-                            String enemyPortraitSrc = baseEnemy.getDefaultVisual().getPortraitImageSrc();
-                            String enemyName = baseEnemy.getName();
-                            String endedAt = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.KOREA).format(room.getEndedAt());
 
-                            return RoomInfo.builder()
-                                    .id(room.getId())
-                                    .info(room.getInfo())
-                                    .roomStatus(room.getRoomStatus())
-                                    .ownerUsername(room.getOwnerUsername())
-                                    .memberCount(room.getMembers().size())
-                                    .maxMemberCount(room.getMaxUserCount())
-                                    .enemyName(enemyName)
-                                    .enemyPortraitSrc(enemyPortraitSrc)
-                                    .endedAt(endedAt)
-                                    .build();
-                        }
-                ).toList();
+        List<RoomInfo> roomInfos = user.getMembers().stream()
+                .filter(member ->
+                        (member.getRoom().isFinished() && !member.getRoom().getMembers().isEmpty())
+                                && !(member.checkedResult() && member.getRoom().getRaid().getType() == RaidType.TUTORIAL) // 튜토리얼, 결과 체크했다면 제외
+                )
+                .sorted(Comparator.comparing((Member member) -> member.getRoom().getEndedAt()).reversed())
+                .map(member -> {
+                    Room room = member.getRoom();
+                    String enemyPortraitSrc = room.getRaid().getRaidImageSrc();
+                    String enemyName = room.getRaid().getName();
+                    String endedAt = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.KOREA).format(room.getEndedAt());
+
+                    return RoomInfo.builder()
+                            .id(room.getId())
+                            .info(room.getInfo())
+                            .roomStatus(room.getRoomStatus())
+                            .ownerUsername(room.getOwnerUsername())
+                            .memberCount(room.getMembers().size())
+                            .maxMemberCount(room.getMaxUserCount())
+                            .enemyName(enemyName)
+                            .enemyPortraitSrc(enemyPortraitSrc)
+                            .endedAt(endedAt)
+                            .resultChecked(member.checkedResult())
+                            .build();
+                })
+                .toList();
+
         model.addAttribute("roomInfos", roomInfos);
         return "battleHistory";
     }
 
     @GetMapping("/base-enemies/{enemyId}")
+    @Transactional
     public String getBaseEnemy(@PathVariable Long enemyId,
                                Model model,
                                @AuthenticationPrincipal PrincipalDetails principalDetails) {
-        //CHECK 나중에 수정
 
         BaseEnemy baseEnemy = baseEnemyService.findById(enemyId).orElseThrow(() -> new IllegalArgumentException("없는 id 입니다. enemyId = " + enemyId));
         Integer currentFormOrder = baseEnemy.getFormOrder();
-        Map<Integer, BaseEnemy> baseEnemyMap = baseActorService.findByRootNameEn(baseEnemy.getRootNameEn()).stream()
+        Map<Integer, BaseEnemy> baseEnemyMap = baseEnemyService.findByRootNameEn(baseEnemy.getRootNameEn()).stream()
                 .collect(Collectors.toMap(
                         BaseEnemy::getFormOrder,
                         Function.identity()
@@ -283,7 +317,7 @@ public class IndexController {
         List<BaseEnemyInfo.ChargeAttack> chargeAttacks = baseOmens.values().stream()
                 .sorted(Comparator.comparing((BaseOmen baseOmen) -> baseOmen.getOmenType().getDisplayOrder()).thenComparing(BaseOmen::getStandbyType))
                 .map(baseOmen -> {
-                    MoveInfo chargeAttackInfo = MoveInfo.from(baseMoveMap.get(baseOmen.getStandbyType().getChargeAttackType()).getFirst());
+                    MoveInfo chargeAttackInfo = MoveInfo.fromWithModifier(baseMoveMap.get(baseOmen.getStandbyType().getChargeAttackType()).getFirst());
                     chargeAttackInfos.add(chargeAttackInfo);
                     return BaseEnemyInfo.ChargeAttack.builder()
                             .move(chargeAttackInfo)
@@ -301,7 +335,7 @@ public class IndexController {
                 .portraitSrc(baseEnemy.getDefaultVisual().getPortraitImageSrc())
                 .chargeAttacks(chargeAttacks)
                 .chargeAttackInfos(chargeAttackInfos)
-                .supportAbilities(baseMoveMap.get(MoveType.SUPPORT_ABILITY).stream().map(MoveInfo::from).toList())
+                .supportAbilities(baseMoveMap.get(MoveType.SUPPORT_ABILITY).stream().map(MoveInfo::fromWithModifier).toList())
                 .elementType(baseEnemy.getElementType().getPresentName())
                 .atk(baseEnemy.getAtk())
                 .hp(baseEnemy.getMaxHp())
@@ -315,16 +349,28 @@ public class IndexController {
         return "enemyInfo";
     }
 
+    @GetMapping("/base-summons/{summonId}")
+    public String getBaseSummon(@PathVariable Long summonId,
+                                Model model) {
+        BaseMove summon = baseMoveService.findById(summonId).orElseThrow(() -> new IllegalStateException("없는 소환석입니다."));
+        MoveInfo summonInfo = MoveInfo.from(summon);
 
-//    @GetMapping("/insert")
-//    public String insert() {
-//        return "insert/character";
-//    }
-//
-//    @GetMapping("/insert-enemy")
-//    public String enemyInsert() {
-//        return "insert/enemy";
-//    }
+        model.addAttribute("summonInfo", summonInfo);
+        return "summonInfo";
+    }
+
+    @PostMapping("/inquiry")
+    public String postInquiry(@RequestParam String text,
+                              @AuthenticationPrincipal PrincipalDetails principal,
+                              RedirectAttributes redirectAttributes) {
+        if (principal == null) return "redirect:/";
+
+        log.info("[postInquiry] text = {}, from = {}", text, principal.getUsername());
+        gmailSender.sendInquiry("username = " + principal.getUsername() + "\n" + text);
+
+        redirectAttributes.addFlashAttribute("alertMessage", "문의를 보냈습니다.");
+        return "redirect:/";
+    }
 
 
 }

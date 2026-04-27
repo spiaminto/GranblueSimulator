@@ -71,60 +71,82 @@ function playSe(src) {
 /**
  * 추가 사운드를 재생
  */
-function playAdditionalSe(cjsName = null, motion = null, moveType = null) {
-    console.debug('[playAdditionalSound] actorName = ', cjsName, ' moveType = ', moveType, ' motion = ', motion);
-    if (!Sounds[cjsName]) return;
-    let additionalSound = Sounds[cjsName].additional;
-    if (!additionalSound) return;
+function playAdditionalSe(cjsName = null, motion = null) {
+    // console.debug('[playAdditionalSe] actorName = ', cjsName, ' motion = ', motion);
+    let sfxByCjsName = Sounds.SFX[cjsName];
+    if (!cjsName || !sfxByCjsName) return;
 
-    let soundByMotion = additionalSound[motion]?.src;
-    let soundByMoveType = additionalSound[moveType?.name]?.src;
-    let soundByMoveTypeParent = additionalSound[moveType?.getParentType()?.name]?.src;
+    let key = motion ? motion : 'default';
+    let sfxObjs = sfxByCjsName[key];
+    // console.log(`[playAdditionalSe] sfxObjs = ${sfxObjs ? [...sfxObjs] : 'null'}`)
+    if (!sfxObjs) return;
 
-    console.log('[playAdditionalSound] soundByMotion = ', soundByMotion, ' soundByMoveType = ', soundByMoveType, ' soundByMoveTypeParent = ', soundByMoveTypeParent);
-    [soundByMotion, soundByMoveType, soundByMoveTypeParent].forEach(src => window.audio.play(src, {isLocal: true}));
+    sfxObjs.forEach(sfxObj => {
+        sfxObj.delay > 0
+            ? setTimeout(() => window.audio.play(sfxObj.src, {isLocal: true}), sfxObj.delay)
+            : window.audio.play(sfxObj.src, {isLocal: true});
+    });
 }
 
 function updateBgm(response, {stopBgm = false} = {}) {
-    if (stopBgm === true) window.audio.removeBgm(window.audio.bgmSrc);
-    let enemyCjses = gameStateManager.getState('enemyMainCjsNames');
-    let currentEnemyCjs = enemyCjses[0];
+    if (stopBgm === true) {
+        window.audio.removeBgm();
+        return;
+    }
+
+    let currentEnemyCjs = gameStateManager.getState('enemyMainCjsNames')[0];
+    let bgmByCjsName = Sounds.BGM[currentEnemyCjs];
+    if (!bgmByCjsName) return;
+
     // omen.standbyMoveType
-    let standbyMoveType = gameStateManager.getState('omen.standbyMoveType');
-    let standbyBgm = !!standbyMoveType ? Sounds[currentEnemyCjs].bgm[standbyMoveType.name] : null;
+    let standbyMoveType = gameStateManager.getState('omen.standbyMoveType')?.name;
+    let standbyBgm = standbyMoveType ? bgmByCjsName[standbyMoveType] : null;
     // moveType
     let responseMoveType = response.moveType;
-    let moveTypeBgm = Sounds[currentEnemyCjs].bgm[responseMoveType.name];
+    let moveTypeBgm = bgmByCjsName[responseMoveType.name];
     // hp
-    let hpKey = Object.keys(Sounds[currentEnemyCjs].bgm).map(Number).sort((a, b) => a - b).find(k => k >= response.hpRates[0]);
-    let hpBgm = Sounds[currentEnemyCjs].bgm[hpKey];
+    let hpKey = Object.keys(bgmByCjsName).map(Number).sort((a, b) => a - b).find(k => k >= response.hpRates[0]);
+    let hpBgm = bgmByCjsName[hpKey];
     // current
     let currentBgm = gameStateManager.getState('bgm') || {index: 0, formOrder: 0, src: ''};
     let bgmCandidates = [standbyBgm, moveTypeBgm, hpBgm, currentBgm].filter(bgm => bgm);
 
     let nextBgm = bgmCandidates
         .sort((a, b) => (a.formOrder - b.formOrder) || (a.index - b.index))[bgmCandidates.length - 1]; // formOrder 를 우선비교
-    console.debug('[updateBgm] standbyBgm = ', standbyBgm, ' moveTypeBgm = ', moveTypeBgm, ' hpBgm = ', hpBgm, ' currentBgm = ', currentBgm, ' nextBgm = ', nextBgm);
+
+    if (Object.values(bgmByCjsName).filter(value => value.src === nextBgm.src).length === 0) {
+        // 재생예정인 bgm 이 현재 적의 cjs 와 맞지않음 -> 해당 적의 첫 bgm 으로 fallback
+        nextBgm = Object.values(bgmByCjsName)[0];
+    }
+
+    // console.debug('[updateBgm] standbyBgm = ', standbyBgm, ' moveTypeBgm = ', moveTypeBgm, ' hpBgm = ', hpBgm, ' currentBgm = ', currentBgm, ' nextBgm = ', nextBgm);
     if (nextBgm.src !== currentBgm.src) {
         gameStateManager.setState('bgm', nextBgm);
-        window.audio.playBgm(nextBgm.src);
+        window.audio.playBgm(nextBgm.src, nextBgm.startOffset || 0);
     }
 }
 
 
 /**
  *  sync 인터벌
+ *  @param withImmediateRequest 첫요청 즉시 실형여부, true 시 즉시실행
  * @return {number} timerId
  */
-function doSync() {
-    if (!window.syncTimerId) { // 없을때만 등록
+function doSync(withImmediateRequest = false) {
+    if (withImmediateRequest) {
+        // 즉시 실행시, 이전의 타이머를 제거하여 인터벌을 초기화함.
+        stopSync();
         requestSync();
-        window.syncTimerId = window.setInterval(requestSync, 10000);
+    }
+
+    if (!window.syncTimerId) {  // 타이머 없을 때만 등록
+        const intervalTime = gameStateManager.getState('memberInfos')?.length > 1 ? 4000 : 8000;
+        window.syncTimerId = window.setInterval(requestSync, intervalTime);
     }
 }
 
 function stopSync() {
-    console.log('[stopSync] timerId = ', window.syncTimerId);
+    // console.debug('[stopSync] timerId = ', window.syncTimerId);
     window.clearInterval(window.syncTimerId);
     window.syncTimerId = null;
 }

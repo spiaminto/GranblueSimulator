@@ -2,13 +2,13 @@
 
 /* bootstrap override */
 body .form-control {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
 }
 
 /* 기본 */
 body {
-    font-size: 10px;
+    font-size: 11px;
     background-color: #eee;
 }
 
@@ -17,16 +17,18 @@ body {
 }
 
 .name {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
 }
 
 .tile {
     margin: 7px auto;
     padding: 7px;
-    background-color: white;
     box-shadow: 2px 2px 3px #ccc;
     border-radius: 7px;
+
+    background-color: #fbfcfb;
+
 }
 
 .page-header {
@@ -81,9 +83,9 @@ body {
 
 .base-character-info-wrapper .base-character-info {
     float: left;
-    width: 23%;
-    height: 150px;
-    margin-right: 2%;
+    width: 18%;
+    height: 125px;
+    margin-right: 1%;
     overflow: hidden;
 }
 
@@ -91,10 +93,22 @@ body {
     margin-right: 0;
 }
 
+.base-character-info-wrapper .base-character-info.summon {
+    margin-right: 0;
+    margin-left: 5%;
+}
+
+
 .base-character-portrait {
-    height: 115px;
+    height: 95px;
     overflow: hidden;
-    border-bottom: solid 2px cyan;
+    border-bottom: solid 1px cyan;
+}
+
+.base-character-info.summon .base-character-portrait {
+    height: 95px;
+    overflow: hidden;
+    border-bottom: solid 1px orangered;
 }
 
 .base-character-portrait img {
@@ -102,7 +116,8 @@ body {
 }
 
 .base-character-name {
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 500;
     text-align: center;
 }
 

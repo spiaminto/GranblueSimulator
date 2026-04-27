@@ -20,20 +20,28 @@ public class SecurityConfig {
     private final AuthenticationSuccessHandler customSuccessHandler;
 
     @Bean
-    public BCryptPasswordEncoder pwEncoder() { return new BCryptPasswordEncoder(); }
+    public BCryptPasswordEncoder pwEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // .headers(headers -> headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable))
                 .sessionManagement(session -> session
                         .maximumSessions(1)
                         .expiredUrl("/?needLogin=true")
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/admin").hasRole("ADMIN")
-                        .requestMatchers("/room/167/result").permitAll()
+                        .requestMatchers("/admin", "/base-enemies/**").hasRole("ADMIN")
+
                         .requestMatchers("/room/**").authenticated()
-                        .requestMatchers("/api/**").permitAll() // CHECK 나중에 잠글것
+
+                        .requestMatchers("/user/register").permitAll()
+                        .requestMatchers("/users/**").authenticated()
+
+                        .requestMatchers("/api/**").authenticated() // CHECK 나중에 잠글것
+
                         .anyRequest().permitAll()
                 )
                 .formLogin(form -> form
@@ -55,7 +63,14 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer configure() {
-        return (web) -> web.ignoring().requestMatchers("/static/assets/**");
+        return (web) -> web.ignoring()
+                .requestMatchers(
+                        "/static/**",
+                        "/images/**",
+                        "/css/**",
+                        "/js/**",
+                        "/fonts/**"
+                );
     }
 
 }

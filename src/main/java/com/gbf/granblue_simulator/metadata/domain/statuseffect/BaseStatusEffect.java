@@ -27,7 +27,7 @@ public class BaseStatusEffect {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "move_id")
     @EqualsAndHashCode.Exclude
     @ToString.Exclude

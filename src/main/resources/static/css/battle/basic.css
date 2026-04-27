@@ -21,11 +21,6 @@ body {
     visibility: hidden;
 }
 
-/* 하이라이트   ====================================================================================================== */
-.text-lightblue {
-    color: lightblue; /* ◆ 강조 */
-}
-
 /* 오버레이 ============================================================================================================ */
 #fadeOverlay {
     position: absolute;
@@ -127,6 +122,10 @@ body {
     transform: rotate(45deg);
 }
 
+.summon-overlay.none-usable::before {
+    transform: rotate(25deg);
+}
+
 /* 효과 ============================================================================================================== */
 
 /* 깜빡이기 */
@@ -209,4 +208,13 @@ body {
 .push-right-down-effect {
     animation: push-right-down 0.1s ease-out;
     animation-iteration-count: 1;
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 2px 1px var(--glow-color); }
+    50%       { box-shadow: 0 0 var(--glow-blur) var(--glow-spread) var(--glow-color); }
+}
+
+.glowing {
+    animation: glow 1.5s ease-in-out infinite;
 }

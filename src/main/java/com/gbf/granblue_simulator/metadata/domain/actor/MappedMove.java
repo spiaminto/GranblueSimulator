@@ -3,6 +3,7 @@ package com.gbf.granblue_simulator.metadata.domain.actor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import jakarta.persistence.Transient;
+
 import lombok.*;
 
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public class MappedMove {
     private List<Long> allSupportAbilityIds = new ArrayList<>(); // 순서대로
 
     @Transient
+    @EqualsAndHashCode.Exclude // 더티체킹 제외
     @JsonIgnore
     @Builder.Default
     private Map<Long, MoveType> moveTypeById = new HashMap<>();

@@ -5,11 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>홈</title>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/fonts/PretendardVariable.woff2">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" as="style" crossorigin
-        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+
 
   <link href="/static/css/basic.css" rel="stylesheet">
   <link href="/static/css/common.css" rel="stylesheet">
@@ -24,7 +24,18 @@
       }
 
       .user-info-container .user-info-wrapper span {
-          margin: 0 10px;
+          margin: 0 5px;
+      }
+
+      .user-info-container .primary-party-name {
+          display: inline-block;
+          border-radius: 5px;
+          padding: 2px;
+          font-weight: 600;
+      }
+
+      #displayScaleRadioContainer .form-check {
+          min-height: 0;
       }
 
       #loginForm {
@@ -71,10 +82,10 @@
       }
 
       .enemy-portrait img {
-          width: 250%;
+          width: 120%;
           position: relative;
-          left: -75%;
-          top: -20%;
+          left: -10%;
+          top: -10%;
       }
 
       .room-list-item .room-info {
@@ -118,10 +129,14 @@
           font-size: 9px;
       }
 
+      .room-list-item .badge {
+          font-size: 0.85em; /* 0.75em */
+      }
+
       /* 방 생성 모달 */
       #createRoomModal #enemyList .enemy-portrait {
-          width: 50px;
-          height: 50px;
+          width: 60px;
+          height: 60px;
           overflow: hidden;
           border-radius: 7px;
           box-shadow: 1px 1px 1px gray;
@@ -132,18 +147,24 @@
           flex-wrap: wrap;
           background-color: rgba(200, 200, 200, 0.1);
 
-          padding: 0 5px;
+          padding: 5px 3px;
+      }
+
+      #createRoomModal #enemyList .enemy-list-item:hover {
+          background-color: rgba(200, 200, 200, 0.2);
+          cursor: pointer;
       }
 
       .enemy-list-item .enemy-info {
           padding: 2px 2px 2px 7px;
-          width: 220px;
+          width: 225px;
       }
 
       .enemy-info .enemy-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          position: relative;
 
           margin-bottom: 3px;
           background-color: #eee;
@@ -151,12 +172,32 @@
           border-radius: 5px;
       }
 
+      .enemy-info .enemy-header .selected-icon {
+          display: none;
+          position: absolute;
+          right: 5px;
+          font-size: 22px;
+          color: green;
+      }
+
+      .enemy-info .enemy-header .selected-icon::before {
+          font-weight: bold !important;
+      }
+
       #createRoomModal .create-room-input-wrapper {
           padding: 5px;
       }
 
       #createRoomModal .enemy-info-button {
-          margin-left: 50px;
+          margin-left: 65px;
+      }
+
+      #createRoomModal .raid-info-container {
+          border: 1px solid white;
+          margin-top: 5px;
+          padding: 5px;
+          border-radius: 5px;
+          font-size: 10.5px;
       }
 
       .enter-room-message {
@@ -167,7 +208,7 @@
 
   </style>
   <script src="https://code.jquery.com/jquery.min.js"></script>
-  <script src="/static/js/basic.js"></script>
+  <script src="/static/js/basic.js" th:src="@{/js/basic.js}"></script>
   <script>
       $(function () {
 
@@ -197,8 +238,6 @@
                   formData[field.name] = field.value;
               });
 
-              console.log('[login-process] submit, formData = ', formData);
-
               $.ajax({
                   type: 'POST',
                   url: '/login-process',
@@ -207,14 +246,12 @@
                   },
                   data: formArray,
                   success: function (response) {
-                      console.log('[login-process] response = ', response);
                       if (response.success === true) {
                           location.href = '/';
                       }
                   },
                   error: function (xhr) {
                       let response = xhr.responseJSON;
-                      console.log('[login-process] error, response = ', response);
                       if (response.error === true) {
                           $('#loginErrorMessage').text(response.message);
                       }
@@ -224,14 +261,77 @@
 
           $('.room-list-item').on('click', function () {
               $('#enterRoomForm input[name="roomId"]').val($(this).attr('data-room-id'));
-              $('#enterRoomModalTriggerBtn').click();
+              if ($(this).attr('data-is-member') === 'true') {
+                  $('#enterRoomForm').submit(); // 바로입장
+              } else {
+                  $('#enterRoomModalTriggerBtn').click();
+              }
+          });
+
+          $('.enemy-list-item').on('click', function () {
+              $('#roomAddForm input[name="raidId"]').val($(this).attr('data-raid-id'));
+
+              // 체크
+              $('.enemy-list-item .selected-icon').hide();
+              $(this).find('.selected-icon').show();
+
+              // 정보갱신
+              $('.raid-info-container .raid-info').text($(this).attr('data-raid-info'));
+
+          });
+
+          $('#createRoomModalTriggerBtn').on('click', function () {
+              let raidInfo = $('.choose-enemy-container .enemy-list-item')
+                  .filter(function () {
+                      return $(this).find('.selected-icon').css('display') !== 'none';
+                  })
+                  .attr('data-raid-info');
+
+              $('.raid-info-container .raid-info').text(raidInfo);
           });
 
           $('#enterTutorialButton').on('click', function () {
-              if (!confirm("튜토리얼을 시작합니다. 튜토리얼 진행상황은 계정에 저장되며 튜토리얼 내의 메뉴>초기화 를 통해 진행상황을 초기화 할 수 있습니다.")) return;
+              if (!confirm("튜토리얼을 시작합니다. 진행상황은 턴 마다 자동으로 저장되어 이어할 수 있습니다.")) return;
               location.href = '/members/me/tutorial';
-          })
+          });
 
+          $('#deleteUserButton').on('click', function () {
+              if (!confirm("회원 탈퇴시 모든 데이터가 삭제됩니다. 탈퇴하시겠습니까?")) return;
+              let userId = $(this).attr('data-user-id');
+              if (!userId) {
+                  alert("유저 id 오류입니다.")
+                  return;
+              }
+
+              $.ajax({
+                  type: 'DELETE',
+                  url: `/users/${userId}`,
+                  headers: {
+                      'X-CSRF-TOKEN': $('#csrfToken').val()
+                  },
+                  success: function (response) {
+                      // console.log(response);
+                      if (response.isSuccess === true) {
+                          alert("탈퇴 완료 되었습니다.");
+                          location.href = '/';
+                      }
+                  },
+                  error: function (xhr) {
+                      let response = xhr.responseJSON;
+                      // console.log('error, response = ', response);
+                      if (response.isSuccess === false) {
+                          alert(response.message);
+                      }
+                  }
+              });
+          });
+
+          localStorage.getItem('displayScale') && $('input[name="displayScale"][value="' + localStorage.getItem('displayScale') + '"]').prop('checked', true);
+          $('input[name="displayScale"]').on('change', function () {
+              let scale = $(this).val();
+              localStorage.setItem('displayScale', scale);
+              location.reload();
+          })
 
       });
   </script>
@@ -248,7 +348,7 @@
     <div class="title-md">유저정보</div>
     <div sec:authorize="isAnonymous()">
       <span>로그인이 필요합니다</span>
-      <div class="d-flex justify-content-end gap-2">
+      <div class="d-flex justify-content-end gap-3 mt-1">
         <button sec:authorize="isAnonymous()"
                 id="loginModalTriggerBtn" type="button" class="btn btn-xsm btn-outline-primary" data-bs-toggle="modal"
                 data-bs-target="#loginModal">
@@ -263,11 +363,16 @@
     </div>
     <div sec:authorize="isAuthenticated()" class="user-info-wrapper">
       <span th:text="'닉네임 : ' + ${#authentication.name}"></span>
-      <span class="mark" th:text="'선택파티 : ' + ${partyInfo.name}"></span>
+      <span>현재 파티: </span><div class="mark primary-party-name" th:text="${partyInfo.name}"></div>
     </div>
 
     <!-- 모달 트리거 -->
-    <div class="d-flex justify-content-end gap-2">
+    <div class="d-flex justify-content-end gap-3 mt-1">
+      <button id="deleteUserButton" sec:authorize="isAuthenticated()"
+              type="button" class="btn btn-xsm btn-outline-danger"
+              th:data-user-id="${#authentication.principal.user.id}">
+        회원탈퇴
+      </button>
       <button id="logoutBtn" sec:authorize="isAuthenticated()"
               type="button" class="btn btn-xsm btn-outline-primary">
         로그아웃
@@ -275,6 +380,20 @@
       <form id="logoutForm" method="POST" action="/logout" style="display: none">
         <input id="csrfToken" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
       </form>
+    </div>
+
+  </div>
+
+  <div class="menu-container tile">
+    <div class="title-md">메뉴</div>
+    <div>
+      회원 가입후 튜토리얼 진행을 추천합니다.
+    </div>
+    <div class="d-flex justify-content-end gap-3 mt-2">
+      <button id="enterTutorialButton" type="button" class="btn btn-xsm btn-outline-info"
+              sec:authorize="isAuthenticated()">
+        튜토리얼
+      </button>
       <button id="createRoomModalTriggerBtn" type="button" class="btn btn-xsm btn-outline-primary"
               sec:authorize="isAuthenticated()"
               data-bs-toggle="modal" data-bs-target="#createRoomModal">
@@ -287,25 +406,27 @@
         파티 편성
       </button>
     </div>
-
   </div>
 
   <div class="room-list-container tile">
     <div class="title-md">방 목록</div>
     <ul id="roomList" class="list-group">
       <li class="list-group-item room-list-item"
-          th:each="room : ${roomInfos}" th:data-room-id="${room.id}" data-roomId="1">
+          th:each="room : ${roomInfos}" th:data-room-id="${room.id}" data-roomId="1"
+          th:data-is-member="${room.isMember}">
         <div class="enemy-portrait">
           <img src="" th:src="${room.enemyPortraitSrc}" alt="enemyPortrait">
         </div>
         <div class="room-info">
           <div class="room-header">
             <div class="name" th:text="${room.enemyName}"></div>
-            <span class="badge bg-primary rounded-pill room-member-count"
-                  th:text="${room.memberCount + '/' + room.maxMemberCount + '명 참가중'}">0 명 참가중</span>
           </div>
           <div>
             <span><i class="bi bi-clock"></i> 남은시간: <span th:text="${room.remainingTime}"></span></span>
+            <span class="badge bg-primary rounded-pill room-member-count ms-2"
+                  th:text="${room.memberCount + '/' + room.maxMemberCount + '명 참가중'}">0 명 참가중</span>
+            <span class="badge bg-success rounded-pill room-member-count"
+                  th:text="${room.isMember ? '참전중' : ''}">참전중</span>
           </div>
           <div class="hp-container enemy mb-1">
             <div class="value-hp me-1" th:text="${room.enemyHpRate + '%'}">79%</div>
@@ -327,13 +448,89 @@
   </div>
 
   <div class="d-flex justify-content-end gap-2 tile" sec:authorize="isAuthenticated()">
-    <button type="button" class="btn btn-xsm btn-outline-primary" onclick="location.href='/users/me/battle-history'">
+    <button type="button" class="btn btn-xsm btn-outline-primary position-relative"
+            onclick="location.href='/users/me/battle-history'">
       전투이력
+      <span th:if="${resultChecked == false}"
+            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        !
+      </span>
     </button>
+  </div>
+
+  <div id="displayScaleRadioContainer" class="tile">
+    <div class="title-sm">
+      화면 크기
+    </div>
+    <div class="d-flex gap-3 mt-2">
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="displayScale" id="scaleRadioAuto" checked value="auto">
+        <label class="form-check-label" for="scaleRadioAuto">
+          자동 (모바일)
+        </label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="displayScale" id="scaleRadio1" value="1">
+        <label class="form-check-label" for="scaleRadio1">
+          1.0 배
+        </label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="displayScale" id="scaleRadio2" value="1.5">
+        <label class="form-check-label" for="scaleRadio2">
+          1.5 배
+        </label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="displayScale" id="scaleRadio3" value="2.0">
+        <label class="form-check-label" for="scaleRadio3">
+          2.0 배
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div id="footer" class="tile">
+    <div class="d-flex justify-content-around gap-2" sec:authorize="isAuthenticated()">
+      <button type="button" class="btn btn-xsm btn-outline-info position-relative"
+              data-bs-toggle="modal" data-bs-target="#inquiryModal">
+        문의하기
+      </button>
+    </div>
+    <div style="text-align: center;font-size: 10px;color: gray;margin-top: 5px">
+      이 서비스를 위해 사용된 게임 에셋의 저작권은 Cygames 에 있습니다.<br>
+      이 서비스는 비영리, 제한적으로 운영되는 그랑블루 판타지 의 팬 게임입니다.
+    </div>
   </div>
 
 
 </div> <!-- #container -->
+
+<div class="modal fade" id="inquiryModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+     aria-labelledby="staticBackdropLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h1 class="modal-title title-lg">문의</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="inquiryForm" action="/inquiry" method="post">
+        <div class="modal-body">
+          <label for="inquiryText" class="title-sm">문의 내용</label>
+          <textarea id="inquiryText" type="textarea" rows="7" name="text" class="form-control" placeholder="에러시 대략적인 발생시간을 포함해 주시면 감사드립니다."></textarea>
+          <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+          <button type="submit" class="btn btn-sm btn-outline-primary">보내기</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
 
 <!-- 로그인 -->
 <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
@@ -351,7 +548,7 @@
           <label for="loginId">로그인 id</label>
           <input type="text" id="loginId" class="form-control" name="loginId" placeholder="로그인id 입력"/>
           <label for="password">비밀번호</label>
-          <input id="password" type="password" name="password" class="form-control" placeholder="비밀번호 입력">
+          <input id="password" type="password" name="password" class="form-control" placeholder="비밀번호 입력" autocomplete="current-password">
           <div class="login-error-message">
             <p id="loginErrorMessage" class="field-error"></p>
           </div>
@@ -388,34 +585,34 @@
           </div>
 
           <!-- 아이디 -->
-          <label for="registerUsername">아이디 (최대 8자)</label>
+          <label for="registerUsername">로그인 아이디</label>
           <input type="text"
                  id="registerUsername"
                  th:field="*{loginId}"
                  class="form-control"
-                 placeholder="아이디 입력"
+                 placeholder="영어, 숫자 최대 8자"
                  maxlength="8"
                  th:errorclass="is-invalid"/>
           <div class="invalid-feedback" th:errors="*{loginId}">아이디 오류</div>
 
           <!-- 닉네임 -->
-          <label for="registerNickname" class="mt-3">닉네임 (최대 8자)</label>
+          <label for="registerNickname" class="mt-3">닉네임</label>
           <input type="text"
                  id="registerNickname"
                  th:field="*{username}"
                  class="form-control"
-                 placeholder="닉네임 입력"
+                 placeholder="한글, 영어, 숫자 최대 8자"
                  maxlength="8"
                  th:errorclass="is-invalid"/>
           <div class="invalid-feedback" th:errors="*{username}">닉네임 오류</div>
 
           <!-- 비밀번호 -->
-          <label for="registerPassword" class="mt-3">비밀번호 (최대 16자)</label>
+          <label for="registerPassword" class="mt-3">비밀번호</label>
           <input type="password"
                  id="registerPassword"
                  th:field="*{password}"
                  class="form-control"
-                 placeholder="비밀번호 입력"
+                 placeholder="4 ~ 16자"
                  maxlength="16"
                  th:errorclass="is-invalid"/>
           <div class="invalid-feedback" th:errors="*{password}">비밀번호 오류</div>
@@ -424,8 +621,8 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-          <button type="submit" class="btn btn-outline-primary">가입하기</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+          <button type="submit" class="btn btn-sm btn-outline-primary">가입하기</button>
         </div>
       </form>
 
@@ -448,31 +645,40 @@
           <div class="choose-enemy-container">
             <ul id="enemyList" class="list-group">
               <li class="list-group-item enemy-list-item"
-                  th:each="enemyInfo : ${enemyInfos}" th:data-enemy-id="${enemyInfo.baseId}">
+                  th:each="raidInfo : ${raidInfos}" th:data-raid-id="${raidInfo.id}"
+                  th:data-raid-info="${raidInfo.info}">
                 <div class="enemy-portrait">
-                  <img src="" th:src="${enemyInfo.portraitSrc}" alt="enemyPortrait">
+                  <img src="" th:src="${raidInfo.raidImageSrc}" alt="enemyPortrait">
                 </div>
                 <div class="enemy-info">
                   <div class="enemy-header">
-                    <div class="name" th:text="${enemyInfo.name}"></div>
+                    <div class="name" th:text="${raidInfo.name}"></div>
+                    <i class="bi bi-check-lg selected-icon"
+                       th:style="${raidInfo.id == 10000 ? 'display: block;' : ''}"></i>
                   </div>
                   <div>
-                    <span style="color: white"><i class="bi bi-clock"></i> 제한시간: 30분 / 최대 3인</span>
-                    <button class="btn btn-xxsm btn-outline-success enemy-info-button"
-                            type="button"
-                            th:data-url="@{/base-enemies/{id}(id=${enemyInfo.baseId})}"
-                            onclick="location.href=this.dataset.url"> 적 상세
-                    </button>
+                    <span style="color: white"><i class="bi bi-clock"></i> 제한시간: 45분 / 최대 3인</span>
+                    <!--                    <button class="btn btn-xxsm btn-outline-success enemy-info-button"-->
+                    <!--                            type="button"-->
+                    <!--                            th:data-url="@{/base-enemies/{id}(id=${raidInfo.baseId})}"-->
+                    <!--                            onclick="location.href=this.dataset.url"> 적 상세-->
+                    <!--                    </button>-->
                   </div>
                 </div>
               </li>
             </ul>
           </div>
 
+          <div class="raid-info-container">
+            <span class="fw-semibold font-lg">레이드 정보</span>
+            <div class="raid-info"></div>
+          </div>
+
           <div class="create-room-input-wrapper">
-            <label for="roomMessage" class="font-lg mb-2">로비에 띄울 메시지</label>
-            <input type="text" id="roomMessage" th:field="*{message}" class="form-control" name="name"
+            <label for="roomMessage" class="font-lg mb-1">로비 메시지</label>
+            <input type="text" id="roomMessage" th:field="*{message}" class="form-control" name="message"
                    placeholder="최대 30 자 까지 허용합니다." th:errorclass="is-invalid" maxlength="30"/>
+            <input type="hidden" id="createRoomRaidIdInput" class="form-control" name="raidId" value="10000"/>
             <div class="invalid-feedback" th:errors="*{message}"> 메시지 오류</div>
             <input type="hidden" name="_csrf" th:value="${_csrf.token}"/>
           </div>
@@ -503,10 +709,12 @@
       </div>
       <div class="modal-body">
         <div class="enter-room-message">
-          <span th:text="${partyInfo.name + ' '}">파티 이름</span>
-          파티로 입장합니다. 파티는 편성에서 변경할 수 있습니다.
+          아래의 파티로 입장합니다. <br>
+          파티는 <span class="text-green">파티 편성</span>에서 변경할 수 있습니다.<br>
         </div>
+
         <div class="party-container">
+          <div class="title-sm mb-1" th:text="${partyInfo.name + ' '}">파티 이름</div>
           <div class="party-wrapper" th:data-party-id="${partyInfo.id}">
             <div class="party-body">
               <div class="base-character-info-wrapper">
@@ -516,19 +724,22 @@
                   </div>
                   <div class="base-character-name" th:text="${characterInfo.name}">캐릭이름</div>
                 </div>
-
-              </div>
-              <div class="summon-info-wrapper">
-                <div class="summon-info" th:each="summonInfo : ${partyInfo.summonInfos}">
-                  <div class="summon-portrait">
+                <div class="base-character-info ms-3" th:each="summonInfo : ${partyInfo.summonInfos}">
+                  <div class="base-character-portrait" th:data-character-id="${summonInfo.id}">
                     <img src="/" th:src="${summonInfo.portraitSrc}">
                   </div>
-                  <div class="base-character-name" th:text="${summonInfo.name}"> 솬석이름</div>
+                  <div class="base-character-name" th:text="${summonInfo.name}">캐릭이름</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        <div class="enter-room-message">
+          입장시 메인소환석 이외의 소환석이 랜덤으로 설정됩니다.<br>
+          <i class="bi bi-exclamation-circle text-yellow me-1"></i>멀티배틀은 최대 3개까지 참여할 수 있습니다.
+        </div>
+
         <form action="/room/join" method="post" id="enterRoomForm">
           <input type="hidden" class="roomId" name="roomId"/>
           <input type="hidden" class="userId" name="userId" th:value="${#authentication.principal.user.id}"/>
@@ -544,6 +755,7 @@
 </div>
 
 <div id="alertMessage" class="d-none" th:text="${alertMessage}"></div>
+<div id="errorMessage" class="d-none" th:text="${errorMessage}"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

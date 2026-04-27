@@ -56,7 +56,7 @@ public class BaseMove {
     @ToString.Exclude
     private List<BaseStatusEffect> baseStatusEffects = new ArrayList<>();
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_visual_id")
     private EffectVisual defaultVisual; // 이펙트가 있는 어빌리티, 고유 이펙트가 있는 캐릭터 오의 에서 사용
 
@@ -79,6 +79,7 @@ public class BaseMove {
     @Accessors(fluent = true)
     private boolean isAllTarget; // 적 전체 대상 공격인지 (보스용)
 
+    private Long nextMoveId;
     private String logicId;
 
     /*
@@ -101,12 +102,16 @@ public class BaseMove {
     }
 
     /**
-     * applyOrder + id 로 정렬하여 반환
+     * displayOrder + applyOrder + id 로 정렬하여 반환
      */
     public List<BaseStatusEffect> getOrderedBaseStatusEffects() {
         return this.baseStatusEffects.stream()
                 .filter(baseStatusEffect -> baseStatusEffect.getType() != StatusEffectType.PASSIVE)
-                .sorted(Comparator.comparing(BaseStatusEffect::getApplyOrder).thenComparing(BaseStatusEffect::getId))
+                .sorted(
+                        Comparator.comparing(BaseStatusEffect::getDisplayPriority).reversed()
+                                .thenComparing(BaseStatusEffect::getApplyOrder)
+                                .thenComparing(BaseStatusEffect::getId)
+                )
                 .toList();
     }
 

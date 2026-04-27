@@ -62,8 +62,6 @@ public class CharacterLogicResultMapper {
         // ExecuteOptions (nonnull)
         boolean executeChargeAttack = executeOptions.isExecuteChargeAttack();
         StatusEffectTargetType executeAttackTargetType = executeOptions.getExecuteAttackTargetType();
-        boolean isUnionSummon = executeOptions.isUnionSummon();
-
 
         // DamageResult
         int hitCount = damageLogicResult.getDamages().stream().filter(damage -> damage > 0).toList().size();
@@ -108,7 +106,8 @@ public class CharacterLogicResultMapper {
                                             .fatalChainGauge(fatalChainGauge)
                                             .currentStatusEffects(actor.getStatusEffects().stream()
                                                     .map(StatusEffectDto::of)
-                                                    .sorted(Comparator.comparing(StatusEffectDto::getDisplayPriority).reversed().thenComparing(StatusEffectDto::getCreatedAt))
+                                                    .sorted(Comparator.comparing(StatusEffectDto::getDisplayPriority).reversed()
+                                                            .thenComparing(StatusEffectDto::getUpdatedAt)) // 디스펠, 클리어할때 updatedAt 기준으로 하므로 updatedAt 기준 정렬
                                                     .toList())
                                             .abilityCooldowns(new ArrayList<>(actor.getAbilityCooldowns()))
                                             .abilityUseCounts(new ArrayList<>(actor.getAbilityUseCounts()))
@@ -141,6 +140,7 @@ public class CharacterLogicResultMapper {
                 .additionalDamages(damageLogicResult.getAdditionalDamages())
                 .damageElementTypes(damageLogicResult.getElementTypes())
                 .normalAttackCount(damageLogicResult.getNormalAttackCount())
+                .multiHitCount(damageLogicResult.getAttackMultiHitCount())
 
                 // 전조
                 .omenResult(omenResult)
@@ -148,11 +148,8 @@ public class CharacterLogicResultMapper {
                 // from logic
                 .executeChargeAttack(executeChargeAttack)
                 .executeAttackTargetType(executeAttackTargetType)
-                .isUnionSummon(isUnionSummon)
 
                 .snapshots(snapShots)
-
-                .forMemberAbilityInfo(request.getForMemberAbilityInfo())
 
                 .build();
     }

@@ -33,6 +33,7 @@ public class Member {
     private List<Actor> actors = new ArrayList<>();
 
     private Long partyId; // 입장시 참조 및 검증용으로만 사용. 실시간 참조 x
+    private Long leaderCharacterBaseId;
 
     @Builder.Default
     private int currentTurn = 0; // 현재 자신의 턴, 0부터 시작, 첫입장시 0확인 후 BATTLE_START 때 1로 변경
@@ -49,6 +50,7 @@ public class Member {
 
     private int potionCount; // 포션
     private int allPotionCount; // 올포
+    private int elixirCount;
     
     private int honor; // 공헌도
 
@@ -56,10 +58,12 @@ public class Member {
     private boolean usedSummon; // 소환 여부
 
     private LocalDateTime lastMoveTime; // 마지막 행동 시간
-    private int moveCooldown; // 행동 쿨타임, 초 단위
+    private double moveCooldown; // 행동 쿨타임, 초 단위
 
     @Accessors(fluent = true)
     private boolean checkedResult; // 결과 확인여부
+
+    private int tutorialIndex;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -67,6 +71,18 @@ public class Member {
 
     public void increaseTurn() {
         this.currentTurn++;
+    }
+
+    /**
+     * 전투 시작 처리 여부
+     * @return 전투 시작 처리완료시 true
+     */
+    public boolean isBattleStarted() {
+        return this.currentTurn > 0;
+    }
+
+    public void updateLeaderCharacterBaseId(Long leaderCharacterBaseId) {
+        this.leaderCharacterBaseId = leaderCharacterBaseId;
     }
 
     public void updateChargeAttackOn(boolean chargeAttackOn) {
@@ -77,15 +93,15 @@ public class Member {
         this.lastMoveTime = LocalDateTime.now();
     }
 
-    public void updateMoveCooldown(int moveCooldown) {
+    public void updateMoveCooldown(double moveCooldown) {
         this.moveCooldown = moveCooldown;
     }
 
     public void updateUsedSummon(boolean usedSummon) {this.usedSummon = usedSummon;}
 
-    public void addPotionCount(int count) {
-        this.potionCount += count;
-    }
+    public void updatePotionCount(int count) {this.potionCount = count;}
+    public void updateAllPotionCount(int count) {this.allPotionCount = count;}
+    public void updateElixirCount(int count) {this.elixirCount = count;}
 
     public void addAllPotionCount(int count) {
         this.allPotionCount += count;
@@ -98,6 +114,8 @@ public class Member {
     public void updateFatalChainGauge(int gauge) {this.fatalChainGauge = gauge;}
 
     public void updateCheckedResult(boolean checkedResult) {this.checkedResult = checkedResult;}
+
+    public void updateTutorialIndex(int index) {this.tutorialIndex = index;}
 
 
     /**

@@ -35,11 +35,11 @@ public class Move {
     @Enumerated(EnumType.STRING)
     private TriggerType triggerType;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_move_id")
     private BaseMove baseMove;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Actor actor;
 
     private int cooldown; // 실시간 쿨다운
@@ -135,7 +135,7 @@ public class Move {
     }
 
     /**
-     * BaseMove -> Move 변환 및 저장용, mapActor 필요
+     * BaseMove -> Move 변환 및 저장용, mapActor / mapType 필요
      *
      * @param baseMove
      * @return

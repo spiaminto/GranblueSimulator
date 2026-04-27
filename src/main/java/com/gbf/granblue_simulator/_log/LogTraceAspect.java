@@ -45,17 +45,20 @@ public class LogTraceAspect {
     @Pointcut("execution(* com.gbf.granblue_simulator.battle.logic.move..register(..))")
     public void registerMove() {};
 
-    @Around("(allService() || allLogic()) && ignoreHealthCheck() && !logicDependencies() && !registerMove()")
+    @Pointcut("execution(* com.gbf.granblue_simulator.battle.service.StatusService.*(..))")
+    public void syncStatus() {};
+
+    @Around("(allController() || allService() || allLogic()) && ignoreHealthCheck() && !logicDependencies() && !registerMove() && !syncStatus()")
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
-        if (!activated) return null;
+        if (!activated) return joinPoint.proceed();
 
         TraceStatus status = null;
         Object[] params = null;
         try {
-            String message = joinPoint.getSignature().toShortString();
+            String methodSignature = joinPoint.getSignature().toShortString();
             params = joinPoint.getArgs();
 
-            status = logTrace.begin(message);
+            status = logTrace.begin(methodSignature);
 
             Object result = joinPoint.proceed();
 

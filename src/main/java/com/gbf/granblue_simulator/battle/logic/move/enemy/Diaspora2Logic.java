@@ -3,13 +3,10 @@ package com.gbf.granblue_simulator.battle.logic.move.enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
-import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
-import com.gbf.granblue_simulator.battle.logic.move.dto.DefaultMoveLogicResult;
-import com.gbf.granblue_simulator.battle.logic.move.dto.DefaultMoveRequest;
-import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
 import com.gbf.granblue_simulator.battle.logic.move.MoveLogicRequest;
-import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.DefaultMoveRequest;
+import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
+import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.getEffectByNameContains;
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.*;
 
 @Component
@@ -29,6 +25,8 @@ import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.*;
 @Transactional
 public class Diaspora2Logic extends DefaultEnemyMoveLogic {
     private final String gid = "4300913";
+
+    private final int ACTIVATE_VALUE = 6000000; // 모드 효과 레벨 상승 누적 데미지
 
     protected Diaspora2Logic(EnemyMoveLogicDependencies dependencies) {
         super(dependencies);
@@ -54,26 +52,36 @@ public class Diaspora2Logic extends DefaultEnemyMoveLogic {
     public MoveLogicResult triggerOmen(MoveLogicRequest request) {
         Enemy self = (Enemy) battleContext.getEnemy();
 
-        // 5턴마다 영창기 이성임계 발동
+        // 5턴마다 영창기 이성임계 발동 (모드에 따라 해제조건 변동)
         if ((battleContext.getCurrentTurn() + 1) % 5 == 0) {
             self.updateNextIncantStandbyType(STANDBY_C);
         }
 
         MoveLogicResult result = omenLogic.triggerOmen(self).map(standby -> {
+            // 허수몽핵 전조 발생시 자신의 '임계 도달' 레벨에 비례해 해제조건 강화
             if (standby.getType() == STANDBY_B) {
-                // 허수몽핵 전조 발생시 자신의 '임계 도달' 레벨에 비례해 해제조건 강화
                 checkCondition.hasEffect(self, "임계 도달")
                         .map(statusEffect -> {
                             Integer initValue = self.getBaseOmen(STANDBY_B).getOmenCancelConds().getFirst().getInitValue();
                             return initValue + ((initValue / 2) * statusEffect.getLevel());
                         }).ifPresent(updateValue -> omenLogic.manualUpdateOmenValue(self, updateValue, 0));
             }
+
+            // 이성임계 발생시, 해제조건을 모드 효과에 맞게 변경
+            if (standby.getType() == STANDBY_C) {
+                List<Integer> cancelConditionIndexes = checkCondition.hasEffect(self, "모드『알파』")
+                        .map(effect -> List.of(0)) // 트리플 3회
+                        .orElseGet(() -> List.of(1));// 오의 3회
+                omenLogic.updateOmenCancelCond(cancelConditionIndexes); // 해제조건 변경
+            }
+
             return resultMapper.toResult(ResultMapperRequest.from(standby));
         }).orElseGet(resultMapper::emptyResult);
+
         return result;
     }
 
-    // 경성방사
+    // 경성방사: 5회 데미지, 랜덤 약화효과 2개 부여
     protected MoveLogicResult chargeAttackA(MoveLogicRequest request) {
         List<BaseStatusEffect> baseStatusEffects = new ArrayList<>(request.getMove().getBaseMove().getBaseStatusEffects());
         Collections.shuffle(baseStatusEffects);
@@ -81,78 +89,49 @@ public class Diaspora2Logic extends DefaultEnemyMoveLogic {
         return resultMapper.fromDefaultResult(defaultChargeAttack(DefaultMoveRequest.withSelectedBaseStatusEffects(request.getMove(), selectedStatusEffect)));
     }
 
-    // 허수몽핵
+    // 허수몽핵: 데미지
     protected MoveLogicResult chargeAttackB(MoveLogicRequest request) {
         Move chargeAttack = request.getMove();
-        double baseDamageRate = chargeAttack.getBaseMove().getDamageRate();
-        Double damageRate = checkCondition.hasEffect(chargeAttack.getActor(), "임계 도달")
-                .map(statusEffect -> baseDamageRate + (5.0 * statusEffect.getLevel()))
-                .orElseGet(() -> baseDamageRate); // 자신의 '임계 도달' 레벨에 비례해 데미지 배율 강화
-        return resultMapper.fromDefaultResult(defaultChargeAttack(DefaultMoveRequest.withDamageRate(chargeAttack, damageRate)));
+        return resultMapper.fromDefaultResult(defaultChargeAttack(chargeAttack));
     }
 
-    // 이성임계
+    // 이성임계 : 데미지, 자신의 임계도달 레벨 상승
     protected MoveLogicResult chargeAttackC(MoveLogicRequest request) {
         Move chargeAttack = request.getMove();
         return resultMapper.fromDefaultResult(defaultChargeAttack(chargeAttack));
     }
 
-    // 인자방출
+    // 인자방출 : 데미지, 강압효과
     protected MoveLogicResult chargeAttackD(MoveLogicRequest request) {
         Move chargeAttack = request.getMove();
-        Actor self = chargeAttack.getActor();
-        double baseDamageRate = chargeAttack.getBaseMove().getDamageRate();
-        Optional<StatusEffect> factorEffectOptional = checkCondition.hasEffect(self, "자괴인자");
-        factorEffectOptional
-                .map(statusEffect -> baseDamageRate + (5.0 * statusEffect.getLevel()))
-                .orElseGet(() -> baseDamageRate);
-
-        DefaultMoveLogicResult defaultResult = defaultChargeAttack(chargeAttack);
-
-        factorEffectOptional.ifPresent(statusEffect -> {
-            battleContext.getFrontCharacters().forEach(
-                    partyMember -> getEffectByName(partyMember, "강압").ifPresent(
-                            effect -> setStatusLogic.extendStatusEffectDuration(effect, statusEffect.getLevel())
-                    )
-            );
-            // 자괴 인자 삭제
-            SetStatusEffectResult removedResult = setStatusLogic.removeStatusEffectsWithResult(self, statusEffect);
-            defaultResult.getSetStatusEffectResult().merge(removedResult);
-        });
-
-        return resultMapper.fromDefaultResult(defaultResult);
+        return resultMapper.fromDefaultResult(defaultChargeAttack(chargeAttack));
     }
 
-    // 자신의 모드에 따라 받은 데미지의 누적값이 일정 수치에 도달할경우 턴 종료시 (자신의 임계상태 레벨 상승 및) 공격력 증가, 재공격 효과 [TURN_END]
+    // [TURN_END] 자신의 모드에 따라 받은 데미지의 누적값이 일정 수치에 도달할경우 턴 종료시 (자신의 임계상태 레벨 상승 및) 공격력 증가, 재공격 효과
     protected MoveLogicResult firstSupportAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         Actor self = ability.getActor();
-        return getEffectByNameContains(self, "모드『")
-                .flatMap(matchedModeEffect -> checkCondition.hasEffect(self, "임계 상태 레벨")
-                        .map(onLimitStatusEffect -> {
-                            // 모드에 따른 데미지 합 유형 확인
-                            MoveType getDamageSumMoveType = switch (matchedModeEffect.getBaseStatusEffect().getName()) {
-                                case "모드『알파』" -> ATTACK;
-                                case "모드『베타』" -> ABILITY;
-                                case "모드『감마』" -> CHARGE_ATTACK;
-                                default -> throw new IllegalArgumentException("맞는 모드 상태효과가 없음");
-                            };
+        return getEffectByNameContains(self, "모드『").flatMap(matchedModeEffect -> checkCondition.hasEffect(self, "임계 상태 레벨") // 모드, 임계상태 레벨 둘 다 있어야함.
+                .map(onLimitStatusEffect -> {
+                    // 받은 데미지 누적값 확인 및 상승 레벨 계산 (개인)
+                    int takenDamageSum = switch (matchedModeEffect.getBaseStatusEffect().getName()) {
+                        case "모드『알파』" -> battleLogService.getEnemyTakenDamageSumByMoveType(List.of(ATTACK), false).getAttackDamageSum();
+                        case "모드『감마』" -> battleLogService.getEnemyTakenDamageSumByMoveType(List.of(ATTACK), false).getChargeAttackDamageSum();
+                        default -> throw new IllegalArgumentException("맞는 모드 상태효과가 없음");
+                    };
+                    int addLevel = takenDamageSum / ACTIVATE_VALUE + 1 - onLimitStatusEffect.getLevel(); // 모드레벨 1부터 시작하므로 +1
+                    log.debug("[firstSupportAbility] 모드효과 처리중 statusEffect.name = {}, addLevel = {}, currentLevel = {}, takenDamageSum = {}", onLimitStatusEffect.getBaseStatusEffect().getName(), addLevel, onLimitStatusEffect.getLevel(), takenDamageSum);
+                    if (addLevel <= 0) return resultMapper.emptyResult();
 
-                            // 받은 데미지 누적값 확인 및 상승 레벨 계산 (개인)
-                            int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(getDamageSumMoveType, false);
-                            int addLevel = takenDamageSum / 1500000 + 1 - onLimitStatusEffect.getLevel(); // 모드레벨 1부터 시작하므로 +1
-                            log.info("[firstSupportAbility] addLevel = {}, currentLevel = {}, takenDamageSum = {}", addLevel, onLimitStatusEffect.getLevel(), takenDamageSum);
-                            if (addLevel <= 0) return resultMapper.emptyResult();
+                    // 레벨 상승 (내부연산, 결과 반환 x) - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있음 그럴때는 다음 행동시 연속으로 적용됨, 모드 레벨은 StatusModifier 가 달려있으므로 임계상태 레벨을 올리도록 설정
+                    setStatusLogic.addStatusEffectsLevel(self, addLevel, onLimitStatusEffect);
 
-                            // 임계상태 레벨 상승 (내부연산, 결과 반환 x) - CHECK 불가능 하진 않지만 한 행동이 레벨을 2회 올릴수도 있음 그럴때는 다음 행동시 연속으로 적용됨, 모드 레벨은 StatusModifier 가 달려있으므로 임계상태 레벨을 올리도록 설정
-                            setStatusLogic.addStatusEffectsLevel(self, addLevel, onLimitStatusEffect);
-
-                            // 가하는 데미지 상승 및 재공격 적용 (결과 반환 ㅇ)
-                            return resultMapper.fromDefaultResult(defaultAbility(ability));
-                        })).orElseGet(resultMapper::emptyResult);
+                    // 가하는 데미지 상승 및 재공격 적용 (결과 반환 ㅇ)
+                    return resultMapper.fromDefaultResult(defaultAbility(ability));
+                })).orElseGet(resultMapper::emptyResult);
     }
 
-    // 자신의 이성임계 해제시, 자신의 임계도달 레벨 감소 [REACT_ENEMY]
+    //  [REACT_CHARACTER] 자신의 이성임계 해제시, 자신의 임계도달 레벨 감소
     protected MoveLogicResult secondSupportAbility(MoveLogicRequest request) {
         if (!checkCondition.isEnemyBreak(request.getOtherResult(), STANDBY_C)) return resultMapper.emptyResult();
         Move ability = request.getMove();

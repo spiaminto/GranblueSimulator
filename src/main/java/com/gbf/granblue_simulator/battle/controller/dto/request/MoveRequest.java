@@ -6,6 +6,5 @@ import lombok.Data;
 public class MoveRequest {
     private long characterId;
     private long moveId;
-    private long memberId;
     private boolean doUnionSummon;
 }

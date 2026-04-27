@@ -6,11 +6,7 @@ import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Entity
 @Builder
@@ -25,7 +21,7 @@ public class Status {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_id")
     private Actor actor;
 
@@ -82,15 +78,19 @@ public class Status {
         BaseActor baseActor = actor.getBaseActor();
 
         this.maxChargeGauge = baseActor.getMaxChargeGauge();
-        this.chargeGauge = 0;
+        this.chargeGauge = actor.isEnemy() ? 0 : 30;
         this.fatalChainGauge = 0;
 
         this.actor = actor;
         actor.mapStatus(this);
         actor.updateHp(-1); // Actor 엔티티 첫 생성시 hp 선 계산을 위해 지정
 
-        this.syncStatus(); // base 만 저장
         return this;
+    }
+
+    public void initHp(int maxHp) {
+        this.maxHp = maxHp;
+        this.hp = maxHp;
     }
 
     /**
@@ -133,23 +133,18 @@ public class Status {
         this.maxBarrier = 0;
     }
 
+    public void updateStatusDetails(StatusDetails statusDetails) {
+        this.statusDetails = statusDetails;
+    }
+
+    public void updateDamageStatusDetails(DamageStatusDetails damageStatusDetails) {
+        this.damageStatusDetails = damageStatusDetails;
+    }
+
     /**
      * 스테이터스 갱신 (재계산)
      */
     public void syncStatus() {
-
-        // 1. 스테이터스 상세 초기화 및 동기화
-        if (this.statusDetails == null) {
-            this.statusDetails = StatusDetails.init(actor);
-            if (this.hp == -1)
-                this.hp = this.statusDetails.getCalcedMaxHp(); // 엔티티 첫 생성의 경우 HP 를 선 초기화
-        }
-        this.statusDetails.syncStatusDetails(actor);
-
-        // 2. 데미지 스테이터스 상세 초기화 및 동기화
-        getSyncDamageStatus();
-
-        // 3. 최종 스테이터스 동기화
         StatusDetails details = this.statusDetails;
 
         this.maxHp = details.getCalcedMaxHp();
@@ -161,7 +156,7 @@ public class Status {
         }
 
         this.atk = details.getCalcedAtk(this.getCalcedHpRate(), ElementType.PLAIN);
-        this.def = details.getCalcedDef(ElementType.PLAIN);
+        this.def = details.getCalcedDef(ElementType.PLAIN, this.getCalcedHpRate());
 
         this.doubleAttackRate = details.getCalcedDoubleAttackRate();
         this.tripleAttackRate = details.getCalcedTripleAttackRate();
@@ -181,9 +176,9 @@ public class Status {
     /**
      * 요다메 관련 초기화 및 동기화 처리 (데미지로직에서 같이 사용)
      */
-    public DamageStatusDetails getSyncDamageStatus() {
+    public DamageStatusDetails getSyncDamageStatus(WeaponStatus weaponStatus) {
         if (this.damageStatusDetails == null)
-            this.damageStatusDetails = DamageStatusDetails.init(actor);
+            this.damageStatusDetails = DamageStatusDetails.init(actor, weaponStatus);
         this.damageStatusDetails.syncDamageStatusDetails(actor);
         return this.damageStatusDetails;
     }

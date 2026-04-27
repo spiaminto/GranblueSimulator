@@ -7,6 +7,4 @@ import java.util.List;
 
 public interface BaseEnemyRepository extends JpaRepository<BaseEnemy, Long> {
     List<BaseEnemy> findByRootNameEn(String rootNameEn);
-
-    List<BaseEnemy> findAllByFormOrder(Integer formOrder);
 }

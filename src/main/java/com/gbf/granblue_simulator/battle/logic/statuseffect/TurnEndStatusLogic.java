@@ -9,6 +9,7 @@ import com.gbf.granblue_simulator.battle.logic.move.mapper.CharacterLogicResultM
 import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
 import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
 import com.gbf.granblue_simulator.battle.logic.move.mapper.EnemyLogicResultMapper;
+import com.gbf.granblue_simulator.battle.service.StatusService;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusDurationType;
@@ -36,6 +37,7 @@ public class TurnEndStatusLogic {
 
     private final CharacterLogicResultMapper characterLogicResultMapper;
     private final EnemyLogicResultMapper enemyLogicResultMapper;
+    private final StatusService statusService;
 
     /**
      * 턴 종료 시 상태효과 처리
@@ -44,11 +46,10 @@ public class TurnEndStatusLogic {
      * @param turnEndProcessStartTime 턴 종료 처리 시작시간 (턴 종료시 생성/갱신된 상태효과의 경우 duration 진행 안함)
      * @return
      */
-    public MoveLogicResult progressStatusEffect(LocalDateTime turnEndProcessStartTime) {
-        List<Actor> allActors = battleContext.getCurrentFieldActors();
+    public MoveLogicResult progressStatusEffect(List<Actor> targets, LocalDateTime turnEndProcessStartTime) {
 
         SetStatusEffectResult statusEffectResult = SetStatusEffectResult.emptyResult();
-        for (Actor actor : allActors) {
+        for (Actor actor : targets) {
             List<StatusEffect> expiredStatusEffects = new ArrayList<>();
             for (StatusEffect statusEffect : actor.getStatusEffects()) {
                 // 상태효과의 남은 효과시간을 1턴 감소
@@ -68,7 +69,7 @@ public class TurnEndStatusLogic {
             statusEffectResult.merge(removedResult);
 
             // 스텟 재계산
-            actor.getStatus().syncStatus();
+            statusService.syncStatus(actor);
         }
 
         return enemyLogicResultMapper.toResult(ResultMapperRequest.of(Move.getTransientMove(battleContext.getEnemy(), MoveType.TURN_FINISH), statusEffectResult));
@@ -117,7 +118,7 @@ public class TurnEndStatusLogic {
         // 적에 대한 턴종 데미지 처리
         battleContext.setCurrentMainActor(partyMainActor);
         results.addAll(process(List.of(enemy), StatusModifierType.ACT_DAMAGE, MoveType.TURN_END_DAMAGE));
-        results.addAll(process(partyMembers, StatusModifierType.ACT_RATE_DAMAGE, MoveType.TURN_END_DAMAGE));
+        results.addAll(process(List.of(enemy), StatusModifierType.ACT_RATE_DAMAGE, MoveType.TURN_END_DAMAGE));
 
         return results;
     }

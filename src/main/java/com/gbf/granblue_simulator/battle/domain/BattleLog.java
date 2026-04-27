@@ -1,15 +1,20 @@
 package com.gbf.granblue_simulator.battle.domain;
 
+import com.gbf.granblue_simulator.battle.domain.actor.prop.DamageStatusDetails;
+import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusDetails;
+import com.gbf.granblue_simulator.battle.logic.move.dto.ResultStatusDto;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
 import io.hypersistence.utils.hibernate.type.array.IntArrayType;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 일단 최소한의 필드만 두고 확장
@@ -18,10 +23,14 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
+@Immutable // 로그는 변경 x (JSON 더티체킹 방지 목적도 잇음)
 public class BattleLog {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long userId;
@@ -34,7 +43,7 @@ public class BattleLog {
 
     @Enumerated(EnumType.STRING)
     private MoveType moveType;
-    
+
     @Enumerated(EnumType.STRING)
     private MoveType parentMoveType; // 구분 편의를 위해 추가
 
@@ -56,19 +65,33 @@ public class BattleLog {
     @Column(name = "additional_damages", columnDefinition = "integer[][]")
     private int[][] additionalDamages;
 
-    @Type(ListArrayType.class)
-    @Column(name = "statuses", columnDefinition = "text[]")
-    private List<String> statuses;
-
-    @Type(ListArrayType.class)
-    @Column(name = "status_details", columnDefinition = "text[]")
-    private List<String> statusDetails;
-
-    @Type(ListArrayType.class)
-    @Column(name = "damage_status_details", columnDefinition = "text[]")
-    private List<String> damageStatusDetails;
-
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+
+    // 로깅용, 순서 유지를 위해 jsonb 대신 json, LAZY
+    @Basic(fetch = FetchType.LAZY)
+    @LazyGroup("json_details")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "statuses", columnDefinition = "json")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private Map<Long, ResultStatusDto> statuses = new LinkedHashMap<>();
+
+    @Basic(fetch = FetchType.LAZY)
+    @LazyGroup("json_details")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "status_details", columnDefinition = "json")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private Map<Long, StatusDetails> statusDetails = new LinkedHashMap<>();
+
+    @Basic(fetch = FetchType.LAZY)
+    @LazyGroup("json_details")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "damage_status_details", columnDefinition = "json")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private Map<Long, DamageStatusDetails> damageStatusDetails = new LinkedHashMap<>();
 
 }

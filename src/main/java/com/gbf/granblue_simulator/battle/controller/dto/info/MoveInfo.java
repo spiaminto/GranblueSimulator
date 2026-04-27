@@ -10,6 +10,7 @@ import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 @Data
 @Builder
@@ -22,13 +23,17 @@ public class MoveInfo {
 
     private String type;
     private String abilityType;
+    private String displayAbilityType;
 
     private String name;
     private String info;
+    private double damageRate;
+    private int hitCount;
 
     private String iconImageSrc;
     private String portraitImageSrc; // 소환석 포트레이트
     private String cutinImageSrc; // 소환석 컷인
+    private String detailImageSrc;
 
     private Integer maxCooldown;
     private Integer cooldown;
@@ -37,6 +42,7 @@ public class MoveInfo {
     @Builder.Default
     private List<StatusEffectDto> statusEffects = new ArrayList<>();
 
+    private Long nextMoveId;
     private String cjsName;
 
     public static MoveInfo from(Move move) {
@@ -63,9 +69,12 @@ public class MoveInfo {
 
                 .type(move.getType().getParentType().name())
                 .abilityType(baseMove.getAbilityType() == null ? "" : baseMove.getAbilityType().name())
+                .displayAbilityType(baseMove.getAbilityType() == null ? "" : baseMove.getAbilityType().getDisplayName())
 
                 .name(baseMove.getName())
                 .info(baseMove.getInfo())
+                .damageRate(baseMove.getDamageRate())
+                .hitCount(baseMove.getHitCount())
 
                 .iconImageSrc(baseMove.getIconImageSrc())
                 .cutinImageSrc(cutinSrc)
@@ -80,11 +89,29 @@ public class MoveInfo {
                         .map(StatusEffectDto::of)
                         .toList()
                 )
+                .nextMoveId(baseMove.getNextMoveId())
                 .build();
     }
 
     // from baseMove (fatalChain)
     public static MoveInfo from(BaseMove baseMove) {
+        return from(baseMove, StatusEffectDto::of);
+    }
+
+    public static MoveInfo fromWithModifier(BaseMove baseMove) {
+        return from(baseMove, StatusEffectDto::ofWithModifier);
+    }
+
+    private static MoveInfo from(BaseMove baseMove, Function<BaseStatusEffect, StatusEffectDto> modifier) {
+
+        String detailSrc = "";
+        String portraitSrc = "";
+        if (baseMove.getDefaultVisual() != null) {
+            // 소환석만 사용중
+            detailSrc = baseMove.getType() == MoveType.SUMMON ? baseMove.getDefaultVisual().getDetailImageSrc() : "";
+            portraitSrc = baseMove.getType() == MoveType.SUMMON ? baseMove.getDefaultVisual().getPortraitImageSrc() : "";
+        }
+
         return MoveInfo.builder()
                 .id(baseMove.getId())
                 .order(baseMove.getType().getOrder())
@@ -92,15 +119,18 @@ public class MoveInfo {
                 .actorId(null)
                 .actorIndex(null)
 
-                .type(baseMove.getType().getParentType().name()) // 페이탈 체인은 DEFAULT
+                .type(baseMove.getType().name())
                 .abilityType(baseMove.getAbilityType() == null ? "" : baseMove.getAbilityType().name())
+                .displayAbilityType(baseMove.getAbilityType() == null ? "" : baseMove.getAbilityType().getDisplayName())
 
                 .name(baseMove.getName())
                 .info(baseMove.getInfo())
+                .damageRate(baseMove.getDamageRate())
+                .hitCount(baseMove.getHitCount())
 
                 .iconImageSrc(baseMove.getIconImageSrc())
-                .cutinImageSrc("")
-                .portraitImageSrc("")
+                .detailImageSrc(detailSrc)
+                .portraitImageSrc(portraitSrc)
 
                 .cooldown(0)
                 .maxCooldown(baseMove.getCoolDown())
@@ -108,9 +138,10 @@ public class MoveInfo {
 
                 .statusEffects(baseMove.getOrderedBaseStatusEffects().stream()
                         .filter(BaseStatusEffect::isMetadataDisplayable)
-                        .map(StatusEffectDto::of)
+                        .map(modifier)
                         .toList()
                 )
+                .nextMoveId(baseMove.getNextMoveId())
                 .build();
     }
 

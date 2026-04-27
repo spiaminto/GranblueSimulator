@@ -9,5 +9,6 @@ public class VisualInfo {
 
     private String moveCjsName;
     private Boolean isTargetedEnemy;
+    private String voiceLabel;
 
 }

@@ -25,6 +25,8 @@ public class OmenResult {
     private String chargeAttackInfo; // 표시 텍스트
     private String motion;
 
+    private Integer lastTriggeredHp;
+
     private List<OmenCancelCondDto> omenCancelCond; // 없음 과 구분하기 위해 null 초기화
 
     public static OmenResult from(Enemy enemy) {
@@ -40,25 +42,31 @@ public class OmenResult {
                 .standbyMoveType(omen.getStandbyType())
                 .motion(omen.getMotionType().getMotion())
                 .isOmenBreak(false)
+                .lastTriggeredHp(enemy.getLatestTriggeredHp())
                 .omenCancelCond(cancelConditionIndexes.stream().map(cancelConditionIndex -> {
                     int index = cancelConditionIndexes.indexOf(cancelConditionIndex);
                     OmenCancelCond cancelCondition = omen.getBaseOmen().getOmenCancelConds().get(cancelConditionIndex);
                     return OmenCancelCondDto.builder()
                             .index(cancelConditionIndex)
                             .remainValue(omen.getRemainValues().get(index)) // cancelConditionIndex 의 index 와 같음
-                            .cancelType(cancelCondition.getType())
+                            .type(cancelCondition.getType())
                             .info(cancelCondition.getInfo())
-                            .updateTiming(cancelCondition.getType().getUpdateTiming())
                             .build();
                 }).toList())
                 .build();
     }
 
-    public static OmenResult breakOmen(MoveType standbyMoveType) {
+    /**
+     * 전조 해제시 결과 변경
+     * @param omenResult 기존 결과
+     * @return
+     */
+    public static OmenResult breakOmen(OmenResult omenResult) {
         return OmenResult.builder()
-                .type(OmenType.NONE)
+                .type(omenResult.getType())
                 .isOmenBreak(true)
-                .standbyMoveType(standbyMoveType)
+                .standbyMoveType(omenResult.getStandbyMoveType())
+                .lastTriggeredHp(omenResult.getLastTriggeredHp())
                 .build();
     }
 
@@ -71,6 +79,6 @@ public class OmenResult {
         private int remainValue;
         private String info;
         private String updateTiming;
-        private OmenCancelType cancelType;
+        private OmenCancelType type;
     }
 }

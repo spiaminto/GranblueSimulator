@@ -124,20 +124,22 @@ class Actor {
             duration = this.playMotion(this.playingMotion);
         }
 
-        console.debug('[Actor.play] END actor = ', this.actorId, '\nmotion = ', playRequest.motion, '\nduration = ', duration, '\nsynced = ', synced);
+        // console.debug('[Actor.play] END actor = ', this.actorId, '\nmotion = ', playRequest.motion, '\nduration = ', duration, '\nsynced = ', synced);
 
         return duration;
     }
 
     playMotion(motion) {
-        console.debug("[playMotion] START>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \nactor = ", this.actorId, "\nmotion = ", motion, "\nmainCjs = ", this.mainCjs);
+        // console.debug("[playMotion] START>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \nactor = ", this.actorId, "\nmotion = ", motion, "\nmainCjs = ", this.mainCjs);
         if (!(this.mainCjs instanceof createjs.Container)) throw new Error("[playMotion] invalid mainCjs, mainCjs = " + JSON.stringify(this.mainCjs)); // check if it's a valid animation
         if (motion === Player.c_animations.NONE) return 0;
 
         let duration = -1;
 
         // 스테이지 조정
-        if (Player.c_animations.isTopMotion(motion)) {
+        if (Player.c_animations.isTopMotion(motion)
+            && player.effectPlaying
+            && player.effectPlayingActorIndex === this.actorIndex) {
             player.alterStageIndex(this.stageLayer, this.mainCjs, Player.z_index.TOP);
             if (this.isEnemy) {
                 player.alterLayerIndex(cjsStage.characterLayer, Player.z_index.BOTTOM);
@@ -146,7 +148,6 @@ class Actor {
 
         // 보이스 재생
         this.playVoice(motion); // 모션 변경 전 미리 재생 (특히 어빌리티)
-
 
         if (Player.c_animations.isAttack(motion)) {
             if (motion === Player.c_animations.ATTACK_MOTION_ONLY) {
@@ -157,15 +158,18 @@ class Actor {
             }
 
         } else if (Player.c_animations.isAbilityMotion(motion)) { // ab_motion, to_stb_wait, ab_motion_win, ab_motion_damage, ab_motion_effect_only 등
-            // 모션 정상화
-            motion = Player.c_animations.getCleanAbilityMotion(motion, this.isEnemy); // ab_motion_damage 시, CHECK 되도록 motion 안건드리도록 고민 해봐야될듯
             let isEffectOnlyMotion = motion === Player.c_animations.ABILITY_EFFECT_ONLY; // 일반적으로 이펙트만 있는 모션
+            // 모션 정상화
+            let cleanedMotion = Player.c_animations.getCleanAbilityMotion(motion, this.isEnemy); // ab_motion_damage 시, CHECK 되도록 motion 안건드리도록 고민 해봐야될듯
+            // console.log('[playMotion] cleaned motion = ', cleanedMotion);
+            motion = cleanedMotion;
+            cleanedMotion = cleanedMotion.replace('ab_motion_win_skip', 'win'); // win_skip 은 별도처리를 위해 임시 변경
             // 모션
             let abilityMotionDuration = isEffectOnlyMotion
                 ? -1
-                : this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
-            if (motion.includes('win') || motion.includes('down'))
-                abilityMotionDuration = 30; // 승리, 다운 모션의 경우 지나치게 길어 30fps 로 컷
+                : this.getCjsDuration(this.mainCjs.getMotionCjs(cleanedMotion));
+            if (cleanedMotion.includes('win') || cleanedMotion.includes('down'))
+                abilityMotionDuration = 40; // 승리, 다운 모션의 경우 지나치게 길어 40fps 에서 컷
             // 이펙트
             let abilityType = this.playingOptions.abilityType;
             let ownAbilityAnimation = this.animation.abilities[abilityType];
@@ -187,12 +191,15 @@ class Actor {
                 : this.processMortal(motion);
 
         } else if (Player.c_animations.isSummoning(motion)) {
-            let summonId = this.playingOptions.summonId;
-            if (!summonId) throw new Error("summonId is not provided. motion = " + motion + " cjs = " + this.mainCjs);
-            let currentSummonCjsName = this.animation.summons[summonId]; // 'summon_2040080000_02'
-            let cjsSuffix = motion === Player.c_animations.SUMMON_DAMAGE ? '_damage' : '_attack'; // CHECK old summons 지원 x
-            currentSummonCjsName += cjsSuffix;
-            duration = this.processSummon(currentSummonCjsName);
+            // let summonId = this.playingOptions.summonId;
+            // if (!summonId) throw new Error("summonId is not provided. motion = " + motion + " cjs = " + this.mainCjs);
+            // let currentSummonCjsName = this.animation.summons[summonId]; // 'summon_2040080000_02'
+            // let cjsSuffix = motion === Player.c_animations.SUMMON_DAMAGE ? '_damage' : '_attack'; // CHECK old summons 지원 x
+            // currentSummonCjsName += cjsSuffix;
+            // duration = this.processSummon(currentSummonCjsName);
+
+            let cjsName = this.playingOptions.cjsName;
+            duration = this.processSummon(cjsName);
 
             // } else if (Player.c_animations.isFormChange(motion)) {
             // Note: does nothing different from default, keeping it this way in case it must be changed / improved
@@ -209,12 +216,12 @@ class Actor {
         } else if (motion === Player.c_animations.ABILITY_UI) {
             duration = this.processUi();
 
-        } else if (motion === Player.c_animations.WINDOW_EFFECT) {
-            let cjsName = this.playingOptions.cjsName;
-            duration = this.processSummon(cjsName);
+            // } else if (motion === Player.c_animations.WINDOW_EFFECT) {
+            //     let cjsName = this.playingOptions.cjsName;
+            //     duration = this.processSummon(cjsName);
 
         } else { // default
-            console.debug('[playMotion] else default, motion = ', motion);
+            // console.debug('[playMotion] else default, motion = ', motion);
             duration = this.getCjsDuration(this.mainCjs.getMotionCjs(motion));
         }
 
@@ -236,6 +243,8 @@ class Actor {
             || motion === Player.c_animations.ABILITY_EFFECT_ONLY
             || Player.c_animations.isSummoning(motion) // the check is a hack to avoid character moving during summoning
             || Player.c_animations.isRaidAppear(motion)
+        this.playedMotion = !notPlayMotion;
+
         if (!notPlayMotion) {
             if (this.isCharacter() && this.isChargeAttackSkip && this.chargeAttackStartFrame > 0 && motion === Player.c_animations.MORTAL_A) {
                 // 오의 시작모션 + 프레임 점프
@@ -245,7 +254,12 @@ class Actor {
 
                 setTimeout(() => {
                     toPlayCjs.gotoAndPlay(this.chargeAttackStartFrame);
-                }, Constants.defaultCjsInterval * Constants.defaultMortalStartFrame);
+                }, Constants.fastCjsInterval * Constants.defaultMortalStartFrame);
+
+            } else if (motion === Player.c_animations.ABILITY_MOTION_WIN_SKIP) {
+                // win 모션에 딜레이 있는 캐릭터일때 사용
+                this.mainCjs[this.mainCjs.name].gotoAndPlay('win');
+                this.mainCjs[this.mainCjs.name][this.mainCjs.name + '_win'].gotoAndPlay(40); // 사례늘면 수치조정 (라이포 40, 아마 CLEAR 이펙트 나오는 시간동안 딜레이인듯?)
 
             } else if (this.playMultiHitMotion) {
                 // 모션 강제 난격 <테스트>
@@ -270,7 +284,7 @@ class Actor {
             }
         }
 
-        console.debug('[playMotion] PLAYED<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< \nactor = ', this.actorId, '\nmotion = ', motion, '\nduration = ', duration, '\ncjs = ', this.mainCjs, '\ncjs.motion = ', this.mainCjs.getMotionCjs(motion), '\neffectCjs = ', this.effectCjs, '\nplayingOptions = ', this.playingOptions);
+        // console.debug('[playMotion] PLAYED<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< \nactor = ', this.actorId, '\nmotion = ', motion, '\nduration = ', duration, '\ncjs = ', this.mainCjs, '\ncjs.motion = ', this.mainCjs.getMotionCjs(motion), '\neffectCjs = ', this.effectCjs, '\nplayingOptions = ', this.playingOptions);
 
         // create main tween, all the tweens are merely used to keep track of the animation durations
         duration = Math.max(duration, 0);
@@ -287,7 +301,7 @@ class Actor {
             }, [this]);
 
         // 최종 duration 변환하여 반환
-        let durationMiliSeconds = duration * Constants.defaultCjsInterval; // fps -> ms
+        let durationMiliSeconds = duration * createjs.Ticker.interval; // fps -> ms
         let ceiledDurationMiliSeconds = Math.ceil(durationMiliSeconds * 100) / 100; // 333.3333 -> 333.33
         return ceiledDurationMiliSeconds;
     }
@@ -354,7 +368,7 @@ class Actor {
         let isFormChange = this.playingMotion === Player.c_animations.ENEMY_FORM_CHANGE;
         let isGlobalEffect = this.isGlobalActor();
         let isQuestCleared = stage.gGameStatus.isQuestCleared;
-        let willPlayWaitMotion = !isCanceled && !isWaiting && !isDead && !isFormChange && !isGlobalEffect && !isQuestCleared;
+        let willPlayWaitMotion = this.playedMotion && !isWaiting && !isCanceled && !isDead && !isFormChange && !isGlobalEffect && !isQuestCleared;
 
         // console.log('[actor.animationCompleted] actorIndex = ', this.actorIndex, 'currentMotion = ', this.playingMotion, ' willPlayWaitMotion = ', willPlayWaitMotion, 'isWaiting = ', isWaiting, 'isDead = ', isDead, 'isFormChange = ', isFormChange, 'isGlobalEffect = ', isGlobalEffect, 'isQuestCleared = ', isQuestCleared)
 
@@ -377,7 +391,7 @@ class Actor {
     }
 
     syncPlay(event) {
-        console.log('[syncPlay] event = ', event, 'actor.index = ', this.actorIndex, 'motion = ', this.playingMotion, ' cjs = ', this.mainCjs);
+        // console.log('[syncPlay] event = ', event, 'actor.index = ', this.actorIndex, 'motion = ', this.playingMotion, ' cjs = ', this.mainCjs);
         event.target.hasEventListener('syncPlay') && event.target.removeEventListener("syncPlay", this.syncPlayCallback);
         this.playMotion(this.playingMotion);
     }
@@ -462,10 +476,14 @@ class Actor {
     processAbility(abilityCjsName, isAbilityTargetedEnemy) {
         let isFatalChainEffect = abilityCjsName.includes('burst'); // 페이탈체인: burst_341, ... (체인버스트 도 비슷하게 생김, 테스트 x)
         let isAoe = isFatalChainEffect
-            || abilityCjsName.includes('_all_')
+            || abilityCjsName.includes('_all')
             || abilityCjsName.includes('raid')
-            || abilityCjsName.includes('summon'); // 페이탈 체인, raid_, summon(이경우 BUFF_FOR_ALL) 은 AOE
+            || abilityCjsName.includes('summon') // 페이탈 체인, raid_, summon(이경우 BUFF_FOR_ALL) 은 AOE
+        ;
+        // 실제 duration 참조용 postfix
         let childNamePostfix = isAoe ? "end" : "effect";
+
+        // 오프셋
         let offsetOption = isAoe
             ? 'fullscreen'
             : isAbilityTargetedEnemy
@@ -484,9 +502,47 @@ class Actor {
             this.stageLayer.addChild(this.effectCjs);
         }
 
+        // 특수처리
+        let additionalEffectInfo = null;
+        if (this.isEnemy && abilityCjsName.includes('esp')) {
+            // 천원 루프레스용 (esp_7300843_05_1_all...)
+            childNamePostfix = 'special';
+
+            let additionalCjsName = abilityCjsName === 'esp_7300843_05_1_all' ? 'esp_7300843_05_4_all'
+                : abilityCjsName === 'esp_7300843_05_2_all' ? 'esp_7300843_05_3_all'
+                    : abilityCjsName === 'esp_7300843_05_5_all' ? 'esp_7300843_05_6_all' : '';
+            if (additionalCjsName) {
+                additionalEffectInfo = { // 추가재생
+                    cjsName: additionalCjsName,
+                    delay: 10, //tick
+                    offsetOption: 'fullscreen',
+                }
+            }
+        }
+
         // 이펙트 duration 계산
         let abilityEffectDuration = this.getCjsDuration(this.effectCjs.getPlayableCjs(childNamePostfix));
         if (isFatalChainEffect) abilityEffectDuration = 40; // 페이탈 체인 40fps 고정 (postfix = 'effect')
+
+        // console.log('[processAbility] additionalEffectInfo = ', additionalEffectInfo)
+        if (additionalEffectInfo) {
+            let tick = 0;
+            let delay = additionalEffectInfo.delay || 0;
+            let actor = this;
+            createjs.Ticker.addEventListener("tick", playAdditionalEffect);
+
+            function playAdditionalEffect() {
+                // console.log("playAdditionalEffect, tick = ", tick, "delay = ", delay)
+                tick++;
+                if (tick >= delay) {
+                    let effectCjs = actor.instantiateEffectCjs(additionalEffectInfo.cjsName);
+                    actor.setEffectCjsOffset(additionalEffectInfo.offsetOption, effectCjs);
+                    actor.stageLayer.addChild(effectCjs);
+                    actor.multiAttackEffectCjses.add(effectCjs); // 임시
+                    createjs.Ticker.removeEventListener('tick', playAdditionalEffect);
+                }
+            }
+        }
 
         return abilityEffectDuration;
     }
@@ -512,6 +568,12 @@ class Actor {
         this.stageLayer.addChild(effectCjs);
         // effectCjs[effectCjs.name].gotoAndPlay(0);
 
+        // 오의 가속, duration 전에 미리 변경
+        if (this.isCharacter()) {
+            createjs.Ticker.interval = Constants.fastCjsInterval;
+            this.changedCjsInterval = true;
+        }
+
         // 캐릭터 오의 스킵 활성화시 프레임 지정 재생 처리
         let hasCharacterPart = false;
         if (!this.isEnemy && this.isChargeAttackSkip && this.chargeAttackStartFrame > 0) {
@@ -523,7 +585,10 @@ class Actor {
 
             // 스킵을 통해 강제로 재생할 이펙트 파트
             let depth3Cjs = null; // 실제 재생되는 child, gotoAndPlay(startFrame) 이 먹는 위치.
-            depth3Cjs = Object.values(depth2Cjs).find(value => value instanceof createjs.MovieClip && value !== depth2Cjs.parent) || depth2Cjs;
+            depth3Cjs = Object.entries(depth2Cjs).find(([key, value]) =>
+                !key.includes('instance') && !key.includes('cut') && value instanceof createjs.MovieClip && value !== depth2Cjs.parent);
+            // console.log('[processMortal] depth3 = ', depth3Cjs);
+            depth3Cjs = depth3Cjs ? depth3Cjs[1] : depth2Cjs;
 
             // 스킵을 통해 강제로 재생할 이펙트 중 캐릭터 파트 [실험용]
             let specialChildCharacterPart = null;
@@ -533,8 +598,6 @@ class Actor {
                 hasCharacterPart = true;
             }
 
-            createjs.Ticker.interval = 28; // 오의 가속, duration 전에 미리 변경
-            this.changedCjsInterval = true;
             createjs.Ticker.addEventListener("tick", playMortal);
             let tick = 0;
 
@@ -543,11 +606,12 @@ class Actor {
                 if (tick === 1) {
                     depth1Cjs.visible = false;
                 }
-                if (tick === Constants.defaultMortalStartFrame - 2) {
-                    player.getGlobalActor().playMotion('mortal_A'); // 오의 스킵 이펙트 재생
-                }
                 if (tick >= Constants.defaultMortalStartFrame) {
                     createjs.Ticker.removeEventListener('tick', playMortal);
+
+                    // 오의 스킵 이펙트 재생
+                    player.getGlobalActor().playMotion('mortal_A');
+
                     // 이펙트 파트 재생
                     depth1Cjs.visible = true;
                     depth3Cjs.gotoAndPlay(startFrame);
@@ -564,7 +628,7 @@ class Actor {
         if (this.isLeaderCharacter && this.weaponTextures.length > 0)
             duration = this.getCjsDuration(effectCjs.getPlayableCjs('special')); // 주인공, 무기 있을경우 무기 이펙트 길이 사용
         if (this.isChargeAttackSkip && this.chargeAttackStartFrame > 0)
-            duration -= (this.chargeAttackStartFrame - Constants.defaultMortalStartFrame) + 5; // 오의 스킵시 보정 (+5를 해야 타이밍이 더 잘맞음)
+            duration -= (this.chargeAttackStartFrame - Constants.defaultMortalStartFrame); // 오의 스킵시 보정 (+5를 해야 타이밍이 더 잘맞음)
         if (this.isChargeAttackSkip && hasCharacterPart)
             duration -= 8; // 캐릭터 파트 별도 재생시 더 단축
         if (this.isGlobalActor())
@@ -615,7 +679,7 @@ class Actor {
         this.setEffectCjsOffset('fullscreen'); // CHECK old summons 지원 x
         this.stageLayer.addChild(this.effectCjs);
 
-        createjs.Ticker.interval = 28; // 가속, duration 전에 미리 변경
+        createjs.Ticker.interval = Constants.fastCjsInterval; // 가속, duration 전에 미리 변경
         this.changedCjsInterval = true;
 
         if (!(this.effectCjs.name in this.effectCjs)) console.error("faisafe, summon_cjs_name = " + this.effectCjs.name + " not found in summon_cjs"); // CHECK old summons
@@ -660,7 +724,7 @@ class Actor {
     processUi() {
         let duration = -1;
         let cjsName = this.getAbilityCjsName(this.playingOptions.abilityType);
-        console.log('[processUi] cjsName = ', cjsName);
+        // console.log('[processUi] cjsName = ', cjsName);
         if (!cjsName) return duration;
 
         switch (this.playingOptions.abilityType) {
@@ -704,7 +768,7 @@ class Actor {
         if (!playableCjs) {
             // fatalChain 의 burstNNN.js 사용시 undefined cjs 가 넘어옴. 이펙트 재생에는 문제없으므로 스킵
             // 주인공이 어빌리티 사용시 ab_motion 이 없어서 null 나옴
-            console.warn("[getCjsDuration] cjs is null", '\nthis.actor = ', this.actorId, '\nmotion = ', this.playingMotion, '\neffectCjs = ', this.effectCjs, '\nplayingOptions = ', this.playingOptions);
+            // console.warn("[getCjsDuration] cjs is null", '\nthis.actor = ', this.actorId, '\nmotion = ', this.playingMotion, '\neffectCjs = ', this.effectCjs, '\nplayingOptions = ', this.playingOptions);
             return 0;
         }
         let duration = playableCjs.timeline?.duration;
@@ -781,10 +845,11 @@ class Actor {
     /**
      * 이펙트 cjs 오프셋 지정
      * @param option self, target, fullscreen, special
+     * @param selectedEffectCjs
      */
-    setEffectCjsOffset(option = 'self') {
+    setEffectCjsOffset(option = 'self', selectedEffectCjs = null) {
 
-        let effectCjs = this.effectCjs;
+        let effectCjs = selectedEffectCjs || this.effectCjs;
 
         if (option === 'self') {
             // party: ability(self)
@@ -796,7 +861,7 @@ class Actor {
         } else if (option === 'fullscreen') {
             // party: ability(AOE), mortal(s2, s3), summon(attack, damage)
             effectCjs.x = this.m_offset.fullscreen.x;
-            effectCjs.y = this.m_offset.fullscreen.y + 15; // y축으로 살짝 내림 (35)
+            effectCjs.y = this.m_offset.fullscreen.y;
             effectCjs.scaleX *= this.m_fullscreen_scale;
             effectCjs.scaleY *= this.m_fullscreen_scale;
         } else if (option === 'target') {
@@ -814,6 +879,22 @@ class Actor {
             effectCjs.scaleY *= this.effectScaling;
         }
 
+        if (effectCjs.name.includes('esp')) {
+            // console.log(`effectCjs.name = ${effectCjs.name} option = ${option} offset.x = ${effectCjs.x}, offset.y = ${effectCjs.y}`);
+        }
+
+        // 특수처리
+        if (effectCjs.name.includes('ab_0090')) {
+            // 적 반사, 파일은 맞는것 같은데 위치가 틀어짐
+            effectCjs.x = effectCjs.x * 1.2;
+            effectCjs.y = effectCjs.y * 0.75;
+        } else if (effectCjs.name.includes('esp_7300843_05_')) {
+            // 천원 루프레스
+            effectCjs.x = effectCjs.x + 550; // 0 + x
+            effectCjs.y = effectCjs.y + 600; // n + y
+        }
+
+
         /*
         enemy: AOE (일단 self 로 )
         abilityCjs.x = this.m_offset.fullscreen.x * 0.5; // 적은 aoe 를 왼쪽으로 절반만큼 옮김 -> 예전 힐효과 때문인듯? 아마 필요없을듯
@@ -830,12 +911,11 @@ class Actor {
      * @param scaling = 1.0
      */
     initActorOffset(w, h, actorId, scaling = 1.0) {
-        this.m_fullscreen_scale = 1;
-        this.characterScaling = this.isEnemy ? 1.05 : 1.0; // 적 크기 증가
-        this.effectScaling = this.isGlobalActor() ? 1.1
-            : this.isEnemy ? 1.05
-                : 1.0;
-        const center = 330;
+        this.m_fullscreen_scale = 1.03;
+        this.characterScaling = this.isEnemy ? 1.1 : 1.0; // 적 크기 증가
+        this.effectScaling = this.isGlobalActor() || this.isEnemy ? 1.1 : 1.0;
+        const centerX = 340; // 330
+        const centerY = 330; // 327, 336.81
         const characterOffsetMultiplier = [
             {x: 0.0, y: 0.0}, // enemyIndex, none use
             {x: 0.25, y: 0.11},
@@ -847,37 +927,37 @@ class Actor {
 
         const characterTargetOffsetMultiplier = {x: 0.20, y: 0.30};
         if (this.isEnemy) { // enemy
-            this.m_offset.position.x = Math.round(center - w * 0.35 * scaling); // 1.0: 0.30
-            this.m_offset.position.y = Math.round(center + h * 0.53 * scaling); // 1.0: 0.50
+            this.m_offset.position.x = Math.round(centerX - w * 0.33 * scaling); // 1.0: 0.30 // 0.35
+            this.m_offset.position.y = Math.round(centerY + h * 0.54 * scaling); // 1.0: 0.50 // 0.53
             // enemy 는 attack, mortal 을 offset.target.x, y 사용하는것으로 되있으나, 실적용 되지 않음 (effectScale 마찬가지)
-            this.m_offset.target.x = Math.round(center + w * 0.20 * scaling); // 1.0: 0.25
-            this.m_offset.target.y = Math.round(center + h * 0.95 * scaling); // 1.0: 0.40
-            this.m_offset.fullscreen.x = Math.round(center - w * 0.5 / scaling);
-            this.m_offset.fullscreen.y = Math.round(center - h * 0.5 / scaling);
+            this.m_offset.target.x = Math.round(centerX + w * 0.20 * scaling); // 1.0: 0.25
+            this.m_offset.target.y = Math.round(centerY + h * 0.95 * scaling); // 1.0: 0.40
+            this.m_offset.fullscreen.x = Math.round(centerX - w * 0.5 / scaling);
+            this.m_offset.fullscreen.y = Math.round(centerY - h * 0.5 / scaling);
             // enemy 는 ability 사용시 special 사용
-            this.m_offset.special.x = Math.round(center - w * 0.25 * scaling); // 1.0: 0.30
-            this.m_offset.special.y = Math.round(center + h * 0.40 * scaling); // 1.0: 0.50
+            this.m_offset.special.x = Math.round(centerX - w * 0.25 * scaling); // 1.0: 0.30
+            this.m_offset.special.y = Math.round(centerY + h * 0.40 * scaling); // 1.0: 0.50
         } else if (this.isGlobalActor()) {
-            this.m_offset.position.x = Math.round(center - w * 0.30 * scaling);
-            this.m_offset.position.y = Math.round(center + h * 0.50 * scaling);
+            this.m_offset.position.x = Math.round(centerX - w * 0.30 * scaling);
+            this.m_offset.position.y = Math.round(centerY + h * 0.50 * scaling);
             // this.m_offset.position.x = Math.round(center - w * 0.51 * scaling); // 0.30
             // this.m_offset.position.y = Math.round(center - h * 0.58 * scaling); // + 0.50
-            this.m_offset.target.x = Math.round(center + w * 0.25 * scaling);
-            this.m_offset.target.y = Math.round(center + h * 0.40 * scaling);
-            this.m_offset.fullscreen.x = Math.round(center - w * 0.5 / scaling); // 0.5
-            this.m_offset.fullscreen.y = Math.round(center - h * 0.5 / scaling); // 0.5
-            this.m_offset.special.x = Math.round(center - w * 0.53 * scaling); // 0.30
-            this.m_offset.special.y = Math.round(center - h * 0.55 * scaling); // + 0.50
+            this.m_offset.target.x = Math.round(centerX + w * 0.25 * scaling);
+            this.m_offset.target.y = Math.round(centerY + h * 0.40 * scaling);
+            this.m_offset.fullscreen.x = Math.round(centerX - w * 0.5 / scaling); // 0.5
+            this.m_offset.fullscreen.y = Math.round(centerY - h * 0.5 / scaling); // 0.5
+            this.m_offset.special.x = Math.round(centerX - w * 0.53 * scaling); // 0.30
+            this.m_offset.special.y = Math.round(centerY - h * 0.55 * scaling); // + 0.50
             // this.m_offset.special.y = Math.round(0.15 * w / scaling);
             // this.m_offset.special.y = Math.round(0.15 * h / scaling);
         } else { // normal
             // element is on the right, target on the left
-            this.m_offset.position.x = Math.round(center + w * characterOffsetMultiplier[this.actorIndex].x * scaling); // origin: 0.25
-            this.m_offset.position.y = Math.round(center + h * characterOffsetMultiplier[this.actorIndex].y * scaling); // origin: 0.15
-            this.m_offset.target.x = Math.round(center - w * 0.25 * scaling); // origin: 0.10 타겟은 캐릭터 위치에 상관없이 고정
-            this.m_offset.target.y = Math.round(center + h * 0.4 * scaling); // origin: 0.30  타겟은 캐릭터 위치에 상관없이 고정
-            this.m_offset.fullscreen.x = Math.round(center - w * 0.5 / scaling);
-            this.m_offset.fullscreen.y = Math.round(center - h * 0.5 / scaling);
+            this.m_offset.position.x = Math.round(centerX + w * characterOffsetMultiplier[this.actorIndex].x * scaling); // origin: 0.25
+            this.m_offset.position.y = Math.round(centerY + h * characterOffsetMultiplier[this.actorIndex].y * scaling); // origin: 0.15
+            this.m_offset.target.x = Math.round(centerX - w * 0.25 * scaling); // origin: 0.10 타겟은 캐릭터 위치에 상관없이 고정
+            this.m_offset.target.y = Math.round(centerY + h * 0.4 * scaling); // origin: 0.30  타겟은 캐릭터 위치에 상관없이 고정
+            this.m_offset.fullscreen.x = Math.round(centerX - w * 0.5 / scaling);
+            this.m_offset.fullscreen.y = Math.round(centerY - h * 0.5 / scaling);
             this.m_offset.special.x = Math.round(0.15 * w / scaling);
             this.m_offset.special.y = Math.round(0.15 * h / scaling);
         }
@@ -897,7 +977,7 @@ class Actor {
         if (label) {
             let url = baseUrl + label + '.mp3';
             let delay = label.includes('mortal') ? Constants.defaultMortalStartFrame * Constants.defaultCjsInterval : 0
-            setTimeout(() => window.audio.play(url, {isLocal: true}), delay);
+            setTimeout(() => window.audio.play(url, {isLocal: true, audioType: 'voice'}), delay);
         }
     }
 
@@ -911,7 +991,7 @@ class Actor {
 
         if (Player.c_animations.isAbilityMotion(motion)) {
             let ability = this.animation.abilities[this.playingOptions.abilityType];
-            label = ability && ability.voiceLabel ? ability.voiceLabel : "";
+            label = ability?.voiceLabel ? ability.voiceLabel : this.playingOptions.voiceLabel || '';
             if (label.indexOf(',') > 0) { // 일부 어빌리티는 여러개 (attack01,attack02, ...)
                 let spiltLabels = label.split(',');
                 label = spiltLabels[Math.floor(Math.random() * spiltLabels.length)];
@@ -927,17 +1007,24 @@ class Actor {
                 : 'attack' + (Math.floor(Math.random() * 5) + 1).toString().padStart(2, '0'); // attack01 ~ attack05
 
         } else if (Player.c_animations.isDamage(motion)) {
-            let isFatalDamaged = gameStateManager.getState('isFatalDamaged');
-            if (isFatalDamaged[this.actorIndex]) {
+            let isFatalDamagedVoice = gameStateManager.getState('isFatalDamagedVoice');
+            if (isFatalDamagedVoice[this.actorIndex]) {
                 label = damageLabels[Math.floor(Math.random() * damageLabels.length)];
+                isFatalDamagedVoice[this.actorIndex] = false;
+                gameStateManager.setState('isFatalDamagedVoice', isFatalDamagedVoice);
             }
 
         } else if (Player.c_animations.DEAD === motion) {
             label = loseLabels[Math.floor(Math.random() * loseLabels.length)];
 
         } else if (Player.c_animations.ABILITY_WAIT === motion) {
-            label = readyLabels[Math.floor(Math.random() * cutInLabels.length)];
+            label = readyLabels[Math.floor(Math.random() * readyLabels.length)];
+
+        } else if (Player.c_animations.CHARA_IN === motion) {
+            // 부활
+            label = cutInLabels[Math.floor(Math.random() * cutInLabels.length)];
         }
+
 
         return label;
     }

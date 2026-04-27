@@ -84,7 +84,7 @@ public class ReactionLogic {
                 if (deadResult != null) { // 캐릭터의 경우 불사효과 등으로 버틸시 null 반환 가능
                     if (actor.isEnemy()) return results; // 적 사망시 후처리 없이 즉시 종료
                     else {
-                        results.addAll(process(deadResult, depth + 1)); // 캐릭터가 죽은경우 반응추가    
+                        results.addAll(process(deadResult, depth + 1)); // 캐릭터가 죽은경우 반응추가
                     }
                 }
             }
@@ -99,11 +99,13 @@ public class ReactionLogic {
         List<Reaction> reactions = new ArrayList<>();
         for (TriggerType trigger : triggers) { // SELF -> ENEMY -> CHARACTER
             for (Actor actor : currentFieldActors) { // order by Actor.currentOrder
+                // log.info("[process] for triggers trigger = {} for currentFieldActors actor = {}", trigger, actor);
                 if (trigger == TriggerType.REACT_SELF && !baseResult.isFromActor(actor)) continue; // 자신의 행동반응
                 if (trigger == TriggerType.REACT_ENEMY && !baseResult.getMainActor().isEnemy()) continue;
                 if (trigger == TriggerType.REACT_CHARACTER && baseResult.getMainActor().isEnemy()) continue;
 
                 actor.getMoves(trigger).forEach(move -> {
+                    // log.info("[process] actor.getMoves(trigger).forEach() move = {}", move);
                     TriggerPhase phase = move.getBaseMove().getTriggerPhase();
                     if (move.getBaseMove().getId().equals(baseResult.getMove().getBaseMove().getId()) || phase.isNone())
                         return; // 동일 행동이 트리거 되거나, 페이즈정보가 없는경우 패스
@@ -112,11 +114,13 @@ public class ReactionLogic {
                 });
             }
         }
-        // 현재 depth 에서, 반응 순서 우선 -> 페이즈 정렬
-        reactions.sort(Comparator.comparing((Reaction reaction) -> reaction.getTriggerType().getReactionOrder()).thenComparing(Reaction::getPhase));
+        // 현재 depth 에서, 페이즈정렬 -> 반응주체 정렬
+        reactions.sort(Comparator
+                .comparing((Reaction reaction) -> reaction.getPhase().getOrder())
+                .thenComparing(reaction -> reaction.getTriggerType().getReactionOrder()));
 
         // 디버깅
-        log.info("\n [ReactionLogic.process] depth = {} \n baseResult = {} \n Reactions = {}", depth, baseResult.getMainActor().getName() + " : " + baseResult.getMove().getBaseMove().getName() + " Move.type: " + baseResult.getMove().getType(), "\n   " + reactions.stream().map(Reaction::toString).collect(Collectors.joining("\n   ")));
+        log.debug("\n [ReactionLogic.process] depth = {} \n baseResult = {} \n Reactions = {}", depth, baseResult.getMainActor().getName() + " : " + baseResult.getMove().getBaseMove().getName() + " Move.type: " + baseResult.getMove().getType(), "\n   " + reactions.stream().map(Reaction::toString).collect(Collectors.joining("\n   ")));
 
         // 3. 반응 실행 및 재귀
         for (Reaction reaction : reactions) {
@@ -134,7 +138,7 @@ public class ReactionLogic {
             }
         }
 
-        log.info("\n [ReactionLogic.process] EXECUTED depth = {} \n baseResult = {} \n results = {}", depth, baseResult.getMainActor().getName() + " : " + baseResult.getMove().getBaseMove().getName() + " Move.type: " + baseResult.getMove().getType(), "\n   " + results.stream().map(result -> result.getMainActor().getName() + ": " + result.getMove().getBaseMove().getName()).collect(Collectors.joining("\n   ")));
+        log.debug("\n [ReactionLogic.process] EXECUTED depth = {} \n baseResult = {} \n results = {}", depth, baseResult.getMainActor().getName() + " : " + baseResult.getMove().getBaseMove().getName() + " Move.type: " + baseResult.getMove().getType(), "\n   " + results.stream().map(result -> result.getMainActor().getName() + ": " + result.getMove().getBaseMove().getName()).collect(Collectors.joining("\n   ")));
 
         return results;
     }

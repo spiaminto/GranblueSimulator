@@ -26,7 +26,7 @@ public class SetStatusEffectResult {
      */
     public void merge(SetStatusEffectResult... others) {
         for (SetStatusEffectResult other : others) {
-            log.info("[merge] other = {}", other);
+            // log.info("[merge] other = {}", other);
             if (other == null || this.equals(other)) continue;
             Map<Long, Result> otherResults = other.getResults();
             for (Long otherResultActorId : otherResults.keySet()) {

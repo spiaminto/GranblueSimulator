@@ -15,10 +15,16 @@ public class RoomInfo {
     private Integer maxMemberCount;
     private String remainingTime;
 
-    private String enemyName;
     private Integer enemyHpRate;
+
+    // from raid
+    private String enemyName;
     private String enemyPortraitSrc;
 
     // finished
     private String endedAt;
+
+    // from member
+    private Boolean isMember; // 참전중인지 여부
+    private Boolean resultChecked;
 }

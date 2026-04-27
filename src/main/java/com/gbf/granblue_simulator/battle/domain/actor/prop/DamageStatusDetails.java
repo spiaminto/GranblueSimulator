@@ -1,5 +1,7 @@
 package com.gbf.granblue_simulator.battle.domain.actor.prop;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.metadata.domain.actor.ElementType;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
@@ -17,12 +19,18 @@ import static com.gbf.granblue_simulator.metadata.domain.statuseffect.StatusModi
 @Builder
 @Getter
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
+@JsonAutoDetect(
+        fieldVisibility = JsonAutoDetect.Visibility.ANY,
+        getterVisibility = JsonAutoDetect.Visibility.NONE
+)
 @EqualsAndHashCode
 @ToString
 public class DamageStatusDetails implements Cloneable {
 
     private Long actorId;
     private String actorName;
+    private Long baseActorId;
+    private boolean isEnemy;
 
     /* 베이스 */
     @Getter(AccessLevel.PROTECTED)
@@ -55,9 +63,10 @@ public class DamageStatusDetails implements Cloneable {
     private double abilityDamageRateUpRate;
     private double chargeAttackDamageRateUpRate;
     public double getMoveDamageRateUpRate(MoveType moveType) {
+        // 배율 증가계의 상한은 200%
         return switch (moveType) {
-            case ABILITY -> this.abilityDamageRateUpRate;
-            case CHARGE_ATTACK -> this.chargeAttackDamageRateUpRate;
+            case ABILITY -> Math.min(this.abilityDamageRateUpRate, 2);
+            case CHARGE_ATTACK -> Math.min(this.chargeAttackDamageRateUpRate, 2);
             default -> 0;
         };
     }
@@ -299,6 +308,9 @@ public class DamageStatusDetails implements Cloneable {
         };
     }
 
+    /* 기록용 */
+
+
 
     public void syncDamageStatusDetails(Actor actor) {
         this.baseDamageCapUpRate = 0.0;
@@ -337,6 +349,9 @@ public class DamageStatusDetails implements Cloneable {
         this.amplifyAbilityDamageRate = this.baseAbilityAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_ABILITY_DAMAGE_UP);
         this.amplifyChargeAttackDamageRate = this.baseChargeAttackAmplifyDamageRate + getModifierValueSum(map, AMPLIFY_CHARGE_ATTACK_DAMAGE_UP);
         this.amplifyChargeAttackDamageDownRate = getModifierValueSum(map, AMPLIFY_CHARGE_ATTACK_DAMAGE_DOWN);
+
+        // 공격 데미지 고정
+        this.damageFixPoint = getModifierValueMin(map, DAMAGE_FIX);
 
         // 피격 데미지 증가, 감소 (합산)
         this.takenSupplementalDamageUpPoint = (int) getModifierValueSum(map, TAKEN_SUPPLEMENTAL_DAMAGE_UP);
@@ -394,24 +409,19 @@ public class DamageStatusDetails implements Cloneable {
 
     }
 
-    public static DamageStatusDetails init(Actor actor) {
-        double weaponDamageCapUpRate = actor.isCharacter() ? 0.1 : 0; // 무기 일반데미지상한 상승항 10%
-        double weaponNormalAttackDamageCapUpRate = actor.isCharacter() ? 0.1 : 0; // 무기 일반공격 상한 상승 10%
-        double weaponAbilityDamageCapUpRate = actor.isCharacter() ? 0.5 : 0; // 무기 어빌리티 데미지 상한 상승 50%
-        double weaponChargeAttackDamageCapUpRate = actor.isCharacter() ? 0.15 : 0; // 무기 어빌리티 데미지 상한 상승 15% (상향전)
-        int weaponSupplementalDamage = actor.isCharacter() ? 5000 : 0; // 무기 요다메 5천
-        double weaponSeraphicAmplifyDamageRate = actor.isCharacter() ? 0.2 : 0; // 천사항 20%
-
+    public static DamageStatusDetails init(Actor actor, WeaponStatus weaponStatus) {
         return DamageStatusDetails.builder()
                 .actorId(actor.getId())
+                .baseActorId(actor.getBaseActor().getId())
+                .isEnemy(actor.getBaseActor().isEnemy())
                 .actorName(actor.getName())
 
-                .weaponDamageCapUpRate(weaponDamageCapUpRate)
-                .weaponNormalAttackDamageCapUpRate(weaponNormalAttackDamageCapUpRate)
-                .weaponAbilityDamageCapUpRate(weaponAbilityDamageCapUpRate)
-                .weaponChargeAttackDamageCapUpRate(weaponChargeAttackDamageCapUpRate)
-                .weaponSupplementalDamage(weaponSupplementalDamage)
-                .weaponSeraphicAmplifyDamageRate(weaponSeraphicAmplifyDamageRate)
+                .weaponDamageCapUpRate(weaponStatus.getWeaponDamageCapUpRate())
+                .weaponNormalAttackDamageCapUpRate(weaponStatus.getWeaponNormalAttackDamageCapUpRate())
+                .weaponAbilityDamageCapUpRate(weaponStatus.getWeaponAbilityDamageCapUpRate())
+                .weaponChargeAttackDamageCapUpRate(weaponStatus.getWeaponChargeAttackDamageCapUpRate())
+                .weaponSupplementalDamage(weaponStatus.getWeaponSupplementalDamage())
+                .weaponSeraphicAmplifyDamageRate(weaponStatus.getWeaponSeraphicAmplifyDamageRate())
                 .build();
     }
 

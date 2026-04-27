@@ -3,8 +3,9 @@ package com.gbf.granblue_simulator.battle.logic.statuseffect;
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.move.dto.SetEffectRequest;
+import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
+import com.gbf.granblue_simulator.battle.service.StatusService;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class SetStatusLogic {
     private final StatusEffectRepository statusEffectRepository;
     private final ProcessStatusLogic processStatusLogic;
     private final BattleContext battleContext;
+    private final StatusService statusService;
 
     /**
      * 단순히 battleActor 에 status 를 붙여줌. 효과 표시 없음 <br>
@@ -69,13 +71,14 @@ public class SetStatusLogic {
         List<BaseStatusEffect> baseStatusEffects = request.getBaseStatusEffects();
         List<Actor> selectedTargets = request.getSelectedTargets();
         List<Actor> enemyAttackTargets = request.getEnemyAttackTargets();
-        int toLevel = request.getToLevel();
+        int targetLevel = request.getTargetLevel();
 
-        log.info("[applyStatusEffect] mainActor = {}, baseStatusNames = {}", mainActor.getName(), String.join("\n ", baseStatusEffects.stream().map(BaseStatusEffect::toString).toList()));
+        log.info("[applyStatusEffect] mainActor = {}, baseStatusNames = \n{}", mainActor.getName(), String.join("\n ", baseStatusEffects.stream().map(baseStatusEffect -> baseStatusEffect.getId() + " " + baseStatusEffect.getName() + "  \n" + baseStatusEffect.toString()).toList()));
         Map<Long, SetStatusEffectResult.Result> resultMap = new HashMap<>();
 
         // 1. 처리 순서에 맞게 정렬
-        List<BaseStatusEffect> sortedBaseStatusEffects = baseStatusEffects.stream().sorted(Comparator.comparing(BaseStatusEffect::getProcessOrder)).toList();
+        List<BaseStatusEffect> sortedBaseStatusEffects = baseStatusEffects.stream()
+                .sorted(Comparator.comparing(BaseStatusEffect::getProcessOrder).thenComparing(BaseStatusEffect::getId)).toList();
 
         sortedBaseStatusEffects.forEach(appliedBaseEffect -> {
             // 2. 타겟 설정
@@ -105,22 +108,27 @@ public class SetStatusLogic {
 
                 // 3.3 효과 우열연산 및 효과 생성
                 StatusEffect resultEffect = processSuperiority(targetActor, appliedBaseEffect);
-                log.info("[applyStatusEffect] resultEffect = {}", resultEffect);
+                log.debug("[applyStatusEffect] resultEffect = {}", resultEffect);
 
                 // 3.4.1 결과 리스트에 넣음
                 if (!resultEffect.isTransient()) {
-                    resultEffect.mapActor(targetActor);
                     if (appliedBaseEffect.isUniqueFrame() && appliedBaseEffect.getMaxLevel() > 0) {
                         // 고유항 && 레벨제 인 경우
-                        if (toLevel > 0) {
-                            resultEffect.addLevel(toLevel); // 요청레벨 반영
+                        if (targetLevel > 0) {
+                            resultEffect.addLevel(Math.max(targetLevel - 1, 0)); // 요청레벨 반영 (부여즉시 1 상승한거 감안)
                         }
                         if (appliedBaseEffect.isConditionalModifier()) {
                             resultEffect.updateActiveModifierCount(resultEffect.getLevel()); // 레벨에 비례해 효과 반영
                         }
                     }
+                    if (resultEffect.getId() == null) {
+                        resultEffect.mapActor(targetActor); // 영속화 안된 신규 상태효과의 경우 매핑 (기존 효과가 들어오는 경우도 있으므로 중복매핑을 피하고 신규효과만 매핑)
+                    }
                     statusEffectRepository.save(resultEffect);
-                    targetActor.getStatus().syncStatus();
+                    boolean hasOnlyUniqueModifier = resultEffect.getBaseModifiers().size() <= 1 && resultEffect.hasModifier(StatusModifierType.UNIQUE);
+                    if (!hasOnlyUniqueModifier) {
+                        statusService.syncStatus(targetActor);
+                    }
                 }
                 actorResult.getAddedStatusEffects().add(StatusEffectDto.of(resultEffect)); // transient no_effect 등도 결과에는 삽입됨.
 
@@ -135,10 +143,11 @@ public class SetStatusLogic {
     /**
      * BaseStatusEffect.targetType 으로 기본 타겟 설정
      *
-     * @param targetType
+     * @param targetType         타겟 타입
+     * @param enemyAttackTargets PARTY_MEMBERS 를 적의 공격타겟으로 제한시 사용, 없으면 null
      * @return 부여 대상
      */
-    protected List<Actor> getDefaultTargets(StatusEffectTargetType targetType, List<Actor> enemyAttackTargets) {
+    public List<Actor> getDefaultTargets(StatusEffectTargetType targetType, List<Actor> enemyAttackTargets) {
         Actor mainActor = battleContext.getMainActor();
         Actor leaderActor = battleContext.getLeaderCharacter();
         Actor enemy = battleContext.getEnemy();
@@ -165,6 +174,12 @@ public class SetStatusLogic {
             }
             case LEADER_CHARACTER -> {
                 if (leaderActor != null) resultTargets.add(leaderActor);
+            }
+            case FIRST_CHARACTER -> {
+                resultTargets.add(partyMembers.getFirst());
+            }
+            case NEXT_CHARACTER -> {
+                partyMembers.stream().filter(battleActor -> battleActor.getCurrentOrder() == mainActor.getCurrentOrder() + 1).findAny().ifPresent(resultTargets::add);
             }
             case ENEMY, ALL_ENEMIES -> resultTargets.add(enemy);
             case PARTY_MEMBERS, ALL_PARTY_MEMBERS -> resultTargets.addAll(partyMembers);
@@ -202,7 +217,7 @@ public class SetStatusLogic {
                 Integer resultDamageValue = currentDamageValue == null ? processedResult.getDamageValue() : currentDamageValue + processedResult.getDamageValue();
                 result.setDamageValue(resultDamageValue);
             }
-            targetActor.getStatus().syncStatus();
+            statusService.syncStatus(targetActor);
         }
         return result;
     }
@@ -229,12 +244,14 @@ public class SetStatusLogic {
             return mountResultStatusEffect;
 
         // 3. 약화 명중 / 내성
-        double debuffSuccessRate = mainActor.getStatus().getDebuffSuccessRate(); // 성공률 0 ~ 1.0
+        double debuffSuccessRate = mainActor.getStatus().getDebuffSuccessRate(); // 성공률 -1.0 ~ 1.0
         double debuffResistRate = targetActor.getStatus().getDebuffResistRate(); // 내성 0 ~ 2.0
         double finalAccuracy = Math.clamp(1.0 + debuffSuccessRate - debuffResistRate, 0, 1);
-        // 성공률과 내성이 같은값이면 100% 부여
-        // 성공률 관련 효과 없는 상태에서 내성이 100% 상승시 무효화
-        // 내성이 200% 상승시 성공률에 관계없이 무효화
+        log.debug("[applyDebuffResistance] targetActor = {}, debuffSuccessRate = {}, debuffResistRate = {}, finalAccuracy = {}", targetActor.getName(), debuffSuccessRate, debuffResistRate, finalAccuracy);
+        // 성공률과 내성이 같을때 -> 반드시 명중 (+100 +100 -> 100)
+        // 내성이 100 이상일때 -> 성공률에 따라 저항, 없을경우 반드시 저항 (25, 100 -> 75% 저항)
+        // 내성 200 일때 -> 성공률에 관계없이 반드시 저항 (이전 단게의 필중 제외)
+        // 성공률 -100 이상 일떄 -> 내성과 관계없이 반드시 실패
 
         if (Math.random() > finalAccuracy) {
             return StatusEffect.getTransientStatusEffect(baseStatusEffect.getType(), "MISS", targetActor);
@@ -255,12 +272,8 @@ public class SetStatusLogic {
         boolean isBasicStatusEffect = !appliedBaseEffect.isUniqueFrame(); // 고유항 효과
         boolean isStackable = appliedBaseEffect.getMaxLevel() > 0; // 누적식 (또는 레벨상승)
         if (isBasicStatusEffect) {
-            if (isStackable) {
-                // CHECK 빙결, 화상 등 레벨상승식 기본 상태효과를 위해 name 매칭. 두고보아야 할듯
-                existingEffect = getSameStackableBasicEffectsByName(targetActor, appliedBaseEffect).orElse(null);
-            } else {
-                existingEffect = getBasicEffectByModifierTypeAndTargetType(targetActor, appliedBaseEffect.getFirstModifier().getType(), appliedBaseEffect.getTargetType()).orElse(null);
-            }
+            // CHECK 이름기반매칭중
+            existingEffect = getSameBasicEffectsByName(targetActor, appliedBaseEffect).orElse(null);
         } else {
             existingEffect = getEffectByBaseId(targetActor, appliedBaseEffect.getId()).orElse(null);
         }
@@ -270,7 +283,7 @@ public class SetStatusLogic {
         if (existingEffect != null) {
             resultEffect = isRefillable ? getSuperiorReFillable(appliedBaseEffect, existingEffect)
                     : isStackable ? getSuperiorStackable(appliedBaseEffect, existingEffect)
-                    : getSuperiorNormal(appliedBaseEffect, existingEffect);
+                      : getSuperiorNormal(appliedBaseEffect, existingEffect);
         } else {
             // 새로부여
             resultEffect = StatusEffect.fromBaseEffect(appliedBaseEffect, targetActor);
@@ -294,18 +307,18 @@ public class SetStatusLogic {
 
     protected StatusEffect getSuperiorStackable(BaseStatusEffect appliedBaseStatusEffect, StatusEffect existStatusEffect) {
         Actor targetActor = existStatusEffect.getActor();
-        if (existStatusEffect.getBaseStatusEffect().getMaxLevel() > appliedBaseStatusEffect.getMaxLevel()) {
-            // 기존 효과가 상한이 높음
+        if (existStatusEffect.getBaseStatusEffect().getMaxLevel() >= appliedBaseStatusEffect.getMaxLevel()) {
+            // 기존 효과의 상한이 같거나 높음
             existStatusEffect.resetDuration(); // 효과시간 초기화
-            addStatusEffectsLevel(targetActor, 1, existStatusEffect); // 레벨 상승
-            return existStatusEffect; // 누적식은 NO_EFFECT 없음 (디버프 횟수 전조용으로 추정됨)
+            this.addStatusEffectsLevel(targetActor, 1, existStatusEffect); // 기존 효과 레벨 상승
+            return existStatusEffect; // 누적식은 NO_EFFECT 없음, 기존 효과 그대로반환
+        } else {
+            // 발생한 효과가 기존보다 상한이 높음
+            this.removeStatusEffect(targetActor, existStatusEffect);
+            StatusEffect appliedEffect = StatusEffect.fromBaseEffect(appliedBaseStatusEffect, targetActor);
+            this.addStatusEffectsLevel(targetActor, existStatusEffect.getLevel(), appliedEffect); // 기존 레벨 이어서 가져감
+            return appliedEffect;
         }
-
-        // 발생한 효과가 기존보다 상한이 높음
-        this.removeStatusEffect(targetActor, existStatusEffect);
-        StatusEffect appliedEffect = StatusEffect.fromBaseEffect(appliedBaseStatusEffect, targetActor);
-        this.addStatusEffectsLevel(targetActor, existStatusEffect.getLevel(), appliedEffect); // 기존 레벨 이어서 가져감
-        return appliedEffect;
     }
 
     /**
@@ -316,11 +329,18 @@ public class SetStatusLogic {
         double inputStatusEffectValue = appliedBaseStatusEffect.getFirstModifier().getInitValue();
         double currentStatusEffectValue = existStatusEffect.getBaseStatusEffect().getFirstModifier().getInitValue();
         boolean isApplied = false;
-        if (inputStatusEffectValue >= currentStatusEffectValue) {
-            // 입력 스테이터스 효과값이 같거나 크면 기존 삭제, 갱신준비 (효과시간이 긴쪽보다 효과량이 높은쪽을 우선)
+        if (inputStatusEffectValue > currentStatusEffectValue) {
+            // 입력 스테이터스 효과값이 크면 기존 삭제, 갱신준비 (효과시간이 긴쪽보다 효과량이 높은쪽을 우선)
             isApplied = true;
+
+        } else if (inputStatusEffectValue == currentStatusEffectValue) {
+            if (appliedBaseStatusEffect.getDuration() >= existStatusEffect.getDuration()) {
+                // 효과량이 같다면, duration 이 같거나 길때 적용
+                isApplied = true;
+            }
+
         } else if (appliedBaseStatusEffect.getFirstModifier().getType() == StatusModifierType.BARRIER) {
-            // 베리어 효과에 한해, 현재 베리어 잔여량과 추가 비교 후 적용
+            // 효과량이 작아 버려질때, 베리어 효과에 한해 현재 베리어 잔여량과 추가 비교 후 적용
             int currentBarrier = targetActor.getStatus().getBarrier();
             if (currentBarrier < (int) inputStatusEffectValue) {
                 isApplied = true;
@@ -358,8 +378,40 @@ public class SetStatusLogic {
             }
         }
         if (levelAdded) {
-            actor.getStatus().syncStatus(); // 갱신
+            statusService.syncStatus(actor);
         }
+    }
+
+    /**
+     * 상태효과 삭제하고 사용자에게 노출하기 위한 결과까지 반환
+     *
+     * @return setStatusEffectResult
+     */
+    public SetStatusEffectResult addStatusEffectsLevelWithResult(Actor actor, int level, StatusEffect... statusEffects) {
+        List<StatusEffectDto> levelAddedStatusEffects = new ArrayList<>(); // 삭제됨
+        Map<Long, SetStatusEffectResult.Result> resultMap = new HashMap<>();
+
+        boolean levelAdded = false;
+        for (StatusEffect statusEffect : statusEffects) {
+            if (!statusEffect.isMaxLevel()) {
+                statusEffect.addLevel(level);
+                levelAdded = true;
+            }
+            levelAddedStatusEffects.add(StatusEffectDto.of(statusEffect)); // 실제로 더했는지와는 별개로 결과는 보냄
+        }
+        if (levelAdded) {
+            statusService.syncStatus(actor);
+        }
+
+        SetStatusEffectResult.Result result = SetStatusEffectResult.Result.builder()
+                .actorId(actor.getId())
+                .addedStatusEffects(levelAddedStatusEffects)
+                .build();
+        resultMap.put(actor.getId(), result);
+
+        return SetStatusEffectResult.builder()
+                .results(resultMap)
+                .build();
     }
 
     /**
@@ -398,7 +450,7 @@ public class SetStatusLogic {
                 .build();
         resultMap.put(actor.getId(), result);
 
-        actor.getStatus().syncStatus();
+        statusService.syncStatus(actor);
 
         return SetStatusEffectResult.builder()
                 .results(resultMap)
@@ -416,7 +468,7 @@ public class SetStatusLogic {
             targetActors.add(effect.getActor());
         }
 
-        targetActors.forEach(actor -> actor.getStatus().syncStatus());
+        targetActors.forEach(statusService::syncStatus);
 
     }
 
@@ -449,9 +501,9 @@ public class SetStatusLogic {
     public StatusEffect shortenStatusEffectDuration(StatusEffect statusEffect, Integer duration) {
         statusEffect.subtractDuration(duration);
         if (statusEffect.getDuration() <= 0) {
-            statusEffectRepository.delete(statusEffect);
+            statusEffectRepository.deleteById(statusEffect.getId());
             statusEffect.getActor().getStatusEffects().remove(statusEffect);
-            statusEffect.getActor().getStatus().syncStatus();
+            statusService.syncStatus(statusEffect.getActor());
         }
         return statusEffect;
     }
@@ -464,8 +516,8 @@ public class SetStatusLogic {
      */
     public List<StatusEffect> removeStatusEffects(Actor actor, List<StatusEffect> statusEffects) {
         actor.getStatusEffects().removeAll(statusEffects);
-        statusEffectRepository.deleteAll(statusEffects);
-        actor.getStatus().syncStatus();
+        statusEffectRepository.deleteAllById(statusEffects.stream().map(StatusEffect::getId).toList());
+        statusService.syncStatus(actor);
         return statusEffects;
     }
 
@@ -483,10 +535,10 @@ public class SetStatusLogic {
             actor.getStatus().clearBarrier();
         }
 
-        statusEffectRepository.delete(statusEffect);
+        statusEffectRepository.deleteById(statusEffect.getId());
         actor.getStatusEffects().remove(statusEffect);
         statusEffect.setActor(null);
-        actor.getStatus().syncStatus();
+        statusService.syncStatus(actor);
 
         return statusEffect;
     }
@@ -511,7 +563,7 @@ public class SetStatusLogic {
 
         for (StatusEffect statusEffect : statusEffects) {
             actor.getStatusEffects().remove(statusEffect);
-            statusEffectRepository.delete(statusEffect);
+            statusEffectRepository.deleteById(statusEffect.getId());
             removedStatusEffects.add(StatusEffectDto.of(statusEffect));
         }
 
@@ -521,7 +573,7 @@ public class SetStatusLogic {
                 .build();
         resultMap.put(actor.getId(), result);
 
-        actor.getStatus().syncStatus();
+        statusService.syncStatus(actor);
 
         return SetStatusEffectResult.builder()
                 .results(resultMap)

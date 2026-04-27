@@ -1,6 +1,7 @@
 package com.gbf.granblue_simulator.battle.logic.move.enemy;
 
 import com.gbf.granblue_simulator.battle.domain.BattleContext;
+import com.gbf.granblue_simulator.battle.domain.Member;
 import com.gbf.granblue_simulator.battle.domain.Room;
 import com.gbf.granblue_simulator.battle.domain.RoomStatus;
 import com.gbf.granblue_simulator.battle.domain.actor.Actor;
@@ -17,17 +18,20 @@ import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResul
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusLogic;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
 import com.gbf.granblue_simulator.battle.logic.system.OmenLogic;
+import com.gbf.granblue_simulator.battle.logic.util.StatusUtil;
 import com.gbf.granblue_simulator.battle.service.BattleLogService;
 import com.gbf.granblue_simulator.battle.service.MoveService;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.BaseStatusEffect;
 import com.gbf.granblue_simulator.metadata.service.BaseActorService;
+import com.gbf.granblue_simulator.metadata.service.BaseEnemyService;
 import com.gbf.granblue_simulator.metadata.service.BaseMoveService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.gbf.granblue_simulator.metadata.domain.move.MoveType.*;
@@ -51,7 +55,7 @@ public class DefaultEnemyMoveLogic {
     protected final BattleLogService battleLogService;
     protected final MoveService moveService;
     protected final BaseMoveService baseMoveService;
-    protected final BaseActorService baseActorService;
+    protected final BaseEnemyService baseEnemyService; // 가능한 baseActorService 대신 baseEnemyService 사용
 
     protected final EnemyLogicResultMapper resultMapper;
 
@@ -67,7 +71,7 @@ public class DefaultEnemyMoveLogic {
         this.battleLogService = dependencies.getBattleLogService();
         this.moveService = dependencies.getMoveService();
         this.baseMoveService = dependencies.getBaseMoveService();
-        this.baseActorService = dependencies.getBaseActorService();
+        this.baseEnemyService = dependencies.getBaseEnemyService();
     }
 
     protected void preProcess(Actor actor) {
@@ -175,11 +179,14 @@ public class DefaultEnemyMoveLogic {
         double damageRate = request.getModifiedDamageRate() != null ? request.getModifiedDamageRate() : baseMove.getDamageRate();
         DamageLogicResult damageLogicResult = hitCount > 0 ?
                 processDamage(chargeAttack, damageRate, hitCount)
-                : DamageLogicResult.builder().build();
+                : null;
 
         // 스테이터스 적용
         List<BaseStatusEffect> toApplyEffects = request.getSelectedBaseEffects() != null ? request.getSelectedBaseEffects() : baseMove.getBaseStatusEffects();
-        SetStatusEffectResult setStatusEffectResult = processSetStatusEffect(toApplyEffects, damageLogicResult.getEnemyAttackTargets());
+        List<Actor> targets = damageLogicResult == null ? null : damageLogicResult.getEnemyAttackTargets().stream().distinct().toList();
+        int toEffectLevel = request.getPlusLevel();
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(
+                SetEffectRequest.builder().baseStatusEffects(toApplyEffects).enemyAttackTargets(targets).targetLevel(toEffectLevel).build());
 
         // 전조 삭제 CHECK 다른 로직에서 전조 상태를 확인하므로 마지막에 변경할것
         omenLogic.removeCurrentOmen(self);
@@ -215,11 +222,14 @@ public class DefaultEnemyMoveLogic {
         double damageRate = request.getModifiedDamageRate() != null ? request.getModifiedDamageRate() : baseMove.getDamageRate();
         DamageLogicResult damageLogicResult = hitCount > 0
                 ? processDamage(ability, damageRate, hitCount)
-                : DamageLogicResult.builder().build();
+                : null;
 
         // 스테이터스 적용
         List<BaseStatusEffect> toApplyEffects = request.getSelectedBaseEffects() != null ? request.getSelectedBaseEffects() : baseMove.getBaseStatusEffects();
-        SetStatusEffectResult setStatusEffectResult = processSetStatusEffect(toApplyEffects, damageLogicResult.getEnemyAttackTargets());
+        List<Actor> targets = damageLogicResult == null ? null : damageLogicResult.getEnemyAttackTargets().stream().distinct().toList();
+        int toEffectLevel = request.getPlusLevel();
+        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(
+                SetEffectRequest.builder().baseStatusEffects(toApplyEffects).enemyAttackTargets(targets).targetLevel(toEffectLevel).build());
 
         return DefaultMoveLogicResult.builder().resultMove(ability).damageLogicResult(damageLogicResult).setStatusEffectResult(setStatusEffectResult).build();
     }
@@ -232,10 +242,6 @@ public class DefaultEnemyMoveLogic {
                 ? 2 : 1;
     }
 
-
-    protected DamageLogicResult processDamage(Move move) {
-        return this.processDamage(move, move.getBaseMove().getDamageRate(), move.getBaseMove().getHitCount());
-    }
     protected DamageLogicResult processDamage(Move move, double damageRate, int hitCount) {
         DamageLogicResult damageLogicResult = damageLogic.processEnemyDamage(move, damageRate, hitCount);
         if (move.getType().getParentType() == ATTACK || move.getType().getParentType() == CHARGE_ATTACK) {
@@ -243,13 +249,7 @@ public class DefaultEnemyMoveLogic {
         }
         return damageLogicResult;
     }
-    protected SetStatusEffectResult processSetStatusEffect(Move move, List<Actor> attackTargets) {
-        return processSetStatusEffect(move.getBaseMove().getBaseStatusEffects(), attackTargets);
-    }
-    protected SetStatusEffectResult processSetStatusEffect(List<BaseStatusEffect> toApplyEffects, List<Actor> attackTargets) {
-        List<Actor> targets = attackTargets.stream().distinct().toList();
-        return setStatusLogic.setStatusEffect(SetEffectRequest.withEnemyTargets(toApplyEffects, targets));
-    }
+
     public MoveLogicResult defaultDead(Actor enemy) {
         Enemy self = (Enemy) enemy;
         // 상태 갱신
@@ -267,6 +267,55 @@ public class DefaultEnemyMoveLogic {
 
         // 결과 반환
         return resultMapper.toResult(ResultMapperRequest.from(Move.getTransientMove(self, DEAD_DEFAULT)));
+    }
+
+    /**
+     * 멤버수에 따른 보정 적용 또는 해제 <br>
+     * 적 로직 등 외부에서는 효과에 의존하지말고, battleContext.getMember.getRoom.getEnterUserCount 에 의존바람
+     */
+    public void applyMemberCount() {
+        Member member = battleContext.getMember();
+        if (member.getRoom().getRoomStatus() == RoomStatus.TUTORIAL) return;
+
+        int maxUserCount = member.getRoom().getMaxUserCount();
+        int enterUserCount = member.getRoom().getEnterUserCount();
+        int adjustEffectLevel = maxUserCount - enterUserCount; // 보정효과 레벨 타겟: 3인최대, 2인 입장시 => 효과 레벨 1
+
+        // 자신의 적에게 보정 효과 최대치로 적용
+        final long memberCountAdjustEffectMoveId = 999L; // 고정됨
+        BaseMove memberCountAdjustEffectMove = baseMoveService.findById(memberCountAdjustEffectMoveId).get();
+        setStatusLogic.setStatusEffect(SetEffectRequest.builder()
+                .baseStatusEffects(memberCountAdjustEffectMove.getBaseStatusEffects())
+                .targetLevel(adjustEffectLevel + 1) // 현재 타겟 레벨 + 1로 적용 (아래에서 한꺼번에 빼서 적용, 이전참전자와 동일레벨 필요, 최대레벨은 최대참가자 - 1 로 세팅됨)
+                .build());
+
+        // 인원수에 비례해 모든 멤버의 적의 보정효과 레벨 감소
+        int adjustLevel = maxUserCount - enterUserCount; // 3인최대, 2인 입장시 => 효과 레벨 1
+        member.getRoom().getMembers().stream()
+                .flatMap(roomMember -> roomMember.getActors().stream())
+                .filter(Actor::isEnemy)
+                .forEach(enemy -> {
+                    final long memberCountAdjustEffectBaseId = 999L; // 고정됨
+                    StatusUtil.getEffectByBaseId(enemy, memberCountAdjustEffectBaseId).ifPresent(memberCountAdjustEffect -> {
+                        if (memberCountAdjustEffect.getLevel() > adjustLevel) {
+                            double currentHpRateDouble = (double) enemy.getHp() / enemy.getMaxHp();
+                            setStatusLogic.subtractStatusEffectLevel(enemy, memberCountAdjustEffect.getLevel() - adjustLevel, memberCountAdjustEffect); // 레벨 0으로 감소시 삭제됨
+
+                            // startBattle 은 커맨드 실행후 동기화 과정이 없으므로, 여기서 체력까지 수정
+                            enemy.updateHp((int) (enemy.getMaxHp() * currentHpRateDouble));
+                        }
+                    });
+                });
+    }
+
+    /**
+     * 타겟에 logicId 로 조회한 트리거 무브를 저장
+     */
+    protected void saveTriggeredMove(List<Actor> targets, String moveLogicId) {
+        BaseMove baseMove = baseMoveService.findByLogicId(moveLogicId);
+        List<Move> triggeredMoves = new ArrayList<>();
+        targets.forEach(target -> triggeredMoves.add(Move.fromBaseMove(baseMove).mapActor(target)));
+        moveService.saveTriggeredMoves(triggeredMoves);
     }
 
 

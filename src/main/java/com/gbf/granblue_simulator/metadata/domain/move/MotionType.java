@@ -126,7 +126,9 @@ public enum MotionType {
     // 어빌리티로 처리되는 타 모션
     ABILITY_MOTION_ATTACK("ab_motion_attack"),
     ABILITY_MOTION_WIN("ab_motion_win"),
+    ABILITY_MOTION_WIN_SKIP("ab_motion_win_skip"),
     ABILITY_MOTION_TO_STB("ab_motion_setup"),
+    ABILITY_MOTION_MORTAL_E("ab_motion_mortal_E"), // 천원 루프레스 용
 
     VS_MOTION_1("vs_motion_1"),
     VS_MOTION_2("vs_motion_2"),

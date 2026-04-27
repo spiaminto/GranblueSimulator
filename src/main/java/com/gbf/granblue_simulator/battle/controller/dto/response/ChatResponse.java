@@ -15,7 +15,7 @@ public class ChatResponse {
     private String username;
     private ChatType type;
     private String content;
-    private ChatStamp chatStamp;
+    private String chatStamp;
     private LocalDateTime createdAt;
 
     public static ChatResponse from(RoomChat c) {
@@ -24,7 +24,7 @@ public class ChatResponse {
                 .username(c.getUsername())
                 .type(c.getType())
                 .content(c.getContent())
-                .chatStamp(c.getStamp())
+                .chatStamp(c.getStamp() != null ? c.getStamp().getFilename() : "")
                 .createdAt(c.getCreatedAt())
                 .build();
     }

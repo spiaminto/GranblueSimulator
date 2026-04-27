@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data @Builder
 public class BattleResultInfo {
-    private String enemyName;
+    private String raidName;
     private String enemyPortraitSrc;
     private String endedAt;
     private int enterUserCount;

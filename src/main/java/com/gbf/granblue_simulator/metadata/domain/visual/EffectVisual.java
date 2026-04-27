@@ -41,4 +41,13 @@ public class EffectVisual { // attack, ability, chargeattack
         return "/static/gbf/img/cutin/" + gid + ".jpg";
     }
 
+    public String getDetailImageSrc() {
+        // 일단 소환석만 사용중
+        String gid = this.cjsName.replace("summon_", "");
+        if (gid.contains("_01")) {
+            gid = gid.replace("_01", "");
+        }
+        return "/static/gbf/img/details/" + gid + ".png";
+    }
+
 }

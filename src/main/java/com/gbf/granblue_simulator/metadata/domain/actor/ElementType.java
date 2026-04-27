@@ -13,18 +13,22 @@ public enum ElementType {
     LIGHT("빛속성", 5), // 빛
     DARK("암속성", 6), // 암
 
-    // 나중에 천원 구현할때 사용예정
-//    FIRE_WIND, // 화풍
-//    WATER_EARTH, // 수토
-//    LIGHT_DARK, // 광암
-    
     PLAIN("무속성", 10), // 무속성
 
-    SELECTABLE("선택가능", 20), // 속성 변환이 가능한 주인공 전용 (BaseActor SELECTABLE 지정 후 Actor 변환시 Party.leaderCharacterElementType 등으로 대입하면 될듯)
-    ACTOR("자속성", 30), // BaseMove.elementType 을 ACTOR 로 지정해놓으면 Move.elementType 별도로 만들 필요 없을거 같음.
-    RANDOM("랜덤속성", 40), // 랜덤속성 -> 로직에서 변환해서사용
+    // 나중에 천원 구현할때 사용예정
+    FIRE_WIND("화,풍속성", 11), // 화풍
+    FIRE_LIGHT("화,빛속성", 15),
+    WATER_EARTH("수,토속성", 23), // 수토
+    WATER_DARK("수,암속성", 26),
+    LIGHT_DARK("광,암속성", 56), // 광암
+    WIND_EARTH("풍,토속성",45),
 
-    NONE("없음", 99) // null
+
+    SELECTABLE("선택가능", 900), // 속성 변환이 가능한 주인공 전용 (BaseActor SELECTABLE 지정 후 Actor 변환시 Party.leaderCharacterElementType 등으로 대입하면 될듯)
+    ACTOR("자속성", 920), // BaseMove.elementType 을 ACTOR 로 지정해놓으면 Move.elementType 별도로 만들 필요 없을거 같음.
+    RANDOM("랜덤속성", 999), // 랜덤속성 -> 로직에서 변환해서사용
+
+    NONE("없음", 9999) // null
 
     ,
     ;
@@ -99,6 +103,18 @@ public enum ElementType {
     public static ElementType getRandomElementType() {
         int idx = ThreadLocalRandom.current().nextInt(MAIN_ELEMENTS.length);
         return MAIN_ELEMENTS[idx];
+    }
+
+    /**
+     * 지정된 속성중 랜덤속성 반환
+     * @param elements 제한할 속성
+     */
+    public static ElementType getRandomElementType(ElementType... elements) {
+        if (elements == null || elements.length == 0) {
+            return getRandomElementType(); // 없으면 전체랜덤으로 폴백
+        }
+        int idx = ThreadLocalRandom.current().nextInt(elements.length);
+        return elements[idx];
     }
 
 }

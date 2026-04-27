@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>소환석 정보</title>
+  <!-- font -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/fonts/PretendardVariable.woff2">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"/>
+
+
+  <link href="/static/css/basic.css" rel="stylesheet">
+  <link href="/static/css/common.css" rel="stylesheet">
+  <link href="/static/css/battle/modals.css" rel="stylesheet">
+
+  <style>
+
+      .bordered {
+          border: 1px solid lightgray;
+          border-radius: 5px;
+      }
+
+      .info-container {
+      }
+
+      .portrait-wrapper {
+          margin-right: 10px;
+          height: 100px;
+          overflow: hidden;
+      }
+
+      .portrait-wrapper img {
+          height: 110%;
+      }
+
+      /* info-wrapper */
+      .info-wrapper {
+      }
+
+      .info-wrapper.header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+      }
+
+      .info-wrapper.basic {
+          display: flex;
+      }
+
+      .change-character-button-wrapper {
+          display: flex;
+          justify-content: space-around;
+      }
+
+      .change-character-button-wrapper .btn {
+          padding: 3px 10px;
+      }
+
+      /* info-details */
+      .info-details {
+          margin: 5px auto;
+          padding: 7px;
+          background-color: #f3f5f4;
+      }
+
+      .info-details .name {
+          background-color: lightgray;
+          padding: 2px 4px;
+          border-radius: 5px;
+      }
+
+      .info-details.status {
+          margin: 5px 0;
+      }
+
+      .info-details .status-container {
+          display: none;
+      }
+
+      .info-details-footer {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 5px;
+          align-items: baseline;
+      }
+
+      .info-details-footer .cooldown {
+          font-weight: bold;
+          padding-top: 5px;
+          margin: 0 5px 0 auto;
+      }
+
+      .info-details-footer .show-next-move-info-button {
+          margin-left: 0;
+      }
+
+      .info-details.ability .icon {
+          position: relative;
+          margin-right: 10px;
+      }
+
+      .info-details.ability .icon img {
+          width: 40px;
+          position: relative;
+          top: 15%;
+      }
+
+      .info-details.ability .text {
+          width: 100%;
+      }
+
+      .ability-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+
+      .ability-header .name {
+          flex: 1;
+      }
+
+      .ability-header .ability-status-display-name {
+          margin-right: 5px;
+          vertical-align: middle;
+      }
+
+      .hr-sm {
+          margin: 3px 0;
+      }
+
+      .ability-header .form-switch {
+          min-height: 0;
+          display: inline-block;
+      }
+
+      .ability-header .form-check-input {
+          width: 2.5em;
+          height: 1.5em;
+      }
+
+      .ability-header .ability-status-buy {
+          cursor: pointer;
+      }
+
+      .modal {
+          max-width: 660px;
+      }
+
+      #statusInfoModal .modal-dialog {
+          margin-left: 10px !important;
+      }
+
+  </style>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <script src="/js/common.js" th:src="@{/js/common.js}"></script>
+  <script src="/static/js/basic.js" th:src="@{/js/basic.js}"></script>
+  <script src="/static/js/battle/objects.js" th:src="@{/js/battle/objects.js}"></script>
+  <script th:inline="javascript">
+      /*<![CDATA[*/
+      const summonData = /*[[${summonInfo}]]*/ {};
+      const summonInfo = new MoveInfo(summonData);
+      /*]]>*/
+  </script>
+  <script>
+      $(function () {
+          // 어빌리티 설명 렌더링
+          let infoText = summonInfo.info;
+          let parsedText = window.TooltipParser.parse(infoText);
+          // console.log(parsedText);
+
+          let $infoDetails = $('.info-wrapper .info')
+          $infoDetails.html(parsedText);
+
+          if (summonInfo.damageRate > 0) {
+              $infoDetails.prepend($(`
+                  <div class="damage-info fw-semibold">
+                    <i class="bi bi-claude text-pink"></i> 데미지: ${summonInfo.damageRate.toFixed(1)}배
+                    <span>${summonInfo.hitCount > 0 ? ` X ${summonInfo.hitCount}회` : ''}</span>
+                  </div>
+                `));
+          }
+
+          // 상태효과 확인
+          $('.show-status-info-button').on('click', function () {
+              openMetadataStatusInfo(summonInfo.statusEffects);
+              // openStatusInfoWrapperLegacy($(this).parent().parent().find('.status-container'), {statusOnly: true});
+          });
+
+      });
+  </script>
+</head>
+<body class="bg-secondary-subtle">
+<div id="container">
+  <div class="page-header">
+    <h1>캐릭터 상세</h1>
+    <button class="btn btn-xxsm btn-outline-secondary" onclick="location.href='/'"><i class="bi bi-house"></i></button>
+  </div>
+
+  <div class="info-container" th:data-summon-id="${summonInfo.getId()}" th:data-user-id="${userId}">
+    <div class="info-wrapper header tile">
+      <div class="name" th:text="${summonInfo.name}">
+        솬석 이름
+      </div>
+      <!--      <div class="element-type" th:text="${summonInfo.elementType}"> 속성</div>-->
+    </div>
+
+    <div class="info-wrapper basic tile">
+      <div class="portrait-wrapper">
+        <img src="/static/gbf/img/details/2040003000_02.png" th:src="${summonInfo.detailImageSrc}">
+      </div>
+    </div>
+
+    <div class="info-wrapper support-ability tile light-bg">
+      <div class="title-md">소환석 상세</div>
+      <div class="info-details support-ability bordered command-info-container" th:data-move-id="${summonInfo.id}">
+
+        <div class="ability-header" th:data-move-id="${summonInfo.id}">
+          <div class="name" th:text="${summonInfo.name}"> 솬석 이름</div>
+        </div>
+
+        <hr class="hr-sm">
+        <div class="info ability-info-text" th:text="${#strings.replace(summonInfo.info, '◆', '<br/>◆')}">
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+          어빌ㄹ티 설명 대충 아군에게 xx 효고ㅑㅏ yy 효과
+        </div>
+        <div class="status-container">
+          <div class="status" th:each="status : ${summonInfo.statusEffects}"
+               th:data-status-type="${status.type}">
+            <img class="status-icon" src="/static/moveVisuals/img/ch/paladin/status-ability-support-1.png"
+                 th:src="${status.iconSrc}"/>
+            <div class="status-name d-none" th:text="${status.name}">스테이터스 이름</div>
+            <div class="status-info-text d-none" th:text="${status.statusText}">스테이터스 설명</div>
+            <div class="status-duration d-none" th:text="${status.duration}">스테이터스 효과턴</div>
+          </div>
+        </div>
+        <div class="info-details-footer">
+          <div class="cooldown">
+            <i class="bi bi-clock-fill text-dark-yellow"></i> 쿨타임:
+            <span class="value" th:text="${summonInfo.maxCooldown > 999 ? '재사용불가' : summonInfo.maxCooldown + '턴'}"></span>
+          </div>
+          <button th:if="${!summonInfo.statusEffects.isEmpty()}"
+                  class="btn btn-outline-primary btn-xxsm show-status-info-button">효과 상세
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-character-button-wrapper tile">
+      <button class="btn btn-xsm btn-outline-secondary"
+              onclick="history.back()">뒤로
+      </button>
+    </div>
+
+  </div><!-- .info-container -->
+
+</div> <!-- #container -->
+
+<!-- 스테이터스 모달 -->
+<button type="button" class="btn btn-primary status-modal-button d-none" data-bs-toggle="modal"
+        data-bs-target="#statusInfoModal">
+  스테이터스 상세
+</button>
+<div class="modal fade" id="statusInfoModal" tabindex="-1" aria-labelledby="statusInfoModal" aria-hidden="true">
+  <div class="modal-dialog .modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
+      </div>
+      <div class="modal-body">
+
+        <!--        <div class="status-info-wrapper mb-2">-->
+        <!--          <div class="actor-name mb-2">캐릭터 이름</div>-->
+        <!--          <div class="estimated-atk-wrapper d-flex align-items-center justify-content-center mb-2">-->
+        <!--            <div class="actor-estimated-atk">기준 공격력<span class="value">4000~5000</span></div>-->
+        <!--            <button class="btn btn-outline-secondary ms-1 border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#estimatedAtkCollapse">-->
+        <!--              <i class="bi bi-question-circle"></i>-->
+        <!--            </button>-->
+        <!--          </div>-->
+        <!--          <div class="collapse" id="estimatedAtkCollapse">-->
+        <!--            기준 공격력은 현재 적의 공격력에 캐릭터의 방어력을 적용한 최소, 최대값 입니다. 그 외의 상태효과는 적용되지 않은 수치이므로 참고용으로만 사용하세요.-->
+        <!--          </div>-->
+        <!--        </div>-->
+
+        <div class="status-effect-info-wrapper">
+          <!--          <div class="statusEffect-info">-->
+          <!--            <div class="statusEffect-info-icon-wrapper">-->
+          <!--              <img class="statusEffect-info-icon" src="">-->
+          <!--            </div>-->
+          <!--            <div class="statusEffect-info-text">-->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 어빌리티 설명 모달 -->
+<div class="modal fade" id="commandMetadataInfoModal">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <!--            <h4 class="modal-title ability-name fs-5">커맨드 이름</h4>-->
+      </div>
+      <div class="modal-body command-info-container">
+        <!--            <div class="ability-info-wrapper">-->
+        <!--              <div class="ability-info-icon-wrapper">-->
+        <!--                <img class="ability-info-icon" src="">-->
+        <!--              </div>-->
+        <!--              <div class="ability-info-text">-->
+        <!--              </div>-->
+        <!--            </div>-->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm me-2 close-ability-info-modal-button"
+                data-bs-dismiss="modal">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+</html>

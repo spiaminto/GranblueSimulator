@@ -16,4 +16,5 @@ public interface BaseMoveRepository extends JpaRepository<BaseMove, Long> {
 
     Optional<BaseMove> findByLogicId(String logicId);
 
+    List<BaseMove> findAllByType(MoveType type);
 }

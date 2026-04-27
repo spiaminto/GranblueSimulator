@@ -1,10 +1,26 @@
 /* 모든 페이지 공통 */
+@font-face {
+    font-family: 'Pretendard Variable';
+    src: url('/static/fonts/PretendardVariable.woff2') format('woff2');
+    font-weight: 45 920;
+    font-style: normal;
+    font-display: swap;
+}
 
 body {
-    font-family: 'Pretendard', sans-serif;
+    font-family: 'Pretendard Variable', sans-serif;
 }
 body::-webkit-scrollbar {
     display: none; /* 스크롤바 숨기기 */
+}
+
+:root {
+    --bs-body-font-family: 'Pretendard Variable', sans-serif;
+    --bs-font-sans-serif: 'Pretendard Variable', sans-serif;
+}
+
+.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
+    font-weight: bold; /* bootstrap 500 */
 }
 
 
@@ -31,11 +47,11 @@ body .btn-xsm {
 
 body .btn-xxsm {
     /* button 적용 후에 적용할것 */
-    padding: 3px 2px;
+    padding: 3px 3px;
     font-size: 10px;
 }
 
-body .font-m {
+body .font-md {
     font-size: 10px; !important;
 }
 
@@ -63,4 +79,49 @@ body .title-lg {
     padding-left: 5px;
     font-size: 17px; !important;
     font-weight: bold;
+}
+
+/* 텍스트 */
+.fw-semibold {
+    font-weight: 600; !important;
+}
+
+.icon-bold::before {
+    font-weight: bold !important;
+}
+
+/* 요소 색깔 =========================================================================================================== */
+
+.text-blue   { color: #6bb2f6 !important; }
+.text-red    { color: #ef4444 !important; }
+.text-green  { color: #22c55e !important; }
+.text-yellow { color: #fbec37 !important; }
+.text-cyan   { color: #06b6de !important; }
+.text-orange { color: #fb935c !important; }
+.text-pink   { color: #ff69da !important; }
+.text-purple, .light-bg .text-light-pink     { color: #a855f7 !important; }
+.text-navy      { color: #000080 !important; }
+.text-brown      { color: #b45309 !important; }
+
+
+.text-light-pink   { color: #fcbbfa !important; }
+.text-light-blue   { color: #cffbff !important; }
+.text-light-green  { color: #4ade80 !important; }
+.text-light-purple { color: #c084fc !important; }
+
+
+.text-dark-yellow,
+.light-bg .text-yellow  { color: #cbaa13 !important; }
+
+.text-dark-blue,
+.light-bg .text-light-blue  { color: #1e3a8a !important; }
+
+.text-dark-red,
+.light-bg .text-red { color: #dc143c !important; }
+
+.text-dark-green,
+.light-bg .text-light-green{ color: #15803d !important; }
+
+.info-details .status-info-icon-inline {
+    width: 20px;
 }

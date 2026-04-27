@@ -20,13 +20,14 @@ public class UserCharacterInfo {
     private MoveInfo chargeAttack;
     private List<MoveInfo> abilities;
     private List<MoveInfo> supportAbilities;
+    private List<MoveInfo> changingMoves;
     private boolean isLeaderCharacter;
     private String elementType;
     private Integer atk;
     private Integer hp;
     private Double def;
-    private Integer doubleAttackRate;
-    private Integer tripleAttackRate;
+    private String doubleAttackRate;
+    private String tripleAttackRate;
 
     private List<UserCharacterMoveStatus> abilityStatuses;
     private List<UserCharacterMoveStatus> supportAbilityStatuses;

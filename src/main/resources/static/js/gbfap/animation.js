@@ -157,7 +157,7 @@ const BASE_ABILITY = {
 
     REFLECT: {
         name: 'REFLECT',
-        cjs: 'ab_0090',
+        cjs: 'ab_0090', // 0090, 0070: 파티 / 0030: 적 이전 / 0120:
         isTargetedEnemy: false
     },
 
@@ -219,6 +219,36 @@ const BASE_ABILITY = {
         cjs: 'ab_3010',
         isTargetedEnemy: false
     },
+
+    ARTIFACT_6: {
+        name: 'ARTIFACT_6',
+        cjs: 'ab_all_artifact_6',
+        isTargetedEnemy: false,
+    },
+
+    eh1: {
+        name: 'eh1',
+        cjs: 'ehit_9103163_all',
+        isTargetedEnemy: false,
+    },
+
+    eh2: {
+        name: 'eh2',
+        cjs: 'phit_3890032008_f1',
+        isTargetedEnemy: false,
+    }
+
+    // E1: {
+    //     name: 'E1',
+    //     cjs: 'ab_3040536000_01',
+    //     isTargetedEnemy: false,
+    // },
+    //
+    // E2: {
+    //     name: 'E2',
+    //     cjs: 'ab_3040610000_05',
+    //     isTargetedEnemy: false,
+    // },
 
 };
 

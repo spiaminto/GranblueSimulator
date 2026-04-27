@@ -22,8 +22,8 @@ public class PaladinLogic extends DefaultCharacterMoveLogic {
         moveLogicRegistry.register(chargeAttackKey(gid), this::chargeAttack);
         moveLogicRegistry.register(abilityKey(gid, 1), this::firstAbility);
         moveLogicRegistry.register(abilityKey(gid, 2), this::secondAbility);
-        moveLogicRegistry.register(abilityKey(gid, 3), this::thirdAbility);
-        moveLogicRegistry.register(abilityKey(gid, 4), this::fourthAbility);
+         moveLogicRegistry.register(abilityKey(gid, 3), this::thirdAbility);
+//        moveLogicRegistry.register(abilityKey(gid, 4), this::fourthAbility);
         moveLogicRegistry.register(abilityKey(gid, 5), this::fifthAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 1), this::firstSupportAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 2), this::secondSupportAbility);
@@ -35,52 +35,54 @@ public class PaladinLogic extends DefaultCharacterMoveLogic {
         return resultMapper.fromDefaultResult(defaultAttack(attack));
     }
 
-    // 영준호걸: 데미지, 아군전체 스트랭스 회복
+    // 영준호걸: 데미지, 자신에게 베리어 10000
     protected MoveLogicResult chargeAttack(MoveLogicRequest request) {
         Move chargeAttack = request.getMove();
         return resultMapper.fromDefaultResult(defaultChargeAttack(DefaultMoveRequest.from(chargeAttack)));
     }
 
-    // 팔랑크스: 참전자 전체 데미지컷
+    // 팔랑크스: 참전자 전체 50% 데미지컷
     protected MoveLogicResult firstAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 
-    // 노블레스 프로테지 : 자신이 감싸기, 1턴 피데미지 무효, 베리어 10000
+    // 노블레스 프로테지 : 1턴간 자신이 감싸기, 베리어 15000 효과
     protected MoveLogicResult secondAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 
-    // 세이크리드 프로텍션 : 아군전체 피데미지 감소, 오의 게이지 50%증가
-    protected MoveLogicResult thirdAbility(MoveLogicRequest request) {
-        Move ability = request.getMove();
-        return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
-    }
-
-    // 풀 레지스트 : 아군 전체에 약화내성 상승, 디스펠가드 효과
+    // 삭제
+    // 풀 레지스트 : 아군 전체의 약화효과 내성 100% 상승, 약화효과 1개 회복
     protected MoveLogicResult fourthAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 
-    // [SELF_STRIKE_END] 테르모필레: 적에게 1.5 배 데미지 5회. 자신에게 클리어, 크리티컬 확률 증가 효과 ◆자신이 베리어 효과중 공격행동 후 자동 발동
-    protected MoveLogicResult fifthAbility(MoveLogicRequest request) {
+    // 세이크리드 프로텍션 : 자신이 감싸기, 피데미지 5000 감소
+    protected MoveLogicResult thirdAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
-        if (checkCondition.triggered(request) && checkCondition.hasEffect(ability.getActor(), "베리어").isEmpty()) return resultMapper.emptyResult();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 
-    // 전투 시작시 자신에게 방패의 수호 효과 [BATTLE_START]
+    // 테르모필레: 적에게 5.0배 데미지 3회. 자신에게 배수 효과
+    // -- 자신에게 클리어, 크리티컬 확률 증가 효과 ◆자신이 베리어 효과중 공격행동 후 자동 발동
+    protected MoveLogicResult fifthAbility(MoveLogicRequest request) {
+        Move ability = request.getMove();
+        return resultMapper.fromDefaultResult(defaultAbility(ability));
+    }
+
+    // [BATTLE_START] 방패의 수호: 자신의 현재체력 비율이 감소할수록 방어력 상승 (최대 200%)
     protected MoveLogicResult firstSupportAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 
-    // 전투 시작시 자신에게 불사신 효과 [BATTLE_START]
+    // [SELF_STRIKE_START] 성기사의 긍지: 자신이 감싸기 효과중 공격시 2회행동
     protected MoveLogicResult secondSupportAbility(MoveLogicRequest request) {
         Move ability = request.getMove();
+        if (checkCondition.hasEffect(ability.getActor(), "감싸기").isEmpty()) return resultMapper.emptyResult();
         return resultMapper.fromDefaultResult(defaultAbility(DefaultMoveRequest.from(ability)));
     }
 

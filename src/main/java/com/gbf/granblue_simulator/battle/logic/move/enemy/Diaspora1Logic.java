@@ -4,11 +4,10 @@ import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.Enemy;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
-import com.gbf.granblue_simulator.battle.logic.move.dto.MoveLogicResult;
-import com.gbf.granblue_simulator.battle.logic.move.dto.DefaultMoveRequest;
-import com.gbf.granblue_simulator.battle.logic.move.dto.ResultMapperRequest;
 import com.gbf.granblue_simulator.battle.logic.move.MoveLogicRequest;
+import com.gbf.granblue_simulator.battle.logic.move.dto.*;
 import com.gbf.granblue_simulator.battle.logic.statuseffect.SetStatusEffectResult;
+import com.gbf.granblue_simulator.battle.service.BattleLogDamageSumDto;
 import com.gbf.granblue_simulator.metadata.domain.actor.BaseEnemy;
 import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
@@ -18,10 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 
@@ -30,7 +26,7 @@ import static com.gbf.granblue_simulator.battle.logic.util.StatusUtil.*;
 @Component
 public class Diaspora1Logic extends DefaultEnemyMoveLogic {
 
-    private final int ACTIVATE_VALUE = 1500000;
+    private final int ACTIVATE_VALUE = 2250000; // 활성 효과 상승 누적 데미지
     private final String gid = "4300903";
 
     protected Diaspora1Logic(EnemyMoveLogicDependencies enemyMoveLogicDependencies) {
@@ -44,7 +40,6 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
         moveLogicRegistry.register(supportAbilityKey(gid, 2), this::secondSupportAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 3), this::thirdSupportAbility);
         moveLogicRegistry.register(supportAbilityKey(gid, 4), this::fourthSupportAbility);
-        moveLogicRegistry.register(supportAbilityKey(gid, 5), this::fifthSupportAbility);
         moveLogicRegistry.register(chargeAttackKey(gid, "a"), this::chargeAttackA);
         moveLogicRegistry.register(chargeAttackKey(gid, "b"), this::chargeAttackB);
         moveLogicRegistry.register(chargeAttackKey(gid, "c"), this::chargeAttackC);
@@ -89,87 +84,110 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
         return resultMapper.fromDefaultResult(defaultChargeAttack(request.getMove()));
     }
 
-    // 긴급 회복 시스템: 긴급 회복 시스템을 유지한다. (효과 없음)
+    // 긴급 회복 시스템: 자신의 HP 1010101 회복
     protected MoveLogicResult chargeAttackC(MoveLogicRequest request) {
         return resultMapper.fromDefaultResult(defaultChargeAttack(request.getMove()));
     }
 
-    // 전투 시작시 자신에게 활성레벨 알파 / 베타 / 감마 부여, 인자발생 부여 [BATTLE_START]
+    // 전투 시작시 자신에게 인자발생, 무적, 활성레벨 알파 / 감마 부여 [BATTLE_START]
+    // CHECK 다른 보스들과 다르게 디아스포라의 경우 타인의 보스가 폼체인지 후라도, 반드시 긴급수복모드를 해제해야 폼체인지 되도록 설계됨
     protected MoveLogicResult firstSupportAbility(MoveLogicRequest request) {
         Enemy self = (Enemy) request.getMove().getActor();
-        // CHECK 다른 보스들과 다르게 디아스포라의 경우 타인의 보스가 폼체인지 후라도, 반드시 긴급수복모드를 해제해야 폼체인지 되도록 설계됨
 
-        // 1. 서포어비1 -> 전투 시작시 자신에게 활성, 자괴인자 버프
-        defaultAbility(request.getMove());
+        // 1. 서포어비1 적용, (인자발생, 무적 만 / 활성효과는 아래에서 직접 적용)
+        Map<Integer, List<BaseStatusEffect>> groupedEffects = request.getMove().getBaseMove().getEffectsGroupByApplyOrder();
+        DefaultMoveLogicResult defaultResult = defaultAbility(DefaultMoveRequest.withSelectedBaseStatusEffects(request.getMove(), groupedEffects.get(0)));
 
-        // 2. 자신의 활성레벨 갱신 (프론트 표시 없이 내부적으로 한번에 다 올림)
+        // 2. 활성효과 부여
+        BattleLogDamageSumDto enemyTakenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(List.of(MoveType.ATTACK, MoveType.CHARGE_ATTACK), true);
         // 알파
-        StatusEffect modeAlphaStatusEffect = getEffectByName(self, "활성『알파』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 활성 알파 없음"));
-        int attackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.ATTACK, true);
+        List<BaseStatusEffect> alphaEffect = groupedEffects.get(1);
+        int attackDamageSum = enemyTakenDamageSum.getAttackDamageSum();
         int levelFromAttackDamageSum = attackDamageSum / ACTIVATE_VALUE + 1;
-        if (levelFromAttackDamageSum > 1)
-            setStatusLogic.addStatusEffectsLevel(self, levelFromAttackDamageSum - 1, modeAlphaStatusEffect);
-        // 베타
-        StatusEffect modeBetaStatusEffect = getEffectByName(self, "활성『베타』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 활성 베타 없음"));
-        int abilityDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.ABILITY, true);
-        int levelFromAbilityDamageSum = abilityDamageSum / ACTIVATE_VALUE + 1;
-        if (levelFromAbilityDamageSum > 1)
-            setStatusLogic.addStatusEffectsLevel(self, levelFromAbilityDamageSum - 1, modeBetaStatusEffect);
+        SetStatusEffectResult alphaResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder()
+                .baseStatusEffects(alphaEffect)
+                .targetLevel(levelFromAttackDamageSum)
+                .build());
         // 감마
-        StatusEffect modeGammaStatusEffect = getEffectByName(self, "활성『감마』").orElseThrow(() -> new IllegalArgumentException("[processBattleStart] 활성 감마 없음"));
-        int chargeAttackDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(MoveType.CHARGE_ATTACK, true);
+        List<BaseStatusEffect> gammaEffect = groupedEffects.get(2);
+        int chargeAttackDamageSum = enemyTakenDamageSum.getChargeAttackDamageSum();
         int levelFromChargeAttackDamageSum = chargeAttackDamageSum / ACTIVATE_VALUE + 1;
-        if (levelFromChargeAttackDamageSum > 1)
-            setStatusLogic.addStatusEffectsLevel(self, levelFromChargeAttackDamageSum - 1, modeGammaStatusEffect);
+        SetStatusEffectResult gammaResult = setStatusLogic.setStatusEffect(SetEffectRequest.builder()
+                .baseStatusEffects(gammaEffect)
+                .targetLevel(levelFromChargeAttackDamageSum)
+                .build());
+        // 머지
+        log.debug("[processBattleStart] levelFromAttackDamageSum = {}, levelFromChargeAttackDamageSum = {}", levelFromAttackDamageSum, levelFromChargeAttackDamageSum);
+        defaultResult.getSetStatusEffectResult().merge(alphaResult, gammaResult);
 
-        // 3. 갱신된 활성버프를 기반으로 서포어비 3 발동 (최대활성시, 타 활성레벨 삭제 후 긴급수복모드 이행)
-        // CHECK 원래 이렇게 Actor 의존적으로 사용하면 안됨
-        thirdSupportAbility(MoveLogicRequest.of(self.getFirstMove(MoveType.THIRD_SUPPORT_ABILITY), null));
+        // 3. 활성버프를 기반으로 서포어비 3 발동 시도 (최대활성시, 타 활성레벨 삭제 후 긴급수복모드 이행)
+        MoveLogicResult thirdSupportAbilityResult = thirdSupportAbility(MoveLogicRequest.of(self.getFirstMove(MoveType.THIRD_SUPPORT_ABILITY), null)); // 내부에서 최대 활성시, STANDBY_C 등록함.
+        MoveLogicResult recoveryModeResult = null; // 서포어비 3 발동시 반환할 결과
+        if (self.getNextIncantStandbyType() == MoveType.STANDBY_C) {
+            // 서포어비 3 발동해서 긴급수복모드 전조 발생시 해당 결과에 상태효과 결과 옮김, 결과 생성
+            List<StatusEffectDto> thirdSupportAbilityAddedEffects = thirdSupportAbilityResult.getSnapshots().get(self.getId()).getAddedStatusEffects();
+            List<StatusEffectDto> thirdSupportAbilityRemovedEffects = thirdSupportAbilityResult.getSnapshots().get(self.getId()).getRemovedStatusEffects();
+            Map<Long, SetStatusEffectResult.Result> fromThirdSupportAbilityResult = Map.of(
+                    self.getId(),
+                    SetStatusEffectResult.Result.builder()
+                            .actorId(self.getId())
+                            .addedStatusEffects(thirdSupportAbilityAddedEffects)
+                            .removedStatusEffects(thirdSupportAbilityRemovedEffects)
+                            .build());
+            SetStatusEffectResult fromThirdSupportAbilitySetEffectResult = SetStatusEffectResult.builder().results(fromThirdSupportAbilityResult).build();
+            recoveryModeResult = omenLogic.triggerOmen(self)
+                    .map(standby -> resultMapper.toResult(ResultMapperRequest.of(standby, fromThirdSupportAbilitySetEffectResult)))
+                    .orElse(null);
+        }
 
-        // 4. 전조 발생가능시 발생 (긴급 수복모드인 경우만 상정)
-        MoveLogicResult result = omenLogic.triggerOmen(self)
-                .map(standby -> resultMapper.toResult(ResultMapperRequest.from(standby)))
-                .orElseGet(resultMapper::emptyResult);
+        // 보여줄 결과 확정
+        MoveLogicResult finalResult = recoveryModeResult != null ? recoveryModeResult : resultMapper.fromDefaultResult(defaultResult);
 
-        log.info("[processBattleStart] levelFromAttackDamageSum = {}, levelFromAbilityDamageSum = {}, levelFromChargeAttackDamageSum = {}", levelFromAttackDamageSum, levelFromAbilityDamageSum, levelFromChargeAttackDamageSum);
-        return result;
+        return finalResult;
     }
 
-    // [REACT_CHARACTER] 자신이 입은 일반공격 / 어빌리티 / 오의데미지의 누적값이 N 에 도달시 자신의 알파 / 베타 / 감마 레벨 증가
+    // [REACT_CHARACTER] 자신이 입은 일반공격, 오의데미지의 누적값이 N 에 도달시 자신의 알파, 감마 레벨 증가
     protected MoveLogicResult secondSupportAbility(MoveLogicRequest request) {
         MoveType otherMoveParentType = request.getOtherResult().getMove().getType().getParentType();
+        if (otherMoveParentType != MoveType.ATTACK
+                && otherMoveParentType != MoveType.CHARGE_ATTACK
+                && !(otherMoveParentType == MoveType.ABILITY && checkCondition.isUsedAbility(request.getOtherResult(), battleContext.getCommandAbilityId()))
+        ) {
+            return resultMapper.emptyResult(); // 일반공격, 오의, 커맨드어빌리티 인경우가 아니면 실행하지 않음
+        }
         Move ability = request.getMove();
         Actor self = ability.getActor();
 
-        // 공격 타입에 따른 활성 상태효과 이름
-        String matchingStatusName = switch (otherMoveParentType) {
-            case ATTACK -> "활성『알파』";
-            case ABILITY -> "활성『베타』";
-            case CHARGE_ATTACK -> "활성『감마』";
-            default -> "없음";
-        };
-        log.info("[secondSupportAbility] matchingStatusName = {}", matchingStatusName);
-        if (matchingStatusName.equals("없음")) return resultMapper.emptyResult();
+        List<StatusEffect> activateEffects = getEffectsByNameContains(self, "활성『");
 
-        // 해당 활성효과 확인
-        StatusEffect matchedStatusEffect = getEffectByName(self, matchingStatusName).orElse(null);
-        log.info("[secondSupportAbility] matchedStatusEffect = {}", matchedStatusEffect);
-        if (matchedStatusEffect == null || matchedStatusEffect.isMaxLevel())
-            return resultMapper.emptyResult(); // 긴급 수복 모드 전조 발생 등으로 이미 제거됨 || 이미 최고레벨
+        SetStatusEffectResult displayResult = SetStatusEffectResult.emptyResult();
+        BattleLogDamageSumDto enemyTakenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(List.of(MoveType.ATTACK, MoveType.CHARGE_ATTACK), true);
+        for (StatusEffect activateEffect : activateEffects) {
+            boolean isAlphaActivate = activateEffect.getBaseStatusEffect().getName().contains("알파");
+            // 현재까지 받은 데미지에 따른 타겟 레벨, 레벨 차
+            int takenDamageSum = isAlphaActivate ? enemyTakenDamageSum.getAttackDamageSum() : enemyTakenDamageSum.getChargeAttackDamageSum(); // 알파, 감마만 있다고 상정
+            int levelFromTakenDamage = takenDamageSum / ACTIVATE_VALUE + 1; // 상태 효과가 레벨 1부터 시작하므로 +1
+            int levelDiff = levelFromTakenDamage - activateEffect.getLevel();
+            log.debug("[secondSupportAbility] diaspora1 활성 레벨 처리중 statusEffect.name = {}, takenDamageSum = {}, levelFromTakenDamage = {}, levelDiff = {}", activateEffect.getBaseStatusEffect().getName(), takenDamageSum, levelFromTakenDamage, levelDiff);
+            if (levelDiff <= 0) continue; // 레벨상승 없음
 
-        // 현재까지 받은 데미지에 따른 타겟 레벨, 레벨 차
-        int takenDamageSum = battleLogService.getEnemyTakenDamageSumByMoveType(otherMoveParentType, true);
-        int levelFromTakenDamage = takenDamageSum / ACTIVATE_VALUE + 1; // 상태 효과가 레벨 1부터 시작하므로 +1
-        int levelDiff = levelFromTakenDamage - matchedStatusEffect.getLevel();
-        log.info("[secondSupportAbility] levelFromTakenDamage = {}, levelDiff = {}", levelFromTakenDamage, levelDiff);
-        if (levelDiff <= 0) return resultMapper.emptyResult(); // 레벨상승 없음
+            // 레벨 상승
+            if (levelDiff > 1) // 차이가 1보다 크면, 초과분은 직접레벨업
+                setStatusLogic.addStatusEffectsLevel(self, levelDiff - 1, activateEffect);
+            SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(List.of(activateEffect.getBaseStatusEffect()));
+            log.debug("[secondSupportAbility] diaspora1 활성레벨 결과 setStatusEffectResult = {}", setStatusEffectResult);
 
-        // 레벨 상승
-        if (levelDiff > 1) // 차이가 1보다 크면, 초과분은 직접레벨업
-            setStatusLogic.addStatusEffectsLevel(self, levelDiff - 1, matchedStatusEffect);
-        SetStatusEffectResult setStatusEffectResult = setStatusLogic.setStatusEffect(List.of(matchedStatusEffect.getBaseStatusEffect()));
-        log.info("[secondSupportAbility] setStatusEffectResult = {}", setStatusEffectResult);
-        return resultMapper.toResult(ResultMapperRequest.of(ability, setStatusEffectResult));
+            String matchingStatusName = otherMoveParentType == MoveType.ATTACK ? "활성『알파』"
+                    : otherMoveParentType == MoveType.CHARGE_ATTACK ? "활성『감마』"
+                      : "없음";
+            if (matchingStatusName.equals(activateEffect.getBaseStatusEffect().getName())) {
+                displayResult.merge(setStatusEffectResult); // 현재 행동타입과 맞는 효과가 상승한경우, 결과 보여주기 위해 merge
+            }
+        }
+
+        return displayResult.getResults().isEmpty()
+                ? resultMapper.emptyResult()
+                : resultMapper.toResult(ResultMapperRequest.of(ability, displayResult));
     }
 
     // 어느 하나의 활성 레벨이 최고레벨이 된 턴 종료시 긴급 수복 모드 전조 발생, 최고레벨 활성 제외 제거 [TURN_END]
@@ -179,7 +197,7 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
         List<StatusEffect> activateStatuses = new ArrayList<>(getEffectsByNameContains(self, "활성『"));
         return activateStatuses.stream()
                 .filter(StatusEffect::isMaxLevel)
-                .max(Comparator.comparing(StatusEffect::getUpdatedAt))
+                .min(Comparator.comparing(StatusEffect::getUpdatedAt))
                 .map(activatedEffect -> {
                     // 전환활 활성효과를 제외한 제거목록 설정
                     activateStatuses.remove(activatedEffect);
@@ -216,16 +234,17 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
         // 2. 활성 효과에 맞는 모드 적용
         BaseStatusEffect modeBaseStatusEffect = getBaseEffectByNameContains(baseMove, currentActivateStatusNameType);
         SetStatusEffectResult setModeResult = setStatusLogic.setStatusEffect(List.of(modeBaseStatusEffect));
-        // 2.1 2회차 전조부터 붙어있는 긴급 회복 시스템 효과 제거
-        SetStatusEffectResult removeEmergencyRecoveryResult = getEffectByName(self, "긴급 회복 시스템").map(statusEffect -> setStatusLogic.removeStatusEffectsWithResult(self, statusEffect)).orElse(null);
 
-        // 3.병합
+        // 3. 2회차 전조부터 붙어있는 긴급 회복 시스템 효과 제거, 무적 제거
+        SetStatusEffectResult removeEmergencyRecoveryResult = getEffectByName(self, "긴급 회복 시스템").map(statusEffect -> setStatusLogic.removeStatusEffectsWithResult(self, statusEffect)).orElse(null);
         removeActivateResult.merge(setModeResult, removeEmergencyRecoveryResult);
+        SetStatusEffectResult removeIneffectiveEffectResult = checkCondition.hasEffect(self, "무적").map(effect -> setStatusLogic.removeStatusEffectsWithResult(self, effect)).orElse(null);
+        removeActivateResult.merge(removeIneffectiveEffectResult);
 
         // 4.폼 체인지
         BaseEnemy currentBaseEnemy = (BaseEnemy) self.getBaseActor();
         String rootNameEn = currentBaseEnemy.getRootNameEn();
-        BaseEnemy nextBaseEnemy = baseActorService.findByRootNameEn(rootNameEn).stream().filter(baseEnemy -> baseEnemy.getFormOrder() == 2).findAny().orElseThrow(() -> new IllegalArgumentException("다음 폼 없음"));
+        BaseEnemy nextBaseEnemy = baseEnemyService.findByRootNameEn(rootNameEn).stream().filter(baseEnemy -> baseEnemy.getFormOrder() == 2).findAny().orElseThrow(() -> new IllegalArgumentException("다음 폼 없음"));
 
         // 4.1 자신의 Move 교체
         List<Move> currentBaseEnemyMoves = self.getMoves().stream()
@@ -233,19 +252,24 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
                 .toList();
         moveService.deleteAll(currentBaseEnemyMoves);
         self.removeMoves(currentBaseEnemyMoves);
+
         List<BaseMove> nextDefaultBaseMoves = baseMoveService.findAllByIds(nextBaseEnemy.getDefaultMoveIds());
-        List<Move> nextDefaultMoves = nextDefaultBaseMoves.stream().map(nextEnemyBaseMove -> Move.fromBaseMove(nextEnemyBaseMove).mapActor(self)).toList();
+        Map<Long, MoveType> moveTypeById = nextBaseEnemy.getMappedMove().getMoveTypeById();
+        List<Move> nextDefaultMoves = nextDefaultBaseMoves.stream().map(nextEnemyBaseMove ->
+                Move.fromBaseMove(nextEnemyBaseMove)
+                        .mapActor(self)
+                        .mapType(moveTypeById.get(nextEnemyBaseMove.getId()))
+        ).toList();
         moveService.saveAll(nextDefaultMoves);
-        self.addMoves(nextDefaultMoves);
 
         // 4.2 자신의 BaseActor 교체
         self.updateBaseActor(nextBaseEnemy);
-        
+
         // 4.3 자신의 Visual 교체
         ActorVisual nextActorVisual = nextBaseEnemy.getDefaultVisual();
         self.updateActorVisual(nextActorVisual);
         self.updateCurrentForm(nextBaseEnemy.getFormOrder());
-        
+
         // 4.4 다음 폼의 인자방출 영창기 등록
         self.updateNextIncantStandbyType(MoveType.STANDBY_D);
 
@@ -256,15 +280,4 @@ public class Diaspora1Logic extends DefaultEnemyMoveLogic {
                 .build());
     }
 
-    // 전조 자괴인자 해제시 자신의 자괴인자 효과레벨 1 감소 [REACT_CHARACTER]
-    protected MoveLogicResult fifthSupportAbility(MoveLogicRequest request) {
-        if (!checkCondition.isEnemyBreak(request.getOtherResult(), MoveType.STANDBY_B))
-            return resultMapper.emptyResult();
-        Move ability = request.getMove();
-        Actor self = ability.getActor();
-        SetStatusEffectResult setStatusEffectResult = getEffectByName(self, "자괴인자")
-                .map(battleStatus -> setStatusLogic.subtractStatusEffectLevel(self, 1, battleStatus))
-                .orElse(null);
-        return resultMapper.toResult(ResultMapperRequest.of(ability, setStatusEffectResult));
-    }
 }

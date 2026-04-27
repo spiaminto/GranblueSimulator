@@ -93,4 +93,22 @@ public final class TrackingConditionUtil {
         }
     }
 
+    public static void subtractCondition(Map<TrackingCondition, Object> conditionTracker, TrackingCondition key, int value) {
+        Object currentValue = conditionTracker.get(key);
+        if (currentValue == null) {
+            log.warn("[subtractCondition] Key not found: {}", key);
+            return;
+        }
+        if (currentValue instanceof Number) {
+            int subtractedValue = ((Number) currentValue).intValue() - value;
+            if (subtractedValue < 0) {
+                log.warn("[subtractCondition] Negative value, key = {}, value = {}", key, value);
+                subtractedValue = 0; // 일단 0으로 초기화
+            }
+            conditionTracker.put(key, subtractedValue);
+        } else {
+            log.warn("[subtractCondition] Unexpected currentValue type, key = {}, currentValue type = {}", key, currentValue.getClass());
+        }
+    }
+
 }

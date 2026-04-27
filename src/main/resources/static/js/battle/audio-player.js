@@ -1,7 +1,7 @@
 /**
  * 미사용
  */
-class AudioPlayer { 
+class AudioPlayer {
     constructor() {
         this.audioContext = null;
         this.buffers = [];
@@ -137,36 +137,137 @@ class AudioPlayer {
 const enemySoundSrc = '/assets/audio/enemy'
 const globalSoundSrc = '/assets/audio/gl/'
 const uiSoundSrc = '/assets/audio/ui/'
-const bgmSrc= '/assets/audio/bgm/'
+const bgmSrc = '/assets/audio/bgm/'
 const Sounds = { // key = mainCjs.name
-    enemy_4300903: { // diaspora1
-        additional: { // key: motion
-            break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-            break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-            standby_A: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
-            // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
-        },
-        bgm: { // key: triggerHp or moveType.name
+
+    BGM: {
+        enemy_4300903: { // diaspora1
             100: {src: bgmSrc + 'diaspora-0.mp3', index: 0, formOrder: 1},
             90: {src: bgmSrc + 'diaspora-5.mp3', index: 1, formOrder: 1},
             75: {src: bgmSrc + 'diaspora-6.mp3', index: 2, formOrder: 1},
             'STANDBY_C': {src: bgmSrc + 'diaspora-7.mp3', index: 3, formOrder: 1},
-        }
-
-    },
-    enemy_4300913: { // diaspora2
-        additional: {
-            break_standby_A: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-            break_standby_B: {src: enemySoundSrc + '/diaspora2/break-1.mp3'},
-            standby_A: {src: enemySoundSrc + '/diaspora2/standby-1.mp3'},
-            // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
         },
-        bgm: {
+        enemy_4300913: { // diaspora2
             100: {src: bgmSrc + 'diaspora-8.mp3', index: 0, formOrder: 2},
             'STANDBY_B': {src: bgmSrc + 'diaspora-9.mp3', index: 1, formOrder: 2},
+        },
+
+        enemy_7300813: {// 1.33 (entry) + 1.83 (chargeA)
+            100: {src: bgmSrc + 'hexachromatic-1.mp3', index: 0, formOrder: 1},
+        },
+        enemy_7300823: {// 1.33 (entry) + 2.47 (chargeA)
+            100: {src: bgmSrc + 'hexachromatic-2.mp3', index: 0, formOrder: 2},
+            'FIRST_SUPPORT_ABILITY': {src: bgmSrc + 'hexachromatic-2.mp3', index: 1, formOrder: 3},
+        },
+        enemy_7300833: {// 1.27 (entry) + 2.9 (chargeA)
+            100: {src: bgmSrc + 'hexachromatic-3.mp3', index: 0, formOrder: 2},
+            'FIRST_SUPPORT_ABILITY': {src: bgmSrc + 'hexachromatic-3.mp3', index: 1, formOrder: 3},
+        },
+        enemy_7300843: {
+            100: {src: bgmSrc + 'hexachromatic-4.mp3', index: 0, formOrder: 4},
+
+            'FOURTH_SUPPORT_ABILITY': {src: bgmSrc + 'hexachromatic-4_1.mp3', index: 1, formOrder: 4},
+            'STANDBY_C': {src: bgmSrc + 'hexachromatic-4_1.mp3', index: 1, formOrder: 4},
+            'STANDBY_D': {src: bgmSrc + 'hexachromatic-4_1.mp3', index: 1, formOrder: 4},
+            'STANDBY_E': {src: bgmSrc + 'hexachromatic-4_1.mp3', index: 1, formOrder: 4},
+
+            'STANDBY_F': {src: bgmSrc + 'hexachromatic-5.mp3', index: 2, formOrder: 4, startOffset: 58.5},
         }
+    },
+
+    SFX: {
+        enemy_4300903: { // diaspora1
+            break_standby_A: [{src: enemySoundSrc + '/diaspora2/break-1.mp3', delay: 0}],
+            break_standby_B: [{src: enemySoundSrc + '/diaspora2/break-1.mp3', delay: 0}],
+
+            standby_A: [{src: enemySoundSrc + '/diaspora1/enemy_8102503_se_1_3.mp3', delay: 0}],
+
+            mortal_A: [
+                {src: enemySoundSrc + '/diaspora1/enemy_9103163_se_1.mp3', delay: 1050},
+            ]
+        },
+        enemy_4300913: { // diaspora2
+            break_standby_A: [{src: enemySoundSrc + '/diaspora2/break-1.mp3', delay: 0}],
+            break_standby_B: [{src: enemySoundSrc + '/diaspora2/break-1.mp3', delay: 0}],
+            standby_A: [{src: enemySoundSrc + '/diaspora2/standby-1.mp3'}],
+            // standby_B: {src: enemySoundSrc + '/diaspora2/standby-2.mp3'},
+        },
+
+        enemy_7300813: {
+            mortal_C: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300553_se_3.mp3', delay: 0},
+            ],
+            mortal_D: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300613_se_4_4.mp3', delay: 1300},
+            ],
+            standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300553_se_3_5.mp3', delay: 0},
+            ],
+            standby_C: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300613_se_4.mp3', delay: 0},
+            ]
+        },
+        enemy_7300823: {
+            mortal_C: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300593_se_3_2.mp3', delay: 700},
+            ],
+            standby_A: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_7300573_se_3.mp3', delay: 0},
+            ],
+            standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_7300593_se_4.mp3', delay: 0},
+            ],
+            break_standby_A: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_7300573_se_5.mp3', delay: 0},
+                {src: enemySoundSrc + '/hexachromatic/esp_7300593_se_1_3.mp3', delay: 0},
+            ],
+        },
+        enemy_7300833: {
+            mortal_C: [
+                {src: enemySoundSrc + '/hexachromatic/esp_7300653_se_1_5.mp3', delay: 0},
+            ],
+
+            standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/ef_glimpse.mp3', delay: 0},
+            ],
+            break_standby_A: [
+                {src: enemySoundSrc + '/hexachromatic/ehit_9102863_se_1_2.mp3', delay: 0},
+            ],
+            break_standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/gl-spread.mp3', delay: 0},
+            ]
+        },
+        enemy_7300843: {
+            standby_A: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_9102863_se_1.mp3', delay: 400},
+                {src: enemySoundSrc + '/hexachromatic/enemy_9103173_se_1_9.mp3', delay: 0},
+            ],
+            standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/gl-holy.mp3', delay: 0},
+            ],
+
+            break_standby_B: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_9101543_se_5.mp3', delay: 0},
+            ],
+
+            mortal_B: [
+                {src: enemySoundSrc + '/hexachromatic/ef_bbui.mp3', delay: 0},
+            ],
+
+            mortal_C: [
+                {src: enemySoundSrc + '/hexachromatic/ef_glimpse.mp3', delay: 0},
+            ],
+
+            mortal_D: [
+                {src: enemySoundSrc + '/hexachromatic/nsp_3040597000_se_1_9.mp3', delay: 400},
+            ],
+            mortal_E: [
+                {src: enemySoundSrc + '/hexachromatic/enemy_9102863_se_1_2.mp3', delay: 500},
+            ]
+        },
 
     },
+
 
     global: {
         GUARD_WAIT: {src: globalSoundSrc + 'guard-wait.mp3'},
@@ -193,6 +294,11 @@ const Sounds = { // key = mainCjs.name
         BUTTON_CLOSE: {src: uiSoundSrc + 'button-close.mp3'},
 
         TURN_INDICATOR: {src: uiSoundSrc + 'turn-indicator.mp3'},
+
+        PARTY_ATTACK_START: {src: uiSoundSrc + 'party-turn-start.mp3'},
+        ENEMY_ATTACK_START: {src: uiSoundSrc + 'enemy-turn-start.mp3'},
+
+        MEMBER_ENTER: {src: uiSoundSrc + 'member-enter.mp3'},
     },
 
     bgm: { // key: actorId

@@ -19,7 +19,7 @@ public class SetEffectRequest {
     private final List<Actor> enemyAttackTargets; // nullable
 
     @Builder.Default // 특정 레벨을 지정해서 효과 부여
-    private final int toLevel = 0;
+    private final int targetLevel = 0;
 
     @Builder.Default // 리필식인지 여부
     private final boolean isRefill = false;

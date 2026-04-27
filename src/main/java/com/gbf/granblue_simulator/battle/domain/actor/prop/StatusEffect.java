@@ -26,7 +26,7 @@ public class StatusEffect {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer duration; // 효과 시간 (실시간) [턴, 초, 레벨]
+    private Integer duration; // 효과 시간 (실시간) [턴, 초]
     private Integer level; // 레벨 (실시간)
     private String iconSrc;
 
@@ -90,9 +90,12 @@ public class StatusEffect {
     }
 
     protected void updateLevel(int level) {
-        this.level = Math.clamp(level, 0, this.baseStatusEffect.getMaxLevel());
-        this.iconSrc = this.getCurrentIconSrc();
-        this.updatedAt = LocalDateTime.now();
+        level = Math.clamp(level, 0, this.baseStatusEffect.getMaxLevel());
+        if (level != this.level) {
+            this.level = level;
+            this.iconSrc = this.getCurrentIconSrc();
+            this.updatedAt = LocalDateTime.now();
+        }
     }
 
     /**
@@ -319,6 +322,10 @@ public class StatusEffect {
                 .build();
         statusEffect.iconSrc = statusEffect.getCurrentIconSrc();
         return statusEffect;
+    }
+
+    public void setTransient(boolean isTransient) {
+        this.isTransient = isTransient;
     }
 
     /**

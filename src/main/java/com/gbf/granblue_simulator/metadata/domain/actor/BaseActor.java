@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -22,6 +22,7 @@ import java.util.Set;
 @ToString
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn
+@Immutable
 public abstract class BaseActor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,7 +46,7 @@ public abstract class BaseActor {
     @Column(name = "default_move", columnDefinition = "jsonb")
     private MappedMove mappedMove;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_visual_id")
     private ActorVisual defaultVisual;
 
@@ -71,6 +72,17 @@ public abstract class BaseActor {
     private double accuracyRate;
     private double dodgeRate;
 
+    public String getDoubleAttackRateString() {
+        return this.doubleAttackRate > 99 ? "확정"
+                : this.doubleAttackRate > -99 ? this.doubleAttackRate * 100 + "%"
+                : "불가";
+    }
+    public String getTripleAttackRateString() {
+        return this.tripleAttackRate > 99 ? "확정"
+                : this.tripleAttackRate > -99 ? this.tripleAttackRate * 100 + "%"
+                : "불가";
+    }
+
     public boolean isEnemy() {
         return "BaseEnemy".equals(this.getDtype());
     }
@@ -81,7 +93,7 @@ public abstract class BaseActor {
 
     // TODO insert 관련 추가 수정필요
     public void initCharacterBaseStatus(boolean isLeaderCharacter) {
-        this.atk = 7000;
+        this.atk = 10000;
         this.maxHp = 20000;
         this.def = 1.0;
         this.doubleAttackRate = 0.3;
@@ -96,7 +108,7 @@ public abstract class BaseActor {
         this.dodgeRate = 0;
 
         if (isLeaderCharacter) { // 주인공 보정
-            this.atk = 10000;
+            this.atk = 15000;
             this.maxHp = 25000;
             this.doubleAttackRate = 0.4;
             this.tripleAttackRate = 0.2;
@@ -123,7 +135,6 @@ public abstract class BaseActor {
             ids.addAll(this.mappedMove.getAbilityIds());
             ids.addAll(this.mappedMove.getSupportAbilityIds());
             ids.addAll(this.mappedMove.getChargeAttackIds());
-            ids.addAll(this.mappedMove.getChangingMoveIds());
         }
         return ids;
     }
@@ -132,7 +143,7 @@ public abstract class BaseActor {
      * 등록된 모든 moveId 를 반환. <br>
      * 캐릭터의 메타데이터 확인시, 특히 주인공은 모든 어빌리티/서포트 어빌리티 확인 필요
      */
-    public List<Long> getAllMoveIds() {
+    public List<Long> getDefaultAndAllMoveIds() {
         Set<Long> allMoveIds = new LinkedHashSet<>(this.getDefaultMoveIds());  // 순서 유지
         if (this.mappedMove != null) {
             allMoveIds.addAll(this.mappedMove.getAllAbilityIds());

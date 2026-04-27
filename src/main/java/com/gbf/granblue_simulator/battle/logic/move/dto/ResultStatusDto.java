@@ -10,6 +10,8 @@ public class ResultStatusDto {
 
     private Long actorId;
     private String actorName;
+    private Long baseActorId;
+    private boolean isEnemy;
 
     private int atk;
     private double def; // .1f
@@ -37,6 +39,8 @@ public class ResultStatusDto {
     public static ResultStatusDto of(Status status) {
         return ResultStatusDto.builder()
                 .actorId(status.getActor().getId())
+                .baseActorId(status.getActor().getBaseActor().getId())
+                .isEnemy(status.getActor().isEnemy())
                 .actorName(status.getActor().getName())
                 .atk(status.getAtk())
                 .def(status.getDef())

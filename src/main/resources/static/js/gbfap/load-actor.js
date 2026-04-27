@@ -46,10 +46,14 @@ function initAsset() {
             summons: [],
             isEnemy: false
         }))
-    console.log(`[loadActor] initAsset actorAssets = `, actorAssets);
+    // console.log(`[loadActor] initAsset actorAssets = `, actorAssets);
 
     let enemyAsset = actorAssets.find(asset => asset.name === "actor-0");
     gameStateManager.setState('enemyMainCjsNames', [enemyAsset.cjs]);
+    if (['enemy_7300813', 'enemy_7300823', 'enemy_7300833', 'enemy_7300843'].includes(enemyAsset.cjs)) {
+        gameStateManager.setState('isLayeredHpBar', true);
+        gameStateManager.setState('hpRates', gameStateManager.getState('hpRates'), {force: true});
+    }
     return actorAssets;
 }
 
@@ -67,7 +71,7 @@ function initActors(override_config = null) {
                 xjsUri: "/gbf",
                 jsUri: "/gbf",
                 imgUri: "/gbf/img",
-                soundUri: "https://prd-game-a5-granbluefantasy.akamaized.net/assets/sound",
+                soundUri: "https://prd-game-a-granbluefantasy.akamaized.net/assets/sound",
                 extern: "https://prd-game-a1-granbluefantasy.akamaized.net/assets",
                 bgUri: ".",
                 testUri: null

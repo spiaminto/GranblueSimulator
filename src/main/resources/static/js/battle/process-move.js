@@ -1,7 +1,7 @@
 async function processResponseMoves(responses, requestType = '') {
     // 파싱
     let moveResponses = parseMoveResponseList(responses);
-    console.log('===[processResponseMoves]================================================================== \n moveResponses = \n', moveResponses);
+    // console.log('\n [processResponseMoves] #########################\n moveResponses = \n', moveResponses,'\n##################################################');
     // moveResponses.forEach(response => response.print());
 
     // 결과 리스트에 폼체인지 결과가 있을경우 에셋 미리 로드
@@ -11,35 +11,35 @@ async function processResponseMoves(responses, requestType = '') {
         waitingProcess(false);
     }
 
-    // 멤버 표시 갱신
-    requestMembersInfo();
-    // 채팅 갱신
-    requestChat();
-
     let isTurnRequest = requestType === 'turn';
     let isMoveRequest = requestType === 'move';
-    if (isTurnRequest) {
-        // 파티 턴 시작 인디케이터 표시
-        $('.turn-playing-indicator.party').fadeIn(100).delay(800).fadeOut(100);
-        await wait(500);
+
+    // 파티 공격턴 시작시
+    if (isTurnRequest && gameStateManager.getState('currentTurn') > 1) {
+        $('.turn-playing-indicator.party').fadeIn(100).delay(1500).fadeOut(100); // 파티 턴 시작 인디케이터 표시
+        playSe(Sounds.ui.PARTY_ATTACK_START.src);
+        await wait(900);
     }
 
     let enemyTurnIndicatorShowed = false;
     for (const response of moveResponses) {
         let actorOrder = response.actorOrder; // mainActorOrder, 0: enemy, 1~ character
         let isEnemyResponse = actorOrder === 0;
-        console.log('charOrder = ' + response.actorOrder + '\n response = ', response);
+        // console.log('[processResponseMoves] processing, index = ' + moveResponses.indexOf(response) + ' @@@@@@@@@@@@@@@ \n response = ', response);
 
+        // 적 공격 개시시
         let parentType = response.moveType.getParentType();
         if (isEnemyResponse && !enemyTurnIndicatorShowed
-            && (parentType === MoveType.ATTACK // 적이 카운터 일경우, !== MoveType.ATTACK_COUNTER 추가?
-                || parentType === MoveType.CHARGE_ATTACK)) {
-            $('.turn-playing-indicator.enemy').fadeIn(100).delay(800).fadeOut(100); // 적 턴 시작 인디케이터 표시
-            await wait(500);
+            && (parentType === MoveType.ATTACK || parentType === MoveType.CHARGE_ATTACK)) {
+
+            // 적 턴 시작 인디케이터 표시
+            $('.turn-playing-indicator.enemy').fadeIn(100).delay(1500).fadeOut(100);
+            playSe(Sounds.ui.ENEMY_ATTACK_START.src);
+            await wait(900);
             enemyTurnIndicatorShowed = true;
         }
 
-        stage.processing.response = response;
+        stage.response.processing = response;
         let nextResponse = moveResponses[moveResponses.indexOf(response) + 1];
 
         updateBgm(response);
@@ -84,7 +84,7 @@ async function processResponseMoves(responses, requestType = '') {
                 break;
             case MoveType.ROOT:
             default:
-                console.log('[processResponseMoves] invalid type]', response.moveType);
+                console.warn('[processResponseMoves] invalid type', response.moveType);
         }
 
         // 후딜레이
@@ -97,17 +97,27 @@ async function processResponseMoves(responses, requestType = '') {
 
     // 동기화 '요청' 후처리 (응답 동기화 x)
     if (requestType === 'sync') {
-        let response = responses[0];
+        let response = moveResponses[0];
         let hasEffect = response.addedBuffStatusesList.find(addedBuffStatuses => addedBuffStatuses.length > 0) || response.heals.find(heal => heal > 0); // 참전자 버프로 인한 효과 있음
         if (hasEffect) {
-            stage.processing.response.hasEffect = true; // 참전자 효과 있을경우 어빌리티 레일 처리 늦추기 위해
+            stage.response.processing.hasEffect = true; // 참전자 효과 있을경우 어빌리티 레일 처리 늦추기 위해
         }
+
+        // 각 커맨드실행마다 sync 를 재요청하기 때문에 여기서 갱신
+        requestMembersInfo(); // 멤버 표시 갱신
+        requestChat(); // 채팅 갱신
     }
 
     // 커맨드실행 후처리
     // console.log('[processResponseMoves] isMoveRequest = ', isMoveRequest, ' isTurnRequest = ', isTurnRequest, ' type = ', type);
     let isCommandExecuted = isMoveRequest || isTurnRequest;
     if (isCommandExecuted) { // 공통
+        // 즉시 동기화 재개
+        doSync(true);
+
+        // 커맨드 실행 딜레이
+        await wait(Constants.Delay.commandExecuteDelay);
+
         $('.ability-rail-wrapper .rail-item').eq(0).remove(); // 어빌리티 레일 첫번째 제거
 
         // 데미지 래퍼, 상태효과 래퍼 정리 (미리 캡쳐 후 삭제)
@@ -123,30 +133,24 @@ async function processResponseMoves(responses, requestType = '') {
             $('#actorContainer .guard-status').removeClass('guard-on-processing');
             gameStateManager.setState('guardStates', [null, false, false, false, false]);
 
-            // 클리어 또는 실패시가 아닐때
-            if (!gameStateManager.getState('isQuestCleared') && !gameStateManager.getState('isQuestFailed')) {
-                // 공격 상태 및 플레이어 상태 정상화
-                gameStateManager.setState('isAttackClicked', false);
-                player.lockPlayer(false);
+            // 턴 갱신
+            playSe(Sounds.ui.TURN_INDICATOR.src);
+            setTimeout(() => gameStateManager.setState('currentTurn', gameStateManager.getState('currentTurn') + 1), 300);
 
-                // 소환 가능하도록 변경
-                gameStateManager.setState('usedSummon', false, {force: true});
+            // === 클리어시 또는 실패시 이하의 후처리 종료 ===
+            if (gameStateManager.getState('isQuestCleared') || gameStateManager.getState('isQuestFailed')) return;
 
-                // 턴 갱신
-                playSe(Sounds.ui.TURN_INDICATOR.src);
-                setTimeout(() => gameStateManager.setState('currentTurn', gameStateManager.getState('currentTurn') + 1), 300);
+            // 공격 상태 및 플레이어 상태 정상화
+            gameStateManager.setState('isAttackClicked', false);
+            player.lockPlayer(false);
 
-                // 튜토리얼시 진행
-                if (gameStateManager.getState('tutorialIndex') != null) {
-                    gameStateManager.setState('tutorialIndex', Math.min(gameStateManager.getState('tutorialIndex') + 1, 5));
-                    setTimeout(() => $('#tutorialModalButton').click(), 1000);
-                }
-            }
+            // 소환 가능하도록 변경
+            gameStateManager.setState('usedSummon', false, {force: true});
         }
     }
 
     // 상태처리
-    let lastProcessedResponse = stage.processing.response;
+    let lastProcessedResponse = stage.response.processing;
     gameStateManager.setState('enemyEstimatedAtk', lastProcessedResponse.enemyEstimatedAtk);
 }
 
@@ -155,6 +159,10 @@ async function processSync(response) {
 
     // 공헌도 반영
     window.gameStateManager.setState('indicator.moveResultHonor', response.resultHonor);
+
+    // 오의 게이지 및 사용가능여부 강제 적용, 렌더링
+    window.gameStateManager.setState('canChargeAttacks', response.canChargeAttacks);
+    window.gameStateManager.setState('chargeGauges', response.chargeGauges, {force: true});
 
     // 합체소환 id 반영,
     if (!!response.unionSummonInfo) // null 이 아닌경우에만 사용하므로 타이밍을 분리하지 않는한 이게 최선인듯
@@ -190,7 +198,7 @@ async function processSync(response) {
     // 스테이터스 처리
     let totalEndTime = await processStatusEffect(response);
 
-    console.log('[processSync] DONE totalTime', totalEndTime, ' effectDuration ', effectDuration);
+    // console.log('[processSync] DONE totalTime', totalEndTime, ' effectDuration ', effectDuration);
     return totalEndTime;
 }
 
@@ -218,7 +226,7 @@ async function processStrikeSealed(response) {
     // 상태 효과 처리
     let totalEndTime = await processStatusEffect(response);
 
-    console.log('[processStrikeSealed] DONE totalTime', totalEndTime);
+    // console.log('[processStrikeSealed] DONE totalTime', totalEndTime);
     return totalEndTime;
 }
 
@@ -227,7 +235,7 @@ async function processTurnEndProcess(response) {
     // 스테이터스 처리
     let processStatusDuration = await processStatusEffect(response, 0.5);
 
-    console.log('[processTurnEndProcess] DONE type = ', response.moveType.name, ' processStatusDuration = ', processStatusDuration);
+    // console.log('[processTurnEndProcess] DONE type = ', response.moveType.name, ' processStatusDuration = ', processStatusDuration);
     return processStatusDuration;
 }
 
@@ -235,11 +243,13 @@ async function processTurnEndProcess(response) {
  * 웨이팅 띄우기
  * @param toWaiting true: to waiting, false: to normal
  */
+window.waitingProcessTimer = null;
 function waitingProcess(toWaiting) {
     if (toWaiting) {
-        $('.waiting-video-container').css('visibility', 'visible').find('.waiting-video').get(0).play();
+        window.waitingProcessTimer = setTimeout(() => $('.waiting-video-container').css('visibility', 'visible').find('.waiting-video').get(0).play(), 500);
         // $('#container').addClass('deActivated');
     } else {
+        clearTimeout(window.waitingProcessTimer);
         $('.waiting-video-container').css('visibility', 'hidden').find('.waiting-video').get(0).pause();
         // $('#container').removeClass('deActivated');
     }

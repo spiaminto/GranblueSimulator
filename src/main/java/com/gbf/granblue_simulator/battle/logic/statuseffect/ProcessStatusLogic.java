@@ -7,6 +7,7 @@ import com.gbf.granblue_simulator.battle.domain.actor.prop.StatusEffect;
 import com.gbf.granblue_simulator.battle.exception.MoveProcessingException;
 import com.gbf.granblue_simulator.battle.logic.move.dto.StatusEffectDto;
 import com.gbf.granblue_simulator.battle.logic.system.ChargeGaugeLogic;
+import com.gbf.granblue_simulator.battle.service.StatusService;
 import com.gbf.granblue_simulator.metadata.domain.omen.OmenType;
 import com.gbf.granblue_simulator.metadata.domain.statuseffect.*;
 import com.gbf.granblue_simulator.metadata.repository.StatusEffectRepository;
@@ -35,6 +36,7 @@ public class ProcessStatusLogic {
 
     private final ChargeGaugeLogic chargeGaugeLogic;
     private final StatusEffectRepository statusEffectRepository;
+    private final StatusService statusService;
 
     @Data
     @Builder
@@ -138,6 +140,12 @@ public class ProcessStatusLogic {
                     shortenDebuffDuration(targetActor, statusEffect);
                     addedStatusEffect.add(StatusEffectDto.of(statusEffect));
                     break;
+                case ACT_UNIQUE:
+                    // 아무것도 하지 않음
+                    break;
+                case ACT_UNIQUE_SHOW:
+                    addedStatusEffect.add(StatusEffectDto.of(statusEffect));
+                    break;
                 default:
                     log.warn("[process] modifier.type = {} not supported", modifier.getType());
                     break;
@@ -194,7 +202,7 @@ public class ProcessStatusLogic {
      * 웨폰버스트 처리 (DB 저장 x)
      */
     protected StatusEffect processWeaponBurstStatus(Actor targetActor, StatusEffect weaponBurstEffect) {
-        chargeGaugeLogic.setChargeGauge(targetActor, 100);
+        chargeGaugeLogic.setChargeGauge(targetActor, Math.max(100, targetActor.getChargeGauge()));
         return weaponBurstEffect;
     }
 
@@ -233,6 +241,7 @@ public class ProcessStatusLogic {
         if ((concreteEnemy.getOmen() != null && concreteEnemy.getOmen().getBaseOmen().getOmenType() == OmenType.CHARGE_ATTACK)
                 || enemy.getChargeGauge() <= 0) {
             // 적의 CT 전조 발생중 CT 조작 불가, CT 0일때 NO EFFECT
+            log.info("[processChargeTurnDownStatus] 적 CT 발생중, omen = {}", concreteEnemy.getOmen());
             return StatusEffectDto.of(StatusEffect.getTransientStatusEffect(StatusEffectType.DEBUFF, "NO EFFECT", enemy));
         }
 
@@ -259,7 +268,7 @@ public class ProcessStatusLogic {
                     }
                     return List.of(dispelGuardEffect);
                 }).orElseGet(() -> {
-                    int dispelValue = (int) dispelEffect.getModifierValue(StatusModifierType.ACT_DISPEL); // 적의 dispel 은 99정도로 들어옴
+                    int dispelValue = (int) dispelEffect.getModifier(StatusModifierType.ACT_DISPEL).getInitValue(); // 레벨제 X, 레벨반영 X
                     List<StatusEffect> dispelledStatusEffects = target.getStatusEffects().stream()
                             .filter(status -> status.getBaseStatusEffect().getType().isBuff() && status.getBaseStatusEffect().isRemovable())
                             .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
@@ -279,7 +288,7 @@ public class ProcessStatusLogic {
      * @return
      */
     protected List<StatusEffect> processClear(Actor target, StatusEffect clearEffect) {
-        int clearValue = (int) clearEffect.getModifierValue(StatusModifierType.ACT_CLEAR);
+        int clearValue = (int) clearEffect.getModifier(StatusModifierType.ACT_CLEAR).getInitValue(); // 레벨제 X, 레벨반영 X
         List<StatusEffect> clearedStatusEffects = target.getStatusEffects().stream()
                 .filter(status -> status.getBaseStatusEffect().getType().isDebuff() && status.getBaseStatusEffect().isRemovable())
                 .sorted(Comparator.comparing(StatusEffect::getUpdatedAt).reversed())
@@ -299,7 +308,7 @@ public class ProcessStatusLogic {
      */
     protected int processHeal(Actor sourceActor, Actor target, StatusEffect healEffect) {
         boolean isConstantHealEffect = healEffect.hasModifier(StatusModifierType.ACT_HEAL);
-        double healInitValue =isConstantHealEffect
+        double healInitValue = isConstantHealEffect
                 ? healEffect.getModifierValue(StatusModifierType.ACT_HEAL)
                 : target.getMaxHp() * healEffect.getModifierValue(StatusModifierType.ACT_RATE_HEAL);
         // 회복 상한 적용
@@ -337,7 +346,9 @@ public class ProcessStatusLogic {
     protected void shortenAbilityCooldown(Actor target, StatusEffect abilityShortenEffect) {
         int shortenTurnValue = (int) abilityShortenEffect.getModifierValue(StatusModifierType.ACT_SHORTEN_ABILITY_COOLDOWN);
         for (Move ability : target.getAbilities()) {
-            ability.modifyCooldown(-shortenTurnValue);
+            if (ability.getCooldown() < 999) {
+                ability.modifyCooldown(-shortenTurnValue);
+            }
         }
     }
 
@@ -347,7 +358,9 @@ public class ProcessStatusLogic {
     protected void extendAbilityCooldown(Actor target, StatusEffect abilityExtendEffect) {
         int extendTurnValue = (int) abilityExtendEffect.getModifierValue(StatusModifierType.ACT_EXTEND_ABILITY_COOLDOWN);
         for (Move ability : target.getAbilities()) {
-            ability.modifyCooldown(extendTurnValue);
+            if (ability.getCooldown() < 999) {
+                ability.modifyCooldown(extendTurnValue);
+            }
         }
     }
 
@@ -359,7 +372,9 @@ public class ProcessStatusLogic {
             throw new MoveProcessingException("소환석 쿨타임 단축은 주인공에게만 효과가 부여됩니다. 타겟: " + target.getId() + " " + target.getName());
         int shortenTurnValue = (int) summonShortenEffect.getModifierValue(StatusModifierType.ACT_SHORTEN_SUMMON_COOLDOWN);
         for (Move summonMove : target.getSummons()) {
-            summonMove.modifyCooldown(-shortenTurnValue);
+            if (summonMove.getCooldown() < 999) {
+                summonMove.modifyCooldown(-shortenTurnValue);
+            }
         }
     }
 
@@ -371,7 +386,9 @@ public class ProcessStatusLogic {
             throw new MoveProcessingException("소환석 쿨타임 연장은 주인공에게만 효과가 부여됩니다. 타겟: " + target.getId() + " " + target.getName());
         int extendTurnValue = (int) summonExtendEffect.getModifierValue(StatusModifierType.ACT_EXTEND_SUMMON_COOLDOWN);
         for (Move summonMove : target.getSummons()) {
-            summonMove.modifyCooldown(extendTurnValue);
+            if (summonMove.getCooldown() < 999) {
+                summonMove.modifyCooldown(extendTurnValue);
+            }
         }
     }
 
@@ -388,7 +405,7 @@ public class ProcessStatusLogic {
                     if (statusEffect.getDuration() <= 0) {
                         statusEffectRepository.delete(statusEffect);
                         statusEffect.getActor().getStatusEffects().remove(statusEffect);
-                        statusEffect.getActor().getStatus().syncStatus();
+                        statusService.syncStatus(statusEffect.getActor());
                     }
                 });
         for (Move summonMove : target.getSummons()) {

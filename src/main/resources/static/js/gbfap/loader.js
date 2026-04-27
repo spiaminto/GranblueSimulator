@@ -60,7 +60,7 @@ class Loader {
                 // store in window.lib
                 let index = 0;
                 // CHECK 왜 있는지 모르겟음 없애도 정상동작
-                // window.lib[file_name].prototype.playFunc = function (callback) { createjs.Tween.get().wait(1).call(callback); };
+                window.lib[file_name].prototype.playFunc = function (callback) { createjs.Tween.get().wait(1).call(callback); };
                 // window.lib[file_name].prototype.playFunc = Loader.playFunc;
                 loader.toLoadScripts[file_name].loaded = true;
             }
@@ -89,12 +89,18 @@ class Loader {
         var loaded = 0;
 
         for (const file of to_load) {
-            if (manifest_deferred.state() == "rejected") break;
-            console.debug('[load-manifests]', file);
+            if (manifest_deferred.state() === "rejected") break;
+            // console.debug('[load-manifests]', file);
+
             var manifest_path = Game.xjsUri + "/model/manifest/" + file + ".js";
             require( // use require to set the manifest as intended
                 [manifest_path],
                 function (module) {
+                    if (!module) {
+                        console.warn(`Failed to load manifest, module = ${module}, manifest_path = ${manifest_path}`);
+                        manifest_deferred.reject();
+                        return;
+                    }
                     // add to cache
                     loader.manifest_cache[manifest_path] = module.prototype.defaults.manifest;
                     // add the spritesheets
@@ -103,8 +109,8 @@ class Loader {
                     loaded++;
                     if (loaded == total_files) manifest_deferred.resolve(); // if done, resolve the deferred
                 },
-                function () { // in case of error
-                    console.error("Error loading manifest " + manifest_path);
+                function (err) { // in case of error
+                    console.error("Error loading manifest " + manifest_path, err.requireType, err.requireModules);
                     loaded = total_files; // terminate early
                     manifest_deferred.reject();
                     error_flag = true;
@@ -239,7 +245,10 @@ class Loader {
 
         // remove dupes
         to_load = Array.from(new Set(to_load));
-        if (to_load.length === 0) throw new Error("No spritesheets to load, to_load is Empty");
+        if (to_load.length === 0) {
+            console.warn("[loadSpriteSheets] No spritesheets to load");
+            !!actor && actor.initToPlayer();
+        }
 
         // make deferred and download queue
         var queue_deferred = new $.Deferred();

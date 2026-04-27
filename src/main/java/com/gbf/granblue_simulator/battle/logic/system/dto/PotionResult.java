@@ -1,5 +1,6 @@
 package com.gbf.granblue_simulator.battle.logic.system.dto;
 
+import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import lombok.Builder;
 import lombok.Data;
 
@@ -19,4 +20,6 @@ public class PotionResult {
     private int potionCount;
     private int allPotionCount;
     private int elixirCount;
+
+    private Actor revivedActor;
 }

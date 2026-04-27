@@ -15,8 +15,6 @@ public class ResultMapperRequest {
     private DamageLogicResult damageLogicResult;
     private SetStatusEffectResult setStatusEffectResult;
 
-    private ForMemberAbilityInfo forMemberAbilityInfo;
-
     private ExecuteOptions executeOptions;
 
     public static ResultMapperRequest from(Move move) {
@@ -57,14 +55,12 @@ public class ResultMapperRequest {
     public static class ExecuteOptions { // not null
         private boolean executeChargeAttack;
         private StatusEffectTargetType executeAttackTargetType;
-        private boolean isUnionSummon;
         private boolean isEnemyFormChange;
 
         public static ExecuteOptions empty() {
             return ExecuteOptions.builder()
                     .executeChargeAttack(false)
                     .executeAttackTargetType(null)
-                    .isUnionSummon(false)
                     .isEnemyFormChange(false)
                     .build();
         }
@@ -81,11 +77,6 @@ public class ResultMapperRequest {
                     .build();
         }
 
-        public static ExecuteOptions unionSummon() {
-            return ExecuteOptions.builder()
-                    .isUnionSummon(true)
-                    .build();
-        }
 
         public static ExecuteOptions enemyFormChange() {
             return ExecuteOptions.builder()

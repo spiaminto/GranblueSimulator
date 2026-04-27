@@ -35,8 +35,8 @@
 
 .modal-content {
     background-color: #150f0f;
-    opacity: 0.9;
-    color: white;
+    /*opacity: 0.95;*/
+    color: #F0E8EA;
 }
 
 .modal-header {
@@ -52,11 +52,11 @@
 }
 
 .modal-footer {
-    padding: 5px 3px;
+    padding: 5px 7px;
 }
 
 .modal-footer > * {
-    margin: 0 0 0 8px;
+    margin: 0 0 0 10px;
 }
 
 .modal-footer .form-check {
@@ -84,182 +84,268 @@
     display: none;
 }
 
+.command-metadata-info-modal-button {
+    display: none;
+}
+
 .other-move-info-modal-button {
     display: none;
 }
 
-#abilityInfoModal .modal-dialog {
-    transition: transform 100ms ease-out;
-}
+/*.command-info-container .modal-dialog {*/
+/*    transition: transform 100ms ease-out;*/
+/*}*/
 
 #abilityInfoModal {
 }
 
-#abilityInfoModal .status-effect-info-wrapper,
-#otherMoveInfoModal .status-effect-info-wrapper {
-    margin-top: 10px;
+.command-info-container .status-effect-info-wrapper {
+    margin-bottom: 10px;
 }
 
-.modal .ability-info-wrapper {
+.command-info-container .ability-info-wrapper {
     display: flex;
+    padding: 5px;
+    background-color: #3a3a3a;
+    position: relative;
 }
 
-#abilityInfoModal .ability-info-icon-wrapper {
+.command-info-container .ability-info-icon-wrapper {
     width: 13%;
     margin-right: 4%;
 }
 
-#otherMoveInfoModal .ability-info-icon-wrapper {
+.command-info-container.no-icon .ability-info-icon-wrapper {
     width: 0;
-    margin-right: 4%;
+    margin-right: 0;
 }
 
-#abilityInfoModal .ability-info-text-wrapper {
+.command-info-container .ability-info-text-wrapper {
     width: 82%;
 }
 
-#otherMoveInfoModal .ability-info-text-wrapper {
-    width: 95%;
-}
-
-.modal .ability-info-text-wrapper h5 { /* 어빌리티 이름 */
-    font-size: 13px;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.modal .ability-info-text-wrapper .row > * {
-    padding-right: 0;
-}
-
-.modal .ability-info-text-wrapper .do-union-summon-check-wrapper {
-    font-size: 11px;
-}
-
-.modal .ability-info-text-wrapper .ability-info-text {
-    font-size: 11px;
-    line-height: 1.4;
-}
-
-.modal .ability-info-text-wrapper .ability-info-text.cooldown {
-    text-align: right;
-    font-weight: bold;
-    margin-top: 5px;
-}
-
-.modal .ability-info-icon {
+.command-info-container.no-icon .ability-info-text-wrapper {
     width: 100%;
 }
 
-/* 상태효과 모달 ===================================================================================================== */
-#statusInfoModal .modal-body {
-    padding: 5px;
+.command-info-container .ability-info-name{ /* 어빌리티 이름 */
+    font-size: 13px;
+    margin-bottom: 5px;
+    background-color: #212121;
+    padding: 2px;
+    text-indent: 2px;
+    border-radius: 3px;
+    font-weight: 600;
 }
 
-.modal .status-info-wrapper {
-    text-align: center;
+.command-info-container .ability-info-text-wrapper .row > * {
+    padding-right: 0;
 }
 
-.modal .status-info-wrapper .estimated-atk-wrapper {
-    font-size: 11px;
+.command-info-container .do-union-summon-check-wrapper {
+    font-size: 12px;
+    font-weight: 500;
+    height: 20px;
+    margin-top: 7px;
 }
 
-.modal .status-info-wrapper .estimated-atk-wrapper button{
-    font-size: 11px;
+.command-info-container .form-check {
+    position: relative;
+    left: 140px;
 }
 
-.modal .status-info-wrapper #estimatedAtkCollapse {
-    font-size: 10px;
-}
-
-.modal .status-info-wrapper .actor-name {
-    font-size: 14px;
-}
-
-.modal .status-info {
-    display: flex;
-    padding: 3px 3px;
-    font-size: 9px;
+.command-info-container .ability-info-text {
+    font-size: 12px;
     line-height: 1.4;
 }
 
-.modal .status-info .status-name {
-    display: inline-block;
+.command-info-container .ability-info-text .status-info-icon-inline {
+    width: 19px;
+}
+
+.command-info-container .ability-info-text .damage-info {
+    margin-bottom: 2px;
+}
+
+.command-info-container .ability-info-text .additional-info {
+    display: block;
+    margin-top: 2px;
+}
+
+.command-info-container .ability-info-text.cooldown {
+    text-align: right;
+    font-weight: bold;
+    margin-top: 3px;
+}
+
+.command-info-container .ability-info-icon {
+    width: 100%;
+}
+
+.modal-content .modal-footer .show-status-effect-details-switch {
+    margin: 0 auto 0 5px;
+}
+
+/* 상태효과 모달 ===================================================================================================== */
+
+#statusInfoModal .modal-body {
+    padding: 3px;
+}
+
+/* 스테이터스 */
+.status-info-wrapper {
+    text-align: center;
+}
+
+.status-info-wrapper .estimated-atk-wrapper {
+    font-size: 11px;
+}
+
+.estimated-atk-wrapper .actor-estimated-atk .value {
+    font-size: 13px;
+}
+
+.status-info-wrapper .estimated-atk-wrapper button {
+    font-size: 11px;
+}
+
+.status-info-wrapper #estimatedAtkCollapse {
+    font-size: 10px;
+}
+
+.status-info-wrapper .actor-name {
+    font-size: 14px;
+    font-weight: 200;
+}
+
+/* 상태효과 */
+.status-effect-info-wrapper .status-info {
+    display: flex;
+    padding: 2.5px 1px;
+    font-size: 9.5px;
+    line-height: 1.4;
+    font-weight: 300;
+}
+
+.status-effect-info-wrapper .status-info .status-name {
     margin-bottom: 1px;
     font-size: 11px;
     line-height: 1.5;
+    font-weight: 600;
 }
 
-.modal .status-info.omen {
-    padding: 2px 6px 4px;
+.status-effect-info-wrapper .status-info.omen {
+    padding: 2px 4px 3px;
     display: block;
+    font-size: 10px;
+    margin-bottom: 5px;
 }
 
-.modal .status-info.omen .status-name {
-    font-size: 11px;
+.status-effect-info-wrapper .status-info.omen .status-name {
+    font-size: 13px;
     margin-top: 2px;
     text-indent: 3px;
+    font-weight: normal;
 }
 
-.modal .status-info.status-buff {
-    background-color: rgba(32, 24, 22, 0.8);
+.status-effect-info-wrapper .status-info.status-buff {
+    background-color: rgba(52, 34, 32, 0.6);
     border-top: 1px #ca7652 solid;
     border-bottom: 1px #ca7652 solid;
 }
 
-.modal .status-info.status-debuff {
-    background-color: rgba(23, 41, 31, 0.8);
+.status-effect-info-wrapper .status-info.status-debuff {
+    background-color: rgba(28, 46, 56, 0.8);
     border-top: 1px #7aaaaa solid;
     border-bottom: 1px #7aaaaa solid;
 }
 
-.modal .status-info.status-display_passive {
+.status-effect-info-wrapper .status-info.status-display_passive {
     background-color: rgba(50, 50, 50, 0.8);
     border-top: 1px #555555 solid;
     border-bottom: 1px #555555 solid;
 }
 
-.modal .status-info.incant-attack {
-    background-color: rgba(100, 30, 70, 0.8);
+.status-effect-info-wrapper .omen.incant-attack {
+    background-color: rgba(100, 30, 70, 0.3);
     border-top: solid 1px rgb(200, 60, 140);
     border-bottom: solid 1px rgb(200, 60, 140);
 }
 
-.modal .status-info.hp-trigger {
-    background-color: rgba(100, 100, 100, 0.8);
+.status-effect-info-wrapper .omen.inline.incant-attack {
+    background-color: rgba(200, 60, 140, 0.5);
+    border: none;
+}
+
+.status-effect-info-wrapper .omen.hp-trigger {
+    background-color: rgba(100, 100, 100, 0.3);
     border-top: solid 1px rgb(200, 200, 200);
     border-bottom: solid 1px rgb(200, 200, 200);
 }
 
-.modal .status-info.charge-attack {
-    background-color: rgba(100, 100, 30, 0.8);
+.status-effect-info-wrapper .omen.inline.hp-trigger {
+    background-color: rgba(100, 100, 100, 0.5);
+    border: none;
+}
+
+.status-effect-info-wrapper .omen.charge-attack{
+    background-color: rgba(100, 100, 30, 0.3);
     border-top: solid 1px rgb(200, 200, 60);
     border-bottom: solid 1px rgb(200, 200, 60);
+}
+
+.status-effect-info-wrapper .omen.inline.charge-attack {
+    background-color: rgba(200, 200, 60, 0.5);
+    border: none;
+}
+
+.status-effect-info-wrapper .omen.inline {
+    padding: 1px;
+    margin: 0 1px;
+    font-weight: 500;
 }
 
 .status-modal-button {
     display: none;
 }
 
-.modal .status-info-icon-wrapper {
+.status-effect-info-wrapper .status-info-icon-wrapper {
     width: 8%;
     margin-right: 1%;
 }
 
-.modal .status-info-icon {
+.status-effect-info-wrapper .status-info-icon {
     width: 100%;
-}
-
-.modal .status-info .status-info-text {
     position: relative;
-    width: 90%;
+    top: 2px;
 }
 
-.modal .status-info .status-info-duration {
+.status-effect-info-wrapper .status-info-icon-inline {
+    width: 20px;
+}
+
+.status-effect-info-wrapper .status-info-icon-inline.small {
+    width: 12px;
+}
+
+.status-effect-info-wrapper .status-info .status-info-text {
+    position: relative;
+    width: 91%;
+}
+
+.status-effect-info-wrapper .status-info .additional-info {
     display: block;
-    position: absolute;
-    top: 0;
-    right: 0;
+    margin-top: 1px;
+}
+
+.status-effect-info-wrapper .status-info .status-info-duration {
+    font-size: 10px;
+}
+
+.status-effect-info-wrapper .status-info .removable-info {
+    font-size: 10px;
+    margin-left: 2px;
+    font-weight: 500 !important;
 }
 
 
@@ -308,7 +394,7 @@
 }
 
 .potion-target-radio-container .form-check-inline {
-    margin-left: 1rem;
+    font-size: 14px;
 }
 
 
@@ -320,6 +406,19 @@
 
 #menuModal .modal-body {
     font-size: 12px;
+}
+
+.volume-range-container .volume-range {
+    height: 1rem; /* bs 1.5rem */
+    padding: 0 10px;
+}
+
+.volume-range-container-header {
+    font-size: 14px;
+    background-color: #333;
+    padding: 3px 6px;
+    border-radius: 5px;
+    margin-bottom: 3px;
 }
 
 /* 채팅 모달 ========================================================================================================== */
@@ -352,7 +451,7 @@
     gap: 4px;
     padding: 4px;
     height: 40px;
-    border-top:1px solid #dee2e6;
+    border-top: 1px solid #dee2e6;
 }
 
 #chatModal .short-message-button {
@@ -364,12 +463,15 @@
 #shortMessagePanel::-webkit-scrollbar {
     height: 5px;
 }
+
 #shortMessagePanel::-webkit-scrollbar-track {
     background: darkgray;
 }
+
 #shortMessagePanel::-webkit-scrollbar-thumb {
     background: #ced4da;
 }
+
 #shortMessagePanel::-webkit-scrollbar-thumb:hover {
     background: #adb5bd;
 }
@@ -393,7 +495,7 @@
     overflow: hidden;
     background: #000;
     margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .tutorial-video-wrapper video {
@@ -437,11 +539,72 @@
 
 /* 튜토리얼 페이지 전환 애니메이션 */
 @keyframes slideInRight {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .tutorial-page-active {
     animation: slideInRight 0.3s ease-out forwards;
 }
+
+/* 팝 오버 ============================================================================================================= */
+#container .command-popover {
+    background: transparent;
+    color: white;
+}
+
+/*.command-popover.popover-0 .popover-body {*/
+/*    transform: translateX(15%);*/
+/*}*/
+/*.command-popover.popover-1 .popover-body {*/
+/*    transform: translateX(30%);*/
+/*}*/
+/*.command-popover.popover-2 .popover-body {*/
+/*    transform: translateX(50%);*/
+/*}*/
+/*.command-popover.popover-3 .popover-body {*/
+/*    transform: translateX(30%);*/
+/*}*/
+
+.command-popover .popover-body {
+    min-width: 250px;
+    background-color: #150f0f;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.command-popover .popover-arrow {
+    /* auto-flip 제거로 인한 absolute, left 속성 누락 직접 설정 */
+    /*position: absolute;*/
+    /*left: 0;*/
+}
+
+.command-popover .popover-arrow::after {
+    border-top-color: #150f0f !important;
+    opacity: 0.95 !important;
+}
+
+.command-popover .command-info-container {
+    color: white;
+}
+
+.command-popover .status-info-icon-inline {
+    width: 20px;
+}
+
+.command-popover .move-popover-close {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 15px;
+    padding: 3px 5px;
+    cursor: pointer;
+}
+
 

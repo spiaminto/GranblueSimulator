@@ -4,9 +4,9 @@ import com.gbf.granblue_simulator.battle.domain.actor.Actor;
 import com.gbf.granblue_simulator.battle.domain.actor.prop.Move;
 import com.gbf.granblue_simulator.battle.logic.util.TrackingConditionUtil;
 import com.gbf.granblue_simulator.battle.repository.MoveRepository;
-import com.gbf.granblue_simulator.metadata.domain.move.BaseMove;
 import com.gbf.granblue_simulator.metadata.domain.move.MoveType;
-import com.gbf.granblue_simulator.metadata.repository.BaseMoveRepository;
+import com.gbf.granblue_simulator.metadata.domain.move.TriggerPhase;
+import com.gbf.granblue_simulator.metadata.domain.move.TriggerType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +59,18 @@ public class MoveService {
     }
 
     /**
-     * Move 엔티티 제거 및 매핑 삭제
+     * 트리거 타입 변경
+     */
+    public void changeTriggerType(Move move, TriggerType triggerType) {
+        Actor actor = move.getActor();
+        actor.removeMove(move);
+        move.mapTriggerType(triggerType);
+        move.mapActor(actor);
+    }
+
+    /**
+     * Move 엔티티 제거 및 매핑 삭제<br>
+     * Actor.moves 에서는 제거되지만, Move.actor 는 제거되지 않음
      */
     public void delete(Move move) {
         move.getActor().removeMove(move);

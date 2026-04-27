@@ -6,47 +6,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>그랑블루시뮬</title>
   <link rel="shortcut icon" href="/static/assets/img/ui/favicon.png" type="image/x-icon">
+  <!-- font -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/fonts/PretendardVariable.woff2">
+  <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
   <!-- lib -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"/>
   <link rel="stylesheet" type="text/css" href="/js/slick/slick.css">
   <link rel="stylesheet" type="text/css" href="/js/slick/slick-theme.css">
-  <!-- font -->
-  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
-        rel="stylesheet" as="style" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
   <!-- static -->
-  <link href="/css/common.css" rel="stylesheet">
-  <link href="/css/battle/basic.css" rel="stylesheet">
-  <link href="/css/battle/battle-canvas.css" rel="stylesheet">
-  <link href="/css/battle/damage.css" rel="stylesheet">
-  <link href="/css/battle/modals.css" rel="stylesheet">
-  <link href="/css/battle/status-effect.css" rel="stylesheet">
-  <link href="/css/battle/top-menu.css" rel="stylesheet">
-  <link href="/css/battle/ability-slider.css" rel="stylesheet">
-  <link href="/css/battle/command-container.css" rel="stylesheet">
+  <link href="/css/common.css" th:href="@{/css/common.css}" rel="stylesheet">
+  <link href="/css/battle/basic.css" th:href="@{/css/battle/basic.css}" rel="stylesheet">
+  <link href="/css/battle/battle-canvas.css" th:href="@{/css/battle/battle-canvas.css}" rel="stylesheet">
+  <link href="/css/battle/damage.css" th:href="@{/css/battle/damage.css}" rel="stylesheet">
+  <link href="/css/battle/modals.css" th:href="@{/css/battle/modals.css}" rel="stylesheet">
+  <link href="/css/battle/status-effect.css" th:href="@{/css/battle/status-effect.css}" rel="stylesheet">
+  <link href="/css/battle/top-menu.css" th:href="@{/css/battle/top-menu.css}" rel="stylesheet">
+  <link href="/css/battle/ability-slider.css" th:href="@{/css/battle/ability-slider.css}" rel="stylesheet">
+  <link href="/css/battle/command-container.css" th:href="@{/css/battle/command-container.css}" rel="stylesheet">
 
   <style></style>
 
   <!--lib-->
-  <script src="/js/vendors/require.js"></script>
-  <script src="/js/vendors/jquery.js"></script>
+  <script src="/js/vendors/require.js" th:src="@{/js/vendors/require.js}"></script>
+  <script src="/js/vendors/jquery.js" th:src="@{/js/vendors/jquery.js}"></script>
   <!--static-->
-  <script src="/js/common.js"></script>
-  <script src="/js/battle/util.js"></script>
-  <script src="/js/battle/objects.js"></script>
-  <script src="/js/battle/eventListeners.js"></script>
-  <script src="/js/battle/request-command.js"></script>
-  <script src="/js/battle/process-move.js"></script>
-  <script src="/js/battle/process-party.js"></script>
-  <script src="/js/battle/process-enemy.js"></script>
-  <script src="/js/battle/status-effect.js"></script>
-  <script src="/js/battle/ability-rail.js"></script>
-  <script src="/js/battle/audio-player.js"></script>
-  <script src="/js/battle/state-manager.js"></script>
-  <script src="/js/battle/state-renderer.js"></script>
+  <script src="/js/common.js" th:src="@{/js/common.js}"></script>
+  <script src="/js/battle/util.js" th:src="@{/js/battle/util.js}"></script>
+  <script src="/js/battle/objects.js" th:src="@{/js/battle/objects.js}"></script>
+  <script src="/js/battle/eventListeners.js" th:src="@{/js/battle/eventListeners.js}"></script>
+  <script src="/js/battle/request-command.js" th:src="@{/js/battle/request-command.js}"></script>
+  <script src="/js/battle/process-move.js" th:src="@{/js/battle/process-move.js}"></script>
+  <script src="/js/battle/process-party.js" th:src="@{/js/battle/process-party.js}"></script>
+  <script src="/js/battle/process-enemy.js" th:src="@{/js/battle/process-enemy.js}"></script>
+  <script src="/js/battle/status-effect.js" th:src="@{/js/battle/status-effect.js}"></script>
+  <script src="/js/battle/ability-rail.js" th:src="@{/js/battle/ability-rail.js}"></script>
+  <script src="/js/battle/audio-player.js" th:src="@{/js/battle/audio-player.js}"></script>
+  <script src="/js/battle/state-manager.js" th:src="@{/js/battle/state-manager.js}"></script>
+  <script src="/js/battle/state-renderer.js" th:src="@{/js/battle/state-renderer.js}"></script>
+  <script src="/js/battle/tutorial-manager.js" th:src="@{/js/battle/tutorial-manager.js}"></script>
   <!--gbfap-->
   <script src="/js/gbfap/animation.js"></script>
   <script src="/js/gbfap/load-actor.js"></script>
@@ -74,28 +73,36 @@
               },
           });
           require([
-              "slick", "underscore", "createjs", "backbone", "lib/sound",
-              "lib/raid/extension", "js/actor", "js/player", "js/loader", "bootstrap"
-          ], function (slick, underscore) {
+              "slick", "underscore", "bootstrap", "createjs", "backbone", "lib/sound",
+              "lib/raid/extension", "js/actor", "js/player", "js/loader",
+          ], function (slick, underscore, bootstrap) {
               $(function () {
                   _ = underscore;
+                  window.bootstrap = bootstrap;
 
-                  // 스케일 초기화
-                  let scale = window.innerWidth / 330;
+                  let displayScale = localStorage.getItem('displayScale');
+                  let displayScaleNumber = Number(displayScale);
+                  let scale = 1;
+                  if (displayScaleNumber && displayScaleNumber > 0) {
+                      scale = displayScaleNumber;
+                  } else if (displayScale === 'auto') {
+                      scale = Math.min(window.innerWidth / 330, 2.0);
+                  } else {
+                      localStorage.setItem('displayScale', 'auto');
+                      scale = Math.min(window.innerWidth / 330, 2.0);
+                  }
                   scale = scale > 2.0 ? 2.0 : scale;
-                  console.log(`[scaleInit] innerWidth = ${window.innerWidth} scale = ${scale}`);
-                  $('#container').css({'transform': `scale(${scale})`, 'transform-origin': 'top left'});
                   window.scale = scale;
-
-                  // slick 로드
-                  let $abilityPanels = $('#abilitySlider .ability-panel');
-                  $abilityPanels.get().forEach(abilityPanel => {
-                      $(abilityPanel).find('.other-move-info-button').attr('data-actor-index', $(abilityPanel).attr('data-actor-order'));
-                  })
-                  $('#abilitySlider').slick({speed: 200, arrows: false});
+                  $('#container').css({'transform': `scale(${scale})`, 'transform-origin': 'top left'});
 
                   // 게임 상태 초기화 및 로드
                   initGameStatus().then(() => {
+                      // 오의 팝오버 초기화 (actorId 필요)
+                      $('#abilitySlider .ability-panel .open-charge-attack-popover').each((index, element) => {
+                          $(element).attr('data-actor-id', gameStateManager.getState('actorIds')[$(element).attr('data-actor-index')]);
+                      });
+                      initChargeAttackPopovers();
+
                       // assets, player, actor 로드
                       monkeypatch_createjs();
                       window.require_is_configured = true;
@@ -119,9 +126,11 @@
                           $('.sound-toggle-button').removeClass('btn-outline-light').addClass('btn-outline-secondary');
                           window.audio.updateDisabled(true);
                       }
+                      window.audio.initVolume();
 
                       $loadingOverlay.one('click', function () {
                           playSe(Sounds.ui.LOADING_READY.src);
+                          updateBgm(window.stage.response.processing);
 
                           $readyStartInfoWrapper.fadeTo(1, 0);
                           $loadingOverlay.find('.ready-image-wrapper').fadeTo('fast', 1);
@@ -138,12 +147,46 @@
                                   $fadeOverlay.css('display', 'none');
                               });
 
-                              updateBgm(window.stage.processing.response);
                               player.play(Player.playRequest('actor-0', Player.c_animations.ENEMY_PHASE_1));
 
+                              // 행동 대기시간 설정
+                              const lastMoveTime = gameStateManager.getState('lastMoveTime');
+                              const cooldownMs = gameStateManager.getState('moveCooldown') * 1000;
+                              if (lastMoveTime) {
+                                  const availableAt = new Date(lastMoveTime.getTime() + cooldownMs);
+                                  const remainingMs = availableAt - Date.now();
+                                  // console.log(`[applyMoveCooldown] lastMoveTime = ${lastMoveTime}, cooldownMs = ${cooldownMs} availableAt = ${availableAt} remainingMs = ${remainingMs}`);
+                                  if (remainingMs > 0) {
+                                      alert('이전 턴 처리 진행 대기중입니다.');
+                                      waitingProcess(true);
+                                      player.lockPlayer(true);
+
+                                      const moveCooldownTimer = setTimeout(() => {
+                                          waitingProcess(false);
+                                          player.lockPlayer(false);
+                                          clearTimeout(moveCooldownTimer); // 명시 제거
+                                      }, remainingMs);
+                                  }
+                              }
+
+                              // 튜토리얼
+                              if (gameStateManager.getState('isTutorial')) {
+                                  setTimeout(() => {
+                                      $('#resetTutorialButton').show();
+                                      const tutorialManager = new TutorialManager(tutorialSteps);
+                                      window.tutorialManager = tutorialManager;
+                                      let tutorialIndex = Number($('#container').attr('data-tutorial-index'));
+                                      if (tutorialIndex && tutorialIndex > 0) {
+                                          tutorialManager.startFrom(tutorialIndex);
+                                      } else {
+                                          tutorialManager.start();
+                                      }
+                                  }, 100);
+                              }
+
                               // 시작시 적 사망했을 경우 (또는 적 사망 새로고침)
-                              if (stage.processing.response.moveType === MoveType.DEAD_DEFAULT) {
-                                  let enemyDeadResponse = stage.processing.response;
+                              if (stage.response.processing.moveType === MoveType.DEAD_DEFAULT) {
+                                  let enemyDeadResponse = stage.response.processing;
                                   // hp 음수로 오는거 0 으로 변환
                                   let modedHps = [0, ...enemyDeadResponse.hps.slice(1)];
                                   let modedHpRates = [0, ...enemyDeadResponse.hpRates.slice(1)];
@@ -153,6 +196,11 @@
                                   setTimeout(() => processEnemyDead(enemyDeadResponse), 1500); // entry 끝나는거 고려
                               } else {
                                   doSync(); // 동기화 폴링 (적 사망시 동기화 안함)
+                                  if (window.stage.response.scheduled.length > 0) {
+                                      // 시작 처리 존재
+                                      player.lockPlayer(true);
+                                      setTimeout(() => processResponseMoves(window.stage.response.scheduled, 'turn'), 1500);
+                                  }
                               }
 
                               // 시작시 아군 전원 사망했을 경우 (또는 아군 전원 사망 새로고침)
@@ -211,7 +259,7 @@
 </head>
 <body>
 
-<div id="container">
+<div id="container" th:data-tutorial-index="${tutorialIndex}" class="user-select-none">
 
   <div id="fadeOverlay">
     <!-- 페이드 이미지용 -->
@@ -264,12 +312,9 @@
     </div>
 
     <div class="move-name-info-container">
-      <div class="move-name-info">
-        <span class="move-name-info-text">어빌리티 이름 이름 123</span>
-      </div>
     </div>
 
-    <div class="omen-container omen-container-bottom enemy blinking-element">
+    <div class="omen-container omen-container-bottom enemy">
       <div class="omen-text">
         <span class="omen-prefix">전조이름</span>
       </div>
@@ -281,21 +326,43 @@
          th:data-initial-form-order="${enemyInfo.formOrder}"
          th:data-trigger-hps="${triggerHps}"
     >
-      <div class="hp-container enemy">
-        <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}" th:data-hp="${enemyInfo.getHp()}">
-          100%
-        </div>
-        <div class="progress hp-bar" role="progressbar" aria-label="enemy hp bar" aria-valuenow="100"
-             aria-valuemin="0"
-             aria-valuemax="100">
-          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 50%"
-               th:style="${'width: ' + enemyInfo.hpRate + '%'}">
-          </div>
+      <!--      <div class="hp-container enemy">-->
+      <!--        <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}" th:data-hp="${enemyInfo.getHp()}">-->
+      <!--          100%-->
+      <!--        </div>-->
+      <!--        <div class="progress hp-bar" role="progressbar" aria-label="enemy hp bar" aria-valuenow="100"-->
+      <!--             aria-valuemin="0"-->
+      <!--             aria-valuemax="100">-->
+      <!--          <div class="progress-bar hp-bar-realtime bg-danger" style="width: 50%"-->
+      <!--               th:style="${'width: ' + enemyInfo.hpRate + '%'}">-->
+      <!--          </div>-->
+      <!--        </div>-->
+      <!--      </div>-->
+
+      <div class="hp-container enemy" th:data-is-layered-hp-bar="${!enemyInfo.hpLayers.isEmpty()}">
+        <div class="value-hp" th:text="${enemyInfo.getHpRate() + '%'}">100%</div>
+        <div class="progress hp-bar" role="progressbar">
+          <!-- 레이어 없음 -->
+          <th:block th:if="${enemyInfo.hpLayers.isEmpty()}">
+            <div class="progress-bar hp-layer-fill red" th:style="'width: ' + ${enemyInfo.getHpRate()} + '%'"></div>
+          </th:block>
+
+          <!-- 레이어 있음-->
+          <th:block th:each="layer : ${enemyInfo.hpLayers}">
+            <div class="hp-layer-container" th:style="'width: ' + ${layer.layerSize} + '%'"
+                 th:data-layer-size="${layer.layerSize}">
+              <div class="progress-bar hp-layer-fill" th:classappend="${layer.colorClass}"
+                   style="width: 100%; height: 100%"></div>
+            </div>
+          </th:block>
+
+          <div class="hp-bar-ghost"></div>
         </div>
       </div>
+
+
       <div class="status-container enemy actor-0" data-actor-index="0">
         <div class="show-status-info-button-wrapper enemy">
-          <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
         </div>
       </div>
       <div class="d-flex">
@@ -365,7 +432,7 @@
       <div class="ability-rail-wrapper">
         <div id="abilityRail">
           <div class="rail-ability-dummy rail-ability-0"> <!-- 높이 유지용 더미 -->
-            <img src="/assets/img/ch/paladin/ability-1.png">
+            <img src="/static/gbf/img/ab/fc-fire.png">
           </div>
         </div>
       </div>
@@ -378,61 +445,64 @@
     <div id="partyCommandContainer">
 
       <div class="battle-member-wrapper">
-        <div th:each="order : ${#numbers.sequence(1, 4, 1)}">
-          <th:block th:with="characterInfo = ${battleCharacterInfoMap.get(order)}">
-            <div class="battle-portrait"
-                 th:if="${characterInfo != null}"
-                 th:data-actor-order="${characterInfo.order}"
-                 th:data-actor-id="${characterInfo.id}"
-                 th:classappend="${'actor-' + order}">
-              <img src="/assets/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">
-              <div class="hp-gauge-wrapper">
-                <div class="hp-gauge">
-                  <div class="barrier-value"><span class="value"></span></div>
-                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
-                  <div class="progress" role="progressbar">
-                    <div class="progress-bar bg-gradient" style="width: 50%"
-                         th:data-hp-rate="${characterInfo.hpRate}"
-                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"
-                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="charge-gauge-wrapper">
-                <div class="charge-gauge">
-                  <div class="progress" role="progressbar">
-                    <div class="progress-bar" style="width: 50%"
-                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                  </div>
-                  <div class="progress additional"
-                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
-                    <div class="progress-bar" style="width: 50%"
-                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                  </div>
-                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
-                  </div>
-                </div>
-              </div>
-              <div class="ability-usable-indicator-wrapper">
-                <div class="ability-usable-indicator"></div>
-                <div class="ability-usable-indicator"></div>
-                <div class="ability-usable-indicator"></div>
-                <div class="ability-usable-indicator"></div>
-              </div>
-            </div>
+        <!--          <th:block th:each="order : ${#numbers.sequence(1, 4, 1)}"-->
+        <!--                    th:with="characterInfo = ${battleCharacterInfoMap.get(order)}">-->
+        <!--            <div class="battle-portrait"-->
+        <!--                 th:if="${characterInfo != null}"-->
+        <!--                 th:data-actor-order="${characterInfo.order}"-->
+        <!--                 th:data-actor-id="${characterInfo.id}"-->
+        <!--                 th:classappend="${'actor-' + order}">-->
+        <!--              <img src="/assets/img/ch/paladin/battle-portrait.jpg" th:src="${characterInfo.portraitSrc}">-->
+        <!--              <div class="status-container" th:classappend="${'actor-' + order}">-->
 
-            <!--더미-->
-            <div class="battle-portrait empty"
-                 th:if="${characterInfo == null}">
-              <img src="/assets/img/gl/ch-empty.jpg" th:data-seq="${order}">
-            </div>
-          </th:block>
-        </div> <!-- th each -->
+        <!--              </div>-->
+        <!--              <div class="hp-gauge-wrapper">-->
+        <!--                <div class="hp-gauge">-->
+        <!--                  <div class="barrier-value"><span class="value"></span></div>-->
+        <!--                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>-->
+        <!--                  <div class="progress" role="progressbar">-->
+        <!--                    <div class="progress-bar bg-gradient" style="width: 50%"-->
+        <!--                         th:data-hp-rate="${characterInfo.hpRate}"-->
+        <!--                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"-->
+        <!--                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                </div>-->
+        <!--              </div>-->
+        <!--              <div class="charge-gauge-wrapper">-->
+        <!--                <div class="charge-gauge">-->
+        <!--                  <div class="progress" role="progressbar">-->
+        <!--                    <div class="progress-bar" style="width: 50%"-->
+        <!--                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                  <div class="progress additional"-->
+        <!--                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">-->
+        <!--                    <div class="progress-bar" style="width: 50%"-->
+        <!--                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%-->
+        <!--                  </div>-->
+        <!--                </div>-->
+        <!--              </div>-->
+        <!--              <div class="ability-usable-indicator-wrapper">-->
+        <!--                <div class="ability-usable-indicator"></div>-->
+        <!--                <div class="ability-usable-indicator"></div>-->
+        <!--                <div class="ability-usable-indicator"></div>-->
+        <!--                <div class="ability-usable-indicator"></div>-->
+        <!--              </div>-->
+        <!--            </div>-->
+
+        <!--            &lt;!&ndash;더미&ndash;&gt;-->
+        <!--            <div class="battle-portrait empty"-->
+        <!--                 th:if="${characterInfo == null}">-->
+        <!--              <img src="/assets/img/gl/ch-empty.jpg" th:data-seq="${order}">-->
+        <!--            </div>-->
+        <!--          </th:block>  &lt;!&ndash; th each &ndash;&gt;-->
       </div> <!-- .battle-member-wrapper-->
 
       <div class="summon-button-wrapper">
         <div class="summon-portrait">
-          <button class="summon-display-button" type="button" data-bs-toggle="collapse" data-bs-target="#summonCollapse"
+          <button class="summon-display-button" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#summonCollapse"
                   aria-expanded="false" aria-controls="summonCollapse"></button>
           <img src="/assets/img/ui/ui-summon-active.png">
         </div>
@@ -470,82 +540,93 @@
       </div>
 
       <div id="abilitySlider">
-        <div class="slick-slider-item" th:each="characterInfo : ${battleCharacterInfoMap.values()}">
-          <div class="ability-panel"
-               th:data-actor-order="${characterInfo.order}" th:classappend="${'actor-' + characterInfo.order}">
+        <!--        <div class="slick-slider-item" th:each="characterInfo : ${battleCharacterInfoMap.values()}">-->
+        <!--          <div class="ability-panel"-->
+        <!--               th:data-actor-order="${characterInfo.order}" th:classappend="${'actor-' + characterInfo.order}">-->
 
-            <div class="ability-battle-portrait">
-              <img src="/assets/img/ch/paladin/battle-portrait.jpg"
-                   th:src="${characterInfo.portraitSrc}">
-              <div class="hp-gauge-wrapper">
-                <div class="hp-gauge">
-                  <div class="barrier-value"><span class="value"></span></div>
-                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>
-                  <div class="progress" role="progressbar">
-                    <div class="progress-bar bg-gradient" style="width: 50%"
-                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"
-                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="charge-gauge-wrapper">
-                <div class="charge-gauge">
-                  <div class="progress" role="progressbar">
-                    <div class="progress-bar" style="width: 50%"
-                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                  </div>
-                  <div class="progress additional"
-                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">
-                    <div class="progress-bar" style="width: 50%"
-                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>
-                  </div>
-                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!--            <div class="ability-battle-portrait">-->
+        <!--              <img src="/assets/img/ch/paladin/battle-portrait.jpg"-->
+        <!--                   th:src="${characterInfo.portraitSrc}">-->
+        <!--              <div class="hp-gauge-wrapper">-->
+        <!--                <div class="hp-gauge">-->
+        <!--                  <div class="barrier-value"><span class="value"></span></div>-->
+        <!--                  <div class="hp-gauge-value"><span class="value" th:text="${characterInfo.hp}">123</span></div>-->
+        <!--                  <div class="progress" role="progressbar">-->
+        <!--                    <div class="progress-bar bg-gradient" style="width: 50%"-->
+        <!--                         th:classappend="${characterInfo.hpRate <= 25 ? 'bg-danger' : ''}"-->
+        <!--                         th:style="${'width: ' + characterInfo.hpRate + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                </div>-->
+        <!--              </div>-->
+        <!--              <div class="charge-gauge-wrapper">-->
+        <!--                <div class="charge-gauge">-->
+        <!--                  <div class="progress" role="progressbar">-->
+        <!--                    <div class="progress-bar" style="width: 50%"-->
+        <!--                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                  <div class="progress additional"-->
+        <!--                       th:classappend="${characterInfo.maxChargeGauge > 100 ? '' : 'hidden'}" role="progressbar">-->
+        <!--                    <div class="progress-bar" style="width: 50%"-->
+        <!--                         th:style="${'width: ' + characterInfo.chargeGauge + '%'}"></div>-->
+        <!--                  </div>-->
+        <!--                  <div class="charge-gauge-value"><span class="value" th:text="${characterInfo.chargeGauge}">50</span>%-->
+        <!--                  </div>-->
+        <!--                </div>-->
+        <!--              </div>-->
+        <!--            </div>-->
 
-            <div class="panel-wrapper">
-              <button class="btn btn-outline-light btn-xxsm other-move-info-button">서포트,<br>오의 상세</button>
+        <!--            <div class="panel-wrapper">-->
 
-              <div class="charge-attack-wrapper">
-                <div class="charge-attack-info">
-                <span class="charge-attack-name fw-bold" th:text="${'[오의] ' + characterInfo.chargeAttack.name}">
-                  오의 이름
-                </span>
-                  <span> : </span>
-                  <span class="charge-attack-text" th:text="${characterInfo.chargeAttack.info}">
-                  오의 설명
-                </span>
-                </div>
-              </div>
+        <!--              <div class="other-move-wrapper">-->
+        <!--                <div class="charge-attack-wrapper">-->
+        <!--                  &lt;!&ndash;                  <button class="open-move-popover charge-attack">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    <span>&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                      오의 : 어쩌고 저쩌고 <img src="/static/gbf/img/status/status_7789.png" class="status-icon" alt="잠룡천상 icon">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    </span>&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  </button>&ndash;&gt;-->
+        <!--                </div>-->
+        <!--                <div class="support-ability-wrapper">-->
+        <!--                  &lt;!&ndash;                  <button class="btn btn-xxsm btn-outline-light open-move-popover support-ability-1">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    서포트 1&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    <img src="" class="status-icon" alt="잠룡천상 icon">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  </button>&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  <button class="btn btn-xxsm btn-outline-light open-move-popover support-ability-2">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    서포트 2&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    <img src="/static/gbf/img/status/status_7789.png" class="status-icon" alt="잠룡천상 icon">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  </button>&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  <button class="btn btn-xxsm btn-outline-light open-move-popover support-ability-3">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    서포트 3&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                    <img src="/static/gbf/img/status/status_7789.png" class="status-icon" alt="잠룡천상 icon">&ndash;&gt;-->
+        <!--                  &lt;!&ndash;                  </button>&ndash;&gt;-->
+        <!--                </div>-->
+        <!--              </div>-->
 
-              <div class="ability-wrapper">
-                <!--
-                  <div class="ability-icon"
-                       data-move-id="${ability.id}"
-                       data-order="${ability.order}"
-                       >
-                      <img src="${ability.iconImageSrc || ''}" alt="abilityIcon"/>
-                      <div class="ability-cooldown-text ${cooldownText ? '' : 'invisible'}">
-                          <span class="value">${cooldownText ? cooldownText : '00'}</span>
-                      </div>
-                      <div class="ability-overlay command-overlay ${isReady ? '' : 'not-ready'}"></div>
-                  </div>
-                 -->
-              </div>
+        <!--              <div class="ability-wrapper">-->
+        <!--                &lt;!&ndash;-->
+        <!--                  <div class="ability-icon"-->
+        <!--                       data-move-id="${ability.id}"-->
+        <!--                       data-order="${ability.order}"-->
+        <!--                       >-->
+        <!--                      <img src="${ability.iconImageSrc || ''}" alt="abilityIcon"/>-->
+        <!--                      <div class="ability-cooldown-text ${cooldownText ? '' : 'invisible'}">-->
+        <!--                          <span class="value">${cooldownText ? cooldownText : '00'}</span>-->
+        <!--                      </div>-->
+        <!--                      <div class="ability-overlay command-overlay ${isReady ? '' : 'not-ready'}"></div>-->
+        <!--                  </div>-->
+        <!--                 &ndash;&gt;-->
+        <!--              </div>-->
 
-            </div> <!-- .panel-wrapper -->
+        <!--            </div> &lt;!&ndash; .panel-wrapper &ndash;&gt;-->
 
-            <div class="status-container party" th:classappend="${'actor-' + characterInfo.order}"
-                 th:data-actor-index="${characterInfo.order}">
-              <div class="show-status-info-button-wrapper">
-                <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>
-              </div>
-            </div>
+        <!--            <div class="status-container party" th:classappend="${'actor-' + characterInfo.order}"-->
+        <!--                 th:data-actor-index="${characterInfo.order}">-->
+        <!--              <div class="show-status-info-button-wrapper">-->
+        <!--                <button class="btn btn-outline-light btn-xxsm show-status-info-button">상세</button>-->
+        <!--              </div>-->
+        <!--            </div>-->
 
-          </div>
-        </div>
+        <!--          </div>-->
+        <!--        </div>-->
       </div>
     </div>
 
@@ -583,7 +664,7 @@
     </div>
 
     <div class="sub-command-container">
-      <button type="button" class="btn btn-sm btn-outline-success potion-modal-button" data-bs-toggle="modal"
+      <button type="button" class="btn btn-sm btn-success potion-modal-button" data-bs-toggle="modal"
               data-bs-target="#potionModal">
         회복
       </button>
@@ -596,6 +677,9 @@
                th:checked="${memberInfo.isChargeAttackOn}">
         <label class="form-check-label" for="chargeAttackActiveCheck">오의 사용</label>
       </div>
+      <button type="button" class="btn btn-sm btn-outline-info" id="resetTutorialButton">
+        튜토리얼 초기화
+      </button>
     </div>
 
   </div> <!-- #commandContainer -->
@@ -627,10 +711,26 @@
             <h1 class="modal-title fs-5" id="menuModalLabel">메뉴</h1>
           </div>
           <div class="modal-body">
-            <div class="test-menu-container m-1 p-1 border border-danger">
+            <div class="volume-range-container">
+              <div class="volume-range-container-header">볼륨 조절</div>
+              <label for="masterVolumeRange" class="">마스터: </label>
+              <output for="masterVolumeRange" id="masterVolumeRangeValue" aria-hidden="true"></output>
+              <input type="range" class="form-range volume-range" min="0" max="100" value="50" id="masterVolumeRange">
+
+              <label for="voiceVolumeRange" class="">보이스: </label>
+              <output for="voiceVolumeRange" id="voiceVolumeRangeValue" aria-hidden="true"></output>
+              <input type="range" class="form-range volume-range" min="0" max="100" value="50" id="voiceVolumeRange">
+
+              <label for="bgmVolumeRange" class="">BGM: </label>
+              <output for="bgmVolumeRange" id="bgmVolumeRangeValue" aria-hidden="true"></output>
+              <input type="range" class="form-range volume-range" min="0" max="100" value="50" id="bgmVolumeRange">
+
+            </div>
+            <div class="test-menu-container m-1 p-1 border border-danger" sec:authorize="hasRole('ROLE_ADMIN')">
               <p>테스트메뉴</p>
-              <button class="btn btn-xsm btn-outline-success me-1" sec:authorize="hasRole('ROLE_ADMIN')" onclick="requestResetCooldown()">쿨타임 초기화</button>
-<!--              <button id="testButton" class="btn btn-xsm btn-outline-success me-1"> 테스트 버튼</button>-->
+              <button class="btn btn-xsm btn-outline-success me-1" onclick="requestResetCooldown()">쿨타임 초기화
+              </button>
+              <!--              <button id="testButton" class="btn btn-xsm btn-outline-success me-1"> 테스트 버튼</button>-->
             </div>
           </div>
           <div class="modal-footer">
@@ -653,21 +753,21 @@
           </div>
           <div class="modal-body">
             <div class="potion-icon-container">
-              <div class="potion-icon-wrapper" data-potion-type="single">
+              <div class="potion-icon-wrapper" data-potion-type="POTION">
                 <img class="potion-icon" src="/assets/img/ui/potion.jpg">
-                <div class="mt-1">포션 <span class="count" th:text="${potionInfo.potionCount}">-1</span></div>
+                <div class="mt-1">포션 <span class="count" th:text="${potionInfo.potionCount + '개'}">-1</span></div>
                 <div class="potion-overlay command-overlay"
                      th:classappend="${potionInfo.potionCount == 0 ? 'not-ready' : ''}"></div>
               </div>
-              <div class="potion-icon-wrapper" data-potion-type="all">
+              <div class="potion-icon-wrapper" data-potion-type="ALL_POTION">
                 <img class="potion-icon" src="/assets/img/ui/all-potion.jpg">
-                <div class="mt-1">올 포션 <span class="count" th:text="${potionInfo.allPotionCount }">-1</span></div>
+                <div class="mt-1">올 포션 <span class="count" th:text="${potionInfo.allPotionCount + '개'}">-1</span></div>
                 <div class="potion-overlay command-overlay"
                      th:classappend="${potionInfo.allPotionCount == 0 ? 'not-ready' : ''}"></div>
               </div>
-              <div class="potion-icon-wrapper" data-potion-type="elixir">
+              <div class="potion-icon-wrapper" data-potion-type="ELIXIR">
                 <img class="potion-icon" src="/assets/img/ui/elixir.jpg">
-                <div class="mt-1">에릭실 <span class="count" th:text="${potionInfo.elixirCount}">-1</span></div>
+                <div class="mt-1">에릭실 <span class="count" th:text="${potionInfo.elixirCount + '개'}">-1</span></div>
                 <div class="potion-overlay command-overlay"
                      th:classappend="${potionInfo.elixirCount == 0 ? 'not-ready' : ''}"></div>
               </div>
@@ -675,27 +775,27 @@
             <div class="potion-detail-container">
               <div class="potion-info">포션 설명</div>
               <div class="potion-target-radio-container">
-                <div>포션을 사용할 대상을 선택하세요.</div>
+                <div class="mb-1">포션을 사용할 대상을 선택하세요.</div>
                 <div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-1"
                            value="1">
-                    <label class="form-check-label" for="potionTargetRadio-1">1번</label>
+                    <label class="form-check-label" for="potionTargetRadio-1">1 번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-2"
                            value="2">
-                    <label class="form-check-label" for="potionTargetRadio-2">2번</label>
+                    <label class="form-check-label" for="potionTargetRadio-2">2 번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-3"
                            value="3">
-                    <label class="form-check-label" for="potionTargetRadio-3">3번</label>
+                    <label class="form-check-label" for="potionTargetRadio-3">3 번</label>
                   </div>
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="potionTarget" id="potionTargetRadio-4"
                            value="4">
-                    <label class="form-check-label" for="potionTargetRadio-4">4번</label>
+                    <label class="form-check-label" for="potionTargetRadio-4">4 번</label>
                   </div>
                 </div>
               </div>
@@ -719,14 +819,13 @@
             data-bs-target="#abilityInfoModal">
       어빌리티 설명 모달 버튼
     </button>
-    <div class="modal fade" id="abilityInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-         aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="abilityInfoModal">
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <!--            <h4 class="modal-title ability-name fs-5">커맨드 이름</h4>-->
           </div>
-          <div class="modal-body">
+          <div class="modal-body command-info-container">
             <!--            <div class="ability-info-wrapper">-->
             <!--              <div class="ability-info-icon-wrapper">-->
             <!--                <img class="ability-info-icon" src="">-->
@@ -736,12 +835,12 @@
             <!--            </div>-->
           </div>
           <div class="modal-footer">
-            <div class="form-check form-switch">
+            <div class="form-check form-switch show-status-effect-details-switch">
               <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
                      id="abilityStatusEffectInfoCheck">
               <label class="form-check-label" for="abilityStatusEffectInfoCheck">효과 상세</label>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 close-ability-info-modal-button"
+            <button type="button" class="btn btn-outline-secondary btn-sm close-ability-info-modal-button"
                     data-bs-dismiss="modal">
               닫기
             </button>
@@ -751,20 +850,20 @@
       </div>
     </div>
 
-    <!--기타 행동 어빌리티 상세 모달-->
-    <button type="button" class="btn btn-primary other-move-info-modal-button inner-modal-open-button"
+
+    <!-- 커맨드 메타데이터 모달 -->
+    <button type="button" class="btn btn-primary command-metadata-info-modal-button inner-modal-open-button"
             data-bs-toggle="modal"
-            data-bs-target="#otherMoveInfoModal">
-      기타 행동 설명 모달 버튼
+            data-bs-target="#commandMetadataInfoModal">
+      커멘드 메타데이터 모달 버튼
     </button>
-    <div class="modal fade" id="otherMoveInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-         aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="commandMetadataInfoModal">
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <!--            <h4 class="modal-title ability-name fs-5">기타 행동</h4>-->
+            <!--            <h4 class="modal-title ability-name fs-5">커맨드 이름</h4>-->
           </div>
-          <div class="modal-body">
+          <div class="modal-body command-info-container">
             <!--            <div class="ability-info-wrapper">-->
             <!--              <div class="ability-info-icon-wrapper">-->
             <!--                <img class="ability-info-icon" src="">-->
@@ -774,13 +873,11 @@
             <!--            </div>-->
           </div>
           <div class="modal-footer">
-            <!--            <button type="button" class="btn btn-outline-success show-status-info-button btn-sm me-2">효과 상세</button>-->
-            <div class="form-check form-switch">
-              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"
-                     id="otherMoveStatusEffectInfoCheck">
-              <label class="form-check-label" for="otherMoveStatusEffectInfoCheck">효과 상세</label>
-            </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm close-ability-info-modal-button"
+            <button type="button" class="btn btn-outline-success btn-sm" data-bs-target="#abilityInfoModal"
+                    data-bs-toggle="modal">
+              이전
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
                     data-bs-dismiss="modal">
               닫기
             </button>
@@ -788,6 +885,44 @@
         </div>
       </div>
     </div>
+
+    <!--기타 행동 어빌리티 상세 모달-->
+    <!--    <button type="button" class="btn btn-primary other-move-info-modal-button inner-modal-open-button"-->
+    <!--            data-bs-toggle="modal"-->
+    <!--            data-bs-target="#otherMoveInfoModal">-->
+    <!--      기타 행동 설명 모달 버튼-->
+    <!--    </button>-->
+    <!--    <div class="modal fade" id="otherMoveInfoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"-->
+    <!--         aria-labelledby="exampleModalLabel" aria-hidden="true">-->
+    <!--      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">-->
+    <!--        <div class="modal-content">-->
+    <!--          <div class="modal-header">-->
+    <!--            &lt;!&ndash;            <h4 class="modal-title ability-name fs-5">기타 행동</h4>&ndash;&gt;-->
+    <!--          </div>-->
+    <!--          <div class="modal-body">-->
+    <!--            &lt;!&ndash;            <div class="ability-info-wrapper">&ndash;&gt;-->
+    <!--            &lt;!&ndash;              <div class="ability-info-icon-wrapper">&ndash;&gt;-->
+    <!--            &lt;!&ndash;                <img class="ability-info-icon" src="">&ndash;&gt;-->
+    <!--            &lt;!&ndash;              </div>&ndash;&gt;-->
+    <!--            &lt;!&ndash;              <div class="ability-info-text">&ndash;&gt;-->
+    <!--            &lt;!&ndash;              </div>&ndash;&gt;-->
+    <!--            &lt;!&ndash;            </div>&ndash;&gt;-->
+    <!--          </div>-->
+    <!--          <div class="modal-footer">-->
+    <!--            &lt;!&ndash;            <button type="button" class="btn btn-outline-success show-status-info-button btn-sm me-2">효과 상세</button>&ndash;&gt;-->
+    <!--            <div class="form-check form-switch">-->
+    <!--              <input class="form-check-input show-status-effect-details-check" type="checkbox" role="switch"-->
+    <!--                     id="otherMoveStatusEffectInfoCheck">-->
+    <!--              <label class="form-check-label" for="otherMoveStatusEffectInfoCheck">효과 상세</label>-->
+    <!--            </div>-->
+    <!--            <button type="button" class="btn btn-outline-secondary btn-sm close-ability-info-modal-button"-->
+    <!--                    data-bs-dismiss="modal">-->
+    <!--              닫기-->
+    <!--            </button>-->
+    <!--          </div>-->
+    <!--        </div>-->
+    <!--      </div>-->
+    <!--    </div>-->
 
     <!-- 스테이터스 모달 -->
     <button type="button" class="btn btn-primary status-modal-button inner-modal-button" data-bs-toggle="modal"
@@ -799,7 +934,7 @@
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title" id="statusModalLabel">상태 정보</h1>
+            <h1 class="modal-title" id="statusModalLabel">현재 상태 정보</h1>
           </div>
           <div class="modal-body">
 
@@ -825,7 +960,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-dismiss="modal">
+            <button type="button" class="btn btn-sm btn-secondary me-1 close-status-info-modal-button"
+                    data-bs-dismiss="modal">
               닫기
             </button>
           </div>
@@ -840,7 +976,7 @@
 
           <div class="modal-header">
             <h5 class="modal-title">채팅</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button type="button" class="btn-close bg-light" data-bs-dismiss="modal"></button>
           </div>
 
           <!-- 이전 대화 스크롤 영역 -->
@@ -849,21 +985,23 @@
 
           <!-- 숏 메시지 -->
           <div id="shortMessagePanel">
-            <button class="btn btn-xxsm btn-outline-light short-message-button">방어효과 요청</button>
-            <button class="btn btn-xxsm btn-outline-light short-message-button">회복효과 요청</button>
-            <button class="btn btn-xxsm btn-outline-light short-message-button">클리어효과 요청</button>
-            <button class="btn btn-xxsm btn-outline-light short-message-button">오의게이지 요청</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">회복효과 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">오의게이지 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">클리어효과 요청!</button>
+            <button class="btn btn-xxsm btn-outline-light short-message-button">방어효과 요청!</button>
           </div>
 
           <!-- 스탬프 패널 (기본 숨김) -->
           <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6;">
-<!--          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6; flex-wrap:wrap; gap:6px;">-->
-            <img class="stamp-item" data-stamp-key="OK" src="/static/gbf/img/stamp/ok.png" style="width:52px;cursor:pointer;">
-            <img class="stamp-item" data-stamp-key="THANKS" src="/static/gbf/img/stamp/thanks.png" style="width:52px;cursor:pointer;">
+            <!--          <div id="stampPanel" style="display:none; padding:8px; border-top:1px solid #dee2e6; flex-wrap:wrap; gap:6px;">-->
+            <img class="stamp-item" data-stamp-key="OK" src="/static/gbf/img/stamp/ok.png"
+                 style="width:52px;cursor:pointer;">
+            <img class="stamp-item" data-stamp-key="THANKS" src="/static/gbf/img/stamp/thanks.png"
+                 style="width:52px;cursor:pointer;">
           </div>
 
           <div class="modal-footer" style="gap:6px; flex-wrap:nowrap;">
-            <button id="toggleStampBtn" class="btn btn-outline-secondary btn-sm">스탬프</button>
+            <button id="toggleStampBtn" class="btn btn-outline-warning btn-sm">스탬프</button>
             <input type="text" id="chatInput" class="form-control form-control-sm"
                    placeholder="메시지..." maxlength="100" style="flex:1;">
             <button id="chatSendBtn" class="btn btn-primary btn-sm">전송</button>
